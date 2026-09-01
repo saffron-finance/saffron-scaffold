@@ -34,17 +34,13 @@ export interface ChainDef {
   explorer: string
 }
 
-// Verified against saffron-fixed-income packages/api-types/src/chains.ts (VAULT_FACTORY_CONFIG) and
-// the explorer links Joey sent. `active` first, `legacy` after.
+// Keep this registry explicit: each entry is the single supported factory for its chain.
 export const CHAINS: ChainDef[] = [
   {
     key: 'ethereum',
     label: 'Ethereum',
     chain: mainnet,
-    factories: [
-      '0x7fE802B891734DB681b7353bFF9E6c85ce0ab200', // active
-      '0xd4E8582e36AF0E0d5c1bcd8303984870b086d3d2', // legacy (still holds vaults)
-    ],
+    factories: ['0x7fE802B891734DB681b7353bFF9E6c85ce0ab200'],
     publicRpc: 'https://ethereum-rpc.publicnode.com',
     explorer: 'https://etherscan.io',
   },

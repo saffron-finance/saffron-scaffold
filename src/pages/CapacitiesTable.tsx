@@ -8,6 +8,7 @@ import { ChainSelector } from '../components/ChainSelector'
 import { VaultTokenSelector } from '../components/VaultTokenSelector'
 import { PairSelector } from '../components/PairSelector'
 import { DepositModal } from '../components/DepositModal'
+import { IS_STATIC_MOCK } from '../mock/mode'
 
 const PAGE = 12
 
@@ -46,10 +47,12 @@ export function CapacitiesTable({
   vaults,
   account,
   onConnect,
+  readOnly = false,
 }: {
   vaults: VariableVault[]
   account: string | null
   onConnect: () => void | Promise<void>
+  readOnly?: boolean
 }) {
   const [openOnly, setOpenOnly] = useState(true)
   const [inRangeOnly, setInRangeOnly] = useState(true)
@@ -82,6 +85,18 @@ export function CapacitiesTable({
   }, [optionsOpen])
   const [ranges, setRanges] = useState<Map<string, FixedRange>>(new Map())
   const [modalVault, setModalVault] = useState<VariableVault | null>(null)
+
+  // Load the committed range fixture only in the serverless example build.
+  useEffect(() => {
+    if (!IS_STATIC_MOCK) return
+    let cancelled = false
+    void import('../mock/snapshot').then(({ loadMockRanges }) => {
+      if (!cancelled) setRanges(loadMockRanges())
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // The base set the pair dropdown + filter operate on (before the pair filter itself).
   const baseList = useMemo(() => {
@@ -116,6 +131,7 @@ export function CapacitiesTable({
   // Load the fixed-side ranges for the whole base set so we know every vault's yield pair (from its
   // pool's poolKey, read live on-chain — no separate database needed).
   useEffect(() => {
+    if (IS_STATIC_MOCK) return
     const missing = baseList.filter((v) => !ranges.has(v.vault.toLowerCase()))
     if (missing.length === 0) return
     let cancelled = false
@@ -258,7 +274,7 @@ export function CapacitiesTable({
               <div
                 key={`${v.chainKey}-${v.factory}-${v.vaultId}`}
                 className={`vault-row ${canDeposit ? 'is-open' : ''}`}
-                onClick={() => canDeposit && setModalVault(v)}
+                onClick={() => canDeposit && !readOnly && setModalVault(v)}
               >
                 <div className="vr-vault vr-vault-first" data-label="Vault">
                   <IconWithChain chainKey={v.chainKey}>

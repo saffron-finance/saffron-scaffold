@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { type Address } from 'viem'
 import { hasWallet, connect, currentAccounts, currentChainId, onWalletChange } from '../wallet/wallet'
+import { IS_STATIC_MOCK } from '../mock/mode'
 
 export function useWallet() {
   const [account, setAccount] = useState<Address | null>(null)
@@ -30,10 +31,23 @@ export function useWallet() {
   }, [])
 
   useEffect(() => {
+    // The static example must not inspect or subscribe to an injected wallet.
+    if (IS_STATIC_MOCK) return
     if (!hasWallet()) return
     void readState()
     return onWalletChange(() => void readState())
   }, [readState])
+
+  if (IS_STATIC_MOCK) {
+    return {
+      account: null,
+      chainId: undefined,
+      connecting: false,
+      error: null,
+      available: false,
+      connect: async () => {},
+    }
+  }
 
   return { account, chainId, connecting, error, available: hasWallet(), connect: doConnect }
 }

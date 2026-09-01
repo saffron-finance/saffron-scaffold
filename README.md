@@ -61,3 +61,10 @@ rg -n -i 'api.key|secret|password|private.key' dist
 ```
 
 The second command should return no matches.
+
+## Static example
+
+`npm run build:mock` creates a serverless, read-only build from the committed
+onchain fixture in `src/mock/snapshot.json`. It performs no RPC requests and
+disables wallet actions. GitHub Actions publishes that build to GitHub Pages on
+every push to `main`.

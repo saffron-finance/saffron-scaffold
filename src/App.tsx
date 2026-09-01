@@ -3,6 +3,7 @@ import { useVaults } from './hooks/useVaults'
 import { useWallet } from './hooks/useWallet'
 import { CapacitiesTable } from './pages/CapacitiesTable'
 import { shortAddr } from './lib/format'
+import { IS_STATIC_MOCK } from './mock/mode'
 
 /**
  * Render the standalone Saffron Scaffold experience.
@@ -33,7 +34,7 @@ export default function App() {
           <p className="sub">Earn boosted yield from existing onchain Uniswap LP positions.</p>
         </div>
         <div className="top-actions">
-          {wallet.available && (
+          {!IS_STATIC_MOCK && wallet.available && (
             <button className="wallet-btn" onClick={() => void wallet.connect()} disabled={wallet.connecting}>
               {wallet.account ? `● ${shortAddr(wallet.account)}` : wallet.connecting ? 'Connecting…' : 'Connect wallet'}
             </button>
@@ -51,8 +52,9 @@ export default function App() {
 
       <CapacitiesTable
         vaults={vaults}
-        account={wallet.account}
-        onConnect={() => wallet.connect()}
+        account={IS_STATIC_MOCK ? null : wallet.account}
+        onConnect={() => (IS_STATIC_MOCK ? Promise.resolve() : wallet.connect())}
+        readOnly={IS_STATIC_MOCK}
       />
     </div>
   )

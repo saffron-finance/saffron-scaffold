@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:mock": "VITE_USE_MOCK_DATA=true npm run build",
     "preview": "vite preview",
     "serve": "node server/proxy.mjs",
     "start": "npm run build && node server/proxy.mjs"
