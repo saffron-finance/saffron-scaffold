@@ -39,6 +39,8 @@
 
 - `npm run build:mock` uses `src/mock/snapshot.json`; it must make no RPC calls
   and must not expose wallet actions.
+- GitHub Pages publishes that build at
+  `https://saffron-finance.github.io/saffron-scaffold/`.
 - The fixture is an onchain snapshot, not a test invention. Preserve bigint
   values as decimal strings in JSON and rehydrate them in `snapshot.ts`.
 - Refresh the fixture intentionally from a verified live build, record its UTC
