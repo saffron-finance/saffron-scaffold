@@ -1,0 +1,519 @@
+/*
+ * Standalone LiqiFi visual system. The signature fill is sampled from the
+ * product reference: lavender -> blue-grey -> sage.
+ */
+
+body.liqifi-body {
+  background: #efefef;
+  color: #111111;
+}
+
+.liqifi {
+  /* Reference-image neutrals and the sampled deposit-card gradient. */
+  --product-canvas: #efefef;
+  --product-surface: #dfdfdf;
+  --product-surface-soft: #e8e8e8;
+  --product-border: #c7c7c7;
+  --product-ink: #111111;
+  --product-muted: #5f5f5f;
+  --product-blue: #5b76cb;
+  --product-green: #5aa600;
+  /* Exact neutral range colors sampled from the supplied reference image. */
+  --product-unfilled-range-track: #e5e5e5;
+  --product-unfilled-range-band: #dadada;
+  --product-unfilled-range-marker: #888888;
+  --product-gradient: linear-gradient(
+    90deg,
+    #bec7ee 0%,
+    #c0c9e3 28%,
+    #c2cbd4 50%,
+    #c3ccc5 72%,
+    #c4cdb8 100%
+  );
+
+  /* Re-map the existing design tokens without changing the typography scale. */
+  --bg: var(--product-canvas);
+  --card: #ffffff;
+  --input: var(--product-surface-soft);
+  --raised: var(--product-surface);
+  --hover: #e3e8e4;
+  --line: #d0d0d0;
+  --line-faint: #dddddd;
+  --line-strong: #b9b9b9;
+  --text: var(--product-ink);
+  --text-2: #2a2a2a;
+  --text-dim: var(--product-muted);
+  --text-label: #4f4f4f;
+  --creme: var(--product-ink);
+  --variable: var(--product-blue);
+  --variable-soft: rgba(190, 199, 238, 0.55);
+  --green: #2f7200;
+  --yellow: #765900;
+  --cyan: #176a88;
+  --shadow-pop: 0 16px 44px rgba(31, 42, 37, 0.14);
+  --glow-red: none;
+
+  min-height: 100vh;
+  color: var(--product-ink);
+}
+
+/* Pared-back product header matching the supplied design reference. */
+.liqifi .top {
+  align-items: flex-end;
+  margin-bottom: 26px;
+  padding-bottom: 20px;
+}
+
+.liqifi .top h1 {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.liqifi .wallet-btn {
+  min-width: 138px;
+  padding: 11px 18px;
+  border-radius: 4px;
+}
+
+/* Header and global controls: off-white canvas, neutral controls, black active state. */
+.liqifi .top {
+  border-color: var(--product-border);
+}
+
+.liqifi .brand-mark {
+  background: var(--product-gradient);
+  box-shadow: none;
+}
+
+.liqifi .brand-name,
+.liqifi .top h1,
+.liqifi .top h1 em {
+  color: var(--product-ink);
+}
+
+.liqifi .sub {
+  color: var(--product-muted);
+}
+
+.liqifi .tabs,
+.liqifi .refresh,
+.liqifi .sort {
+  background: var(--product-surface);
+  border-color: var(--product-border);
+  color: var(--product-ink);
+}
+
+.liqifi .tab,
+.liqifi .toggle {
+  color: #4a4a4a;
+}
+
+.liqifi .tab:hover {
+  color: #000000;
+}
+
+.liqifi .tab-on {
+  background: #000000;
+  color: #ffffff;
+}
+
+.liqifi .wallet-btn {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+.liqifi .refresh:hover:not(:disabled) {
+  border-color: #000000;
+  color: #000000;
+}
+
+.liqifi .sort option {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* The large capacities surface carries the exact reference gradient. */
+.liqifi .vaults-panel {
+  background: var(--product-gradient);
+  color: var(--product-ink);
+  box-shadow: 0 18px 50px rgba(58, 73, 67, 0.12);
+}
+
+.liqifi .vaults-badge,
+.liqifi .chainsel-trigger,
+.liqifi .pair-select,
+.liqifi .options-cog {
+  background: rgba(255, 255, 255, 0.44);
+  border-color: rgba(17, 17, 17, 0.16);
+  color: var(--product-ink);
+}
+
+.liqifi .vaults-badge {
+  color: #222222;
+}
+
+.liqifi .vaults-sub,
+.liqifi .vaults-toggle,
+.liqifi .vaults-grid-head,
+.liqifi .vaults-grid-head .th,
+.liqifi .vr-dim,
+.liqifi .vaults-pager {
+  color: rgba(17, 17, 17, 0.62);
+}
+
+.liqifi .vaults-grid-head .th:hover,
+.liqifi .vaults-grid-head .th-on {
+  color: #000000;
+}
+
+.liqifi .vault-row {
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.liqifi .vault-row.is-open:hover {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.liqifi .vr-cap-open {
+  color: #2d6500;
+}
+
+.liqifi .chainsel-menu {
+  background: #f4f4f4;
+  border-color: #c9c9c9;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
+}
+
+.liqifi .chainsel-item,
+.liqifi .options-check,
+.liqifi .pair-select option {
+  color: #111111;
+}
+
+.liqifi .chainsel-item:hover,
+.liqifi .chainsel-item.sel,
+.liqifi .options-check:hover {
+  background: #dfdfdf;
+}
+
+.liqifi .pair-select option {
+  background: #f4f4f4;
+}
+
+.liqifi .pairsel-count {
+  color: #666666;
+}
+
+.liqifi .vaults-pager button {
+  background: rgba(255, 255, 255, 0.52);
+  border-color: rgba(17, 17, 17, 0.2);
+  color: #111111;
+}
+
+/* Reference range styling: soft grey rail, vivid green range, black current marker. */
+.liqifi .rangebar-track {
+  background: rgba(17, 17, 17, 0.2);
+}
+
+.liqifi .rangebar-band {
+  background: var(--product-green);
+}
+
+.liqifi .rangebar-marker {
+  background: #111111;
+}
+
+/* A missing fixed deposit has no active UniV3 position to classify as in/out
+   of range. Both modal bar layouts use the reference-image neutral palette. */
+.liqifi .rangebar.fixed-unfilled .rangebar-track {
+  background: var(--product-unfilled-range-track);
+}
+
+.liqifi .rangebar.fixed-unfilled .rangebar-band,
+.liqifi .rangebar.fixed-unfilled .rangebar-band.out {
+  background: var(--product-unfilled-range-band);
+}
+
+.liqifi .rangebar.fixed-unfilled .rangebar-marker {
+  background: var(--product-unfilled-range-marker);
+}
+
+/* Vault-card view receives the same visual language if the user changes tabs. */
+.liqifi .total-card,
+.liqifi .variable-block {
+  background: var(--product-gradient);
+  border-color: transparent;
+}
+
+.liqifi .card {
+  background: #ffffff;
+  border-color: #d0d0d0;
+}
+
+.liqifi .card:hover {
+  border-color: #a8a8a8;
+}
+
+.liqifi .chain-tag,
+.liqifi .variable-label,
+.liqifi .dep-toggle {
+  color: #415995;
+}
+
+.liqifi .bar,
+.liqifi .cap-bar {
+  background: rgba(17, 17, 17, 0.1);
+}
+
+.liqifi .bar-fill,
+.liqifi .cap-bar-fill {
+  background: linear-gradient(90deg, #4d8f00, #75b900);
+  box-shadow: none;
+}
+
+.liqifi .variable-open {
+  background: rgba(90, 166, 0, 0.12);
+  border-color: rgba(47, 114, 0, 0.22);
+  color: #2f7200;
+}
+
+.liqifi .dep-panel {
+  background: #f3f3f3;
+}
+
+.liqifi .dep-row,
+.liqifi .dep-amt {
+  color: #222222;
+}
+
+.liqifi .pg {
+  background: #dfdfdf;
+  color: #222222;
+}
+
+.liqifi .pg-on {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+/*
+ * Deposit modal: near-full white sheet, grey stat tiles, gradient amount field,
+ * and the black pill CTA seen in the screenshot. Font sizes are intentionally
+ * inherited from the original modal.
+ */
+.liqifi .dm-backdrop {
+  background: rgba(8, 9, 9, 0.9);
+  backdrop-filter: blur(6px);
+}
+
+.liqifi .dm {
+  /* Keep the desktop sheet close to the compact reference modal while the
+     inherited max-width continues to protect narrow/mobile viewports. */
+  width: 660px;
+  background: var(--product-canvas);
+  border: 1px solid #d2d2d2;
+  color: var(--product-ink);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+}
+
+.liqifi .dm-head {
+  position: relative;
+  justify-content: flex-start;
+}
+
+/* Vault token + chain badge stay with the left-aligned title; the fixed-side
+   yield pair returns to the right edge beside the close control. */
+.liqifi .dm-head > .icon-chain {
+  display: inline-flex;
+}
+
+.liqifi .dm-head-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.liqifi .dm-yield {
+  background: #dedede;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.liqifi .dm-title {
+  align-self: auto;
+  display: flex;
+  align-items: center;
+  margin-left: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  color: #111111;
+}
+
+.liqifi .dm-x {
+  position: static;
+  background: transparent;
+  color: #111111;
+}
+
+.liqifi .dm-x:hover:not(:disabled) {
+  background: #dedede;
+  color: #000000;
+}
+
+.liqifi .dm-stats > div {
+  gap: 0;
+  overflow: hidden;
+  background: var(--product-surface);
+  border-radius: 18px;
+}
+
+.liqifi .dm-stats span,
+.liqifi .dm-stats b {
+  color: #111111;
+  padding: 12px 16px;
+}
+
+.liqifi .dm-stats span {
+  display: flex;
+  align-items: center;
+  min-height: 41px;
+  white-space: nowrap;
+  border-bottom: 1px solid #c7c7c7;
+}
+
+.liqifi .dm-deposit-label {
+  color: #111111;
+}
+
+.liqifi .dm-amount {
+  align-items: stretch;
+  overflow: hidden;
+  padding: 5px;
+  background: var(--product-gradient);
+  border-radius: 20px;
+}
+
+.liqifi .dm-amount input {
+  background: transparent;
+  border-color: transparent;
+  color: #111111;
+}
+
+.liqifi .dm-amount input::placeholder {
+  color: rgba(17, 17, 17, 0.46);
+}
+
+.liqifi .dm-amount input:focus {
+  border-color: rgba(17, 17, 17, 0.26);
+}
+
+.liqifi .dm-max {
+  background: #000000;
+  color: #ffffff;
+  border-radius: 16px;
+}
+
+.liqifi .dm-range {
+  background: transparent;
+}
+
+.liqifi .dm-range-head {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.liqifi .dm-range-head > span {
+  color: #111111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.liqifi .dm-toggle {
+  border-color: #bcbcbc;
+}
+
+.liqifi .dm-toggle span {
+  color: #555555;
+}
+
+.liqifi .dm-toggle span.on {
+  background: #111111;
+  color: #ffffff;
+}
+
+.liqifi .dm-range-vals .dim,
+.liqifi .dm-notice,
+.liqifi .dm-account {
+  color: #5f5f5f;
+}
+
+.liqifi .dm-range-vals .mid {
+  background: var(--product-green);
+  border-color: var(--product-green);
+  color: #ffffff;
+}
+
+.liqifi .dm-status,
+.liqifi .lp-row span,
+.liqifi .lp-row a {
+  color: #222222;
+}
+
+.liqifi .lp-row {
+  border-color: #d4d4d4;
+}
+
+.liqifi .dm-cta {
+  background: #000000;
+  color: #ffffff;
+  border-radius: 999px;
+}
+
+.liqifi .dm-cta:hover:not(:disabled) {
+  background: #222222;
+}
+
+.liqifi .dm-cta:disabled {
+  background: #d6d6d6;
+  color: #777777;
+}
+
+.liqifi .dm-tx {
+  color: #2f7200;
+}
+
+@media (max-width: 720px) {
+  /* The cog can wrap near the left half of the controls row. Open its wider
+     three-option menu toward the right so the new label stays on-screen. */
+  .liqifi .options-menu {
+    left: 0;
+    right: auto;
+  }
+
+  /* The original mobile table used white labels for its dark panel. LiqiFi 2's
+     pale gradient needs ink labels so no white text disappears on the cards. */
+  .liqifi .vault-row > div {
+    border-bottom-color: rgba(17, 17, 17, 0.1);
+  }
+
+  .liqifi .vault-row > div::before {
+    color: rgba(17, 17, 17, 0.55);
+  }
+
+  /* Preserve the left/right header grouping without reserving space for the
+     old absolutely positioned close button. */
+  .liqifi .dm-head {
+    justify-content: flex-start;
+    padding-right: 0;
+  }
+
+  .liqifi .dm-yield {
+    padding: 4px 6px;
+  }
+}

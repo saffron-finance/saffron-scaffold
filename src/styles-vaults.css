@@ -1,0 +1,274 @@
+/* ============================================================
+   Vaults panel — template look (blue gradient) adapted for the variable side
+   ============================================================ */
+.vaults-panel {
+  margin-top: 8px;
+  border-radius: 24px;
+  padding: 30px 26px 22px;
+  background: linear-gradient(125deg, #046e7b 0%, #0d739c 28%, #2078cf 62%, #3685ff 100%);
+  color: #fff;
+}
+.vaults-head { display: flex; align-items: center; gap: 14px; }
+.vaults-title { font-family: var(--font-body); font-size: 34px; font-weight: 600; letter-spacing: -0.5px; }
+.vaults-badge { background: rgba(255, 255, 255, 0.16); border-radius: 999px; padding: 6px 15px; font-size: 14px; color: rgba(255, 255, 255, 0.92); }
+.vaults-sub { margin-top: 10px; font-size: 15px; color: rgba(255, 255, 255, 0.6); }
+.vaults-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+.vaults-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-body); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.8); cursor: pointer;
+}
+.vaults-toggle input { accent-color: #fff; }
+.pair-select {
+  background: rgba(255, 255, 255, 0.12); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px; font-family: var(--font-body); font-size: 12px; padding: 8px 16px; cursor: pointer;
+}
+.pair-select:hover { border-color: rgba(255, 255, 255, 0.4); }
+.pair-select option { background: #10314f; color: #fff; }
+.vaults-empty { padding: 40px 0; text-align: center; color: rgba(255, 255, 255, 0.5); font-family: var(--font-body); font-size: 13px; }
+
+/* chain selector — modeled on Uniswap's explore network dropdown */
+.chainsel { position: relative; display: inline-block; }
+.chainsel-trigger {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.12); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px; font-family: var(--font-body); font-size: 12px; padding: 7px 14px; cursor: pointer;
+}
+.chainsel-trigger:hover { border-color: rgba(255, 255, 255, 0.4); }
+.chainsel-logo { border-radius: 50%; background: #fff; object-fit: cover; box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.3); display: block; }
+.chainsel-all { display: inline-flex; align-items: center; }
+.chainsel-chev { font-size: 10px; transition: transform 0.15s; }
+.chainsel-chev.up { transform: rotate(180deg); }
+.chainsel-menu {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50; min-width: 230px;
+  background: #10233a; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 8px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+.chainsel-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: none; border: none; color: #fff; font-family: var(--font-body); font-size: 14px;
+  padding: 10px 12px; border-radius: 10px; cursor: pointer; text-align: left;
+}
+.chainsel-item:hover { background: rgba(255, 255, 255, 0.08); }
+.chainsel-item.sel { background: rgba(255, 255, 255, 0.05); }
+.chainsel-name { flex: 1; }
+.chainsel-check { color: #4ade80; font-size: 13px; }
+.pairsel-menu { max-height: 360px; overflow-y: auto; }
+.pairsel-count { color: rgba(255, 255, 255, 0.4); font-size: 12px; }
+
+/* options cogwheel + popover */
+.options-cog {
+  display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 34px;
+  background: rgba(255, 255, 255, 0.12); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px; font-size: 15px; cursor: pointer; line-height: 1;
+}
+.options-cog:hover { border-color: rgba(255, 255, 255, 0.4); }
+.options-menu { left: auto; right: 0; min-width: 210px; }
+.options-check {
+  display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px; cursor: pointer;
+  font-family: var(--font-body); font-size: 14px; color: #fff;
+}
+.options-check:hover { background: rgba(255, 255, 255, 0.08); }
+.options-check input { accent-color: #4ade80; width: 16px; height: 16px; }
+
+.vaults-grid-head,
+.vault-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr 0.9fr 2fr 1.5fr;
+  gap: 16px;
+  align-items: center;
+}
+.vaults-grid-head {
+  padding: 0 20px 12px; margin-top: 22px;
+  font-family: var(--font-body); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.vt-right { text-align: right; }
+.vaults-grid-head .th {
+  background: none; border: 0; padding: 0; cursor: pointer; text-align: left; line-height: 1.2;
+  font-family: var(--font-body); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6); transition: color 0.12s;
+}
+.vaults-grid-head .th:hover, .vaults-grid-head .th-on { color: #fff; }
+.vaults-rows { display: flex; flex-direction: column; gap: 10px; }
+.vault-row {
+  padding: 15px 20px; border-radius: 14px; background: rgba(255, 255, 255, 0.08);
+  transition: background 0.15s;
+}
+.vault-row.is-open { cursor: pointer; }
+.vault-row.is-open:hover { background: rgba(255, 255, 255, 0.16); }
+
+.vr-yield { display: flex; align-items: center; gap: 14px; font-size: 19px; }
+.vr-pair { font-weight: 600; }
+.vr-cap { font-family: var(--font-body); font-size: 16px; display: flex; flex-direction: column; gap: 3px; }
+.vr-cap-open { font-size: 11px; color: #bff7d1; }
+.vr-term { display: flex; flex-direction: column; }
+/* Capacity and term use one shared value style so their typography cannot drift. */
+.vr-table-value { font-family: var(--font-body); font-size: 16px; font-weight: 400; color: inherit; }
+.vr-small { font-size: 12px; }
+.vr-dim { color: rgba(255, 255, 255, 0.45); }
+.vr-range { display: flex; align-items: center; }
+.vr-vault { display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-family: var(--font-body); font-size: 19px; }
+.vr-vault-first { justify-content: flex-start; font-weight: 600; }
+
+.vaults-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; font-family: var(--font-body); font-size: 13px; color: rgba(255, 255, 255, 0.8); }
+.vaults-pager button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #fff; cursor: pointer; }
+.vaults-pager button:disabled { opacity: 0.35; cursor: default; }
+
+/* token coins — real logo or monogram fallback. flex-shrink:0 keeps them from being squished
+   (which read as "cropped") inside flex rows; the outer ring cleanly separates overlapping pairs. */
+.token-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  border-radius: 50%; color: #fff; font-family: var(--font-body); font-weight: 600; line-height: 1;
+  box-shadow: 0 0 0 2px #fff;
+}
+.token-logo {
+  display: block; flex-shrink: 0; border-radius: 50%; object-fit: cover; background: #fff;
+  box-shadow: 0 0 0 2px #fff;
+}
+.token-pair { display: inline-flex; align-items: center; flex-shrink: 0; }
+.token-pair > * { flex-shrink: 0; }
+/* chain badge overlaid on the bottom-right of a token icon (like Uniswap explore) */
+.icon-chain { position: relative; display: inline-flex; flex-shrink: 0; }
+.chain-badge { position: absolute; right: -3px; bottom: -3px; border-radius: 50%; background: #fff; object-fit: cover; box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55); }
+/* the vault-token chain badge on the modal is larger and offset a bit more */
+.dm-head .chain-badge { right: -7px; bottom: -7px; }
+
+/* range slider indicator */
+.rangebar { position: relative; width: 100%; max-width: 140px; height: 18px; }
+.rangebar-wide { max-width: 130px; }
+.rangebar-full { max-width: none; margin-top: 6px; }
+.rangebar-track { position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+.rangebar-band { position: absolute; top: 4px; height: 10px; border-radius: 2px; background: #4ade80; }
+.rangebar-band.out { background: #de4a4a; }
+.rangebar-marker { position: absolute; top: 0; width: 3px; height: 18px; margin-left: -1.5px; background: #fff; border-radius: 1px; }
+
+/* ============================================================
+   Deposit modal — template style, variable side
+   ============================================================ */
+.dm-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(5px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.dm { width: 560px; max-width: 94vw; max-height: 90vh; overflow: auto; background: #161616; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 26px; color: #fff; }
+.dm-head { display: flex; align-items: center; gap: 12px; }
+.dm-title { font-family: var(--font-body); font-size: 23px; font-weight: 600; }
+.dm-head-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.dm-yield { display: flex; align-items: center; padding: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
+.dm-x { width: 36px; height: 36px; border-radius: 50%; background: #242424; color: #aaa; border: none; font-size: 18px; cursor: pointer; }
+.dm-x:hover:not(:disabled) { color: #fff; }
+.dm-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 22px; }
+.dm-stats > div { display: flex; flex-direction: column; gap: 6px; }
+.dm-stats span { font-family: var(--font-body); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.dm-stats b { font-family: var(--font-body); font-size: 17px; font-weight: 700; }
+.dm-deposit-label { margin-top: 24px; font-family: var(--font-body); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.dm-amount { display: flex; gap: 8px; margin-top: 8px; }
+.dm-amount input { flex: 1; background: #1e1e1e; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #fff; font-family: var(--font-body); font-size: 22px; padding: 14px 16px; width: 100%; }
+.dm-amount input:focus { outline: none; border-color: #4ade80; }
+.dm-max { background: #2a2a2a; color: #4ade80; border: none; border-radius: 12px; font-family: var(--font-body); font-size: 12px; padding: 0 18px; cursor: pointer; }
+.dm-warn { color: #ffd166; font-family: var(--font-body); font-size: 11px; margin-top: 6px; }
+.dm-range { margin-top: 16px; background: #1e1e1e; border-radius: 14px; overflow: hidden; }
+.dm-range-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; cursor: pointer; }
+.dm-range-head > span { font-family: var(--font-body); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.65); white-space: nowrap; }
+.dm-toggle { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); }
+.dm-toggle span { padding: 5px 14px; font-size: 12px; color: #8f8f8f; cursor: pointer; font-family: var(--font-body); }
+.dm-toggle span.on { background: #323232; color: #fff; }
+.dm-range-body { padding: 4px 18px 20px; }
+.dm-range-badge { display: flex; justify-content: flex-end; margin-bottom: 2px; }
+.dm-range-body .lp-rows { margin-top: 18px; }
+.dm-range-body .lp-row { padding: 12px 0; font-size: 14px; }
+.dm-range-vals { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-family: var(--font-body); font-size: 12px; }
+.dm-range-vals .dim { color: #8f8f8f; }
+.dm-range-vals .mid { color: #fff; border: 1px solid #4ade80; border-radius: 8px; padding: 5px 12px; background: #0ca444; }
+.dm-range-vals .mid.out { border-color: #de4a4a; background: #a4130c; }
+.dm-range-quote { text-align: center; margin-top: 10px; font-family: var(--font-body); font-size: 11px; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 0.05em; }
+.dm-status { display: flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 12px; color: rgba(255, 255, 255, 0.8); margin-top: 16px; }
+.dm-status.ok { color: #4ade80; }
+.dm-error { color: #f0a99a; font-family: var(--font-body); font-size: 12px; margin-top: 12px; }
+.dm-notice { color: rgba(255, 255, 255, 0.5); font-family: var(--font-body); font-size: 12px; margin-top: 12px; text-align: center; }
+.dm-tx { display: block; color: #4ade80; font-family: var(--font-body); font-size: 12px; margin-top: 10px; text-decoration: none; }
+.dm-cta { width: 100%; margin-top: 20px; background: #fa3f06; color: #fff; border: none; border-radius: 14px; height: 54px; font-family: var(--font-body); font-size: 15px; font-weight: 700; letter-spacing: 0.03em; cursor: pointer; }
+.dm-cta:hover:not(:disabled) { filter: brightness(1.08); }
+.dm-cta:disabled { background: #333; color: #777; cursor: default; }
+.dm-cta:active:not(:disabled) { transform: scale(0.98); }
+.dm-account { text-align: center; font-family: var(--font-body); font-size: 10.5px; color: rgba(255, 255, 255, 0.4); margin-top: 12px; }
+
+/* View LP details link + Uniswap icon */
+.lp-link { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px; background: none; border: none; color: #fff; font-family: var(--font-body); font-size: 13px; cursor: pointer; }
+.lp-link:hover { color: var(--gold, #ffbc09); }
+.uni-icon { width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+
+/* ============================================================
+   LP details modal
+   ============================================================ */
+.lp { width: 560px; max-width: 94vw; max-height: 90vh; overflow: auto; background: #000; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 26px; color: #fff; }
+.lp-head { display: flex; align-items: center; gap: 14px; }
+.lp-title { font-family: var(--font-body); font-size: 26px; font-weight: 600; }
+.lp-sub { font-family: var(--font-body); font-size: 13px; color: rgba(255, 255, 255, 0.4); margin-top: 2px; }
+.lp-head .dm-x { margin-left: auto; }
+.lp-range-head { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
+.lp-label { font-family: var(--font-body); font-size: 17px; }
+.lp-badge { font-family: var(--font-body); font-size: 11px; letter-spacing: 0.08em; padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.6); }
+.lp-badge-on { border-color: #3b8fed; color: #6db3ff; }
+.lp-toggle { margin-top: 16px; width: max-content; }
+.lp-bar { margin-top: 20px; }
+.lp-vals { margin-top: 14px; font-size: 15px; }
+.lp-rows { margin-top: 24px; }
+.lp-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-family: var(--font-body); font-size: 15px; }
+.lp-row:last-child { border-bottom: none; }
+.lp-row span { color: rgba(255, 255, 255, 0.55); }
+.lp-row b { font-weight: 600; }
+.lp-row a { color: #fff; text-decoration: none; }
+.lp-row a:hover { color: var(--gold, #ffbc09); }
+.lp-foot { display: flex; align-items: center; gap: 8px; margin-top: 18px; font-family: var(--font-body); font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+.lp-dot { width: 7px; height: 7px; border-radius: 50%; background: #fa3f06; }
+
+/* ============================================================
+   Mobile
+   ============================================================ */
+@media (max-width: 720px) {
+  /* page + header */
+  .page { padding: 20px 14px 48px; }
+  .top { flex-direction: column; align-items: stretch; gap: 14px; }
+  .top h1 { font-size: 25px; }
+  .brand { margin-bottom: 6px; }
+  .top-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .density { margin-left: 0; }
+  .totals { gap: 10px; }
+  .total-card { min-width: 140px; flex: 1 1 45%; padding: 13px 15px; }
+  .controls { gap: 8px 12px; }
+  .grid, .grid-compact { grid-template-columns: 1fr; }
+
+  /* Vaults panel: the 5-column table reflows into stacked cards with inline labels */
+  .vaults-panel { padding: 22px 15px 16px; border-radius: 18px; }
+  .vaults-title { font-size: 26px; }
+  .vaults-sub { font-size: 13px; }
+  .vaults-grid-head { display: none; }
+  .vault-row { display: block; padding: 12px 15px; }
+  .vault-row > div {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  }
+  .vault-row > div:first-child { padding-top: 0; }
+  .vault-row > div:last-child { border-bottom: none; padding-bottom: 0; }
+  .vault-row > div::before {
+    content: attr(data-label);
+    width: 82px;
+    flex-shrink: 0;
+    font-family: var(--font-body);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .rangebar, .rangebar-full { max-width: 190px; }
+
+  /* deposit modal */
+  .dm { padding: 20px; border-radius: 18px; }
+  .dm-head { gap: 10px; }
+  .dm-title { font-size: 20px; }
+  .dm-stats { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dm-amount input { font-size: 19px; }
+}

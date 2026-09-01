@@ -1,0 +1,26 @@
+{
+  "name": "saffron-liqifi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "LiqiFi: inspect Saffron variable-side capacity and deposit through an injected wallet.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "serve": "node server/proxy.mjs",
+    "start": "npm run build && node server/proxy.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2"
+  }
+}
