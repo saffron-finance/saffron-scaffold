@@ -1,16 +1,16 @@
 [Unit]
-Description=Saffron LiqiFi application
+Description=Saffron Scaffold application
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/saffron-liqifi
+WorkingDirectory=/opt/saffron-scaffold
 Environment=NODE_ENV=production
 Environment=PORT=3200
 Environment=BIND_HOST=127.0.0.1
-EnvironmentFile=/etc/saffron-liqifi/rpc.env
-ExecStart=/usr/bin/node /opt/saffron-liqifi/server/proxy.mjs
+EnvironmentFile=/etc/saffron-scaffold/rpc.env
+ExecStart=/usr/bin/node /opt/saffron-scaffold/server/proxy.mjs
 Restart=on-failure
 RestartSec=3s
 NoNewPrivileges=true

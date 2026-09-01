@@ -1,10 +1,10 @@
-# Saffron LiqiFi
+# Saffron Scaffold
 
 A standalone React application that reads Saffron vault contracts directly
 onchain and displays variable-side deposit capacity. Users can connect an
 injected browser wallet to approve and submit a variable-side deposit.
 
-This repository contains the standalone LiqiFi interface and no
+This repository contains the standalone Saffron Scaffold interface and no
 deployment-specific URL.
 
 ## Supported networks

@@ -5,7 +5,7 @@ import { CapacitiesTable } from './pages/CapacitiesTable'
 import { shortAddr } from './lib/format'
 
 /**
- * Render the standalone LiqiFi experience.
+ * Render the standalone Saffron Scaffold experience.
  *
  * This repository contains one design and one route. The earlier application
  * switched between two page variants based on the URL; keeping that branch in
@@ -17,17 +17,17 @@ export default function App() {
 
   // The light canvas is painted on body, outside React's root element.
   useEffect(() => {
-    document.body.classList.add('liqifi-body')
-    return () => document.body.classList.remove('liqifi-body')
+    document.body.classList.add('saffron-scaffold-body')
+    return () => document.body.classList.remove('saffron-scaffold-body')
   }, [])
 
   return (
-    <div className="page liqifi">
+    <div className="page saffron-scaffold">
       <header className="top">
         <div>
           <div className="brand">
             <span className="brand-mark" />
-            <span className="brand-name">LiqiFi</span>
+            <span className="brand-name">Saffron Scaffold</span>
           </div>
           <h1>Single-staking boosted yield.</h1>
           <p className="sub">Earn boosted yield from existing onchain Uniswap LP positions.</p>

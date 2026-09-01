@@ -1,9 +1,9 @@
 {
-  "name": "saffron-liqifi",
+  "name": "saffron-scaffold",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "LiqiFi: inspect Saffron variable-side capacity and deposit through an injected wallet.",
+  "description": "Saffron Scaffold: inspect Saffron variable-side capacity and deposit through an injected wallet.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

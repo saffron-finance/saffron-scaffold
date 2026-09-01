@@ -1,8 +1,8 @@
 # Production service
 
 The included systemd template expects the repository at
-`/opt/saffron-liqifi` and a root-readable environment file at
-`/etc/saffron-liqifi/rpc.env`.
+`/opt/saffron-scaffold` and a root-readable environment file at
+`/etc/saffron-scaffold/rpc.env`.
 
 The environment file should contain:
 
@@ -15,12 +15,12 @@ RPC_ROBINHOOD=https://your-provider.example/robinhood
 Install and start the service:
 
 ```bash
-cd /opt/saffron-liqifi
+cd /opt/saffron-scaffold
 npm ci
 npm run build
-sudo cp ops/systemd/saffron-liqifi.service /etc/systemd/system/
+sudo cp ops/systemd/saffron-scaffold.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now saffron-liqifi.service
+sudo systemctl enable --now saffron-scaffold.service
 ```
 
 The service binds to `127.0.0.1:3200`. Put an HTTPS reverse proxy in front of
