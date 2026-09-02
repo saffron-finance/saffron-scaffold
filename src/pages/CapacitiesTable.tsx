@@ -13,6 +13,7 @@ import { IS_STATIC_MOCK } from '../mock/mode'
 const PAGE = 12
 
 type SortKey = 'default' | 'vault' | 'capacity' | 'term' | 'yield' | 'range'
+type YieldMode = 'variable' | 'fixed'
 
 function depositable(v: VariableVault): boolean {
   return !v.isStarted && !v.earningsSettled && v.variableRemaining > 0n
@@ -57,6 +58,7 @@ export function CapacitiesTable({
   const [openOnly, setOpenOnly] = useState(true)
   const [inRangeOnly, setInRangeOnly] = useState(true)
   const [filledFixedOnly, setFilledFixedOnly] = useState(false)
+  const [yieldMode, setYieldMode] = useState<YieldMode>('variable')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const optionsRef = useRef<HTMLDivElement>(null)
   const [chain, setChain] = useState('all')
@@ -214,9 +216,27 @@ export function CapacitiesTable({
           <div className="vaults-title">Vaults</div>
           <div className="vaults-badge">Powered by ✳ Saffron</div>
         </div>
-        <div className="vaults-sub">Variable-side capacity across live Saffron vaults. Deposit to earn the vault's real yield.</div>
+        <div className="vaults-sub">
+          {yieldMode === 'variable'
+            ? "Variable-side capacity across live Saffron vaults. Deposit to earn the vault's real yield."
+            : 'Fixed yield is included here as a UI-only branch preview.'}
+        </div>
 
         <div className="vaults-controls">
+          <select
+            className="pair-select yield-mode-select"
+            value={yieldMode}
+            aria-label="Yield type"
+            onChange={(event) => {
+              // This branch tests the selector without pretending the existing
+              // variable-only contracts and modal implement fixed-side entry.
+              setYieldMode(event.target.value as YieldMode)
+              setModalVault(null)
+            }}
+          >
+            <option value="variable">Variable yield</option>
+            <option value="fixed">Fixed yield</option>
+          </select>
           <ChainSelector value={chain} onChange={setChain} />
           <VaultTokenSelector value={vaultToken} onChange={setVaultToken} options={vaultTokenOptions} />
           <PairSelector value={pair} onChange={setPair} options={pairOptions} />
@@ -247,6 +267,12 @@ export function CapacitiesTable({
           </div>
         </div>
 
+        {yieldMode === 'fixed' ? (
+          <div className="yield-mode-empty">
+            Fixed-yield vault data is not wired into this variable-side prototype yet.
+          </div>
+        ) : (
+          <>
         <div className="vaults-grid-head">
           <button className={`th ${sortKey === 'vault' ? 'th-on' : ''}`} onClick={() => toggleSort('vault')}>
             Vault{arrow('vault')}
@@ -335,6 +361,8 @@ export function CapacitiesTable({
               ›
             </button>
           </div>
+        )}
+          </>
         )}
       </div>
 

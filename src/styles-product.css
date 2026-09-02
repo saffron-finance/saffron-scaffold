@@ -172,6 +172,12 @@ body.saffron-scaffold-body {
   border: 1px solid rgba(255, 255, 255, 0.34);
 }
 
+.saffron-scaffold .yield-mode-empty {
+  background: rgba(255, 255, 255, 0.42);
+  border-color: rgba(17, 17, 17, 0.16);
+  color: rgba(17, 17, 17, 0.68);
+}
+
 .saffron-scaffold .vault-row.is-open:hover {
   background: rgba(255, 255, 255, 0.72);
 }
