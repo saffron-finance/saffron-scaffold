@@ -82,8 +82,8 @@ body {
 }
 .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 8px; }
 .brand-mark {
-  width: 15px; height: 15px; border-radius: var(--radius-sm);
-  background: var(--saffron); box-shadow: 0 0 16px rgba(245, 42, 36, 0.55);
+  display: block; width: 24px; height: 24px; border-radius: 50%;
+  object-fit: contain; box-shadow: 0 0 16px rgba(190, 203, 238, 0.45);
 }
 .brand-name {
   font-family: var(--font-display);

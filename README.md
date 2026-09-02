@@ -1,4 +1,4 @@
-# Saffron Scaffold
+# <img src="./public/saffron-icon.svg" alt="" width="28" height="28" /> Saffron Scaffold
 
 **[Live preview here](https://saffron-finance.github.io/saffron-scaffold/)**
 

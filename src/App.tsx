@@ -5,6 +5,10 @@ import { CapacitiesTable } from './pages/CapacitiesTable'
 import { shortAddr } from './lib/format'
 import { IS_STATIC_MOCK } from './mock/mode'
 
+// Vite rewrites BASE_URL for both the standalone server and the relative
+// GitHub Pages build, keeping one public icon source for both deployments.
+const SAFFRON_ICON_URL = `${import.meta.env.BASE_URL}saffron-icon.svg`
+
 /**
  * Render the standalone Saffron Scaffold experience.
  *
@@ -27,7 +31,7 @@ export default function App() {
       <header className="top">
         <div>
           <div className="brand">
-            <span className="brand-mark" />
+            <img className="brand-mark" src={SAFFRON_ICON_URL} alt="" aria-hidden="true" />
             <span className="brand-name">Saffron Scaffold</span>
           </div>
           <h1>Single-staking boosted yield.</h1>
