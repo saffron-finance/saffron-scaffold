@@ -17,7 +17,9 @@ concurrency:
 jobs:
   deploy:
     environment:
-      name: github-pages
+      # A dedicated environment keeps the protected main Pages environment
+      # unchanged while still giving this branch an auditable deployment.
+      name: github-pages-preview-yield-side-selector
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
