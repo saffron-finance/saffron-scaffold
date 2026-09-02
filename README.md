@@ -73,3 +73,9 @@ deposit modal for UI demonstrations, but the modal cannot connect a wallet or
 submit a transaction. GitHub Actions publishes that build to GitHub Pages on
 every push to `main` at
 <https://saffron-finance.github.io/saffron-scaffold/>.
+
+**For agents:** Read [`AGENTS.md`](./AGENTS.md) before making changes and
+[`server/AGENTS.md`](./server/AGENTS.md) before touching the server; for
+operational context not duplicated there, also consult
+[`scripts/README.md`](./scripts/README.md), [`ops/README.md`](./ops/README.md),
+and the [GitHub Pages workflow](./.github/workflows/pages.yml).
