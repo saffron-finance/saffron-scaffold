@@ -274,7 +274,18 @@ export function CapacitiesTable({
               <div
                 key={`${v.chainKey}-${v.factory}-${v.vaultId}`}
                 className={`vault-row ${canDeposit ? 'is-open' : ''}`}
-                onClick={() => canDeposit && !readOnly && setModalVault(v)}
+                role={canDeposit ? 'button' : undefined}
+                tabIndex={canDeposit ? 0 : undefined}
+                aria-label={canDeposit ? `View ${v.variableAssetSymbol} vault deposit details` : undefined}
+                onClick={() => canDeposit && setModalVault(v)}
+                onKeyDown={(event) => {
+                  // A vault row behaves like a button in both live and static
+                  // preview builds, so keyboard users can inspect the modal too.
+                  if (canDeposit && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault()
+                    setModalVault(v)
+                  }
+                }}
               >
                 <div className="vr-vault vr-vault-first" data-label="Vault">
                   <IconWithChain chainKey={v.chainKey}>
@@ -335,6 +346,7 @@ export function CapacitiesTable({
           onClose={() => setModalVault(null)}
           onConnect={onConnect}
           onDeposited={() => {}}
+          previewOnly={readOnly}
         />
       )}
     </>

@@ -97,6 +97,10 @@
 }
 .vault-row.is-open { cursor: pointer; }
 .vault-row.is-open:hover { background: rgba(255, 255, 255, 0.16); }
+.vault-row.is-open:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
 
 .vr-yield { display: flex; align-items: center; gap: 14px; font-size: 19px; }
 .vr-pair { font-weight: 600; }

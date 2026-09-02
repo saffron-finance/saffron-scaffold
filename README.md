@@ -68,6 +68,8 @@ The second command should return no matches.
 
 `npm run build:mock` creates a serverless, read-only build from the committed
 onchain fixture in `src/mock/snapshot.json`. It performs no RPC requests and
-disables wallet actions. GitHub Actions publishes that build to GitHub Pages on
+disables wallet actions. Vault rows remain clickable and open the populated
+deposit modal for UI demonstrations, but the modal cannot connect a wallet or
+submit a transaction. GitHub Actions publishes that build to GitHub Pages on
 every push to `main` at
 <https://saffron-finance.github.io/saffron-scaffold/>.

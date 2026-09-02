@@ -34,6 +34,7 @@ export function DepositModal({
   onClose,
   onConnect,
   onDeposited,
+  previewOnly = false,
 }: {
   v: VariableVault
   range: FixedRange | null
@@ -41,6 +42,8 @@ export function DepositModal({
   onClose: () => void
   onConnect: () => void | Promise<void>
   onDeposited: () => void
+  /** Show the complete UI without touching an injected wallet or an RPC. */
+  previewOnly?: boolean
 }) {
   const [amount, setAmount] = useState('')
   const [balance, setBalance] = useState<bigint | null>(null)
@@ -60,6 +63,10 @@ export function DepositModal({
   const fixedUnfilled = v.fixedDepositPresent === false
 
   useEffect(() => {
+    // The GitHub Pages example is deliberately self-contained. Keep this
+    // guard local to the modal so a future caller cannot accidentally turn a
+    // visual preview into an onchain balance request by passing an account.
+    if (previewOnly) return
     if (!account) return
     const client = clientFor(v.chainKey)
     if (!client) return
@@ -71,7 +78,7 @@ export function DepositModal({
     return () => {
       cancelled = true
     }
-  }, [account, v.chainKey, v.variableAsset])
+  }, [account, previewOnly, v.chainKey, v.variableAsset])
 
   const maxDepositable = useMemo(() => (balance !== null && balance < remaining ? balance : remaining), [balance, remaining])
   const parsed = useMemo(() => {
@@ -104,6 +111,9 @@ export function DepositModal({
   }, [range, inv])
 
   async function handleConnect() {
+    // This guard is defense in depth; preview mode never renders the connect
+    // control, but it must remain inert if the UI is refactored later.
+    if (previewOnly) return
     setConnectError(null)
     if (!hasWallet()) {
       setConnectError('No wallet detected. Install MetaMask (or another browser wallet) to connect.')
@@ -120,6 +130,8 @@ export function DepositModal({
   }
 
   async function run() {
+    // A static preview may accept sample amount input, but never a transaction.
+    if (previewOnly) return
     if (!account) return handleConnect()
     setError(null)
     try {
@@ -134,12 +146,18 @@ export function DepositModal({
 
   return (
     <div className="dm-backdrop" onClick={() => !busy && onClose()}>
-      <div className="dm" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="dm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="deposit-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="dm-head">
           <IconWithChain chainKey={v.chainKey} badge={21}>
             <TokenLogo chainId={chainIdFor(v.chainKey)} address={v.variableAsset} symbol={v.variableAssetSymbol} size={40} />
           </IconWithChain>
-          <div className="dm-title">{v.variableAssetSymbol} Vault</div>
+          <div className="dm-title" id="deposit-modal-title">{v.variableAssetSymbol} Vault</div>
           <div className="dm-head-right">
             {range && (
               <div className="dm-yield" title={`Yield pair · ${range.pair}`}>
@@ -269,8 +287,15 @@ export function DepositModal({
           </a>
         )}
 
-        {connectError && <div className="dm-notice">{connectError}</div>}
-        {!account ? (
+        {connectError && !previewOnly && <div className="dm-notice">{connectError}</div>}
+        {previewOnly ? (
+          <>
+            <div className="dm-notice">Interactive preview — wallet connection and transactions are disabled.</div>
+            <button className="dm-cta" disabled>
+              Deposits disabled in preview
+            </button>
+          </>
+        ) : !account ? (
           <button className="dm-cta" onClick={() => void handleConnect()} disabled={connecting}>
             {connecting ? 'Connecting…' : 'Connect wallet'}
           </button>
@@ -283,7 +308,7 @@ export function DepositModal({
             {busy ? 'Working…' : `Deposit ${amount || '0'} ${v.variableAssetSymbol}`}
           </button>
         )}
-        {account && <div className="dm-account">Wallet {shortAddr(account)} · {v.chainLabel}</div>}
+        {account && !previewOnly && <div className="dm-account">Wallet {shortAddr(account)} · {v.chainLabel}</div>}
       </div>
     </div>
   )
