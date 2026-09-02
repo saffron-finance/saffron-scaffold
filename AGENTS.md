@@ -1,5 +1,9 @@
 # Agent guide
 
+This file applies to the entire repository. More specific `AGENTS.md` files
+override it inside their directory; read `server/AGENTS.md` before changing the
+production server or RPC relay.
+
 ## Goal
 
 - Maintain a standalone interface for discovering live Saffron variable-side
@@ -34,6 +38,37 @@
   writes go directly through the injected wallet and never through that relay.
 - The relay is read-only. Do not add signing, account, transaction-broadcast,
   trace, debug, or admin RPC methods without a security review.
+
+## Repository map
+
+- `src/chain/` owns chain configuration, ABIs, onchain reads, vault discovery,
+  and deposit calldata construction.
+- `src/wallet/` and wallet-facing components own injected-wallet interaction;
+  every approval and deposit must remain an explicit user-confirmed wallet
+  action.
+- `src/mock/` owns the committed, read-only snapshot used by GitHub Pages.
+- `server/` serves the production build and relays allowlisted RPC reads. Its
+  additional security rules are in `server/AGENTS.md`.
+- `scripts/` contains operator diagnostics and read-only inspection helpers.
+- `ops/` contains deployment examples; never encode a live host or secret in
+  them.
+- `.github/workflows/pages.yml` builds only the static mock example. It must not
+  deploy a live wallet or RPC-backed application to GitHub Pages.
+
+## Change discipline
+
+- Decide whether a change affects live mode, static mock mode, or both before
+  editing. Do not let mock-only shortcuts enter live code paths.
+- Keep deployment base paths portable. The Vite build deliberately uses a
+  relative base so it can run at a domain root or beneath a path prefix.
+- Prefer authoritative contract addresses, chain IDs, token decimals, and
+  bigint strings over symbol-based inference or floating-point conversions.
+- Preserve explicit loading, unavailable, empty, and error states. An RPC
+  failure must not silently look like zero capacity.
+- Keep dependencies small. This repository is intentionally standalone and
+  has no dependency on the fixed-income monorepo at build or runtime.
+- Do not commit generated `dist/`, local `.env` files, `node_modules/`, logs, or
+  editor artifacts.
 
 ## Static example
 
