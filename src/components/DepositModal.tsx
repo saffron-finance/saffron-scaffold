@@ -54,6 +54,9 @@ export function DepositModal({
   const [inv, setInv] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
+  // Preview feedback is intentionally local to this modal instance. Closing
+  // the modal unmounts it, so the next vault always starts with "Deposit".
+  const [previewAttempted, setPreviewAttempted] = useState(false)
 
   const dec = v.variableAssetDecimals
   const remaining = v.variableRemaining
@@ -289,12 +292,9 @@ export function DepositModal({
 
         {connectError && !previewOnly && <div className="dm-notice">{connectError}</div>}
         {previewOnly ? (
-          <>
-            <div className="dm-notice">Interactive preview — wallet connection and transactions are disabled.</div>
-            <button className="dm-cta" disabled>
-              Deposits disabled in preview
-            </button>
-          </>
+          <button className="dm-cta" onClick={() => setPreviewAttempted(true)}>
+            {previewAttempted ? 'Deposits disabled in preview' : 'Deposit'}
+          </button>
         ) : !account ? (
           <button className="dm-cta" onClick={() => void handleConnect()} disabled={connecting}>
             {connecting ? 'Connecting…' : 'Connect wallet'}
