@@ -2,11 +2,13 @@
 
 **[Live preview here](https://saffron-finance.github.io/saffron-scaffold/)**
 
-**[Yield-selector branch preview](https://saffron-finance.github.io/saffron-scaffold/previews/yield-side-selector-preview/)**
+**[Fixed + variable yield branch preview](https://saffron-finance.github.io/saffron-scaffold/previews/yield-side-selector-preview/)**
 
-A standalone React application that reads Saffron vault contracts directly
-onchain and displays variable-side deposit capacity. Users can connect an
-injected browser wallet to approve and submit a variable-side deposit.
+A standalone React application for Saffron's variable and fixed yield flows.
+The live build reads variable-side capacity directly onchain and supports
+wallet-confirmed variable deposits. The fixed-yield view matches a one-asset
+budget against the reviewed Cash Cat opportunity and stages its exact-vault
+LI.FI handoff.
 
 This repository contains the standalone Saffron Scaffold interface and no
 deployment-specific URL.
@@ -68,13 +70,13 @@ The second command should return no matches.
 
 ## Static example
 
-`npm run build:mock` creates a serverless, read-only build from the committed
-onchain fixture in `src/mock/snapshot.json`. It performs no RPC requests and
-disables wallet actions. Vault rows remain clickable and open the populated
-deposit modal for UI demonstrations, but the modal cannot connect a wallet or
-submit a transaction. GitHub Actions publishes that build to GitHub Pages on
-every push to `main` at
-<https://saffron-finance.github.io/saffron-scaffold/>.
+`npm run build:mock` creates a serverless build from the committed onchain
+fixture in `src/mock/snapshot.json`. It performs no RPC requests, requests no
+wallet, and disables transaction actions. Vault rows remain clickable and the
+fixed-yield amount matcher remains interactive with an explicit preview-only
+handoff. GitHub Actions publishes the branch build below the main GitHub Pages
+site at
+<https://saffron-finance.github.io/saffron-scaffold/previews/yield-side-selector-preview/>.
 
 **For agents:** Read [`AGENTS.md`](./AGENTS.md) before making changes and
 [`server/AGENTS.md`](./server/AGENTS.md) before touching the server; for

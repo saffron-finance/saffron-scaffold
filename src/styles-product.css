@@ -178,6 +178,511 @@ body.saffron-scaffold-body {
   color: rgba(17, 17, 17, 0.68);
 }
 
+/*
+ * Fixed-yield amount matching reuses the light product language while keeping
+ * the opportunity, user input, and later admin handoff visually distinct.
+ */
+.saffron-scaffold .fixed-yield-flow {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+  color: var(--product-ink);
+}
+
+.saffron-scaffold .fixed-preview-banner,
+.saffron-scaffold .fixed-card,
+.saffron-scaffold .fixed-staged-card,
+.saffron-scaffold .fixed-process-card {
+  min-width: 0;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.saffron-scaffold .fixed-preview-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.saffron-scaffold .fixed-preview-banner > span {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #765900;
+}
+
+.saffron-scaffold .fixed-preview-banner p,
+.saffron-scaffold .fixed-card-copy,
+.saffron-scaffold .fixed-action-help,
+.saffron-scaffold .fixed-process-card p {
+  margin: 0;
+}
+
+.saffron-scaffold .fixed-flow-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.saffron-scaffold .fixed-card,
+.saffron-scaffold .fixed-staged-card,
+.saffron-scaffold .fixed-process-card {
+  padding: 22px;
+  border-radius: 18px;
+}
+
+.saffron-scaffold .fixed-card {
+  display: grid;
+  gap: 16px;
+}
+
+.saffron-scaffold .fixed-opportunity-card {
+  background:
+    radial-gradient(circle at 88% 8%, rgba(190, 199, 238, 0.62), transparent 34%),
+    rgba(255, 255, 255, 0.5);
+}
+
+.saffron-scaffold .fixed-card-eyebrow,
+.saffron-scaffold .fixed-staged-head span,
+.saffron-scaffold .fixed-staged-grid span {
+  color: rgba(17, 17, 17, 0.58);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.saffron-scaffold .fixed-card h3,
+.saffron-scaffold .fixed-staged-card h3,
+.saffron-scaffold .fixed-process-card h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.saffron-scaffold .fixed-opportunity-card > h3 {
+  margin-top: -8px;
+}
+
+.saffron-scaffold .fixed-pair-pill {
+  width: fit-content;
+  margin-top: -10px;
+  padding: 5px 9px;
+  border: 1px solid rgba(17, 17, 17, 0.18);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.saffron-scaffold .fixed-hero-apr {
+  margin-top: 6px;
+  color: #2f7200;
+  font-family: var(--font-mono);
+  font-size: clamp(46px, 7vw, 66px);
+  font-weight: 500;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
+}
+
+.saffron-scaffold .fixed-hero-label,
+.saffron-scaffold .fixed-card-copy,
+.saffron-scaffold .fixed-action-help {
+  color: rgba(17, 17, 17, 0.62);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.saffron-scaffold .fixed-hero-label {
+  margin-top: -9px;
+}
+
+.saffron-scaffold .fixed-capacity-block {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.saffron-scaffold .fixed-preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+  color: rgba(17, 17, 17, 0.64);
+  font-size: 12px;
+}
+
+.saffron-scaffold .fixed-preview-row strong {
+  color: #111111;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-align: right;
+}
+
+.saffron-scaffold .fixed-capacity-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.12);
+}
+
+.saffron-scaffold .fixed-capacity-track span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #5aa600;
+}
+
+.saffron-scaffold .fixed-capacity-foot {
+  color: rgba(17, 17, 17, 0.5);
+  font-size: 11px;
+}
+
+.saffron-scaffold .fixed-definitions {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.saffron-scaffold .fixed-definitions > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.1);
+  font-size: 12px;
+}
+
+.saffron-scaffold .fixed-definitions dt {
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.saffron-scaffold .fixed-definitions dd {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.saffron-scaffold .fixed-neutral-note {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: rgba(17, 17, 17, 0.06);
+  color: rgba(17, 17, 17, 0.6);
+  font-size: 11px;
+}
+
+.saffron-scaffold .fixed-request-card {
+  min-width: 0;
+  gap: 20px;
+}
+
+.saffron-scaffold .fixed-request-card > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.saffron-scaffold .fixed-fieldset {
+  min-width: 0;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.saffron-scaffold .fixed-fieldset legend,
+.saffron-scaffold .fixed-amount-field > span:first-child {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(17, 17, 17, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.saffron-scaffold .fixed-currency-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.saffron-scaffold .fixed-currency-grid button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.52);
+  color: #111111;
+  font: 600 13px var(--font-body);
+  cursor: pointer;
+}
+
+.saffron-scaffold .fixed-currency-grid button.selected {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+}
+
+.saffron-scaffold .fixed-currency-grid button span {
+  font-family: var(--font-mono);
+  font-size: 18px;
+}
+
+.saffron-scaffold .fixed-amount-field {
+  display: block;
+}
+
+.saffron-scaffold .fixed-amount-control {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(17, 17, 17, 0.16);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.saffron-scaffold .fixed-amount-control.invalid {
+  border-color: #a22717;
+}
+
+.saffron-scaffold .fixed-amount-control input {
+  min-width: 0;
+  flex: 1;
+  padding: 14px 16px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #111111;
+  font: 500 22px var(--font-mono);
+}
+
+.saffron-scaffold .fixed-amount-control b {
+  padding: 0 16px;
+  font: 600 12px var(--font-body);
+}
+
+.saffron-scaffold .fixed-amount-field small {
+  display: block;
+  margin-top: 7px;
+  color: rgba(17, 17, 17, 0.55);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.saffron-scaffold .fixed-match-panel {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid rgba(47, 114, 0, 0.3);
+  border-radius: 13px;
+  background: rgba(90, 166, 0, 0.08);
+}
+
+.saffron-scaffold .fixed-match-panel.unmatched {
+  border-color: rgba(162, 39, 23, 0.32);
+  background: rgba(162, 39, 23, 0.07);
+}
+
+.saffron-scaffold .fixed-match-headline {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.saffron-scaffold .fixed-match-headline > span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #2f7200;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.saffron-scaffold .fixed-match-panel.unmatched .fixed-match-headline > span {
+  background: #a22717;
+}
+
+.saffron-scaffold .fixed-wallet-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(17, 17, 17, 0.58);
+  font-size: 11px;
+}
+
+.saffron-scaffold .fixed-wallet-line strong {
+  color: #111111;
+  font-family: var(--font-mono);
+}
+
+.saffron-scaffold .fixed-primary-button {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 8px;
+  background: #111111;
+  color: #ffffff;
+  font: 600 14px var(--font-body);
+  cursor: pointer;
+}
+
+.saffron-scaffold .fixed-primary-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.saffron-scaffold .fixed-action-help {
+  text-align: center;
+  font-size: 11px;
+}
+
+.saffron-scaffold .fixed-staged-card {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.saffron-scaffold .fixed-staged-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.saffron-scaffold .fixed-staged-head h3 {
+  margin-top: 5px;
+}
+
+.saffron-scaffold .fixed-staged-head > b {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.saffron-scaffold .fixed-staged-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.saffron-scaffold .fixed-staged-grid > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 11px;
+  background: rgba(17, 17, 17, 0.055);
+}
+
+.saffron-scaffold .fixed-staged-grid strong {
+  overflow-wrap: anywhere;
+  font: 500 12px var(--font-mono);
+}
+
+.saffron-scaffold .fixed-staged-card > button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 9px;
+  color: rgba(17, 17, 17, 0.5);
+}
+
+.saffron-scaffold .fixed-process-card ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saffron-scaffold .fixed-process-card li {
+  display: flex;
+  gap: 11px;
+}
+
+.saffron-scaffold .fixed-process-card li > b {
+  color: #5b76cb;
+  font: 500 13px var(--font-mono);
+}
+
+.saffron-scaffold .fixed-process-card li strong {
+  font-size: 12px;
+}
+
+.saffron-scaffold .fixed-process-card li p {
+  margin-top: 5px;
+  color: rgba(17, 17, 17, 0.56);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .saffron-scaffold .fixed-flow-grid,
+  .saffron-scaffold .fixed-process-card ol {
+    grid-template-columns: 1fr;
+  }
+
+  .saffron-scaffold .fixed-staged-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .saffron-scaffold .fixed-card,
+  .saffron-scaffold .fixed-staged-card,
+  .saffron-scaffold .fixed-process-card {
+    padding: 17px;
+  }
+
+  .saffron-scaffold .fixed-preview-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .saffron-scaffold .fixed-preview-row strong {
+    text-align: left;
+  }
+
+  .saffron-scaffold .fixed-definitions > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .saffron-scaffold .fixed-definitions dd {
+    text-align: left;
+  }
+}
+
 .saffron-scaffold .vault-row.is-open:hover {
   background: rgba(255, 255, 255, 0.72);
 }

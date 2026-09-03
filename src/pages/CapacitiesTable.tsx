@@ -9,6 +9,7 @@ import { VaultTokenSelector } from '../components/VaultTokenSelector'
 import { PairSelector } from '../components/PairSelector'
 import { DepositModal } from '../components/DepositModal'
 import { IS_STATIC_MOCK } from '../mock/mode'
+import { FixedYieldPanel } from '../fixedIntents/FixedYieldPanel'
 
 const PAGE = 12
 
@@ -219,7 +220,7 @@ export function CapacitiesTable({
         <div className="vaults-sub">
           {yieldMode === 'variable'
             ? "Variable-side capacity across live Saffron vaults. Deposit to earn the vault's real yield."
-            : 'Fixed yield is included here as a UI-only branch preview.'}
+            : 'Match a one-asset budget with available variable yield, then enter through LI.FI.'}
         </div>
 
         <div className="vaults-controls">
@@ -228,8 +229,8 @@ export function CapacitiesTable({
             value={yieldMode}
             aria-label="Yield type"
             onChange={(event) => {
-              // This branch tests the selector without pretending the existing
-              // variable-only contracts and modal implement fixed-side entry.
+              // Both experiences share one route, but their filters and modal
+              // state are intentionally independent.
               setYieldMode(event.target.value as YieldMode)
               setModalVault(null)
             }}
@@ -237,6 +238,8 @@ export function CapacitiesTable({
             <option value="variable">Variable yield</option>
             <option value="fixed">Fixed yield</option>
           </select>
+          {yieldMode === 'variable' && (
+            <>
           <ChainSelector value={chain} onChange={setChain} />
           <VaultTokenSelector value={vaultToken} onChange={setVaultToken} options={vaultTokenOptions} />
           <PairSelector value={pair} onChange={setPair} options={pairOptions} />
@@ -265,12 +268,12 @@ export function CapacitiesTable({
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
 
         {yieldMode === 'fixed' ? (
-          <div className="yield-mode-empty">
-            Fixed-yield vault data is not wired into this variable-side prototype yet.
-          </div>
+          <FixedYieldPanel account={account} onConnect={onConnect} previewOnly={readOnly} />
         ) : (
           <>
         <div className="vaults-grid-head">
