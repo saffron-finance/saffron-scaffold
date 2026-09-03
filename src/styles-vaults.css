@@ -114,17 +114,17 @@
   outline-offset: 2px;
 }
 
-.vr-yield { display: flex; align-items: center; gap: 14px; font-size: 19px; }
+.vr-yield { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .vr-pair { font-weight: 600; }
-.vr-cap { font-family: var(--font-body); font-size: 16px; display: flex; flex-direction: column; gap: 3px; }
+.vr-cap { font-family: var(--font-body); font-size: 15px; display: flex; flex-direction: column; gap: 3px; }
 .vr-cap-open { font-size: 11px; color: #bff7d1; }
 .vr-term { display: flex; flex-direction: column; }
 /* Capacity and term use one shared value style so their typography cannot drift. */
-.vr-table-value { font-family: var(--font-body); font-size: 16px; font-weight: 400; color: inherit; }
+.vr-table-value { font-family: var(--font-body); font-size: 15px; font-weight: 500; color: inherit; font-variant-numeric: tabular-nums; }
 .vr-small { font-size: 12px; }
 .vr-dim { color: rgba(255, 255, 255, 0.45); }
 .vr-range { display: flex; align-items: center; }
-.vr-vault { display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-family: var(--font-body); font-size: 19px; }
+.vr-vault { display: flex; align-items: center; justify-content: flex-end; gap: 10px; font-family: var(--font-body); font-size: 15px; }
 .vr-vault-first { justify-content: flex-start; font-weight: 600; }
 
 .vaults-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; font-family: var(--font-body); font-size: 13px; color: rgba(255, 255, 255, 0.8); }
@@ -139,17 +139,15 @@
 }
 .fixed-apr {
   font-family: var(--font-body);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: #ffe09a;
   font-variant-numeric: tabular-nums;
 }
 .fixed-premium { display: flex; align-items: center; gap: 10px; }
-.fixed-premium > span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.fixed-premium b,
 .fixed-capacity,
-.fixed-term { font-family: var(--font-body); font-size: 14px; font-weight: 500; }
-.fixed-premium small { color: rgba(255, 255, 255, 0.52); font-size: 11px; }
+.fixed-term { font-family: var(--font-body); font-size: 15px; font-weight: 500; }
+.table-usd-value { font-family: var(--font-body); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* token coins — real logo or monogram fallback. flex-shrink:0 keeps them from being squished
    (which read as "cropped") inside flex rows; the outer ring cleanly separates overlapping pairs. */
@@ -337,20 +335,37 @@
     align-items: center;
     justify-content: flex-start;
     gap: 10px;
-    padding: 7px 0;
+    box-sizing: border-box;
+    height: 42px;
+    padding: 10px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 20px;
   }
-  .vault-row > div:first-child { padding-top: 0; }
-  .vault-row > div:last-child { border-bottom: none; padding-bottom: 0; }
+  .vault-row > div:last-child { border-bottom: none; }
   .vault-row > div::before {
     content: attr(data-label);
-    width: 82px;
+    width: 104px;
     flex-shrink: 0;
     font-family: var(--font-body);
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.5);
+  }
+  .vault-row .vr-vault,
+  .vault-row .vr-cap,
+  .vault-row .vr-table-value,
+  .vault-row .vr-term,
+  .vault-row .vr-yield,
+  .vault-row .fixed-apr,
+  .vault-row .fixed-premium,
+  .vault-row .fixed-capacity,
+  .vault-row .fixed-term,
+  .vault-row .table-usd-value {
+    font-size: 15px;
+    line-height: 20px;
   }
   .rangebar, .rangebar-full { max-width: 190px; }
 

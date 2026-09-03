@@ -153,6 +153,16 @@ export function formatUsd(value: number): string {
   })
 }
 
+/** Table summaries use whole-dollar values so every row has one compact number. */
+export function formatUsdWhole(value: number): string {
+  if (!Number.isFinite(value)) return '—'
+  return value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  })
+}
+
 export function formatPercent(value: number): string {
   if (!Number.isFinite(value)) return '—'
   return `${(value * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`

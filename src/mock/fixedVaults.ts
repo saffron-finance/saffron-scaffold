@@ -154,3 +154,26 @@ export function loadMockFixedVaults(): FixedVault[] {
     pool: { ...vault.pool },
   }))
 }
+
+/**
+ * USD prices captured from the same public Saffron vault-list API used by the
+ * live selector. They keep the static Pages table deterministic and offline.
+ */
+const VARIABLE_ASSET_PRICES_USD: ReadonlyArray<readonly [string, number]> = [
+  ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 0.9999],
+  ['0xb753428af26e81097e7fd17f40c88aaa3e04902c', 180.5749853184349],
+  ['0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', 2499.94],
+  ['0xdac17f958d2ee523a2206206994597c13d831ec7', 1.00001],
+  ['0x82af49447d8a07e3bd95bd0d56f35241523fbab1', 2501.47],
+  ['0xaf88d065e77c8cc2239327c5edb3a432268e5831', 0.9999],
+  ['0xff0490bf1a58a4151d4d6ec6cb3d2959a561874c', 180.5749853184349],
+  ['0x020bfc650a365f8bb26819deaabf3e21291018b4', 0.2889982752440326],
+  ['0x0bd7d308f8e1639fab988df18a8011f41eacad73', 2503.271047036157],
+  ['0x5fc5360d0400a0fd4f2af552add042d716f1d168', 1.0002264550950648],
+  ['0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec', 229.2816901044484],
+  ['0xe77d354898a44808ff3999947002785cd727bed5', 180.5749853184349],
+]
+
+export function loadMockVariableAssetPricesUsd(): Map<string, number> {
+  return new Map(VARIABLE_ASSET_PRICES_USD)
+}

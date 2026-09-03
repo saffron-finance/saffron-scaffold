@@ -59,6 +59,7 @@ export default function App() {
       <CapacitiesTable
         vaults={vaults}
         fixedVaults={fixed.vaults}
+        variableAssetPricesUsd={fixed.variableAssetPricesUsd}
         fixedLoading={fixed.loading}
         fixedErrors={fixed.errors}
         account={IS_STATIC_MOCK ? null : wallet.account}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { formatUnits } from 'viem'
 import { type VariableVault } from '../chain/vaults'
 import { loadFixedRanges, rangeGeometry, type FixedRange } from '../chain/fixedRange'
 import { chainIdFor } from '../chain/chains'
@@ -10,6 +11,7 @@ import {
   fixedPremiumUsd,
   formatPercent,
   formatUsd,
+  formatUsdWhole,
   type FixedVault,
 } from '../fixedVaults/model'
 import { fmtAmount } from '../lib/format'
@@ -22,6 +24,8 @@ import { FixedDepositModal } from '../components/FixedDepositModal'
 import { IS_STATIC_MOCK } from '../mock/mode'
 
 const PAGE = 12
+const TABLE_TOKEN_ICON_SIZE = 20
+const TABLE_CHAIN_BADGE_SIZE = 10
 
 type SortKey = 'default' | 'vault' | 'capacity' | 'term' | 'yield' | 'premium' | 'range'
 type YieldMode = 'variable' | 'fixed'
@@ -58,6 +62,7 @@ function RangeBar({ range }: { range: FixedRange }) {
 export function CapacitiesTable({
   vaults,
   fixedVaults,
+  variableAssetPricesUsd,
   fixedLoading,
   fixedErrors,
   account,
@@ -66,6 +71,7 @@ export function CapacitiesTable({
 }: {
   vaults: VariableVault[]
   fixedVaults: FixedVault[]
+  variableAssetPricesUsd: ReadonlyMap<string, number>
   fixedLoading: boolean
   fixedErrors: string[]
   account: string | null
@@ -87,6 +93,13 @@ export function CapacitiesTable({
   const [ranges, setRanges] = useState<Map<string, FixedRange>>(new Map())
   const [variableModalVault, setVariableModalVault] = useState<VariableVault | null>(null)
   const [fixedModalVault, setFixedModalVault] = useState<FixedVault | null>(null)
+
+  const variableCapacityLabel = (vault: VariableVault): string => {
+    const priceUsd = variableAssetPricesUsd.get(vault.variableAsset.toLowerCase())
+    if (priceUsd == null || priceUsd <= 0) return '—'
+    const tokenAmount = Number(formatUnits(vault.variableRemaining, vault.variableAssetDecimals))
+    return formatUsdWhole(tokenAmount * priceUsd)
+  }
 
   const toggleSort = (key: Exclude<SortKey, 'default'>) => {
     if (sortKey === key) setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))
@@ -361,15 +374,20 @@ export function CapacitiesTable({
                   }}
                 >
                   <div className="vr-vault vr-vault-first" data-label="Vault">
-                    <IconWithChain chainKey={vault.chainKey}>
-                      <TokenLogoPair chainId={vault.chainId} a={vault.token0.address} b={vault.token1.address} symbolA={vault.token0.symbol} symbolB={vault.token1.symbol} size={30} />
+                    <IconWithChain chainKey={vault.chainKey} badge={TABLE_CHAIN_BADGE_SIZE}>
+                      <TokenLogoPair chainId={vault.chainId} a={vault.token0.address} b={vault.token1.address} symbolA={vault.token0.symbol} symbolB={vault.token1.symbol} size={TABLE_TOKEN_ICON_SIZE} />
                     </IconWithChain>
                     <span>{fixedPair(vault)}</span>
                   </div>
                   <div className="fixed-apr" data-label="APR">{formatPercent(vault.apr)}</div>
-                  <div className="fixed-premium" data-label="Upfront premium">
-                    <TokenLogo chainId={vault.chainId} address={vault.variableAsset.address} symbol={vault.variableAsset.symbol} size={25} />
-                    <span><b>{fixedPremiumLabel(vault)}</b><small>{formatUsd(fixedPremiumUsd(vault))}</small></span>
+                  <div
+                    className="fixed-premium"
+                    data-label="Upfront premium"
+                    title={fixedPremiumLabel(vault)}
+                    aria-label={`Upfront premium ${formatUsdWhole(fixedPremiumUsd(vault))}; ${fixedPremiumLabel(vault)}`}
+                  >
+                    <TokenLogo chainId={vault.chainId} address={vault.variableAsset.address} symbol={vault.variableAsset.symbol} size={TABLE_TOKEN_ICON_SIZE} />
+                    <span className="table-usd-value">{formatUsdWhole(fixedPremiumUsd(vault))}</span>
                   </div>
                   <div className="fixed-capacity" data-label="Capacity">{formatUsd(fixedCapacityUsd(vault))}</div>
                   <div className="fixed-term" data-label="Term">{fmtTerm(vault.durationSecs)}</div>
@@ -409,15 +427,22 @@ export function CapacitiesTable({
                     }}
                   >
                     <div className="vr-vault vr-vault-first" data-label="Vault">
-                      <IconWithChain chainKey={vault.chainKey}>
-                        <TokenLogo chainId={chainIdFor(vault.chainKey)} address={vault.variableAsset} symbol={vault.variableAssetSymbol} size={30} />
+                      <IconWithChain chainKey={vault.chainKey} badge={TABLE_CHAIN_BADGE_SIZE}>
+                        <TokenLogo chainId={chainIdFor(vault.chainKey)} address={vault.variableAsset} symbol={vault.variableAssetSymbol} size={TABLE_TOKEN_ICON_SIZE} />
                       </IconWithChain>
                       <span>{vault.variableAssetSymbol}</span>
                     </div>
-                    <div className="vr-cap" data-label="Capacity"><span className="vr-table-value">{fmtAmount(vault.variableRemaining, vault.variableAssetDecimals)} available</span></div>
+                    <div
+                      className="vr-cap"
+                      data-label="Capacity"
+                      title={`${fmtAmount(vault.variableRemaining, vault.variableAssetDecimals)} ${vault.variableAssetSymbol}`}
+                      aria-label={`Capacity ${variableCapacityLabel(vault)}; ${fmtAmount(vault.variableRemaining, vault.variableAssetDecimals)} ${vault.variableAssetSymbol}`}
+                    >
+                      <span className="vr-table-value">{variableCapacityLabel(vault)}</span>
+                    </div>
                     <div className="vr-term" data-label="Term"><span className="vr-table-value">{fmtTerm(vault.durationSecs)}</span></div>
                     <div className="vr-yield" data-label="Yield">
-                      {range ? <TokenLogoPair chainId={chainIdFor(vault.chainKey)} a={range.token0} b={range.token1} symbolA={range.pair.split('/')[0]} symbolB={range.pair.split('/')[1]} size={30} /> : <span className="vr-dim">…</span>}
+                      {range ? <TokenLogoPair chainId={chainIdFor(vault.chainKey)} a={range.token0} b={range.token1} symbolA={range.pair.split('/')[0]} symbolB={range.pair.split('/')[1]} size={TABLE_TOKEN_ICON_SIZE} /> : <span className="vr-dim">…</span>}
                       <span className="vr-pair">{range?.pair ?? ''}</span>
                     </div>
                     <div className="vr-range" data-label="Range">{range ? <RangeBar range={range} /> : <span className="vr-dim">…</span>}</div>

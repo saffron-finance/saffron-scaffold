@@ -5,6 +5,7 @@ import { IS_STATIC_MOCK } from '../mock/mode'
 interface State {
   loading: boolean
   vaults: FixedVault[]
+  variableAssetPricesUsd: Map<string, number>
   errors: string[]
   loadedAt: number | null
 }
@@ -13,13 +14,25 @@ const CHAINS = ['ethereum', 'arbitrum', 'robinhood'] as const
 
 /** Load the production fixed-vault list, or its immutable Pages fixture. */
 export function useFixedVaults() {
-  const [state, setState] = useState<State>({ loading: true, vaults: [], errors: [], loadedAt: null })
+  const [state, setState] = useState<State>({
+    loading: true,
+    vaults: [],
+    variableAssetPricesUsd: new Map(),
+    errors: [],
+    loadedAt: null,
+  })
 
   const refresh = useCallback(async () => {
     setState((current) => ({ ...current, loading: true }))
     if (IS_STATIC_MOCK) {
       const mock = await import('../mock/fixedVaults')
-      setState({ loading: false, vaults: mock.loadMockFixedVaults(), errors: [], loadedAt: mock.FIXED_MOCK_CAPTURED_AT })
+      setState({
+        loading: false,
+        vaults: mock.loadMockFixedVaults(),
+        variableAssetPricesUsd: mock.loadMockVariableAssetPricesUsd(),
+        errors: [],
+        loadedAt: mock.FIXED_MOCK_CAPTURED_AT,
+      })
       return
     }
 
@@ -42,9 +55,16 @@ export function useFixedVaults() {
         }
       }),
     )
-    const vaults = results.flat().filter((vault) => vault.claimTokenSupply === 0n)
+    const normalized = results.flat()
+    const variableAssetPricesUsd = new Map<string, number>()
+    for (const vault of normalized) {
+      if (vault.variableAsset.priceUsd > 0) {
+        variableAssetPricesUsd.set(vault.variableAsset.address.toLowerCase(), vault.variableAsset.priceUsd)
+      }
+    }
+    const vaults = normalized.filter((vault) => vault.claimTokenSupply === 0n)
     vaults.sort((a, b) => b.apr - a.apr)
-    setState({ loading: false, vaults, errors, loadedAt: Date.now() })
+    setState({ loading: false, vaults, variableAssetPricesUsd, errors, loadedAt: Date.now() })
   }, [])
 
   useEffect(() => {
