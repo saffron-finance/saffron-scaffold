@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useVaults } from './hooks/useVaults'
 import { useFixedVaults } from './hooks/useFixedVaults'
 import { useWallet } from './hooks/useWallet'
-import { CapacitiesTable } from './pages/CapacitiesTable'
+import { CapacitiesTable, type YieldMode } from './pages/CapacitiesTable'
 import { shortAddr } from './lib/format'
 import { IS_STATIC_MOCK } from './mock/mode'
 
@@ -21,6 +21,7 @@ export default function App() {
   const { vaults, errors } = useVaults()
   const fixed = useFixedVaults()
   const wallet = useWallet()
+  const [yieldMode, setYieldMode] = useState<YieldMode>('variable')
 
   // The light canvas is painted on body, outside React's root element.
   useEffect(() => {
@@ -36,8 +37,16 @@ export default function App() {
             <img className="brand-mark" src={SAFFRON_ICON_URL} alt="" aria-hidden="true" />
             <span className="brand-name">Saffron Scaffold</span>
           </div>
-          <h1>Single-staking boosted yield.</h1>
-          <p className="sub">Earn boosted yield from existing onchain Uniswap LP positions.</p>
+          <h1>
+            {yieldMode === 'fixed'
+              ? 'Earn an upfront premium for your Uniswap LP'
+              : 'Buy future yield from an existing Uniswap LP'}
+          </h1>
+          <p className="sub">
+            {yieldMode === 'fixed'
+              ? 'Get paid now for depositing any Uniswap position. Find a matching position below.'
+              : 'Purchase the right to earn yield from an existing Uniswap position.'}
+          </p>
         </div>
         <div className="top-actions">
           {!IS_STATIC_MOCK && wallet.available && (
@@ -65,6 +74,8 @@ export default function App() {
         account={IS_STATIC_MOCK ? null : wallet.account}
         onConnect={() => (IS_STATIC_MOCK ? Promise.resolve() : wallet.connect())}
         readOnly={IS_STATIC_MOCK}
+        yieldMode={yieldMode}
+        onYieldModeChange={setYieldMode}
       />
     </div>
   )

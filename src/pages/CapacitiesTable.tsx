@@ -28,7 +28,7 @@ const TABLE_TOKEN_ICON_SIZE = 20
 const TABLE_CHAIN_BADGE_SIZE = 10
 
 type SortKey = 'default' | 'vault' | 'capacity' | 'term' | 'yield' | 'premium' | 'range'
-type YieldMode = 'variable' | 'fixed'
+export type YieldMode = 'variable' | 'fixed'
 
 function depositable(vault: VariableVault): boolean {
   return !vault.isStarted && !vault.earningsSettled && vault.variableRemaining > 0n
@@ -68,6 +68,8 @@ export function CapacitiesTable({
   account,
   onConnect,
   readOnly = false,
+  yieldMode,
+  onYieldModeChange,
 }: {
   vaults: VariableVault[]
   fixedVaults: FixedVault[]
@@ -77,11 +79,12 @@ export function CapacitiesTable({
   account: string | null
   onConnect: () => void | Promise<void>
   readOnly?: boolean
+  yieldMode: YieldMode
+  onYieldModeChange: (mode: YieldMode) => void
 }) {
   const [openOnly, setOpenOnly] = useState(true)
   const [inRangeOnly, setInRangeOnly] = useState(true)
   const [filledCounterSideOnly, setFilledCounterSideOnly] = useState(false)
-  const [yieldMode, setYieldMode] = useState<YieldMode>('variable')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const optionsRef = useRef<HTMLDivElement>(null)
   const [chain, setChain] = useState('all')
@@ -313,7 +316,7 @@ export function CapacitiesTable({
             value={yieldMode}
             aria-label="Yield type"
             onChange={(event) => {
-              setYieldMode(event.target.value as YieldMode)
+              onYieldModeChange(event.target.value as YieldMode)
               setVaultToken('all')
               setPair('all')
               setSortKey('default')
