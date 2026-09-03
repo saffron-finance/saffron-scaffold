@@ -24,8 +24,10 @@ import { FixedDepositModal } from '../components/FixedDepositModal'
 import { IS_STATIC_MOCK } from '../mock/mode'
 
 const PAGE = 12
-const TABLE_TOKEN_ICON_SIZE = 20
-const TABLE_CHAIN_BADGE_SIZE = 10
+// Table icons use their original, roomy desktop size. The mobile stylesheet
+// scales the rendered marks down so compact cards stay aligned with 15px text.
+const TABLE_TOKEN_ICON_SIZE = 30
+const TABLE_CHAIN_BADGE_SIZE = 15
 
 type SortKey = 'default' | 'vault' | 'capacity' | 'term' | 'yield' | 'premium' | 'range'
 export type YieldMode = 'variable' | 'fixed'

@@ -367,6 +367,19 @@
     font-size: 15px;
     line-height: 20px;
   }
+  /* Desktop table icons are intentionally larger. Only stacked mobile cards
+     use compact 20px marks and 10px chain badges beside the row text. */
+  .vault-row .token-logo,
+  .vault-row .token-icon {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .vault-row .token-icon { font-size: 8px !important; }
+  .vault-row .token-pair > span:nth-child(2) { margin-left: -6px !important; }
+  .vault-row .chain-badge {
+    width: 10px !important;
+    height: 10px !important;
+  }
   .rangebar, .rangebar-full { max-width: 190px; }
 
   /* deposit modal */

@@ -2,8 +2,6 @@
 
 **[Live preview here](https://saffron-finance.github.io/saffron-scaffold/)**
 
-**[Yield-selector branch preview](https://saffron-finance.github.io/saffron-scaffold/previews/yield-side-selector-preview/)**
-
 A standalone React application for browsing both sides of Saffron vaults.
 Variable-side capacity is read directly onchain and supports an injected-wallet
 deposit. The fixed-side selector uses Saffron's public, read-only vault list so
