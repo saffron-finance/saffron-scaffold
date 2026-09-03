@@ -124,7 +124,9 @@ const server = createServer(async (req, res) => {
         const upstreamUrl = new URL(`/api/v1/vaults/${chainId}/list`, SAFFRON_API_ORIGIN)
         const query = new URLSearchParams({
           status: 'Not Started',
-          includeOutOfRange: 'false',
+          // Fetch both states; the UI defaults to the reference page's
+          // showOor=0 behavior but can reveal out-of-range rows when toggled.
+          includeOutOfRange: 'true',
           includeStale: 'true',
           includeNegativePnl: 'true',
           includeUnfilledVariable: 'true',
