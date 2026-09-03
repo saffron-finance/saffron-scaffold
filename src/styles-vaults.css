@@ -229,6 +229,8 @@
 /* Compact version of the production fixed-deposit pane. */
 .fixed-deposit-modal { width: 620px; }
 .fixed-deposit-modal .dm-x { margin-left: auto; }
+.fdm-back { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 50%; background: rgba(255, 255, 255, 0.05); color: #fff; font: 22px/1 var(--font-body); cursor: pointer; }
+.fdm-back:hover { border-color: rgba(255, 255, 255, 0.32); background: rgba(255, 255, 255, 0.09); }
 .fdm-eyebrow { margin-top: 3px; color: rgba(255, 255, 255, 0.48); font: 11px/1.2 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; }
 .fdm-apr { color: #ffe09a; }
 .fdm-section-head { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; font: 700 13px/1.2 var(--font-body); text-transform: uppercase; letter-spacing: 0.07em; }
@@ -239,14 +241,34 @@
 .fdm-required > div:last-child { border-bottom: 0; }
 .fdm-token { display: inline-flex; align-items: center; gap: 10px; font: 600 14px/1 var(--font-body); }
 .fdm-required b { font: 600 17px/1 var(--font-body); font-variant-numeric: tabular-nums; }
-.fdm-range-summary { display: grid; grid-template-columns: 1fr auto; gap: 4px 18px; margin-top: 14px; padding: 14px 17px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); font-family: var(--font-body); }
-.fdm-range-summary > span { color: rgba(255, 255, 255, 0.55); font-size: 12px; }
-.fdm-range-summary > b { font-size: 12px; }
-.fdm-range-summary > small { grid-column: 1 / -1; color: rgba(255, 255, 255, 0.38); }
-.fdm-total-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 2px 0; font-family: var(--font-body); }
-.fdm-total-row span { color: rgba(255, 255, 255, 0.55); }
-.fdm-total-row b { font-size: 17px; }
-.fdm-premium { color: #4ade80; }
+
+/* The fixed range uses the same thin-band visual language as the product's
+   audited vault form. The current tick is the white marker and center pill. */
+.fdm-range-chart { margin-top: 14px; padding: 16px 17px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); font-family: var(--font-body); }
+.fdm-range-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.fdm-range-heading > span { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.fdm-range-heading > small { color: rgba(255, 255, 255, 0.48); font-size: 11px; }
+.fdm-range-track { position: relative; height: 16px; margin-top: 15px; }
+.fdm-range-track::before { content: ''; position: absolute; top: 7px; right: 0; left: 0; height: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.2); }
+.fdm-range-band { position: absolute; top: 5px; height: 6px; border-radius: 999px; background: #4ade80; }
+.fdm-range-band.out { background: #ffd166; }
+.fdm-range-marker { position: absolute; top: 0; width: 4px; height: 16px; transform: translateX(-50%); border-radius: 999px; background: #fff; box-shadow: 0 0 0 3px #111; }
+.fdm-range-values { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 7px; color: rgba(255, 255, 255, 0.58); font: 12px/1 var(--font-body); font-variant-numeric: tabular-nums; }
+.fdm-range-values > span:last-child { text-align: right; }
+.fdm-range-values > b { padding: 5px 10px; border: 1px solid #4ade80; border-radius: 8px; background: rgba(74, 222, 128, 0.18); color: #fff; font-weight: 600; }
+.fdm-range-values > b.out { border-color: #ffd166; background: rgba(255, 209, 102, 0.15); }
+
+/* Second screen ported from the August 29 fixed-income deposit-method modal. */
+.fdm-method-screen { padding-top: 20px; font-family: var(--font-body); }
+.fdm-method-intro { margin: 0; color: rgba(255, 255, 255, 0.62); font-size: 14px; line-height: 1.5; }
+.fdm-method-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.fdm-method-choice { min-width: 0; padding: 17px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; background: #202020; color: #fff; text-align: left; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease; }
+.fdm-method-choice:hover:not(:disabled), .fdm-method-choice.selected { border-color: #fa3f06; background: rgba(250, 63, 6, 0.09); }
+.fdm-method-choice:active:not(:disabled) { transform: scale(0.985); }
+.fdm-method-choice:disabled { cursor: wait; opacity: 0.62; }
+.fdm-method-choice b { display: block; font-size: 14px; }
+.fdm-method-choice span { display: block; margin-top: 7px; color: rgba(255, 255, 255, 0.52); font-size: 12px; line-height: 1.45; }
+.fdm-method-note { margin: 16px 0 0; color: rgba(255, 255, 255, 0.45); font-size: 11px; line-height: 1.45; text-align: center; }
 .fdm-cta-link { display: flex; align-items: center; justify-content: center; text-decoration: none; box-sizing: border-box; }
 .fdm-bullets { display: grid; gap: 8px; margin: 20px 0 0; padding: 18px 0 0 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.66); font: 12px/1.45 var(--font-body); }
 .fdm-bullets b { color: #fff; }
@@ -333,6 +355,6 @@
   .dm-stats { grid-template-columns: 1fr 1fr; gap: 12px; }
   .dm-amount input { font-size: 19px; }
   .fdm-stats { grid-template-columns: 1fr 1fr; }
-  .fdm-range-summary { grid-template-columns: 1fr; }
-  .fdm-range-summary > small { grid-column: auto; }
+  .fdm-range-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .fdm-method-grid { grid-template-columns: 1fr; }
 }

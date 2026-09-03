@@ -498,9 +498,10 @@ body.saffron-scaffold-body {
 }
 
 .saffron-scaffold .fdm-eyebrow,
-.saffron-scaffold .fdm-range-summary > span,
-.saffron-scaffold .fdm-range-summary > small,
-.saffron-scaffold .fdm-total-row span,
+.saffron-scaffold .fdm-range-heading > small,
+.saffron-scaffold .fdm-range-values,
+.saffron-scaffold .fdm-method-intro,
+.saffron-scaffold .fdm-method-note,
 .saffron-scaffold .fdm-bullets {
   color: #5f5f5f;
 }
@@ -520,8 +521,63 @@ body.saffron-scaffold-body {
 }
 
 .saffron-scaffold .fdm-required,
-.saffron-scaffold .fdm-range-summary {
+.saffron-scaffold .fdm-range-chart,
+.saffron-scaffold .fdm-method-choice {
   background: #dfdfdf;
+}
+
+.saffron-scaffold .fdm-back {
+  border-color: #c7c7c7;
+  background: #dfdfdf;
+  color: #111111;
+}
+
+.saffron-scaffold .fdm-back:hover {
+  border-color: #999999;
+  background: #d5d5d5;
+}
+
+.saffron-scaffold .fdm-range-track::before {
+  background: #b8b8b8;
+}
+
+.saffron-scaffold .fdm-range-band {
+  background: #66a618;
+}
+
+.saffron-scaffold .fdm-range-band.out {
+  background: #aa8100;
+}
+
+.saffron-scaffold .fdm-range-marker {
+  background: #111111;
+  box-shadow: 0 0 0 3px #efefef;
+}
+
+.saffron-scaffold .fdm-range-values > b {
+  border-color: #66a618;
+  background: #66a618;
+  color: #ffffff;
+}
+
+.saffron-scaffold .fdm-range-values > b.out {
+  border-color: #aa8100;
+  background: #aa8100;
+}
+
+.saffron-scaffold .fdm-method-choice {
+  border-color: #c7c7c7;
+  color: #111111;
+}
+
+.saffron-scaffold .fdm-method-choice:hover:not(:disabled),
+.saffron-scaffold .fdm-method-choice.selected {
+  border-color: #111111;
+  background: #d5d5d5;
+}
+
+.saffron-scaffold .fdm-method-choice span {
+  color: #5f5f5f;
 }
 
 .saffron-scaffold .fdm-required > div,
@@ -531,10 +587,6 @@ body.saffron-scaffold-body {
 
 .saffron-scaffold .fdm-bullets b {
   color: #111111;
-}
-
-.saffron-scaffold .fdm-premium {
-  color: #2f7200;
 }
 
 .saffron-scaffold .dm-tx {
