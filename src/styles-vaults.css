@@ -258,17 +258,23 @@
 .fdm-range-values > b { padding: 5px 10px; border: 1px solid #4ade80; border-radius: 8px; background: rgba(74, 222, 128, 0.18); color: #fff; font-weight: 600; }
 .fdm-range-values > b.out { border-color: #ffd166; background: rgba(255, 209, 102, 0.15); }
 
-/* Second screen ported from the August 29 fixed-income deposit-method modal. */
-.fdm-method-screen { padding-top: 20px; font-family: var(--font-body); }
-.fdm-method-intro { margin: 0; color: rgba(255, 255, 255, 0.62); font-size: 14px; line-height: 1.5; }
-.fdm-method-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
-.fdm-method-choice { min-width: 0; padding: 17px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; background: #202020; color: #fff; text-align: left; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease; }
-.fdm-method-choice:hover:not(:disabled), .fdm-method-choice.selected { border-color: #fa3f06; background: rgba(250, 63, 6, 0.09); }
-.fdm-method-choice:active:not(:disabled) { transform: scale(0.985); }
-.fdm-method-choice:disabled { cursor: wait; opacity: 0.62; }
-.fdm-method-choice b { display: block; font-size: 14px; }
-.fdm-method-choice span { display: block; margin-top: 7px; color: rgba(255, 255, 255, 0.52); font-size: 12px; line-height: 1.45; }
-.fdm-method-note { margin: 16px 0 0; color: rgba(255, 255, 255, 0.45); font-size: 11px; line-height: 1.45; text-align: center; }
+/* Confirmation screen follows the original fixed-side transaction summary:
+   dynamic LP amounts, lock period, premium, slippage, and one final action. */
+.fdm-confirm-screen { padding-top: 22px; font-family: var(--font-body); }
+.fdm-confirm-bullets { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
+.fdm-confirm-bullets li { display: grid; grid-template-columns: 10px 1fr; align-items: start; gap: 13px; color: rgba(255, 255, 255, 0.68); font-size: 15px; line-height: 1.55; }
+.fdm-confirm-bullets b { color: #fff; font-weight: 700; }
+.fdm-confirm-dot { width: 7px; height: 7px; margin-top: 8px; border-radius: 50%; background: #c9ff3d; box-shadow: 0 0 0 4px rgba(201, 255, 61, 0.08); }
+.fdm-confirm-bullets .fdm-confirm-premium { color: #4ade80; }
+.fdm-slippage-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; padding: 12px 14px 12px 18px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 15px; background: #202020; }
+.fdm-slippage-label { color: rgba(255, 255, 255, 0.55); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.fdm-slippage-options { display: flex; gap: 8px; }
+.fdm-slippage-options button { min-width: 70px; padding: 9px 14px; border: 1px solid transparent; border-radius: 10px; background: #292929; color: rgba(255, 255, 255, 0.62); font: 600 14px/1 var(--font-body); cursor: pointer; }
+.fdm-slippage-options button:hover { color: #fff; }
+.fdm-slippage-options button.selected { background: #c9ff3d; color: #111; }
+.fdm-preview-notice { margin-top: 13px; color: rgba(255, 255, 255, 0.54); font-size: 11px; line-height: 1.45; text-align: center; }
+.fdm-uniswap-note { margin: 20px 0 0; color: rgba(255, 255, 255, 0.42); font-size: 12px; text-align: center; }
+.fdm-confirm-cta { margin-top: 14px; }
 .fdm-cta-link { display: flex; align-items: center; justify-content: center; text-decoration: none; box-sizing: border-box; }
 .fdm-bullets { display: grid; gap: 8px; margin: 20px 0 0; padding: 18px 0 0 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.66); font: 12px/1.45 var(--font-body); }
 .fdm-bullets b { color: #fff; }
@@ -356,5 +362,9 @@
   .dm-amount input { font-size: 19px; }
   .fdm-stats { grid-template-columns: 1fr 1fr; }
   .fdm-range-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .fdm-method-grid { grid-template-columns: 1fr; }
+  .fdm-confirm-bullets { gap: 14px; }
+  .fdm-confirm-bullets li { font-size: 14px; }
+  .fdm-slippage-row { align-items: stretch; flex-direction: column; }
+  .fdm-slippage-options { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .fdm-slippage-options button { min-width: 0; }
 }

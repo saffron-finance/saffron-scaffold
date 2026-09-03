@@ -5,13 +5,13 @@ import {
   fixedDepositUrl,
   fixedPair,
   fixedPremiumLabel,
+  fixedPremiumUsd,
   formatPercent,
   formatTokenAmount,
   formatUsd,
   requiredFixedAmounts,
   type FixedVault,
 } from '../fixedVaults/model'
-import { shortAddr } from '../lib/format'
 import { IconWithChain, TokenLogo, TokenLogoPair } from './TokenIcon'
 
 function humanTerm(seconds: number): string {
@@ -34,15 +34,17 @@ export function FixedDepositModal({
   onConnect: () => void | Promise<void>
   previewOnly: boolean
 }) {
-  const [screen, setScreen] = useState<'details' | 'method'>('details')
-  const [selectedMethod, setSelectedMethod] = useState<'pair' | 'zap' | null>(null)
+  const [screen, setScreen] = useState<'details' | 'confirm'>('details')
+  const [slippageBps, setSlippageBps] = useState(50)
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
+  const [previewNotice, setPreviewNotice] = useState(false)
   const amounts = useMemo(() => requiredFixedAmounts(vault), [vault])
   const pair = fixedPair(vault)
   const duration = humanTerm(vault.durationSecs)
   const depositUrl = fixedDepositUrl(vault)
   const capacityLabel = formatUsd(fixedCapacityUsd(vault))
+  const premiumUsdLabel = formatUsd(fixedPremiumUsd(vault))
 
   // Match the range treatment in the fixed-income product: pad the domain so
   // the green band is inset, then position the live pool tick on that domain.
@@ -84,17 +86,6 @@ export function FixedDepositModal({
     }
   }
 
-  /**
-   * Select one of the two deposit paths from the original fixed-income flow.
-   * Static Pages mode stops here by design; live mode asks for a wallet only
-   * after the user has chosen how they want to fund the fixed position.
-   */
-  async function chooseMethod(method: 'pair' | 'zap') {
-    setSelectedMethod(method)
-    if (previewOnly || account) return
-    await connect()
-  }
-
   return (
     <div className="dm-backdrop" onClick={onClose}>
       <section
@@ -105,14 +96,14 @@ export function FixedDepositModal({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="dm-head">
-          {screen === 'method' ? (
+          {screen === 'confirm' ? (
             <button
               className="fdm-back"
               type="button"
               onClick={() => {
                 setScreen('details')
-                setSelectedMethod(null)
                 setConnectError(null)
+                setPreviewNotice(false)
               }}
               aria-label="Back to fixed vault details"
             >
@@ -132,11 +123,9 @@ export function FixedDepositModal({
           )}
           <div>
             <div className="dm-title" id="fixed-deposit-modal-title">
-              {screen === 'method' ? 'Choose a deposit method' : pair}
+              {screen === 'confirm' ? 'Confirm deposit' : pair}
             </div>
-            <div className="fdm-eyebrow">
-              {screen === 'method' ? `${pair} fixed yield vault` : 'Fixed yield vault'}
-            </div>
+            {screen === 'details' && <div className="fdm-eyebrow">Fixed yield vault</div>}
           </div>
           <button className="dm-x" onClick={onClose} aria-label="Close fixed deposit details">×</button>
         </header>
@@ -194,7 +183,7 @@ export function FixedDepositModal({
               </div>
             </div>
 
-            <button className="dm-cta" type="button" onClick={() => setScreen('method')}>
+            <button className="dm-cta" type="button" onClick={() => setScreen('confirm')}>
               Get {capacityLabel} now
             </button>
 
@@ -205,60 +194,76 @@ export function FixedDepositModal({
             </ul>
           </>
         ) : (
-          <div className="fdm-method-screen">
-            <p className="fdm-method-intro">
-              Deposit the required vault pair directly, or start with one supported asset and let LI.FI
-              build the complete fixed position.
-            </p>
+          <div className="fdm-confirm-screen">
+            {/* Keep the confirmation language aligned with the audited fixed
+                form while filling every value from the selected vault. */}
+            <ul className="fdm-confirm-bullets">
+              <li>
+                <span className="fdm-confirm-dot" aria-hidden="true" />
+                <span>
+                  <b>{formatTokenAmount(amounts.amount0, vault.token0.decimals)} {vault.token0.symbol}</b>
+                  {' '}and{' '}
+                  <b>{formatTokenAmount(amounts.amount1, vault.token1.decimals)} {vault.token1.symbol}</b>
+                  {' '}will be deposited into a Uniswap LP.
+                </span>
+              </li>
+              <li>
+                <span className="fdm-confirm-dot" aria-hidden="true" />
+                <span>Your LP is locked for <b>{duration}</b>.</span>
+              </li>
+              <li>
+                <span className="fdm-confirm-dot" aria-hidden="true" />
+                <span>You receive <b className="fdm-confirm-premium">+{premiumUsdLabel}</b> upfront premium right now.</span>
+              </li>
+              <li>
+                <span className="fdm-confirm-dot" aria-hidden="true" />
+                <span>Your position may suffer <b>impermanent loss</b>.</span>
+              </li>
+            </ul>
 
-            <div className="fdm-method-grid" role="group" aria-label="Deposit method">
-              <button
-                type="button"
-                className={`fdm-method-choice ${selectedMethod === 'pair' ? 'selected' : ''}`}
-                aria-pressed={selectedMethod === 'pair'}
-                onClick={() => void chooseMethod('pair')}
-                disabled={connecting}
-              >
-                <b>Deposit both tokens</b>
-                <span>Use the required {vault.token0.symbol} and {vault.token1.symbol} already in your wallet.</span>
-              </button>
-              <button
-                type="button"
-                className={`fdm-method-choice ${selectedMethod === 'zap' ? 'selected' : ''}`}
-                aria-pressed={selectedMethod === 'zap'}
-                onClick={() => void chooseMethod('zap')}
-                disabled={connecting}
-              >
-                <b>Zap from one asset</b>
-                <span>Select one wallet asset, review the LI.FI route, then deposit in one flow.</span>
-              </button>
+            {/* The selector mirrors the supplied confirmation screen. The
+                audited Saffron form remains the source of truth at handoff. */}
+            <div className="fdm-slippage-row">
+              <span className="fdm-slippage-label">Slippage</span>
+              <div className="fdm-slippage-options" role="group" aria-label="Slippage tolerance">
+                {[10, 50, 100].map((bps) => (
+                  <button
+                    key={bps}
+                    type="button"
+                    className={slippageBps === bps ? 'selected' : ''}
+                    aria-pressed={slippageBps === bps}
+                    onClick={() => setSlippageBps(bps)}
+                  >
+                    {bps / 100}%
+                  </button>
+                ))}
+              </div>
             </div>
 
             {connectError && <div className="dm-error">⚠ {connectError}</div>}
-
-            {selectedMethod && (
-              previewOnly ? (
-                <button className="dm-cta" type="button" disabled>
-                  Deposits disabled in preview
-                </button>
-              ) : account ? (
-                <a className="dm-cta fdm-cta-link" href={depositUrl} target="_blank" rel="noreferrer">
-                  {selectedMethod === 'pair' ? 'Continue with both tokens' : 'Continue with one asset'}
-                </a>
-              ) : (
-                <button className="dm-cta" type="button" disabled>
-                  {connecting ? 'Connecting…' : 'Connect wallet to continue'}
-                </button>
-              )
+            {previewNotice && (
+              <div className="fdm-preview-notice" role="status">
+                Static preview — no wallet or transaction request is made.
+              </div>
             )}
 
-            <p className="fdm-method-note">
-              {previewOnly
-                ? 'Static preview — no wallet, RPC, or transaction request is made.'
-                : account
-                  ? `Wallet ${shortAddr(account)} · the audited Saffron deposit flow opens next.`
-                  : 'Choose a method to connect your wallet and continue.'}
+            <p className="fdm-uniswap-note">
+              You&apos;re providing liquidity to Uniswap v3
             </p>
+
+            {previewOnly ? (
+              <button className="dm-cta fdm-confirm-cta" type="button" onClick={() => setPreviewNotice(true)}>
+                Deposit
+              </button>
+            ) : account ? (
+              <a className="dm-cta fdm-cta-link fdm-confirm-cta" href={depositUrl} target="_blank" rel="noreferrer">
+                Deposit
+              </a>
+            ) : (
+              <button className="dm-cta fdm-confirm-cta" type="button" onClick={() => void connect()} disabled={connecting}>
+                {connecting ? 'Connecting…' : 'Deposit'}
+              </button>
+            )}
           </div>
         )}
       </section>
