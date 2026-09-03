@@ -4,9 +4,12 @@
 
 **[Yield-selector branch preview](https://saffron-finance.github.io/saffron-scaffold/previews/yield-side-selector-preview/)**
 
-A standalone React application that reads Saffron vault contracts directly
-onchain and displays variable-side deposit capacity. Users can connect an
-injected browser wallet to approve and submit a variable-side deposit.
+A standalone React application for browsing both sides of Saffron vaults.
+Variable-side capacity is read directly onchain and supports an injected-wallet
+deposit. The fixed-side selector uses Saffron's public, read-only vault list so
+it can show the production APR, upfront premium, USD capacity, term, and exact
+required Uniswap pair. Its deposit button hands off to the audited Saffron fixed
+deposit route for the selected vault.
 
 This repository contains the standalone Saffron Scaffold interface and no
 deployment-specific URL.
@@ -52,7 +55,9 @@ The Node server listens on `127.0.0.1:3200` by default. Configure `PORT`,
 Production browser requests use the same-origin `/rpc/<chain>` endpoint. The
 Node server forwards only an explicit allowlist of read-only JSON-RPC methods,
 so upstream RPC credentials remain server-side. Wallet approvals and deposits
-are sent directly through the connected browser wallet.
+are sent directly through the connected browser wallet. The same server also
+offers a narrow GET-only `/fixed-vaults/<chain>` bridge to the public Saffron
+vault-list API; its filters and upstream origin are fixed server-side.
 
 Never expose private RPC URLs through `VITE_RPC_*` in a public production
 build. Those variables are intended only for local development.
@@ -69,10 +74,10 @@ The second command should return no matches.
 ## Static example
 
 `npm run build:mock` creates a serverless, read-only build from the committed
-onchain fixture in `src/mock/snapshot.json`. It performs no RPC requests and
-disables wallet actions. Vault rows remain clickable and open the populated
-deposit modal for UI demonstrations, but the modal cannot connect a wallet or
-submit a transaction. GitHub Actions publishes that build to GitHub Pages on
+variable and fixed vault fixtures. It performs no RPC or API requests and
+disables wallet actions. Both sets of vault rows remain clickable and open
+populated deposit modals for UI demonstrations, but the modals cannot connect a
+wallet or submit a transaction. GitHub Actions publishes that build to GitHub Pages on
 every push to `main` at
 <https://saffron-finance.github.io/saffron-scaffold/>.
 

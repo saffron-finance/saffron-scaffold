@@ -131,6 +131,26 @@
 .vaults-pager button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #fff; cursor: pointer; }
 .vaults-pager button:disabled { opacity: 0.35; cursor: default; }
 
+/* Fixed-side rows keep the same five-column rhythm as the variable list while
+   replacing its metrics with the production fixed-vault vocabulary. */
+.vaults-grid-head.fixed-grid,
+.fixed-vault-row {
+  grid-template-columns: 1.45fr 0.72fr 1.55fr 0.9fr 0.55fr;
+}
+.fixed-apr {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffe09a;
+  font-variant-numeric: tabular-nums;
+}
+.fixed-premium { display: flex; align-items: center; gap: 10px; }
+.fixed-premium > span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.fixed-premium b,
+.fixed-capacity,
+.fixed-term { font-family: var(--font-body); font-size: 14px; font-weight: 500; }
+.fixed-premium small { color: rgba(255, 255, 255, 0.52); font-size: 11px; }
+
 /* token coins — real logo or monogram fallback. flex-shrink:0 keeps them from being squished
    (which read as "cropped") inside flex rows; the outer ring cleanly separates overlapping pairs. */
 .token-icon {
@@ -205,6 +225,31 @@
 .dm-cta:disabled { background: #333; color: #777; cursor: default; }
 .dm-cta:active:not(:disabled) { transform: scale(0.98); }
 .dm-account { text-align: center; font-family: var(--font-body); font-size: 10.5px; color: rgba(255, 255, 255, 0.4); margin-top: 12px; }
+
+/* Compact version of the production fixed-deposit pane. */
+.fixed-deposit-modal { width: 620px; }
+.fixed-deposit-modal .dm-x { margin-left: auto; }
+.fdm-eyebrow { margin-top: 3px; color: rgba(255, 255, 255, 0.48); font: 11px/1.2 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; }
+.fdm-apr { color: #ffe09a; }
+.fdm-section-head { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; font: 700 13px/1.2 var(--font-body); text-transform: uppercase; letter-spacing: 0.07em; }
+.fdm-position-status { padding: 5px 9px; border-radius: 999px; background: rgba(74, 222, 128, 0.12); color: #4ade80; font-size: 10px; }
+.fdm-position-status.out { background: rgba(255, 188, 9, 0.12); color: #ffd166; }
+.fdm-required { margin-top: 10px; overflow: hidden; border-radius: 14px; background: #202020; }
+.fdm-required > div { display: flex; align-items: center; justify-content: space-between; padding: 15px 17px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.fdm-required > div:last-child { border-bottom: 0; }
+.fdm-token { display: inline-flex; align-items: center; gap: 10px; font: 600 14px/1 var(--font-body); }
+.fdm-required b { font: 600 17px/1 var(--font-body); font-variant-numeric: tabular-nums; }
+.fdm-range-summary { display: grid; grid-template-columns: 1fr auto; gap: 4px 18px; margin-top: 14px; padding: 14px 17px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); font-family: var(--font-body); }
+.fdm-range-summary > span { color: rgba(255, 255, 255, 0.55); font-size: 12px; }
+.fdm-range-summary > b { font-size: 12px; }
+.fdm-range-summary > small { grid-column: 1 / -1; color: rgba(255, 255, 255, 0.38); }
+.fdm-total-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 2px 0; font-family: var(--font-body); }
+.fdm-total-row span { color: rgba(255, 255, 255, 0.55); }
+.fdm-total-row b { font-size: 17px; }
+.fdm-premium { color: #4ade80; }
+.fdm-cta-link { display: flex; align-items: center; justify-content: center; text-decoration: none; box-sizing: border-box; }
+.fdm-bullets { display: grid; gap: 8px; margin: 20px 0 0; padding: 18px 0 0 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.66); font: 12px/1.45 var(--font-body); }
+.fdm-bullets b { color: #fff; }
 
 /* View LP details link + Uniswap icon */
 .lp-link { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px; background: none; border: none; color: #fff; font-family: var(--font-body); font-size: 13px; cursor: pointer; }
@@ -287,4 +332,7 @@
   .dm-title { font-size: 20px; }
   .dm-stats { grid-template-columns: 1fr 1fr; gap: 12px; }
   .dm-amount input { font-size: 19px; }
+  .fdm-stats { grid-template-columns: 1fr 1fr; }
+  .fdm-range-summary { grid-template-columns: 1fr; }
+  .fdm-range-summary > small { grid-column: auto; }
 }

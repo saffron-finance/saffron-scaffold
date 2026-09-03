@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useVaults } from './hooks/useVaults'
+import { useFixedVaults } from './hooks/useFixedVaults'
 import { useWallet } from './hooks/useWallet'
 import { CapacitiesTable } from './pages/CapacitiesTable'
 import { shortAddr } from './lib/format'
@@ -18,6 +19,7 @@ const SAFFRON_ICON_URL = `${import.meta.env.BASE_URL}saffron-icon.svg`
  */
 export default function App() {
   const { vaults, errors } = useVaults()
+  const fixed = useFixedVaults()
   const wallet = useWallet()
 
   // The light canvas is painted on body, outside React's root element.
@@ -56,6 +58,9 @@ export default function App() {
 
       <CapacitiesTable
         vaults={vaults}
+        fixedVaults={fixed.vaults}
+        fixedLoading={fixed.loading}
+        fixedErrors={fixed.errors}
         account={IS_STATIC_MOCK ? null : wallet.account}
         onConnect={() => (IS_STATIC_MOCK ? Promise.resolve() : wallet.connect())}
         readOnly={IS_STATIC_MOCK}

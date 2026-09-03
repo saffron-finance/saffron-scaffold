@@ -186,6 +186,14 @@ body.saffron-scaffold-body {
   color: #2d6500;
 }
 
+.saffron-scaffold .fixed-apr {
+  color: #765900;
+}
+
+.saffron-scaffold .fixed-premium small {
+  color: rgba(17, 17, 17, 0.55);
+}
+
 .saffron-scaffold .chainsel-menu {
   background: #f4f4f4;
   border-color: #c9c9c9;
@@ -487,6 +495,46 @@ body.saffron-scaffold-body {
 .saffron-scaffold .dm-cta:disabled {
   background: #d6d6d6;
   color: #777777;
+}
+
+.saffron-scaffold .fdm-eyebrow,
+.saffron-scaffold .fdm-range-summary > span,
+.saffron-scaffold .fdm-range-summary > small,
+.saffron-scaffold .fdm-total-row span,
+.saffron-scaffold .fdm-bullets {
+  color: #5f5f5f;
+}
+
+.saffron-scaffold .fdm-apr {
+  color: #765900;
+}
+
+.saffron-scaffold .fdm-position-status {
+  background: rgba(90, 166, 0, 0.12);
+  color: #2f7200;
+}
+
+.saffron-scaffold .fdm-position-status.out {
+  background: rgba(118, 89, 0, 0.1);
+  color: #765900;
+}
+
+.saffron-scaffold .fdm-required,
+.saffron-scaffold .fdm-range-summary {
+  background: #dfdfdf;
+}
+
+.saffron-scaffold .fdm-required > div,
+.saffron-scaffold .fdm-bullets {
+  border-color: #c7c7c7;
+}
+
+.saffron-scaffold .fdm-bullets b {
+  color: #111111;
+}
+
+.saffron-scaffold .fdm-premium {
+  color: #2f7200;
 }
 
 .saffron-scaffold .dm-tx {

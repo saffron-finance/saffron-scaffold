@@ -2,62 +2,79 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { type VariableVault } from '../chain/vaults'
 import { loadFixedRanges, rangeGeometry, type FixedRange } from '../chain/fixedRange'
 import { chainIdFor } from '../chain/chains'
+import {
+  fixedCapacityUsd,
+  fixedDepositable,
+  fixedPair,
+  fixedPremiumLabel,
+  fixedPremiumUsd,
+  formatPercent,
+  formatUsd,
+  type FixedVault,
+} from '../fixedVaults/model'
 import { fmtAmount } from '../lib/format'
 import { TokenLogo, TokenLogoPair, IconWithChain } from '../components/TokenIcon'
 import { ChainSelector } from '../components/ChainSelector'
 import { VaultTokenSelector } from '../components/VaultTokenSelector'
 import { PairSelector } from '../components/PairSelector'
 import { DepositModal } from '../components/DepositModal'
+import { FixedDepositModal } from '../components/FixedDepositModal'
 import { IS_STATIC_MOCK } from '../mock/mode'
 
 const PAGE = 12
 
-type SortKey = 'default' | 'vault' | 'capacity' | 'term' | 'yield' | 'range'
+type SortKey = 'default' | 'vault' | 'capacity' | 'term' | 'yield' | 'premium' | 'range'
 type YieldMode = 'variable' | 'fixed'
 
-function depositable(v: VariableVault): boolean {
-  return !v.isStarted && !v.earningsSettled && v.variableRemaining > 0n
+function depositable(vault: VariableVault): boolean {
+  return !vault.isStarted && !vault.earningsSettled && vault.variableRemaining > 0n
 }
 
-// A funding-stage fixed deposit mints exactly one claim token. Started vaults
-// necessarily filled fixed capacity before starting, even if claim() has since
-// replaced that claim token with a fixed bearer token.
-function hasFixedDeposit(v: VariableVault): boolean {
-  return v.fixedDepositPresent === true
+function hasFixedDeposit(vault: VariableVault): boolean {
+  return vault.fixedDepositPresent === true
 }
 
-function fmtTerm(secs: number): { n: string } {
-  const d = Math.round(secs / 86400)
-  if (d >= 7 && d % 7 === 0) return { n: `${d / 7}w` }
-  if (d >= 1) return { n: `${d}d` }
-  return { n: `${Math.max(1, Math.round(secs / 3600))}h` }
+function fmtTerm(seconds: number): string {
+  const days = Math.round(seconds / 86400)
+  if (days >= 7 && days % 7 === 0) return `${days / 7}w`
+  if (days >= 1) return `${days}d`
+  return `${Math.max(1, Math.round(seconds / 3600))}h`
 }
 
-function RangeBar({ r }: { r: FixedRange }) {
-  const g = rangeGeometry(r)
+function RangeBar({ range }: { range: FixedRange }) {
+  const geometry = rangeGeometry(range)
   return (
     <div className="rangebar">
       <div className="rangebar-track" />
-      <div className={`rangebar-band ${r.inRange ? '' : 'out'}`} style={{ left: `${g.bandLeft}%`, width: `${g.bandWidth}%` }} />
-      <div className="rangebar-marker" style={{ left: `${g.markerLeft}%` }} />
+      <div
+        className={`rangebar-band ${range.inRange ? '' : 'out'}`}
+        style={{ left: `${geometry.bandLeft}%`, width: `${geometry.bandWidth}%` }}
+      />
+      <div className="rangebar-marker" style={{ left: `${geometry.markerLeft}%` }} />
     </div>
   )
 }
 
 export function CapacitiesTable({
   vaults,
+  fixedVaults,
+  fixedLoading,
+  fixedErrors,
   account,
   onConnect,
   readOnly = false,
 }: {
   vaults: VariableVault[]
+  fixedVaults: FixedVault[]
+  fixedLoading: boolean
+  fixedErrors: string[]
   account: string | null
   onConnect: () => void | Promise<void>
   readOnly?: boolean
 }) {
   const [openOnly, setOpenOnly] = useState(true)
   const [inRangeOnly, setInRangeOnly] = useState(true)
-  const [filledFixedOnly, setFilledFixedOnly] = useState(false)
+  const [filledCounterSideOnly, setFilledCounterSideOnly] = useState(false)
   const [yieldMode, setYieldMode] = useState<YieldMode>('variable')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const optionsRef = useRef<HTMLDivElement>(null)
@@ -67,9 +84,12 @@ export function CapacitiesTable({
   const [sortKey, setSortKey] = useState<SortKey>('default')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(1)
+  const [ranges, setRanges] = useState<Map<string, FixedRange>>(new Map())
+  const [variableModalVault, setVariableModalVault] = useState<VariableVault | null>(null)
+  const [fixedModalVault, setFixedModalVault] = useState<FixedVault | null>(null)
 
   const toggleSort = (key: Exclude<SortKey, 'default'>) => {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    if (sortKey === key) setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))
     else {
       setSortKey(key)
       setSortDir('asc')
@@ -79,16 +99,13 @@ export function CapacitiesTable({
 
   useEffect(() => {
     if (!optionsOpen) return
-    const onDoc = (e: MouseEvent) => {
-      if (optionsRef.current && !optionsRef.current.contains(e.target as Node)) setOptionsOpen(false)
+    const onDocumentClick = (event: MouseEvent) => {
+      if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) setOptionsOpen(false)
     }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
+    document.addEventListener('mousedown', onDocumentClick)
+    return () => document.removeEventListener('mousedown', onDocumentClick)
   }, [optionsOpen])
-  const [ranges, setRanges] = useState<Map<string, FixedRange>>(new Map())
-  const [modalVault, setModalVault] = useState<VariableVault | null>(null)
 
-  // Load the committed range fixture only in the serverless example build.
   useEffect(() => {
     if (!IS_STATIC_MOCK) return
     let cancelled = false
@@ -100,114 +117,169 @@ export function CapacitiesTable({
     }
   }, [])
 
-  // The base set the pair dropdown + filter operate on (before the pair filter itself).
-  const baseList = useMemo(() => {
+  const variableBaseList = useMemo(() => {
     let list = openOnly ? vaults.filter(depositable) : vaults
-    if (chain !== 'all') list = list.filter((v) => v.chainKey === chain)
-    // This option defaults off, so unfilled fixed-side vaults remain visible
-    // until the user explicitly asks to hide them.
-    if (filledFixedOnly) list = list.filter(hasFixedDeposit)
-    // In-range only: keep vaults whose fixed-side position is in range. A vault whose range hasn't
-    // loaded yet passes (so the list doesn't flash empty), then gets filtered once its range is known.
-    if (inRangeOnly) list = list.filter((v) => ranges.get(v.vault.toLowerCase())?.inRange ?? true)
+    if (chain !== 'all') list = list.filter((vault) => vault.chainKey === chain)
+    if (filledCounterSideOnly) list = list.filter(hasFixedDeposit)
+    if (inRangeOnly) list = list.filter((vault) => ranges.get(vault.vault.toLowerCase())?.inRange ?? true)
     return list
-  }, [vaults, openOnly, chain, filledFixedOnly, inRangeOnly, ranges])
+  }, [vaults, openOnly, chain, filledCounterSideOnly, inRangeOnly, ranges])
 
-  // Vault-token (variable-side token) options across the base set, with counts + a representative.
-  const vaultTokenOptions = useMemo(() => {
-    const m = new Map<string, { symbol: string; count: number; address?: string; chainId: number }>()
-    for (const v of baseList) {
-      const cur = m.get(v.variableAssetSymbol)
-      if (cur) cur.count++
-      else m.set(v.variableAssetSymbol, { symbol: v.variableAssetSymbol, count: 1, address: v.variableAsset, chainId: chainIdFor(v.chainKey) })
+  const fixedBaseList = useMemo(() => {
+    let list = openOnly ? fixedVaults.filter(fixedDepositable) : fixedVaults
+    if (chain !== 'all') list = list.filter((vault) => vault.chainKey === chain)
+    if (filledCounterSideOnly) {
+      list = list.filter((vault) => {
+        const target = vault.variableAsset.capacity ?? 0n
+        return target > 0n && vault.variableDeposited >= target
+      })
     }
-    return [...m.values()].sort((a, b) => a.symbol.localeCompare(b.symbol))
-  }, [baseList])
+    if (inRangeOnly) list = list.filter((vault) => !vault.isOutOfRange)
+    return list
+  }, [fixedVaults, openOnly, chain, filledCounterSideOnly, inRangeOnly])
 
-  // The vault-token filter narrows the set the pair dropdown + rows work on (cascading, like Uniswap).
-  const tokenFiltered = useMemo(
-    () => (vaultToken === 'all' ? baseList : baseList.filter((v) => v.variableAssetSymbol === vaultToken)),
-    [baseList, vaultToken],
-  )
-
-  // Load the fixed-side ranges for the whole base set so we know every vault's yield pair (from its
-  // pool's poolKey, read live on-chain — no separate database needed).
   useEffect(() => {
     if (IS_STATIC_MOCK) return
-    const missing = baseList.filter((v) => !ranges.has(v.vault.toLowerCase()))
+    const missing = variableBaseList.filter((vault) => !ranges.has(vault.vault.toLowerCase()))
     if (missing.length === 0) return
     let cancelled = false
-    void loadFixedRanges(missing).then((m) => {
+    void loadFixedRanges(missing).then((loaded) => {
       if (cancelled) return
-      setRanges((prev) => {
-        const next = new Map(prev)
-        for (const [k, val] of m) next.set(k, val)
+      setRanges((current) => {
+        const next = new Map(current)
+        for (const [address, range] of loaded) next.set(address, range)
         return next
       })
     })
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseList])
+  }, [variableBaseList, ranges])
 
-  // Distinct pairs across the base set, with counts + a representative token pair (for the icons).
-  const pairOptions = useMemo(() => {
-    const m = new Map<string, { pair: string; count: number; token0?: string; token1?: string; chainId: number }>()
-    for (const v of tokenFiltered) {
-      const r = ranges.get(v.vault.toLowerCase())
-      if (!r) continue
-      const cur = m.get(r.pair)
-      if (cur) cur.count++
-      else m.set(r.pair, { pair: r.pair, count: 1, token0: r.token0, token1: r.token1, chainId: chainIdFor(v.chainKey) })
+  const variableVaultTokenOptions = useMemo(() => {
+    const options = new Map<string, { symbol: string; count: number; address?: string; chainId: number }>()
+    for (const vault of variableBaseList) {
+      const current = options.get(vault.variableAssetSymbol)
+      if (current) current.count++
+      else options.set(vault.variableAssetSymbol, {
+        symbol: vault.variableAssetSymbol,
+        count: 1,
+        address: vault.variableAsset,
+        chainId: chainIdFor(vault.chainKey),
+      })
     }
-    return [...m.values()].sort((a, b) => a.pair.localeCompare(b.pair))
-  }, [tokenFiltered, ranges])
+    return [...options.values()].sort((a, b) => a.symbol.localeCompare(b.symbol))
+  }, [variableBaseList])
 
-  // Reset filters/page appropriately.
-  useEffect(() => setPage(1), [openOnly, pair, chain, vaultToken, inRangeOnly, filledFixedOnly, sortKey, sortDir])
-  useEffect(() => {
-    if (vaultToken !== 'all' && !vaultTokenOptions.some((o) => o.symbol === vaultToken)) setVaultToken('all')
-  }, [vaultTokenOptions, vaultToken])
-  // If the chosen pair disappears (e.g. after toggling open-only), fall back to all.
-  useEffect(() => {
-    if (pair !== 'all' && !pairOptions.some((o) => o.pair === pair)) setPair('all')
-  }, [pairOptions, pair])
+  const fixedVaultTokenOptions = useMemo(() => {
+    const options = new Map<string, { symbol: string; count: number; address?: string; chainId: number }>()
+    for (const vault of fixedBaseList) {
+      for (const token of [vault.token0, vault.token1]) {
+        const current = options.get(token.symbol)
+        if (current) current.count++
+        else options.set(token.symbol, { symbol: token.symbol, count: 1, address: token.address, chainId: vault.chainId })
+      }
+    }
+    return [...options.values()].sort((a, b) => a.symbol.localeCompare(b.symbol))
+  }, [fixedBaseList])
 
-  const rows = useMemo(() => {
-    let list = tokenFiltered
-    if (pair !== 'all') list = list.filter((v) => ranges.get(v.vault.toLowerCase())?.pair === pair)
-    const arr = [...list]
+  const currentVaultTokenOptions = yieldMode === 'fixed' ? fixedVaultTokenOptions : variableVaultTokenOptions
+  const variableTokenFiltered = useMemo(
+    () => vaultToken === 'all' ? variableBaseList : variableBaseList.filter((vault) => vault.variableAssetSymbol === vaultToken),
+    [variableBaseList, vaultToken],
+  )
+  const fixedTokenFiltered = useMemo(
+    () => vaultToken === 'all'
+      ? fixedBaseList
+      : fixedBaseList.filter((vault) => vault.token0.symbol === vaultToken || vault.token1.symbol === vaultToken),
+    [fixedBaseList, vaultToken],
+  )
+
+  const variablePairOptions = useMemo(() => {
+    const options = new Map<string, { pair: string; count: number; token0?: string; token1?: string; chainId: number }>()
+    for (const vault of variableTokenFiltered) {
+      const range = ranges.get(vault.vault.toLowerCase())
+      if (!range) continue
+      const current = options.get(range.pair)
+      if (current) current.count++
+      else options.set(range.pair, { pair: range.pair, count: 1, token0: range.token0, token1: range.token1, chainId: chainIdFor(vault.chainKey) })
+    }
+    return [...options.values()].sort((a, b) => a.pair.localeCompare(b.pair))
+  }, [variableTokenFiltered, ranges])
+
+  const fixedPairOptions = useMemo(() => {
+    const options = new Map<string, { pair: string; count: number; token0?: string; token1?: string; chainId: number }>()
+    for (const vault of fixedTokenFiltered) {
+      const label = fixedPair(vault)
+      const current = options.get(label)
+      if (current) current.count++
+      else options.set(label, { pair: label, count: 1, token0: vault.token0.address, token1: vault.token1.address, chainId: vault.chainId })
+    }
+    return [...options.values()].sort((a, b) => a.pair.localeCompare(b.pair))
+  }, [fixedTokenFiltered])
+
+  const currentPairOptions = yieldMode === 'fixed' ? fixedPairOptions : variablePairOptions
+
+  useEffect(() => setPage(1), [yieldMode, openOnly, pair, chain, vaultToken, inRangeOnly, filledCounterSideOnly, sortKey, sortDir])
+  useEffect(() => {
+    if (vaultToken !== 'all' && !currentVaultTokenOptions.some((option) => option.symbol === vaultToken)) setVaultToken('all')
+  }, [currentVaultTokenOptions, vaultToken])
+  useEffect(() => {
+    if (pair !== 'all' && !currentPairOptions.some((option) => option.pair === pair)) setPair('all')
+  }, [currentPairOptions, pair])
+
+  const variableRows = useMemo(() => {
+    let list = variableTokenFiltered
+    if (pair !== 'all') list = list.filter((vault) => ranges.get(vault.vault.toLowerCase())?.pair === pair)
+    const rows = [...list]
     if (sortKey === 'default') {
-      arr.sort((a, b) => {
-        const da = depositable(a) ? 1 : 0
-        const db = depositable(b) ? 1 : 0
-        if (da !== db) return db - da
-        return b.variableDeposited > a.variableDeposited ? 1 : -1
+      rows.sort((a, b) => {
+        const availability = Number(depositable(b)) - Number(depositable(a))
+        return availability || (b.variableDeposited > a.variableDeposited ? 1 : -1)
       })
     } else {
-      const pairOf = (v: VariableVault) => ranges.get(v.vault.toLowerCase())?.pair ?? ''
-      const markerOf = (v: VariableVault) => {
-        const r = ranges.get(v.vault.toLowerCase())
-        return r ? rangeGeometry(r).markerLeft : -1
+      const pairOf = (vault: VariableVault) => ranges.get(vault.vault.toLowerCase())?.pair ?? ''
+      const markerOf = (vault: VariableVault) => {
+        const range = ranges.get(vault.vault.toLowerCase())
+        return range ? rangeGeometry(range).markerLeft : -1
       }
-      const cmp: Record<Exclude<SortKey, 'default'>, (a: VariableVault, b: VariableVault) => number> = {
+      const comparators: Record<Exclude<SortKey, 'default'>, (a: VariableVault, b: VariableVault) => number> = {
         vault: (a, b) => a.variableAssetSymbol.localeCompare(b.variableAssetSymbol),
-        // Capacity means the amount still available to deposit in this design.
-        capacity: (a, b) =>
-          a.variableRemaining < b.variableRemaining ? -1 : a.variableRemaining > b.variableRemaining ? 1 : 0,
+        capacity: (a, b) => a.variableRemaining < b.variableRemaining ? -1 : a.variableRemaining > b.variableRemaining ? 1 : 0,
         term: (a, b) => a.durationSecs - b.durationSecs,
         yield: (a, b) => pairOf(a).localeCompare(pairOf(b)),
+        premium: () => 0,
         range: (a, b) => markerOf(a) - markerOf(b),
       }
-      const mul = sortDir === 'asc' ? 1 : -1
-      arr.sort((a, b) => cmp[sortKey](a, b) * mul)
+      const direction = sortDir === 'asc' ? 1 : -1
+      rows.sort((a, b) => comparators[sortKey](a, b) * direction)
     }
-    return arr
-  }, [tokenFiltered, pair, ranges, sortKey, sortDir])
+    return rows
+  }, [variableTokenFiltered, pair, ranges, sortKey, sortDir])
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE))
-  const pageRows = rows.slice((page - 1) * PAGE, page * PAGE)
+  const fixedRows = useMemo(() => {
+    let list = fixedTokenFiltered
+    if (pair !== 'all') list = list.filter((vault) => fixedPair(vault) === pair)
+    const rows = [...list]
+    const comparators: Record<Exclude<SortKey, 'default'>, (a: FixedVault, b: FixedVault) => number> = {
+      vault: (a, b) => fixedPair(a).localeCompare(fixedPair(b)),
+      capacity: (a, b) => fixedCapacityUsd(a) - fixedCapacityUsd(b),
+      term: (a, b) => a.durationSecs - b.durationSecs,
+      yield: (a, b) => a.apr - b.apr,
+      premium: (a, b) => fixedPremiumUsd(a) - fixedPremiumUsd(b),
+      range: (a, b) => Number(a.isOutOfRange) - Number(b.isOutOfRange),
+    }
+    const key = sortKey === 'default' ? 'yield' : sortKey
+    const direction = sortKey === 'default' ? -1 : sortDir === 'asc' ? 1 : -1
+    rows.sort((a, b) => comparators[key](a, b) * direction)
+    return rows
+  }, [fixedTokenFiltered, pair, sortKey, sortDir])
+
+  const activeRows = yieldMode === 'fixed' ? fixedRows : variableRows
+  const totalPages = Math.max(1, Math.ceil(activeRows.length / PAGE))
+  const pageStart = (page - 1) * PAGE
+  const variablePageRows = variableRows.slice(pageStart, pageStart + PAGE)
+  const fixedPageRows = fixedRows.slice(pageStart, pageStart + PAGE)
 
   return (
     <>
@@ -219,7 +291,7 @@ export function CapacitiesTable({
         <div className="vaults-sub">
           {yieldMode === 'variable'
             ? "Variable-side capacity across live Saffron vaults. Deposit to earn the vault's real yield."
-            : 'Fixed yield is included here as a UI-only branch preview.'}
+            : 'Available fixed-side vaults. Provide the required Uniswap pair and earn the upfront premium.'}
         </div>
 
         <div className="vaults-controls">
@@ -228,39 +300,35 @@ export function CapacitiesTable({
             value={yieldMode}
             aria-label="Yield type"
             onChange={(event) => {
-              // This branch tests the selector without pretending the existing
-              // variable-only contracts and modal implement fixed-side entry.
               setYieldMode(event.target.value as YieldMode)
-              setModalVault(null)
+              setVaultToken('all')
+              setPair('all')
+              setSortKey('default')
+              setVariableModalVault(null)
+              setFixedModalVault(null)
             }}
           >
             <option value="variable">Variable yield</option>
             <option value="fixed">Fixed yield</option>
           </select>
           <ChainSelector value={chain} onChange={setChain} />
-          <VaultTokenSelector value={vaultToken} onChange={setVaultToken} options={vaultTokenOptions} />
-          <PairSelector value={pair} onChange={setPair} options={pairOptions} />
+          <VaultTokenSelector value={vaultToken} onChange={setVaultToken} options={currentVaultTokenOptions} />
+          <PairSelector value={pair} onChange={setPair} options={currentPairOptions} />
           <div className="chainsel" ref={optionsRef}>
-            <button className="options-cog" onClick={() => setOptionsOpen((o) => !o)} title="Options" aria-label="Options">
-              ⚙
-            </button>
+            <button className="options-cog" onClick={() => setOptionsOpen((open) => !open)} title="Options" aria-label="Options">⚙</button>
             {optionsOpen && (
               <div className="chainsel-menu options-menu">
                 <label className="options-check">
-                  <input type="checkbox" checked={inRangeOnly} onChange={(e) => setInRangeOnly(e.target.checked)} />
+                  <input type="checkbox" checked={inRangeOnly} onChange={(event) => setInRangeOnly(event.target.checked)} />
                   In range only
                 </label>
                 <label className="options-check">
-                  <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
+                  <input type="checkbox" checked={openOnly} onChange={(event) => setOpenOnly(event.target.checked)} />
                   Open to deposit only
                 </label>
                 <label className="options-check">
-                  <input
-                    type="checkbox"
-                    checked={filledFixedOnly}
-                    onChange={(e) => setFilledFixedOnly(e.target.checked)}
-                  />
-                  Filled fixed capacity only
+                  <input type="checkbox" checked={filledCounterSideOnly} onChange={(event) => setFilledCounterSideOnly(event.target.checked)} />
+                  {yieldMode === 'fixed' ? 'Filled variable capacity only' : 'Filled fixed capacity only'}
                 </label>
               </div>
             )}
@@ -268,112 +336,125 @@ export function CapacitiesTable({
         </div>
 
         {yieldMode === 'fixed' ? (
-          <div className="yield-mode-empty">
-            Fixed-yield vault data is not wired into this variable-side prototype yet.
-          </div>
+          <>
+            <div className="vaults-grid-head fixed-grid">
+              <button className={`th ${sortKey === 'vault' ? 'th-on' : ''}`} onClick={() => toggleSort('vault')}>Vault{arrow('vault')}</button>
+              <button className={`th ${sortKey === 'yield' ? 'th-on' : ''}`} onClick={() => toggleSort('yield')}>APR{arrow('yield')}</button>
+              <button className={`th ${sortKey === 'premium' ? 'th-on' : ''}`} onClick={() => toggleSort('premium')}>Upfront premium{arrow('premium')}</button>
+              <button className={`th ${sortKey === 'capacity' ? 'th-on' : ''}`} onClick={() => toggleSort('capacity')}>Capacity{arrow('capacity')}</button>
+              <button className={`th ${sortKey === 'term' ? 'th-on' : ''}`} onClick={() => toggleSort('term')}>Term{arrow('term')}</button>
+            </div>
+            <div className="vaults-rows">
+              {fixedPageRows.map((vault) => (
+                <div
+                  key={`${vault.chainKey}-${vault.address}`}
+                  className="vault-row fixed-vault-row is-open"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${fixedPair(vault)} fixed deposit details`}
+                  onClick={() => setFixedModalVault(vault)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setFixedModalVault(vault)
+                    }
+                  }}
+                >
+                  <div className="vr-vault vr-vault-first" data-label="Vault">
+                    <IconWithChain chainKey={vault.chainKey}>
+                      <TokenLogoPair chainId={vault.chainId} a={vault.token0.address} b={vault.token1.address} symbolA={vault.token0.symbol} symbolB={vault.token1.symbol} size={30} />
+                    </IconWithChain>
+                    <span>{fixedPair(vault)}</span>
+                  </div>
+                  <div className="fixed-apr" data-label="APR">{formatPercent(vault.apr)}</div>
+                  <div className="fixed-premium" data-label="Upfront premium">
+                    <TokenLogo chainId={vault.chainId} address={vault.variableAsset.address} symbol={vault.variableAsset.symbol} size={25} />
+                    <span><b>{fixedPremiumLabel(vault)}</b><small>{formatUsd(fixedPremiumUsd(vault))}</small></span>
+                  </div>
+                  <div className="fixed-capacity" data-label="Capacity">{formatUsd(fixedCapacityUsd(vault))}</div>
+                  <div className="fixed-term" data-label="Term">{fmtTerm(vault.durationSecs)}</div>
+                </div>
+              ))}
+              {fixedLoading && fixedRows.length === 0 && <div className="vaults-empty">Loading fixed-side vaults…</div>}
+              {!fixedLoading && fixedRows.length === 0 && <div className="vaults-empty">No fixed-side vaults match this filter.</div>}
+              {fixedErrors.length > 0 && fixedRows.length === 0 && <div className="vaults-empty">Fixed-side data is temporarily unavailable.</div>}
+            </div>
+          </>
         ) : (
           <>
-        <div className="vaults-grid-head">
-          <button className={`th ${sortKey === 'vault' ? 'th-on' : ''}`} onClick={() => toggleSort('vault')}>
-            Vault{arrow('vault')}
-          </button>
-          <button className={`th ${sortKey === 'capacity' ? 'th-on' : ''}`} onClick={() => toggleSort('capacity')}>
-            Capacity{arrow('capacity')}
-          </button>
-          <button className={`th ${sortKey === 'term' ? 'th-on' : ''}`} onClick={() => toggleSort('term')}>
-            Term{arrow('term')}
-          </button>
-          <button className={`th ${sortKey === 'yield' ? 'th-on' : ''}`} onClick={() => toggleSort('yield')}>
-            Yield{arrow('yield')}
-          </button>
-          <button className={`th ${sortKey === 'range' ? 'th-on' : ''}`} onClick={() => toggleSort('range')}>
-            Range{arrow('range')}
-          </button>
-        </div>
-
-        <div className="vaults-rows">
-          {pageRows.map((v) => {
-            const r = ranges.get(v.vault.toLowerCase())
-            const term = fmtTerm(v.durationSecs)
-            const canDeposit = depositable(v)
-            return (
-              <div
-                key={`${v.chainKey}-${v.factory}-${v.vaultId}`}
-                className={`vault-row ${canDeposit ? 'is-open' : ''}`}
-                role={canDeposit ? 'button' : undefined}
-                tabIndex={canDeposit ? 0 : undefined}
-                aria-label={canDeposit ? `View ${v.variableAssetSymbol} vault deposit details` : undefined}
-                onClick={() => canDeposit && setModalVault(v)}
-                onKeyDown={(event) => {
-                  // A vault row behaves like a button in both live and static
-                  // preview builds, so keyboard users can inspect the modal too.
-                  if (canDeposit && (event.key === 'Enter' || event.key === ' ')) {
-                    event.preventDefault()
-                    setModalVault(v)
-                  }
-                }}
-              >
-                <div className="vr-vault vr-vault-first" data-label="Vault">
-                  <IconWithChain chainKey={v.chainKey}>
-                    <TokenLogo chainId={chainIdFor(v.chainKey)} address={v.variableAsset} symbol={v.variableAssetSymbol} size={30} />
-                  </IconWithChain>
-                  <span>{v.variableAssetSymbol}</span>
-                </div>
-                <div className="vr-cap" data-label="Capacity">
-                  <span className="vr-table-value">
-                    {fmtAmount(v.variableRemaining, v.variableAssetDecimals)} available
-                  </span>
-                </div>
-                <div className="vr-term" data-label="Term">
-                  <span className="vr-table-value">{term.n}</span>
-                </div>
-                <div className="vr-yield" data-label="Yield">
-                  {r ? (
-                    <TokenLogoPair
-                      chainId={chainIdFor(v.chainKey)}
-                      a={r.token0}
-                      b={r.token1}
-                      symbolA={r.pair.split('/')[0]}
-                      symbolB={r.pair.split('/')[1]}
-                      size={30}
-                    />
-                  ) : (
-                    <span className="vr-dim">…</span>
-                  )}
-                  <span className="vr-pair">{r ? r.pair : ''}</span>
-                </div>
-                <div className="vr-range" data-label="Range">{r ? <RangeBar r={r} /> : <span className="vr-dim">…</span>}</div>
-              </div>
-            )
-          })}
-          {rows.length === 0 && <div className="vaults-empty">No vaults match this filter.</div>}
-        </div>
+            <div className="vaults-grid-head">
+              <button className={`th ${sortKey === 'vault' ? 'th-on' : ''}`} onClick={() => toggleSort('vault')}>Vault{arrow('vault')}</button>
+              <button className={`th ${sortKey === 'capacity' ? 'th-on' : ''}`} onClick={() => toggleSort('capacity')}>Capacity{arrow('capacity')}</button>
+              <button className={`th ${sortKey === 'term' ? 'th-on' : ''}`} onClick={() => toggleSort('term')}>Term{arrow('term')}</button>
+              <button className={`th ${sortKey === 'yield' ? 'th-on' : ''}`} onClick={() => toggleSort('yield')}>Yield{arrow('yield')}</button>
+              <button className={`th ${sortKey === 'range' ? 'th-on' : ''}`} onClick={() => toggleSort('range')}>Range{arrow('range')}</button>
+            </div>
+            <div className="vaults-rows">
+              {variablePageRows.map((vault) => {
+                const range = ranges.get(vault.vault.toLowerCase())
+                const canDeposit = depositable(vault)
+                return (
+                  <div
+                    key={`${vault.chainKey}-${vault.factory}-${vault.vaultId}`}
+                    className={`vault-row ${canDeposit ? 'is-open' : ''}`}
+                    role={canDeposit ? 'button' : undefined}
+                    tabIndex={canDeposit ? 0 : undefined}
+                    aria-label={canDeposit ? `View ${vault.variableAssetSymbol} vault deposit details` : undefined}
+                    onClick={() => canDeposit && setVariableModalVault(vault)}
+                    onKeyDown={(event) => {
+                      if (canDeposit && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault()
+                        setVariableModalVault(vault)
+                      }
+                    }}
+                  >
+                    <div className="vr-vault vr-vault-first" data-label="Vault">
+                      <IconWithChain chainKey={vault.chainKey}>
+                        <TokenLogo chainId={chainIdFor(vault.chainKey)} address={vault.variableAsset} symbol={vault.variableAssetSymbol} size={30} />
+                      </IconWithChain>
+                      <span>{vault.variableAssetSymbol}</span>
+                    </div>
+                    <div className="vr-cap" data-label="Capacity"><span className="vr-table-value">{fmtAmount(vault.variableRemaining, vault.variableAssetDecimals)} available</span></div>
+                    <div className="vr-term" data-label="Term"><span className="vr-table-value">{fmtTerm(vault.durationSecs)}</span></div>
+                    <div className="vr-yield" data-label="Yield">
+                      {range ? <TokenLogoPair chainId={chainIdFor(vault.chainKey)} a={range.token0} b={range.token1} symbolA={range.pair.split('/')[0]} symbolB={range.pair.split('/')[1]} size={30} /> : <span className="vr-dim">…</span>}
+                      <span className="vr-pair">{range?.pair ?? ''}</span>
+                    </div>
+                    <div className="vr-range" data-label="Range">{range ? <RangeBar range={range} /> : <span className="vr-dim">…</span>}</div>
+                  </div>
+                )
+              })}
+              {variableRows.length === 0 && <div className="vaults-empty">No vaults match this filter.</div>}
+            </div>
+          </>
+        )}
 
         {totalPages > 1 && (
           <div className="vaults-pager">
-            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-              ‹
-            </button>
-            <span>
-              {page} / {totalPages}
-            </span>
-            <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
-              ›
-            </button>
+            <button disabled={page === 1} onClick={() => setPage((current) => current - 1)}>‹</button>
+            <span>{page} / {totalPages}</span>
+            <button disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>›</button>
           </div>
-        )}
-          </>
         )}
       </div>
 
-      {modalVault && (
+      {variableModalVault && (
         <DepositModal
-          v={modalVault}
-          range={ranges.get(modalVault.vault.toLowerCase()) ?? null}
+          v={variableModalVault}
+          range={ranges.get(variableModalVault.vault.toLowerCase()) ?? null}
           account={account}
-          onClose={() => setModalVault(null)}
+          onClose={() => setVariableModalVault(null)}
           onConnect={onConnect}
           onDeposited={() => {}}
+          previewOnly={readOnly}
+        />
+      )}
+      {fixedModalVault && (
+        <FixedDepositModal
+          vault={fixedModalVault}
+          account={account}
+          onClose={() => setFixedModalVault(null)}
+          onConnect={onConnect}
           previewOnly={readOnly}
         />
       )}
