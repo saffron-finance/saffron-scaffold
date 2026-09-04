@@ -1,14 +1,17 @@
-// Zero-dependency production server for the Saffron dashboard.
+// Small production server for the Saffron dashboard.
 //  - serves the built static app from ../dist
 //  - proxies POST /rpc/<chain> to the matching QuickNode endpoint, keeping the secret token
 //    server-side so it never ships to the browser
 //  - only forwards a small allowlist of read-only JSON-RPC methods, so a public URL can't be used
 //    to drain the QuickNode quota with arbitrary calls
+//  - validates and forwards one narrow same-chain LI.FI contract-call quote shape
 import { createServer } from 'node:http'
 import { readFile, readFileSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+
+import { fetchFixedVaults, handleZapQuote } from './zap.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -27,6 +30,18 @@ try {
     if (m && !line.trim().startsWith('#')) env[m[1]] = m[2]
   }
 } catch { /* no .env — rely on process.env */ }
+
+// `.env` is an ignored local-development convenience. Only copy the explicit
+// server keys below into the process environment; never forward or serialize
+// this object, and never treat browser-prefixed values as LI.FI credentials.
+for (const key of [
+  'LIFI_API_KEY',
+  'LIFI_INTEGRATOR',
+  'ZAP_QUOTES_ENABLED',
+  'RATE_LIMIT_ZAP_QUOTE_GLOBAL_PER_MIN',
+]) {
+  if (process.env[key] === undefined && env[key] !== undefined) process.env[key] = env[key]
+}
 
 const RPC = {
   // Public fallbacks keep Ethereum and Arbitrum useful before private
@@ -61,7 +76,6 @@ const FIXED_VAULT_CHAIN_IDS = {
   arbitrum: 42161,
   robinhood: 4663,
 }
-const SAFFRON_API_ORIGIN = 'https://api.saffron.finance'
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -109,6 +123,11 @@ const server = createServer(async (req, res) => {
 
   const url = new URL(req.url, `http://${req.headers.host}`)
 
+  if (url.pathname === `${BASE_PATH}/zaps/quote`) {
+    await handleZapQuote(req, res)
+    return
+  }
+
   const fixedVaultPrefix = `${BASE_PATH}/fixed-vaults/`
   if (url.pathname.startsWith(fixedVaultPrefix)) {
     if (req.method !== 'GET') return end(res, 405, 'GET only')
@@ -116,34 +135,7 @@ const server = createServer(async (req, res) => {
     const chainId = FIXED_VAULT_CHAIN_IDS[chain]
     if (!chainId) return end(res, 404, 'unknown chain')
     try {
-      const data = []
-      let cursor
-      // The upstream list uses forward-only keyset pagination. Walk every page
-      // so "all networks" really includes one row for every available vault.
-      for (let page = 0; page < 20; page++) {
-        const upstreamUrl = new URL(`/api/v1/vaults/${chainId}/list`, SAFFRON_API_ORIGIN)
-        const query = new URLSearchParams({
-          status: 'Not Started',
-          // Fetch both states; the UI defaults to the reference page's
-          // showOor=0 behavior but can reveal out-of-range rows when toggled.
-          includeOutOfRange: 'true',
-          includeStale: 'true',
-          includeNegativePnl: 'true',
-          includeUnfilledVariable: 'true',
-          includeFilledVariable: 'true',
-          sort: 'fixedAprDesc',
-          pageSize: '50',
-        })
-        if (cursor) query.set('cursor', cursor)
-        upstreamUrl.search = query.toString()
-
-        const upstream = await fetch(upstreamUrl, { headers: { accept: 'application/json' } })
-        if (!upstream.ok) throw new Error(`upstream HTTP ${upstream.status}`)
-        const payload = await upstream.json()
-        if (Array.isArray(payload?.data)) data.push(...payload.data)
-        cursor = payload?.meta?.nextCursor || undefined
-        if (!cursor) break
-      }
+      const data = await fetchFixedVaults(chainId)
       res.writeHead(200, {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'private, max-age=20',

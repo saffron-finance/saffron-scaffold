@@ -277,6 +277,48 @@
 .fdm-bullets { display: grid; gap: 8px; margin: 20px 0 0; padding: 18px 0 0 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.66); font: 12px/1.45 var(--font-body); }
 .fdm-bullets b { color: #fff; }
 
+/* Fixed deposits retain one primary entry point, then make the direct-pair and
+   one-token LI.FI paths explicit before either flow asks for a wallet action. */
+.fdm-method-screen { padding-top: 22px; font-family: var(--font-body); }
+.fdm-method-intro { margin: 0; color: rgba(255, 255, 255, 0.62); font-size: 14px; line-height: 1.55; }
+.fdm-method-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.fdm-method-grid button { min-width: 0; padding: 17px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; background: #202020; color: #fff; text-align: left; cursor: pointer; }
+.fdm-method-grid button:hover:not(:disabled) { border-color: #c9ff3d; background: #252525; }
+.fdm-method-grid button:disabled { cursor: not-allowed; opacity: 0.46; }
+.fdm-method-grid b { display: block; font-size: 14px; }
+.fdm-method-grid span { display: block; margin-top: 7px; color: rgba(255, 255, 255, 0.5); font-size: 12px; line-height: 1.45; }
+.fdm-method-warning { margin-top: 12px; color: #ffd166; font-size: 11px; line-height: 1.45; }
+
+/* The LI.FI panel mirrors the source branch's compact review hierarchy while
+   using the standalone app's existing modal tokens and typography. */
+.lifi-zap-panel { display: grid; gap: 12px; padding-top: 20px; font-family: var(--font-body); }
+.lifi-zap-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.lifi-zap-header > div:first-child { display: grid; gap: 4px; }
+.lifi-zap-header b { font-size: 15px; }
+.lifi-zap-header > div:first-child span { color: rgba(255, 255, 255, 0.46); font-size: 11px; }
+.lifi-zap-brand { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 6px; border: 1px solid rgba(255, 255, 255, 0.13); border-radius: 999px; font-size: 11px; font-weight: 700; }
+.lifi-zap-brand img { display: block; width: 19px; height: 19px; }
+.lifi-zap-help { margin: 0; color: rgba(255, 255, 255, 0.58); font-size: 13px; line-height: 1.5; }
+.lifi-zap-label { margin-top: 4px; color: rgba(255, 255, 255, 0.46); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+.lifi-zap-token-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.lifi-zap-token-grid button { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px solid rgba(255, 255, 255, 0.11); border-radius: 12px; background: #202020; color: rgba(255, 255, 255, 0.7); font: 700 14px/1 var(--font-body); cursor: pointer; }
+.lifi-zap-token-grid button.selected { border-color: #c9ff3d; background: rgba(201, 255, 61, 0.09); color: #fff; }
+.lifi-zap-token-grid button:disabled { cursor: default; opacity: 0.62; }
+.lifi-zap-token-note { margin: -4px 0 2px; color: rgba(255, 255, 255, 0.4); font-size: 10.5px; line-height: 1.45; }
+.lifi-zap-slippage { margin-top: 2px; }
+.lifi-zap-summary { display: grid; gap: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; background: #202020; }
+.lifi-zap-summary > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.lifi-zap-summary > div span { color: rgba(255, 255, 255, 0.48); font-size: 11px; }
+.lifi-zap-summary > div b { font-size: 12px; text-align: right; }
+.lifi-zap-summary small { padding: 9px 14px 0; color: rgba(255, 255, 255, 0.43); font-size: 10px; line-height: 1.4; }
+.lifi-zap-summary small:last-child { padding-bottom: 10px; }
+.lifi-zap-summary small.expired { color: #ffd166; }
+.lifi-zap-success { padding: 11px 13px; border: 1px solid rgba(74, 222, 128, 0.22); border-radius: 11px; background: rgba(74, 222, 128, 0.09); color: #4ade80; font-size: 12px; }
+.lifi-zap-cleanup { display: grid; gap: 9px; padding: 12px 13px; border: 1px solid rgba(255, 209, 102, 0.18); border-radius: 11px; color: rgba(255, 255, 255, 0.58); font-size: 11px; line-height: 1.45; }
+.lifi-zap-cleanup button { justify-self: start; padding: 7px 10px; border: 1px solid rgba(255, 255, 255, 0.13); border-radius: 8px; background: #292929; color: #fff; font: 600 11px/1 var(--font-body); cursor: pointer; }
+.lifi-zap-cleanup button:disabled { opacity: 0.55; cursor: default; }
+.lifi-zap-footnote { margin: 0; color: rgba(255, 255, 255, 0.38); font-size: 10.5px; line-height: 1.45; text-align: center; }
+
 /* View LP details link + Uniswap icon */
 .lp-link { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px; background: none; border: none; color: #fff; font-family: var(--font-body); font-size: 13px; cursor: pointer; }
 .lp-link:hover { color: var(--gold, #ffbc09); }
@@ -395,4 +437,8 @@
   .fdm-slippage-row { align-items: stretch; flex-direction: column; }
   .fdm-slippage-options { display: grid; grid-template-columns: repeat(3, 1fr); }
   .fdm-slippage-options button { min-width: 0; }
+  .fdm-method-grid { grid-template-columns: 1fr; }
+  .lifi-zap-header { align-items: flex-start; }
+  .lifi-zap-token-grid { grid-template-columns: 1fr; }
+  .lifi-zap-summary > div { align-items: flex-start; }
 }

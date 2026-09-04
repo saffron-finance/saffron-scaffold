@@ -6,8 +6,9 @@ A standalone React application for browsing both sides of Saffron vaults.
 Variable-side capacity is read directly onchain and supports an injected-wallet
 deposit. The fixed-side selector uses Saffron's public, read-only vault list so
 it can show the production APR, upfront premium, USD capacity, term, and exact
-required Uniswap pair. Its deposit button hands off to the audited Saffron fixed
-deposit route for the selected vault.
+required Uniswap pair. Fixed depositors can either hand off to the audited pair
+deposit route or use a minimal LI.FI zap that funds the position with one of the
+two vault tokens on the same chain.
 
 This repository contains the standalone Saffron Scaffold interface and no
 deployment-specific URL.
@@ -34,7 +35,10 @@ npm run dev
 ```
 
 The development server runs at `http://localhost:5180`. Ethereum and Arbitrum
-have public RPC fallbacks. Robinhood Chain requires an RPC URL.
+have public RPC fallbacks. Robinhood Chain requires an RPC URL. The Vite-only
+server does not expose the LI.FI quote route; to exercise a zap locally, add the
+server-only settings to the ignored `.env`, run `chmod 600 .env`, then use
+`npm run build && npm run serve`.
 
 ## Production
 
@@ -48,7 +52,10 @@ npm run serve
 ```
 
 The Node server listens on `127.0.0.1:3200` by default. Configure `PORT`,
-`BIND_HOST`, and optional `BASE_PATH` environment variables when needed.
+`BIND_HOST`, and optional `BASE_PATH` environment variables when needed. A live
+zap deployment also requires server-only `LIFI_API_KEY` and `LIFI_INTEGRATOR`
+values. Put them in the root-readable service environment file described in
+[`ops/README.md`](./ops/README.md), never in a `VITE_*` variable.
 
 Production browser requests use the same-origin `/rpc/<chain>` endpoint. The
 Node server forwards only an explicit allowlist of read-only JSON-RPC methods,
@@ -57,13 +64,25 @@ are sent directly through the connected browser wallet. The same server also
 offers a narrow GET-only `/fixed-vaults/<chain>` bridge to the public Saffron
 vault-list API; its filters and upstream origin are fixed server-side.
 
+The same server exposes `POST /zaps/quote` for the fixed-side zap. It accepts
+only a same-chain direct-source intent with exactly four locally authored calls:
+the verified Uniswap swap, two adapter allowance probes, and the fixed vault
+deposit. It binds the vault, adapter, pair, fee, claim token, factory, executor,
+approval address, sender, amount, and refund receiver before returning LI.FI
+calldata. The browser repeats the LI.FI envelope validation, uses an exact
+finite ERC-20 approval, refreshes stale quotes, and preflights the complete
+transaction before asking the wallet to submit it. Cross-chain and arbitrary
+source-token conversion are intentionally outside this first version.
+
 Never expose private RPC URLs through `VITE_RPC_*` in a public production
 build. Those variables are intended only for local development.
 
 ## Verification
 
 ```bash
+npm run test:zap
 npm run build
+npm run build:mock
 rg -n -i 'api.key|secret|password|private.key' dist
 ```
 

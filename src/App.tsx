@@ -73,6 +73,7 @@ export default function App() {
         fixedErrors={fixed.errors}
         account={IS_STATIC_MOCK ? null : wallet.account}
         onConnect={() => (IS_STATIC_MOCK ? Promise.resolve() : wallet.connect())}
+        onFixedDeposited={() => (IS_STATIC_MOCK ? Promise.resolve() : fixed.refresh())}
         readOnly={IS_STATIC_MOCK}
         yieldMode={yieldMode}
         onYieldModeChange={setYieldMode}

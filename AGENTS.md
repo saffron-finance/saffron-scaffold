@@ -8,6 +8,9 @@ production server or RPC relay.
 
 - Maintain a standalone interface for discovering live Saffron variable-side
   vault capacity and submitting explicit wallet-confirmed deposits.
+- Keep the fixed-side LI.FI option minimal: same-chain, direct-source, and only
+  one of the destination vault's two tokens. Do not enable arbitrary-token or
+  cross-chain paths without independent execution evidence and security review.
 - Keep the normal build onchain-driven and the GitHub Pages example completely
   static, read-only, and reproducible from committed mock data.
 
@@ -36,6 +39,9 @@ production server or RPC relay.
   `src/chain/chains.ts`.
 - Production reads go through the same-origin `rpc/<chain>` Node relay. Wallet
   writes go directly through the injected wallet and never through that relay.
+- LI.FI quote requests go through the same-origin `zaps/quote` server endpoint
+  so the API key remains server-only. The browser must independently validate
+  the returned executor transaction immediately before wallet use.
 - The relay is read-only. Do not add signing, account, transaction-broadcast,
   trace, debug, or admin RPC methods without a security review.
 
@@ -46,6 +52,9 @@ production server or RPC relay.
 - `src/wallet/` and wallet-facing components own injected-wallet interaction;
   every approval and deposit must remain an explicit user-confirmed wallet
   action.
+- `src/zap/` owns fixed-side sizing, the four-call intent, quote validation,
+  exact allowance handling, preflight, and execution. Keep its static contract
+  address maps aligned with the independent server map.
 - `src/mock/` owns the committed, read-only snapshot used by GitHub Pages.
 - `server/` serves the production build and relays allowlisted RPC reads. Its
   additional security rules are in `server/AGENTS.md`.
@@ -86,6 +95,8 @@ production server or RPC relay.
 
 - Never commit `.env`, RPC credentials, provider tokens, private keys, wallet
   secrets, or production domains. Public builds must not embed `VITE_RPC_*`.
+- Never expose the LI.FI API key through a `VITE_*` variable. It belongs only
+  in the ignored local environment or the root-readable service environment.
 - Do not reintroduce retired branding, alternate product routes, or
   deployment-specific hostnames. The product/package name is Saffron Scaffold
   / `saffron-scaffold`.
@@ -93,7 +104,7 @@ production server or RPC relay.
 
 ## Required checks
 
-1. Run `npm ci`, `npm run build`, and `npm run build:mock`.
+1. Run `npm ci`, `npm run test:zap`, `npm run build`, and `npm run build:mock`.
 2. Serve the mock `dist` and confirm filters, sorting, pagination, icons, and
    ranges render without any `/rpc/` network request or wallet action.
 3. For live changes, test each configured `eth_chainId`, verify vaults load,

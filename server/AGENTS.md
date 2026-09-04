@@ -5,15 +5,19 @@ root `AGENTS.md`.
 
 ## Purpose and trust boundary
 
-- `proxy.mjs` is a zero-dependency production server. It serves the compiled
-  `dist/` application and relays same-origin `POST /rpc/<chain>` requests to a
-  configured upstream RPC endpoint.
+- `proxy.mjs` is a small production server. It serves the compiled `dist/`
+  application, relays same-origin `POST /rpc/<chain>` requests to configured
+  RPC endpoints, bridges the public fixed-vault list, and exposes the narrow
+  `POST /zaps/quote` LI.FI contract-call quote route.
 - The relay exists to keep provider credentials out of browser bundles. Read
   RPC URLs from server-side environment variables or the ignored local `.env`;
   never return, log, embed, or commit them.
 - Wallet approvals and transactions belong in the browser's injected wallet.
   This server must never hold a private key or sign, submit, simulate, trace,
   or administer transactions.
+- `LIFI_API_KEY` is server-only. Never prefix it with `VITE_`, include it in a
+  quote response, log it, or accept it from a request. The server may request
+  calldata but must never execute that calldata.
 
 ## Security invariants
 
@@ -26,6 +30,11 @@ root `AGENTS.md`.
 - Never accept an upstream URL, arbitrary chain name, filesystem path, or
   request headers from the caller. Chain slugs must map only to operator-owned
   configuration.
+- Preserve the zap endpoint's direct-source/same-chain restriction, exact
+  four-call shape, static router/executor/approval maps, indexed-vault binding,
+  response-size bound, request-size bound, timeout, global rate limit, and
+  `ZAP_QUOTES_ENABLED` kill switch. LI.FI response calldata is untrusted until
+  every executor field and inner call matches the submitted validated intent.
 - Preserve the request-body size limit, POST-only RPC behavior, and fail-closed
   responses for malformed JSON, unknown chains, and disallowed methods.
 - Preserve the `resolve`/`relative` containment check for static files. Do not
@@ -39,7 +48,8 @@ root `AGENTS.md`.
 
 ## Implementation rules
 
-- Keep the server on Node built-ins unless a dependency is clearly justified.
+- Keep the server on Node built-ins plus the existing runtime `viem` ABI
+  dependency unless another dependency is clearly justified.
 - Separate static serving, RPC validation, and upstream forwarding logic when
   extending the server so each boundary remains reviewable.
 - Timeouts, cancellation, or rate limiting should fail closed and must not
@@ -58,3 +68,5 @@ After server changes:
 5. Confirm a disallowed method, malformed JSON, non-POST RPC request, unknown
    chain, oversized body, and traversal attempt are rejected.
 6. Scan the build and logs to ensure no RPC credential or upstream URL leaked.
+7. Run `npm run test:zap`; its tampering cases must fail closed in both the
+   server and browser LI.FI validators.

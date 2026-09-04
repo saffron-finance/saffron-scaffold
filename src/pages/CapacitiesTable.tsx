@@ -69,6 +69,7 @@ export function CapacitiesTable({
   fixedErrors,
   account,
   onConnect,
+  onFixedDeposited,
   readOnly = false,
   yieldMode,
   onYieldModeChange,
@@ -80,6 +81,7 @@ export function CapacitiesTable({
   fixedErrors: string[]
   account: string | null
   onConnect: () => void | Promise<void>
+  onFixedDeposited: () => void | Promise<void>
   readOnly?: boolean
   yieldMode: YieldMode
   onYieldModeChange: (mode: YieldMode) => void
@@ -485,6 +487,7 @@ export function CapacitiesTable({
           account={account}
           onClose={() => setFixedModalVault(null)}
           onConnect={onConnect}
+          onDeposited={onFixedDeposited}
           previewOnly={readOnly}
         />
       )}
