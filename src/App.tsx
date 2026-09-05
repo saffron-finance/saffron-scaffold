@@ -5,6 +5,7 @@ import { useWallet } from './hooks/useWallet'
 import { CapacitiesTable, type YieldMode } from './pages/CapacitiesTable'
 import { shortAddr } from './lib/format'
 import { IS_STATIC_MOCK } from './mock/mode'
+import { PortfolioTable } from './pages/PortfolioTable'
 
 // Vite rewrites BASE_URL for both the standalone server and the relative
 // GitHub Pages build, keeping one public icon source for both deployments.
@@ -22,6 +23,7 @@ export default function App() {
   const fixed = useFixedVaults()
   const wallet = useWallet()
   const [yieldMode, setYieldMode] = useState<YieldMode>('variable')
+  const [page, setPage] = useState<'vaults' | 'portfolio'>('vaults')
 
   // The light canvas is painted on body, outside React's root element.
   useEffect(() => {
@@ -38,17 +40,25 @@ export default function App() {
             <span className="brand-name">Saffron Scaffold</span>
           </div>
           <h1>
-            {yieldMode === 'fixed'
+            {page === 'portfolio'
+              ? 'Your Saffron deposits'
+              : yieldMode === 'fixed'
               ? 'Earn an upfront premium for your Uniswap LP'
               : 'Buy future yield from an existing Uniswap LP'}
           </h1>
           <p className="sub">
-            {yieldMode === 'fixed'
+            {page === 'portfolio'
+              ? 'Track every active position and open its vault on Saffron.'
+              : yieldMode === 'fixed'
               ? 'Get paid now for depositing any Uniswap position. Find a matching position below.'
               : 'Purchase the right to earn yield from an existing Uniswap position.'}
           </p>
         </div>
         <div className="top-actions">
+          <nav className="page-tabs" aria-label="Main navigation">
+            <button className={page === 'vaults' ? 'active' : ''} onClick={() => setPage('vaults')}>Vaults</button>
+            <button className={page === 'portfolio' ? 'active' : ''} onClick={() => setPage('portfolio')}>Portfolio</button>
+          </nav>
           {!IS_STATIC_MOCK && wallet.available && (
             <button className="wallet-btn" onClick={() => void wallet.connect()} disabled={wallet.connecting}>
               {wallet.account ? `● ${shortAddr(wallet.account)}` : wallet.connecting ? 'Connecting…' : 'Connect wallet'}
@@ -65,7 +75,7 @@ export default function App() {
         </div>
       )}
 
-      <CapacitiesTable
+      {page === 'vaults' ? <CapacitiesTable
         vaults={vaults}
         fixedVaults={fixed.vaults}
         variableAssetPricesUsd={fixed.variableAssetPricesUsd}
@@ -76,7 +86,7 @@ export default function App() {
         readOnly={IS_STATIC_MOCK}
         yieldMode={yieldMode}
         onYieldModeChange={setYieldMode}
-      />
+      /> : <PortfolioTable account={IS_STATIC_MOCK ? null : wallet.account} vaults={vaults} onConnect={wallet.connect} previewOnly={IS_STATIC_MOCK} />}
     </div>
   )
 }

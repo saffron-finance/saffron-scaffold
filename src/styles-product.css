@@ -76,6 +76,47 @@ body.saffron-scaffold-body {
   border-radius: 4px;
 }
 
+.saffron-scaffold .page-tabs { display: inline-flex; padding: 3px; border: 1px solid var(--product-border); border-radius: 5px; background: var(--product-surface); }
+.saffron-scaffold .page-tabs button { border: 0; background: transparent; color: #555; padding: 8px 14px; border-radius: 3px; cursor: pointer; font: inherit; }
+.saffron-scaffold .page-tabs button.active { background: #000; color: #fff; }
+
+.saffron-scaffold .portfolio-panel { background: var(--product-gradient); padding: 24px; border-radius: 8px; box-shadow: 0 18px 50px rgba(58, 73, 67, 0.12); }
+.saffron-scaffold .portfolio-empty { padding: 48px 20px; text-align: center; color: var(--product-muted); }
+.saffron-scaffold .portfolio-connect { width: auto; min-width: 180px; margin: 14px auto 0; }
+.saffron-scaffold .portfolio-scroll { overflow-x: auto; margin-top: 20px; }
+.saffron-scaffold .portfolio-table { width: 100%; border-collapse: collapse; min-width: 680px; }
+.saffron-scaffold .portfolio-table th { padding: 11px 14px; text-align: left; color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid rgba(17,17,17,.16); }
+.saffron-scaffold .portfolio-table td { padding: 15px 14px; background: rgba(255,255,255,.46); border-bottom: 1px solid rgba(17,17,17,.1); }
+.saffron-scaffold .portfolio-table td:first-child b, .saffron-scaffold .portfolio-table td:first-child small { display: block; }
+.saffron-scaffold .portfolio-table td:first-child small { margin-top: 3px; color: #666; }
+.saffron-scaffold .portfolio-table a { color: #111; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.saffron-scaffold .portfolio-status { display: inline-block; padding: 4px 8px; background: rgba(255,255,255,.55); border-radius: 100px; white-space: nowrap; }
+
+.saffron-scaffold .vault-request { margin-top: 18px; padding: 18px 20px; border: 1px solid var(--product-border); border-radius: 8px; background: #fff; }
+.saffron-scaffold .vault-request:not(:has(.vault-request-form)) { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.saffron-scaffold .vault-request > div > b, .saffron-scaffold .vault-request span { display: block; }
+.saffron-scaffold .vault-request span { margin-top: 4px; color: var(--product-muted); font-size: 13px; }
+.saffron-scaffold .vault-request > button, .saffron-scaffold .vault-request-pay { border: 0; border-radius: 4px; padding: 11px 16px; background: #000; color: #fff; cursor: pointer; white-space: nowrap; }
+.saffron-scaffold .vault-request-heading { display: flex; justify-content: space-between; gap: 16px; }
+.saffron-scaffold .vault-request-heading > button { border: 0; background: transparent; font-size: 22px; cursor: pointer; }
+.saffron-scaffold .vault-request-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.saffron-scaffold .vault-request-fields label { color: #555; font-size: 12px; }
+.saffron-scaffold .vault-request-fields input, .saffron-scaffold .vault-request-fields select { display: block; width: 100%; margin-top: 5px; padding: 11px; border: 1px solid var(--product-border); border-radius: 4px; background: #f5f5f5; color: #111; font: inherit; }
+.saffron-scaffold .vault-request-pay { width: 100%; }
+.saffron-scaffold .vault-request-pay:disabled { opacity: .45; cursor: default; }
+.saffron-scaffold .vault-request-error { margin-top: 10px; color: #9c2f2f; font-size: 12px; }
+.saffron-scaffold .vault-request-success { padding: 14px; border-radius: 4px; background: rgba(90,166,0,.12); color: #2d6500; }
+.saffron-scaffold .vault-request small { display: block; margin-top: 10px; color: #777; }
+
+@media (max-width: 680px) {
+  .saffron-scaffold .top { align-items: flex-start; }
+  .saffron-scaffold .top-actions { width: 100%; }
+  .saffron-scaffold .page-tabs { order: 2; width: 100%; }
+  .saffron-scaffold .page-tabs button { flex: 1; }
+  .saffron-scaffold .vault-request:not(:has(.vault-request-form)) { align-items: stretch; flex-direction: column; }
+  .saffron-scaffold .vault-request-fields { grid-template-columns: 1fr; }
+}
+
 /* Header and global controls: off-white canvas, neutral controls, black active state. */
 .saffron-scaffold .top {
   border-color: var(--product-border);

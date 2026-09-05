@@ -5,12 +5,15 @@
 //  - only forwards a small allowlist of read-only JSON-RPC methods, so a public URL can't be used
 //    to drain the QuickNode quota with arbitrary calls
 import { createServer } from 'node:http'
-import { readFile, readFileSync } from 'node:fs'
+import { mkdir, readFile, readFileSync, rename, writeFile } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 const readFileAsync = promisify(readFile)
+const writeFileAsync = promisify(writeFile)
+const mkdirAsync = promisify(mkdir)
+const renameAsync = promisify(rename)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const DIST = join(ROOT, 'dist')
 const PORT = Number(process.env.PORT) || 3200
@@ -18,6 +21,19 @@ const HOST = process.env.BIND_HOST || '127.0.0.1'
 // Mount at the domain root by default. A deployment can supply another prefix
 // without changing or rebuilding the frontend source.
 const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/$/, '')
+const REQUEST_STORE = resolve(process.env.VAULT_REQUEST_STORE_PATH || join(ROOT, 'data', 'vault-requests.json'))
+const REQUEST_RECIPIENT = /^0x[0-9a-fA-F]{40}$/.test(process.env.VAULT_REQUEST_PAYMENT_ADDRESS || '')
+  ? process.env.VAULT_REQUEST_PAYMENT_ADDRESS.toLowerCase()
+  : null
+const REQUEST_PAYMENT = {
+  chainId: 42161,
+  chainLabel: 'Arbitrum',
+  token: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+  tokenSymbol: 'USDC',
+  tokenDecimals: 6,
+  amount: '2',
+  rawAmount: 2_000_000n,
+}
 
 // RPC targets: process.env wins (for prod hosting), else the .env used by the frontend in dev.
 const env = {}
@@ -99,6 +115,61 @@ function allMethodsAllowed(raw) {
   return calls.length > 0 && calls.every((c) => c && ALLOWED_METHODS.has(c.method))
 }
 
+async function rpc(chain, method, params) {
+  const target = RPC[chain]
+  if (!target) throw new Error('RPC unavailable')
+  const response = await fetch(target, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  if (!response.ok) throw new Error('RPC unavailable')
+  const payload = await response.json()
+  if (payload.error) throw new Error('RPC rejected request')
+  return payload.result
+}
+
+function validRequest(value) {
+  return value && /^0x[0-9a-fA-F]{40}$/.test(value.wallet) && /^0x[0-9a-fA-F]{64}$/.test(value.paymentTxHash)
+    && ['ethereum', 'arbitrum', 'robinhood'].includes(value.chain)
+    && typeof value.depositToken === 'string' && value.depositToken.trim().length > 0 && value.depositToken.length <= 80
+    && typeof value.pair === 'string' && value.pair.trim().length > 0 && value.pair.length <= 80
+    && typeof value.depositAmount === 'string' && /^\d+(\.\d+)?$/.test(value.depositAmount) && value.depositAmount.length <= 50
+}
+
+async function verifyPayment(body) {
+  const [tx, receipt] = await Promise.all([
+    rpc('arbitrum', 'eth_getTransactionByHash', [body.paymentTxHash]),
+    rpc('arbitrum', 'eth_getTransactionReceipt', [body.paymentTxHash]),
+  ])
+  if (!tx || !receipt || receipt.status !== '0x1') throw new Error('Payment is not confirmed')
+  if (tx.from?.toLowerCase() !== body.wallet.toLowerCase()) throw new Error('Payment wallet does not match')
+  if (tx.to?.toLowerCase() !== REQUEST_PAYMENT.token.toLowerCase()) throw new Error('Wrong payment token')
+  const input = String(tx.input || '').toLowerCase()
+  if (!input.startsWith('0xa9059cbb') || input.length < 138) throw new Error('Invalid USDC transfer')
+  const recipient = `0x${input.slice(34, 74)}`
+  const amount = BigInt(`0x${input.slice(74, 138)}`)
+  if (recipient !== REQUEST_RECIPIENT || amount !== REQUEST_PAYMENT.rawAmount) throw new Error('Payment must be exactly $2 USDC')
+  return receipt
+}
+
+let requestWrite = Promise.resolve()
+function appendVaultRequest(record) {
+  requestWrite = requestWrite.catch(() => {}).then(async () => {
+    await mkdirAsync(resolve(REQUEST_STORE, '..'), { recursive: true })
+    let records = []
+    try { records = JSON.parse(await readFileAsync(REQUEST_STORE, 'utf8')) } catch { /* first request */ }
+    if (!Array.isArray(records)) throw new Error('Invalid request store')
+    if (records.some((item) => item.paymentTxHash?.toLowerCase() === record.paymentTxHash.toLowerCase())) {
+      throw new Error('This payment was already used')
+    }
+    records.push(record)
+    const temp = `${REQUEST_STORE}.${process.pid}.tmp`
+    await writeFileAsync(temp, `${JSON.stringify(records, null, 2)}\n`, { mode: 0o600 })
+    await renameAsync(temp, REQUEST_STORE)
+  })
+  return requestWrite
+}
+
 const server = createServer(async (req, res) => {
   // Force one request per connection (no keep-alive). Some browsers reach this server through a
   // forward proxy (a VPN / corporate proxy — it sends `Proxy-Connection` and absolute-URI request
@@ -108,6 +179,36 @@ const server = createServer(async (req, res) => {
   res.setHeader('Connection', 'close')
 
   const url = new URL(req.url, `http://${req.headers.host}`)
+
+  const requestsPath = `${BASE_PATH}/vault-requests`
+  if (url.pathname === `${requestsPath}/config`) {
+    if (req.method !== 'GET') return end(res, 405, 'GET only')
+    return endJson(res, 200, { ...REQUEST_PAYMENT, rawAmount: undefined, enabled: Boolean(REQUEST_RECIPIENT), recipient: REQUEST_RECIPIENT })
+  }
+  if (url.pathname === requestsPath) {
+    if (req.method !== 'POST') return end(res, 405, 'POST only')
+    if (!REQUEST_RECIPIENT) return endJson(res, 503, { error: 'Vault request payments are not configured' })
+    let body
+    try { body = JSON.parse(await readBody(req)) } catch { return endJson(res, 400, { error: 'Invalid request' }) }
+    if (!validRequest(body)) return endJson(res, 400, { error: 'Invalid request' })
+    try {
+      const receipt = await verifyPayment(body)
+      const record = {
+        id: `VR-${body.paymentTxHash.slice(2, 10).toUpperCase()}`,
+        status: 'paid_waiting_for_vault',
+        createdAt: new Date().toISOString(),
+        wallet: body.wallet.toLowerCase(), chain: body.chain,
+        depositToken: body.depositToken.trim(), pair: body.pair.trim(), depositAmount: body.depositAmount,
+        paymentChainId: REQUEST_PAYMENT.chainId, paymentTxHash: body.paymentTxHash.toLowerCase(),
+        paymentBlock: receipt.blockNumber,
+      }
+      await appendVaultRequest(record)
+      return endJson(res, 201, { id: record.id, status: record.status })
+    } catch (error) {
+      const message = String(error?.message || '')
+      return endJson(res, /already used/.test(message) ? 409 : 402, { error: message || 'Payment verification failed' })
+    }
+  }
 
   const fixedVaultPrefix = `${BASE_PATH}/fixed-vaults/`
   if (url.pathname.startsWith(fixedVaultPrefix)) {

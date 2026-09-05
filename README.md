@@ -50,6 +50,24 @@ npm run serve
 The Node server listens on `127.0.0.1:3200` by default. Configure `PORT`,
 `BIND_HOST`, and optional `BASE_PATH` environment variables when needed.
 
+### Paid vault requests
+
+Set `VAULT_REQUEST_PAYMENT_ADDRESS` to the treasury address that should receive
+the request fee. A request pays exactly 2 USDC on Arbitrum, then the server
+independently verifies the confirmed ERC-20 transfer before adding it to the
+operator queue. Requests are stored at `data/vault-requests.json` by default;
+set `VAULT_REQUEST_STORE_PATH` to a persistent volume path in production.
+
+```bash
+VAULT_REQUEST_PAYMENT_ADDRESS=0xYourTreasury \
+VAULT_REQUEST_STORE_PATH=/var/lib/saffron-scaffold/vault-requests.json \
+npm run serve
+```
+
+The store is server-only and has no public list endpoint. Each record includes
+status `paid_waiting_for_vault`, the desired vault details, payer wallet, and
+the independently verified payment transaction hash.
+
 Production browser requests use the same-origin `/rpc/<chain>` endpoint. The
 Node server forwards only an explicit allowlist of read-only JSON-RPC methods,
 so upstream RPC credentials remain server-side. Wallet approvals and deposits

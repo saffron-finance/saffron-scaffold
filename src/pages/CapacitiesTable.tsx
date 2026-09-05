@@ -22,6 +22,7 @@ import { PairSelector } from '../components/PairSelector'
 import { DepositModal } from '../components/DepositModal'
 import { FixedDepositModal } from '../components/FixedDepositModal'
 import { IS_STATIC_MOCK } from '../mock/mode'
+import { VaultRequest } from '../components/VaultRequest'
 
 const PAGE = 12
 // Table icons use their original, roomy desktop size. The mobile stylesheet
@@ -467,6 +468,7 @@ export function CapacitiesTable({
           </div>
         )}
       </div>
+      {!readOnly && <VaultRequest account={account as `0x${string}` | null} onConnect={onConnect} />}
 
       {variableModalVault && (
         <DepositModal
