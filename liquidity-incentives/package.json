@@ -1,0 +1,39 @@
+{
+  "name": "saffron-scaffold-incentives",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "build:lab": "VITE_DEV_TWEAKS=true npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs",
+    "serve": "node server/proxy.mjs",
+    "test:browser": "playwright test",
+    "test:database": "node --test tests/pending-database.test.mjs"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-currency-input-field": "^3.10.0",
+    "react-dom": "18.3.1",
+    "react-modal": "3.16.3",
+    "styled-components": "5.3.11",
+    "three": "0.185.1",
+    "viem": "^2.55.17",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-modal": "^3.16.3",
+    "@types/styled-components": "^5.1.36",
+    "@types/three": "0.185.4",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^6.4.3",
+    "vite-plugin-svgr": "^4.5.0"
+  }
+}

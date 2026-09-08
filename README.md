@@ -84,3 +84,7 @@ every push to `main` at
 operational context not duplicated there, also consult
 [`scripts/README.md`](./scripts/README.md), [`ops/README.md`](./ops/README.md),
 and the [GitHub Pages workflow](./.github/workflows/pages.yml).
+
+## Liquidity incentives feature branch
+
+The isolated [liquidity-incentives package](liquidity-incentives/README.md) contains the beta-styled incentive prototype, portable API/schema, and tests. It has its own install/build commands and does not change this app or the static Pages deployment.

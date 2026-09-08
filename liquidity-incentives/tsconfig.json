@@ -1,0 +1,74 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": [
+      "vite/client",
+      "vite-plugin-svgr/client",
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@fixed/*": [
+        "vendor/fixed-income-ui/*"
+      ],
+      "@lab/*": [
+        "src/adapters/*"
+      ],
+      "@receipt": [
+        "shared/vault-request.d.mts"
+      ],
+      "react": [
+        "node_modules/@types/react"
+      ],
+      "react/*": [
+        "node_modules/@types/react/*"
+      ],
+      "react-dom": [
+        "node_modules/@types/react-dom"
+      ],
+      "react-dom/*": [
+        "node_modules/@types/react-dom/*"
+      ],
+      "styled-components": [
+        "node_modules/@types/styled-components"
+      ],
+      "react-modal": [
+        "node_modules/@types/react-modal"
+      ],
+      "viem": [
+        "node_modules/viem/_types/index.d.ts"
+      ],
+      "viem/*": [
+        "node_modules/viem/_types/*"
+      ],
+      "*": [
+        "node_modules/*"
+      ],
+      "three": [
+        "node_modules/@types/three"
+      ],
+      "three/*": [
+        "node_modules/@types/three/*"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ]
+}

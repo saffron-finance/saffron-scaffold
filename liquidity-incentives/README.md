@@ -1,0 +1,118 @@
+# Saffron Scaffold — liquidity incentives
+
+Standalone, beta-styled LP incentive offers and paid vault requests. This package
+is isolated from the scaffold root application and its read-only Pages build.
+
+## Run locally
+
+Node 22+ and npm are required. No sibling checkout or hosted account is needed.
+
+```sh
+cd liquidity-incentives
+npm ci
+npm run build:lab
+npm run serve
+```
+
+Open http://localhost:3201. The reviewed typography defaults and optional font
+controls are enabled by `build:lab`. `npm run build` excludes the dev controls
+and their fonts. For hot reload run `npm run dev` alongside the server, then
+open http://localhost:5187.
+
+Configure `RPC_ROBINHOOD` server-side to load the live pool price. Ethereum and
+Arbitrum have public read-only RPC fallbacks. Never put credentialed RPC URLs in
+browser-prefixed variables. The server proxies only allowlisted read methods
+and two fixed public token-price endpoints.
+
+Payments stay disabled until the request database is healthy and an operator
+sets `VAULT_REQUEST_PAYMENT_ADDRESS`. Do not enable payment collection merely
+to review the UI. A submitted fee is real: 2 USDC or a quoted native ETH amount
+on Arbitrum, followed by a wallet signature. The requested LP vault is on
+Robinhood. No LP principal moves and no premium is paid during this request.
+
+### PostgreSQL
+
+Use a dedicated database and role; configure `SAFFRON_DB_HOST`,
+`SAFFRON_DB_USER` and `SAFFRON_DB_NAME` (defaults: local Unix socket and
+`saffron_incentives`). Standard pg environment configuration applies for
+operator-managed authentication. No credentials or request records are included.
+
+`server/pending-vaults.sql` installs the fixed-income-compatible
+`uniswap_v3_fiv.pending_vaults` table. Units remain seconds for duration, cents
+for USD capacity, and a decimal ratio for APR. Target-APR requests keep
+`variable_asset_amount = NULL`. The user's deposit is distinct from offer
+capacity and is preserved in the signed snapshot.
+
+The `liqifi` evidence/quote sidecar schema and existing receipt/storage names
+are deliberately preserved for migration compatibility; do not rename them
+without a migration. Existing JSON receipts can be imported through the
+operator-only `VAULT_REQUEST_STORE_PATH`. No hosted data is included or accessed
+by default. Admin listing checks the selected chain's factory owner signature.
+
+### Mounting beneath a path
+
+Build with `VITE_BASE_PATH=/incentives/` and serve with
+`BASE_PATH=/incentives`. These values must agree. Static assets, 3D emblem,
+prices, RPC and request endpoints resolve beneath the mount. The production
+server binds loopback by default; TLS and access policy belong to the operator.
+No deployment-specific configuration is part of this package.
+
+## Feature boundary / later fixed-income merge
+
+| Directory | Purpose | Merge treatment |
+| --- | --- | --- |
+| `src/incentives` | Offer catalog, quote math, rows, two-step modal, summary | Port as the feature |
+| `src/host` | Standalone wallet, API, theme and scene adapters | Replace with destination providers |
+| `src/adapters` | Explicit injected-wallet selection and chain metadata | Reuse destination equivalents |
+| `shared` | Versioned request messages and validation | Preserve signed-message bytes |
+| `server` | Verification, pending database, oracle quotes, read-only relay | Integrate with existing backend |
+| `vendor/fixed-income-ui` | Small pinned UI snapshot | Replace with shared imports |
+| `src/dev` | Optional typography controls | Exclude entirely |
+
+The deposit field uses fixed-income's currency formatter and field styles.
+`Your deposit` sums both unrounded LP legs. `You get` shows the actual yield
+token and estimated USD premium at the current price. Continue freezes those
+terms before payment. Payment recovery and replay checks prevent retrying from
+charging twice; changed transaction hashes are retained before later RPC reads.
+
+The UI snapshot and exact emblem assets originate from Saffron fixed-income
+revision `dc104999f531611f2b5b772d3b72cc3ad8c2ed23`. See
+[vendor provenance](vendor/fixed-income-ui/README.md). This package does not
+contain the fixed-income monorepo or require it at build time.
+
+## Verify
+
+```sh
+npm ci
+npm run build:lab
+npm test
+npm run test:database
+npm run test:browser
+```
+
+Browser and database tests need local PostgreSQL with a dedicated CREATEDB test
+role. Configure `SAFFRON_TEST_DB_HOST` and `SAFFRON_TEST_DB_USER` (default
+`saffron_incentives_test`). Each test creates/drops its own randomly named
+`liqifi_test_*` database; never configure these tests against a live database.
+Install the matching Chromium once with `npx playwright install chromium`.
+
+Checks cover formatted/cleared/over-capacity deposits, live-price changes,
+canonical signed amounts, USDC and ETH fee flows, pending/admin views, cancelled
+signatures, reload recovery, keyboard/mobile layout and relay rejections.
+Wallets are freshly generated and unfunded; RPC and signatures use deterministic
+fixtures. Tests do not send funds. Installed-wallet acceptance remains manual.
+
+Known review limitations remain: these are proposed programs, so displayed
+capacity is not funded LP TVL; production integration needs explicit handling
+of fee-quote expiry against payment time and the target app's auth/status
+workflow. This export preserves the reviewed prototype, not a claim of completed
+fixed-income integration.
+
+### Export verification — 2026-09-08
+
+- 67 API/adapter/relay tests, 12 PostgreSQL tests and 6 browser dry runs passed.
+- Normal and review builds passed; normal build excludes dev controls/fonts.
+- Root scaffold live/mock builds passed; its mock remained RPC-free.
+- `/incentives/` hosting, exact 3D assets and request modal passed in-browser.
+- Source scan found no private deployment paths, credential markers or outputs.
+- No live payments, live database changes or production deployment performed.

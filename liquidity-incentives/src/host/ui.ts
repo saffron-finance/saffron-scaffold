@@ -1,0 +1,17 @@
+// Exact fixed-income primitives. This host boundary is replaced by src/shared
+// imports at merge; none of the beta styling is forked into the feature.
+export { InteractiveEmblem } from './InteractiveEmblem'
+export { darkTheme } from '@fixed/shared/styles/themes/darkTheme'
+export { lightTheme } from '@fixed/shared/styles/themes/lightTheme'
+export { Button } from '@fixed/shared/components/buttons/Button'
+export { Modal, ModalTitle } from '@fixed/shared/components/Modal'
+export { default as GlobalStyles } from '@fixed/globalStyles'
+export { Body as CardBody, Row as CardRow, Symbol as CardSymbol, CapacityLine, AprValue, AprLabel } from '@fixed/tokens/components/cardParts'
+export { NAV_BUTTON_CHROME, NAV_SQUARE_BUTTON, ICON_BUTTON_HOVER } from '@fixed/shared/styles/constants'
+export { FormInput, FormLabel, FormFieldGroup } from '@fixed/shared/components/FormStyles'
+export { TableContainer, Table, TableHeader, HeaderRow, HeaderCell, TableRow, TableCell } from '@fixed/shared/components/table/TableComponents'
+export { PRIMARY_BUTTON_SURFACE, ACTION_BUTTON_TYPOGRAPHY } from '@fixed/shared/styles/constants'
+export { StepTitle, StepSubtitle } from '@fixed/WizardTypography'
+export { CapacityBar } from '@fixed/tokens/components/tokenTable/CapacityBar'
+export { marbleHeaderBackground } from '@fixed/shared/components/table/TableComponents'
+export type { SaffronTheme } from '@fixed/shared/styles/themes/Theme'

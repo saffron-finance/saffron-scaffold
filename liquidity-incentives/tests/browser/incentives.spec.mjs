@@ -1,0 +1,233 @@
+import { test, expect } from '@playwright/test'
+import { setup } from './fixture.mjs'
+
+const PAGE = '/'
+
+/** Select the real EIP-6963 picker beside an unrelated default extension. */
+async function connect(page) {
+  await page.getByRole('button', { name: 'Connect wallet', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Uniswap Extension', exact: true }).click()
+}
+
+/** Continue freezes terms without paying; only the final Request submits. */
+async function review(page) {
+  await page.getByRole('button', { name: 'Request CASHCAT / ETH, 3 days', exact: true }).click()
+  await page.getByLabel('Deposit value in US dollars').fill('100')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page.getByText('Claim $8.22', { exact: true })).toBeVisible()
+}
+
+test('beta layout, isolated offers, two-step copy and mobile keyboard access', async ({ page }) => {
+  const fixture = await setup(page)
+  // Hold the initial price response to verify a quiet but safely disabled form.
+  let releasePrice
+  const priceReady = new Promise(resolve => { releasePrice = resolve })
+  try {
+    await page.route('**/prices/*', async route => { await priceReady; await route.fallback() })
+    await page.goto(PAGE)
+    await expect(page.getByLabel('Liquidity incentive offers').locator('[data-incentive-offer]')).toHaveCount(4)
+    await expect(page.getByLabel('Featured liquidity incentives')).toHaveCount(0)
+    const offers = page.locator('[data-incentive-offer]')
+    for (const offer of await offers.all()) {
+      await expect(offer).toHaveCSS('border-top-color', 'rgb(42, 10, 86)')
+      const badge = offer.getByRole('img', { name: 'Robinhood Chain', exact: true })
+      await expect(badge).toHaveCSS('width', '20px')
+      await expect(badge).toHaveCSS('height', '20px')
+      await expect(badge).toHaveCSS('right', '-7px')
+      await expect(badge).toHaveCSS('bottom', '-5px')
+    }
+    const beforeHover = await offers.first().boundingBox()
+    await offers.first().hover()
+    await expect(offers.first()).toHaveCSS('border-top-color', 'rgb(255, 188, 9)')
+    await expect(offers.first()).toHaveCSS('border-top-width', '1px')
+    expect(await offers.first().boundingBox()).toEqual(beforeHover)
+    await page.screenshot({ path: 'validation/borderless-home.png', fullPage: true, animations: 'disabled' })
+    await page.mouse.move(0, 0)
+    await expect(offers.first()).toHaveCSS('border-top-color', 'rgb(42, 10, 86)')
+    await page.getByRole('button', { name: 'Request CASHCAT / ETH, 3 days', exact: true }).click()
+    await expect(page.getByRole('dialog')).toHaveCSS('border-top-color', 'rgb(58, 48, 44)')
+    await expect(page.getByLabel('Deposit value in US dollars')).toHaveCSS('border-top-color', 'rgb(42, 36, 34)')
+    const next = page.getByRole('button', { name: 'Continue', exact: true })
+    await expect(next).toBeDisabled()
+    await expect(page.getByTestId('position-value')).toHaveText('—')
+    await expect(page.getByTestId('upfront-premium')).toHaveText('—')
+    await expect(page.getByText('Loading live pool price…', { exact: true })).toHaveCount(0)
+    const beforePrice = await next.boundingBox()
+    releasePrice()
+    await expect(page.getByText('Pay request fee with', { exact: true })).toHaveCount(0)
+    const title = page.getByRole('dialog').getByRole('heading')
+    await expect(title).toContainText('CASHCAT / ETH')
+    await expect(title.getByText('1,000% APR', { exact: true })).toHaveCSS('color', 'rgb(255, 188, 9)')
+    await expect(title.getByText('1,000% APR', { exact: true })).toHaveCSS('font-size', '16px')
+    await expect(title.getByText('3 days', { exact: true })).toHaveCSS('font-size', '14px')
+    await expect(title.getByText('3 days', { exact: true })).toHaveCSS('color', 'rgb(126, 122, 119)')
+    await expect(title.locator('img')).toHaveCount(2)
+    await expect(page.getByText('Advanced settings', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Resume a request', { exact: true })).toHaveCount(0)
+    await expect(page.locator('input[type=file]')).toHaveCount(0)
+    const range = page.getByLabel('Full price range')
+    await expect(range).toBeVisible()
+    await expect(range.getByText('Price range: full', { exact: true })).toBeVisible()
+    await expect(range.locator('[aria-hidden=true]')).toHaveCSS('background-color', 'rgb(31, 162, 74)')
+    const marker = range.locator('i')
+    await expect(marker).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+    await expect(marker).toHaveCSS('width', '5px')
+    await expect(marker).toHaveCSS('height', '20px')
+    await expect(marker).toHaveCSS('border-radius', '4px')
+    await expect(page.getByRole('button', { name: 'Invert price pair' })).toHaveCSS('border-top-width', '0px')
+    await expect(page.getByRole('button', { name: 'Invert price pair' })).toHaveCSS('background-color', 'rgb(26, 23, 23)')
+    await page.getByRole('button', { name: 'Invert price pair' }).click()
+    await expect(page.getByRole('button', { name: 'Invert price pair' })).toContainText('ETH / CASHCAT')
+    await page.getByRole('button', { name: 'Invert price pair' }).click()
+    const tokens = page.getByRole('group', { name: 'Tokens required for LP' })
+    await expect(tokens).toHaveCSS('border-top-color', 'rgb(42, 36, 34)')
+    await expect(tokens).toHaveCSS('row-gap', '16px')
+    await expect(tokens.locator('img')).toHaveCount(2)
+    await expect(tokens.locator('img').first()).toHaveAttribute('src', `${PAGE}cashcat.png`)
+    await expect(tokens.locator('img').last()).toHaveAttribute('src', `${PAGE}eth.svg`)
+    // Input changes must recalculate the underlying quote, not freeze mockup numbers.
+    await page.getByLabel('Deposit value in US dollars').fill('200')
+    await expect(page.getByLabel('Deposit value in US dollars')).toHaveCSS('border-top-color', 'rgb(255, 188, 9)')
+    await expect(tokens.locator('b').first()).toHaveText('50,000')
+    await expect(tokens.locator('b').last()).toHaveText('0.05')
+    await page.getByLabel('Deposit value in US dollars').fill('100')
+    await expect(tokens.locator('b').first()).toHaveText('25,000')
+    await expect(tokens.locator('b').last()).toHaveText('0.025')
+    await expect(next).toBeEnabled()
+    expect(Math.abs((await next.boundingBox()).y - beforePrice.y)).toBeLessThan(1)
+    await page.getByRole('dialog').screenshot({ path: 'validation/deposit-first-desktop.png', animations: 'disabled' })
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(page.getByText('Claim $8.22', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Vault request summary')).toHaveJSProperty('open', false)
+    await expect(page.getByLabel('Vault request summary')).toHaveCSS('border-top-color', 'rgb(42, 36, 34)')
+    await expect(page.getByRole('button', { name: /^ETH/ })).toHaveCSS('border-top-color', 'rgb(42, 36, 34)')
+    await expect(page.getByText('Pay request fee with', { exact: true })).toBeVisible()
+    expect(fixture.state.sends).toBe(0)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toBeHidden()
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Request CASHCAT / ETH, 3 days', exact: true }).click()
+    await expect(tokens).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled()
+    await page.getByRole('dialog').screenshot({ path: 'validation/deposit-first-mobile.png', animations: 'disabled' })
+    expect(await page.getByRole('dialog').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toBeHidden()
+    await review(page)
+    await expect(page.getByRole('dialog')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const box = await page.getByRole('dialog').boundingBox()
+    expect(box.width).toBeLessThanOrEqual(390)
+    await page.screenshot({ path: 'validation/mobile-review.png', fullPage: true })
+  } finally { releasePrice(); await fixture.close() }
+})
+
+test('USD formatting and live premium stay consistent with the signed request', async ({ page }) => {
+  const fixture = await setup(page)
+  try {
+    await page.goto(PAGE); await connect(page)
+    await page.getByRole('button', { name: 'Request CASHCAT / ETH, 3 days', exact: true }).click()
+    const input = page.getByLabel('Deposit value in US dollars')
+    const position = page.getByTestId('position-value')
+    const premium = page.getByTestId('upfront-premium')
+    const next = page.getByRole('button', { name: 'Continue', exact: true })
+    await expect(input).toHaveValue('$100')
+    await expect(position).toHaveText('$100.00')
+    await expect(premium).toHaveText('4,110=+$8.22')
+    await expect(premium.getByLabel('CASHCAT')).toBeVisible()
+    await expect(premium.locator('img')).toHaveAttribute('src', `${PAGE}cashcat.png`)
+    await input.fill('')
+    await expect(input).toHaveValue('')
+    await expect(next).toBeDisabled()
+    await expect(premium).toHaveText('—')
+    await input.fill('100001')
+    await expect(next).toBeDisabled()
+    await expect(position).toHaveText('—')
+    await input.fill('10000.25')
+    await expect(input).toHaveValue('$10,000.25')
+    await expect(position).toHaveText('$10,000.25')
+    await expect(premium).toHaveText('410,969=+$821.94')
+    // A new live USD price changes the token quantity, not APR-based USD yield.
+    await page.route('**/prices/ETH', async route => {
+      await route.fulfill({ json: { success: true, data: {
+        chainId: 4663, tokenAddress: '0x0bd7d308f8e1639fab988df18a8011f41eacad73',
+        price: 4000, timestamp: new Date().toISOString(), currency: 'usd',
+      } } })
+    })
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await expect(premium).toHaveText('205,485=+$821.94')
+    await expect(position).toHaveText('$10,000.25')
+    await next.click()
+    await expect(page.getByText('Claim $821.94', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Request', exact: true }).click()
+    await expect(page.getByText(/is paid and pending review/)).toBeVisible()
+    const [saved] = await fixture.records()
+    expect(saved.incentive.depositUsd).toBe('10000.25')
+    expect(saved.incentive.quote.rewardCashcat).toBeCloseTo(10000.25 * 10 * 3 / 365 / 0.004)
+    expect(saved.incentive.quote.rewardUsd).toBeCloseTo(10000.25 * 10 * 3 / 365)
+  } finally { await fixture.close() }
+})
+
+for (const asset of ['USDC', 'ETH']) {
+  test(`${asset} full dry run: selected wallet, Arbitrum fee, canonical DB row, user/admin visibility`, async ({ page }) => {
+    const fixture = await setup(page, asset === 'ETH' ? { ethBalance: 10n ** 18n } : {})
+    try {
+      await page.goto(PAGE); await connect(page); await review(page)
+      await expect(page.getByRole('button', { name: new RegExp(`^${asset}`) })).toHaveAttribute('aria-pressed', 'true')
+      await page.getByRole('button', { name: 'Request', exact: true }).click()
+      await expect(page.getByText(/is paid and pending review/)).toBeVisible()
+      expect(fixture.state.sends).toBe(1)
+      expect(fixture.state.chain).toBe('0xa4b1')
+      const saved = await fixture.records()
+      expect(saved).toHaveLength(1)
+      expect(saved[0].payment.asset).toBe(asset)
+      expect(saved[0].incentive.chainId).toBe(4663)
+      expect(saved[0].incentive.depositUsd).toBe('100')
+      const rows = await fixture.database.pool.query('SELECT * FROM uniswap_v3_fiv.pending_vaults')
+      expect(rows.rows).toHaveLength(1)
+      expect(Number(rows.rows[0].target_apr)).toBe(10)
+      await page.getByRole('button', { name: 'Done', exact: true }).click()
+      await page.getByRole('button', { name: /^My requests/ }).click()
+      await expect(page.getByText('Pending review', { exact: true })).toBeVisible()
+      await page.locator('summary', { hasText: 'Admin requests' }).click()
+      await page.getByRole('button', { name: 'Load admin requests', exact: true }).click()
+      await expect(page.getByText('Pending review', { exact: true })).toHaveCount(2)
+      await page.reload()
+      await page.getByRole('button', { name: /^My requests/ }).click()
+      await expect(page.getByText('Pending review', { exact: true })).toBeVisible()
+      expect(fixture.state.sends).toBe(1)
+    } finally { await fixture.close() }
+  })
+}
+
+test('paid signature cancellation reloads and resumes without another fee', async ({ page }) => {
+  const fixture = await setup(page, { rejectSignature: true })
+  try {
+    await page.goto(PAGE); await connect(page); await review(page)
+    await page.getByRole('button', { name: 'Request', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText('cancelled')
+    expect(fixture.state.sends).toBe(1)
+    await page.reload()
+    await page.getByRole('button', { name: 'Resume paid request', exact: true }).click()
+    await page.getByRole('button', { name: 'Resume request — no new payment', exact: true }).click()
+    await expect(page.getByText(/is paid and pending review/)).toBeVisible()
+    expect(fixture.state.sends).toBe(1)
+    expect(await fixture.records()).toHaveLength(1)
+  } finally { await fixture.close() }
+})
+
+test('manual fee choice survives balance refetch, missing price cannot pay', async ({ page }) => {
+  const fixture = await setup(page, { ethBalance: 10n ** 18n })
+  try {
+    await page.goto(PAGE); await connect(page); await review(page)
+    await expect(page.getByRole('button', { name: /^ETH/ })).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: /^USDC/ }).click()
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+    await expect(page.getByRole('button', { name: /^USDC/ })).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: 'Close incentive request', exact: true }).click()
+    fixture.state.quoteOffline = true
+    await page.getByRole('button', { name: 'Request CASHCAT / ETH, 3 days', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled()
+    expect(fixture.state.sends).toBe(0)
+  } finally { await fixture.close() }
+})
