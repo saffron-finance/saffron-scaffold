@@ -74,7 +74,7 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
   }
 
   return <Modal isOpen onRequestClose={close} shouldCloseOnOverlayClick={!flow.busy}
-    contentStyle={{ padding: '10px 20px 20px 20px' }}>
+    contentStyle={{ padding: '10px 28px 26px 28px' }}>
     <Close type='button' aria-label='Close incentive request' onClick={close} disabled={flow.busy}>×</Close>
     <Header $hasLogo={!confirming}>
     <RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
