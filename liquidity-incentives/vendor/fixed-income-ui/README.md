@@ -10,6 +10,7 @@ Mechanical standalone adaptations:
 - Use the build base URL for model and marble assets.
 - Extract the two private wizard typography declarations unchanged.
 - Render the capacity track as a span inside native offer buttons.
+- Allow per-dialog content styles so incentive spacing does not affect other modals.
 - Replace production analytics with a no-op preview adapter.
 - Expose a scene spin-speed setter so click acceleration does not recreate GPU
   state; retain reduced-motion, visibility pausing and static fallback.

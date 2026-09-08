@@ -12,6 +12,8 @@ export interface ModalProps {
   shouldCloseOnOverlayClick?: boolean
   /** 'wide' fits table-heavy content (e.g. admin drill-downs); default fits forms. */
   size?: 'default' | 'wide'
+  /** Optional per-dialog spacing; other shared modal defaults stay unchanged. */
+  contentStyle?: React.CSSProperties
 }
 
 const TRANSITION_MS = 200
@@ -27,6 +29,7 @@ export function Modal({
   children,
   shouldCloseOnOverlayClick = true,
   size = 'default',
+  contentStyle,
 }: Props) {
   useEffect(() => {
     if (!isOpen) return
@@ -50,7 +53,7 @@ export function Modal({
       overlayClassName='_'
       ariaHideApp={false}
       contentElement={(props, children) => (
-        <ModalElement {...props} $size={size}>
+        <ModalElement {...props} $size={size} style={{ ...props.style, ...contentStyle }}>
           {children}
         </ModalElement>
       )}
