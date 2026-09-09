@@ -1,9 +1,11 @@
 import pg from 'pg'
 import { readFile } from 'node:fs/promises'
 import { randomInt } from 'node:crypto'
+import { createProgramDatabase } from './program-database.mjs'
 
 export const USD_TOKEN_ADDRESS = '0x0000000000000000000000000000000000555344'
 const schema = await readFile(new URL('./pending-vaults.sql', import.meta.url), 'utf8')
+const programSchema = await readFile(new URL('./incentive-programs.sql', import.meta.url), 'utf8')
 
 /** Public IDs follow fixed-income's 12 uppercase alphanumeric convention. */
 function requestId() {
@@ -105,6 +107,7 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
       await client.query('BEGIN')
       await client.query('SELECT pg_advisory_xact_lock(1966090601)')
       await client.query(schema)
+      await client.query(programSchema)
       await client.query('COMMIT')
     } catch (error) { await client.query('ROLLBACK'); throw error }
     finally { client.release() }
@@ -134,6 +137,7 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
   ensureReady()
 
   return {
+    ...createProgramDatabase(pool, ensureReady),
     get ready() { return ensureReady() },
     pool,
     async close() { closed = true; await initialization.catch(() => {}); await pool.end() },
@@ -141,8 +145,8 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
     async save(record) { await ensureReady(); return saveNow(record) },
     async putQuote(quote) {
       await ensureReady()
-      await pool.query(`INSERT INTO liqifi.request_fee_quotes (id,wallet,recipient,asset,amount_raw,eth_usd_raw,expires_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7)`, [quote.id, quote.wallet, quote.recipient, quote.asset, quote.amountRaw, quote.ethUsdRaw ?? null, quote.expiresAt])
+      await pool.query(`INSERT INTO liqifi.request_fee_quotes (id,wallet,recipient,asset,amount_raw,eth_usd_raw,expires_at,request_details)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [quote.id, quote.wallet, quote.recipient, quote.asset, quote.amountRaw, quote.ethUsdRaw ?? null, quote.expiresAt, quote.details ?? null])
     },
     async getQuote(id) {
       await ensureReady()

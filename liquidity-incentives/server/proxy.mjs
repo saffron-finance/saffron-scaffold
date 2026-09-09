@@ -12,6 +12,7 @@ import { promisify } from 'node:util'
 
 import { createVaultRequestHandler } from './vault-requests.mjs'
 import { createRequestDatabase } from './request-database.mjs'
+import { createIncentiveProgramHandler } from './incentive-programs.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -69,15 +70,18 @@ const requestFactories = {
   42161: ['arbitrum', '0xd4E8582e36AF0E0d5c1bcd8303984870b086d3d2'],
   4663: ['robinhood', '0xb24b143ad6bB5bE9559CcC75f34A2261b7456904'],
 }
+async function adminOwner(chainId) {
+  const [chain, address] = requestFactories[chainId]
+  const result = await requestRpc(chain, 'eth_call', [{ to: address, data: '0x8da5cb5b' }, 'latest'])
+  if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(result)) throw new Error('Owner unavailable')
+  return '0x' + result.slice(-40)
+}
+const handlePrograms = createIncentiveProgramHandler({ database: requestDatabase, adminOwner,
+  basePath: BASE_PATH, rpc: (method, params) => requestRpc('robinhood', method, params) })
 const handleVaultRequest = createVaultRequestHandler({
   recipient: process.env.VAULT_REQUEST_PAYMENT_ADDRESS, storePath, database: requestDatabase,
   basePath: BASE_PATH, rpc: (method, params) => requestRpc('arbitrum', method, params),
-  adminOwner: async (chainId) => {
-    const [chain, address] = requestFactories[chainId]
-    const result = await requestRpc(chain, 'eth_call', [{ to: address, data: '0x8da5cb5b' }, 'latest'])
-    if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(result)) throw new Error('Owner unavailable')
-    return '0x' + result.slice(-40)
-  },
+  adminOwner,
 })
 
 const ALLOWED_METHODS = new Set([
@@ -148,16 +152,19 @@ const server = createServer(async (req, res) => {
   catch { return end(res, 400, 'invalid URL') }
 
   if (await handleVaultRequest(req, res, url.pathname)) return
+  if (await handlePrograms(req, res, url.pathname)) return
   if (url.pathname.startsWith(`${BASE_PATH}/vault-requests/`)) return end(res, 404, 'not found')
 
-  // Fixed public token lookups only: no caller-controlled URL or forwarded credentials.
+  // Catalog tokens and legacy aliases only; the upstream host/chain are always fixed.
   if (url.pathname.startsWith(`${BASE_PATH}/prices/`)) {
     if (!['GET', 'HEAD'].includes(req.method)) return end(res, 405, 'GET or HEAD only')
-    const symbol = url.pathname.slice(`${BASE_PATH}/prices/`.length)
+    const key = url.pathname.slice(`${BASE_PATH}/prices/`.length)
     const tokens = { ETH: '0x0bd7d308f8e1639fab988df18a8011f41eacad73', USDG: '0x5fc5360d0400a0fd4f2af552add042d716f1d168' }
-    if (!Object.hasOwn(tokens, symbol)) return end(res, 404, 'unknown token')
     try {
-      const response = await fetch(`https://api.saffron.finance/api/v1/tokens/4663/${tokens[symbol]}/price?symbol=${symbol}`, { signal: AbortSignal.timeout(15000) })
+      const token = Object.hasOwn(tokens, key) ? { address: tokens[key], symbol: key }
+        : /^0x[0-9a-fA-F]{40}$/.test(key) ? await requestDatabase?.quoteToken(key) : null
+      if (!token) return end(res, 404, 'unknown token')
+      const response = await fetch(`https://api.saffron.finance/api/v1/tokens/4663/${token.address}/price?symbol=${encodeURIComponent(token.symbol)}`, { signal: AbortSignal.timeout(15000) })
       if (!response.ok) throw new Error('Price unavailable')
       const payload = await response.json()
       endJson(res, 200, payload)

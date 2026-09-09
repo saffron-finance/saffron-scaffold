@@ -5,22 +5,22 @@ import { HeaderCell, StepTitle, StepSubtitle, CapacityBar, marbleHeaderBackgroun
 import { useRequestFlow } from '../host/useRequestFlow'
 import { usePendingRequests } from '../host/usePendingRequests'
 import { useOfferPrice } from '../host/useOfferPrice'
-import { OFFERS, compactUsd, offerFromRequest, type Offer } from './model'
-import { FinePrint, Muted, Premium, QuietButton, Row } from './styles'
+import { useIncentivePrograms } from '../host/useIncentivePrograms'
+import { compactUsd, offerFromRequest, type Offer } from './model'
+import { ErrorText, FinePrint, Muted, Premium, QuietButton, Row } from './styles'
 import { PairHeader } from './PairHeader'
-import cashcatLogo from './assets/cashcat.jpg'
+import { TokenIcon } from './TokenIcon'
 import robinhoodLogo from './assets/robinhood.svg'
 import { IncentiveRequestModal } from './IncentiveRequestModal'
 import { PendingRequests } from './PendingRequests'
-
-// Presentation metadata uses the offer ID, never the row index or signed terms.
-const NEW_OFFER_ID = 'cashcat-eth-1000-3d'
 
 /** Only the LP feature lives here. Wallet transport, prices, request storage
  * and fixed-income primitives enter through host adapters for a narrow merge. */
 export default function IncentivesPage({ account, onConnect }: { account: Address | null; onConnect: () => void }) {
   const flow = useRequestFlow(account, onConnect)
   const requests = usePendingRequests(account)
+  const catalog = useIncentivePrograms()
+  const groups = Array.from(new Set(catalog.offers.map(offer => offer.pairId))).map(pairId => catalog.offers.filter(offer => offer.pairId === pairId))
   const [selected, setSelected] = useState<Offer | null>(null)
   const [showPending, setShowPending] = useState(() => window.location.hash === '#requests')
   const activeOffer = flow.pending ? offerFromRequest(flow.pending) : selected
@@ -59,23 +59,27 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
       <StepSubtitle>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</StepSubtitle>
       <StepSubtitle>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</StepSubtitle>
     </Introduction>
-    <PairHeader />
     {flow.pending && flow.step !== 'done' && <Recovery><FinePrint>A saved request is ready to resume. No new fee will be sent.</FinePrint>
       <QuietButton onClick={() => setSelected(offerFromRequest(flow.pending!))}>Resume paid request</QuietButton></Recovery>}
-    <Programs aria-label='Liquidity incentive offers'>
+    {catalog.loading && <FinePrint role='status'>Loading incentive programs…</FinePrint>}
+    {catalog.error && <ErrorText role='alert'>{catalog.error}</ErrorText>}
+    {!catalog.loading && !catalog.error && !catalog.offers.length && <FinePrint>No incentive programs are available right now.</FinePrint>}
+    {groups.map(offers => <ProgramGroup key={offers[0].pairId}>
+    <PairHeader pair={offers[0]} />
+    <Programs aria-label={`${offers[0].token0.symbol} / ${offers[0].token1.symbol} liquidity incentive offers`}>
       <ProgramHeading aria-hidden='true'>
         <ColumnTitle as='span'>Yield token</ColumnTitle>
         <ColumnTitle as='span'>Incentive APR</ColumnTitle>
         <ColumnTitle as='span'>Duration</ColumnTitle>
         <ColumnTitle as='span'>Vault capacity</ColumnTitle>
       </ProgramHeading>
-      {OFFERS.map(offer => {
-        const isNew = offer.id === NEW_OFFER_ID
+      {offers.map(offer => {
+        const isNew = offer.isNew
         return <ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id}
-        aria-label={`Request CASHCAT / ETH, ${offer.days} days`}
+        aria-label={`Request ${offer.token0.symbol} / ${offer.token1.symbol}, ${offer.days} days`}
         aria-describedby={`${offer.id}-yield ${offer.id}-apr ${offer.id}-capacity${isNew ? ` ${offer.id}-new` : ''}`} onClick={() => openOffer(offer)}>
         <Metric id={`${offer.id}-yield`}><MobileLabel>Yield token</MobileLabel><YieldToken>
-          <YieldIcon src={cashcatLogo} alt='CASHCAT' width={48} height={48} />
+          <TokenIcon {...offer.token0} size={48} />
           <ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20} />
         </YieldToken></Metric>
         <Metric id={`${offer.id}-apr`}><MobileLabel>Incentive APR</MobileLabel><OfferApr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
@@ -88,7 +92,9 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
         {isNew && <NewTag id={`${offer.id}-new`}>NEW</NewTag>}
       </ProgramRow>})}
     </Programs>
-    <FinePrint>Request an LP vault with an upfront premium. Listed terms are proposed incentives, not funded vaults.</FinePrint>
+    </ProgramGroup>)}
+    <Row><FinePrint>Request an LP vault with an upfront premium. Listed terms are proposed incentives, not funded vaults.</FinePrint>
+      <QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     {selected && activeOffer && <IncentiveRequestModal key={activeOffer.id} offer={activeOffer} account={account}
       flow={flow} price={price} onClose={() => setSelected(null)} />}
     {showPending && <PendingRequests account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} />}
@@ -101,6 +107,7 @@ const Page = styled.section`display:flex;flex-direction:column;gap:28px;width:10
 const TitleRow = styled(Row)`button{white-space:nowrap;flex-shrink:0}`
 const Introduction = styled.div`display:flex;flex-direction:column;gap:18px;max-width:860px;`
 const Programs = styled.div`display:flex;flex-direction:column;gap:28px;margin-top:8px;`
+const ProgramGroup = styled.div`display:flex;flex-direction:column;gap:28px;min-width:0;`
 const programColumns = 'minmax(88px,1fr) minmax(110px,1fr) minmax(80px,.8fr) minmax(220px,1.4fr) 56px'
 const ProgramHeading = styled.div`
   ${marbleHeaderBackground}
@@ -124,9 +131,8 @@ const ProgramRow = styled.button`
 const Metric = styled.span`display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;font-size:20px;
   @media(max-width:800px){font-size:18px}`
 const MobileLabel = styled.span`display:none;@media(max-width:800px){display:block;font-family:${({ theme }) => theme.fonts.mono};font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:${({ theme }) => theme.colors.text.label}}`
-const YieldIcon = styled.img`display:block;border-radius:50%;object-fit:cover;@media(max-width:800px){width:40px;height:40px}`
 // Keep the screenshot-sized chain badge anchored to the icon, not the cell.
-const YieldToken = styled.span`position:relative;display:inline-flex;flex-shrink:0;`
+const YieldToken = styled.span`position:relative;display:inline-flex;flex-shrink:0;@media(max-width:800px){> :first-child{width:40px !important;height:40px !important}}`
 const ChainBadge = styled.img`position:absolute;right:-7px;bottom:-5px;border-radius:50%;background:#fff;object-fit:cover;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);`
 const OfferApr = styled(Premium)`font-size:21px;`
 const Value = styled.span`font-variant-numeric:tabular-nums;`

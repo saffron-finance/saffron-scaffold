@@ -1,8 +1,6 @@
 import type { IncentiveRequestTerms, RequestDetails } from '@receipt'
 
-/** Offer terms are static prototypes, not funded or deployed vault balances. */
-const CASHCAT = { address: '0x020bfC650A365f8BB26819deAAbF3E21291018b4', symbol: 'CASHCAT', decimals: 18 } as const
-const ETH = { address: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73', symbol: 'ETH', decimals: 18 } as const
+/** API catalog terms describe proposals, not funded or deployed vault balances. */
 export interface Offer {
   id: string
   chainId: number
@@ -13,22 +11,9 @@ export interface Offer {
   apr: number
   days: number
   capacityUsd: number
+  pairId?: string
+  isNew?: boolean
 }
-
-/** This page offers one pool. Retired USDG receipts still render their own
- * immutable metadata through offerFromRequest, never through this catalog. */
-export const INCENTIVE_PAIR = {
-  chainId: 4663, pool: '0xA70fc67C9F69da90B63a0e4C05D229954574E313',
-  feeTier: 10000, token0: CASHCAT, token1: ETH,
-} as const
-
-/** Shared pair metadata is defined once; adding another term is a single row. */
-function offer(apr: number, days: number): Offer {
-  return {
-    ...INCENTIVE_PAIR, id: `cashcat-eth-${apr}-${days}d`, apr, days, capacityUsd: 100000,
-  }
-}
-export const OFFERS = [offer(1000, 3), offer(800, 2), offer(1200, 14), offer(2400, 90)]
 export interface PriceSnapshot { quotePerToken: number; quoteUsd: number; observedAt: string; block: string }
 
 /** Full-range indicative quote; no rounded display value becomes calldata. */

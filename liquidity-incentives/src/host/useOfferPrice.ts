@@ -24,7 +24,7 @@ export async function readOfferPrice(offer: Offer, signal: AbortSignal): Promise
     robinhoodClient.readContract({ ...call, functionName: 'slot0' }),
     robinhoodClient.readContract({ ...call, functionName: 'token0' }),
     robinhoodClient.readContract({ ...call, functionName: 'token1' }),
-    fetch(`${import.meta.env.BASE_URL}prices/${offer.token1.symbol}`, { signal, cache: 'no-store' }),
+    fetch(`${import.meta.env.BASE_URL}prices/${offer.token1.address}`, { signal, cache: 'no-store' }),
   ])
   const payload = await response.json()
   const data = payload?.data

@@ -5,6 +5,8 @@ import { build } from 'esbuild'
 import { encodeFunctionData, erc20Abi, keccak256, stringToHex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { REQUEST_PAYMENT, requestMessage } from '../shared/vault-request.mjs'
+import { OFFER, requestDetails } from './catalog-fixture.mjs'
+const OFFERS = [OFFER]
 
 // Bundle only the adapter under test; its browser host boundary is inert.
 // RPC calls below are fixture reads and wallet writes deliberately throw.
@@ -17,7 +19,7 @@ const compiled = await build({ stdin: { contents: [
   "export * from './src/host/useOfferPrice.ts'",
   "export { readPendingRequest } from './src/host/useRequestFlow.ts'",
   "export { parseRequestReceipt, MAX_RECEIPT_BYTES } from './src/host/requestReceipt.ts'",
-  "export { requestDraft, OFFERS } from './src/incentives/model.ts'",
+  "export { requestDraft } from './src/incentives/model.ts'",
 ].join(';'), resolveDir: resolve('.') }, bundle: true, write: false,
   define: { 'import.meta.env.BASE_URL': JSON.stringify('/fixture/') },
   format: 'esm', platform: 'node', alias: { '@receipt': resolve('shared/vault-request.mjs') },
@@ -28,7 +30,7 @@ const compiled = await build({ stdin: { contents: [
       : 'export function walletClient(){ throw new Error("No wallet writes permitted") }; export async function assertWalletAccount(){}; export async function ensureChain(){}' }))
   } }] })
 const { assertPaymentEvidence, confirmPayment, PaymentRevertedError, PaymentCancelledError, preferredFeeAsset,
-  loadPaymentConfig, quoteRequestPayment, payRequest, readOfferPrice, readPendingRequest, parseRequestReceipt, MAX_RECEIPT_BYTES, requestDraft, OFFERS } =
+  loadPaymentConfig, quoteRequestPayment, payRequest, readOfferPrice, readPendingRequest, parseRequestReceipt, MAX_RECEIPT_BYTES, requestDraft } =
   await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`)
 const address = (digit) => `0x${digit.repeat(40)}`
 const hash = (digit) => `0x${digit.repeat(64)}`
@@ -178,11 +180,12 @@ test('payment config rejects wrong types, stale oracle data, and an inconsistent
 test('fee quotes bind asset, account, exact USDC amount and finite expiry', async () => {
   const valid = { id: '11111111-1111-4111-8111-111111111111', wallet, recipient,
     asset: 'USDC', amountRaw: '2000000', expiresAt: new Date(Date.now() + 60_000).toISOString() }
-  api.request = async () => valid
-  assert.deepEqual(await quoteRequestPayment(wallet, 'USDC'), valid)
+  const details = requestDetails()
+  api.request = async (path, body) => { assert.equal(path, '/quote'); assert.deepEqual(body.details, details); return valid }
+  assert.deepEqual(await quoteRequestPayment(wallet, 'USDC', details), valid)
   for (const change of [{ wallet: recipient }, { amountRaw: '1' }, { expiresAt: 'invalid' }, { asset: 'ETH' }]) {
     api.request = async () => ({ ...valid, ...change })
-    await assert.rejects(quoteRequestPayment(wallet, 'USDC'), /Invalid payment quote/)
+    await assert.rejects(quoteRequestPayment(wallet, 'USDC', details), /Invalid payment quote/)
   }
   await assert.rejects(payRequest(wallet, recipient, { ...valid, wallet: address('3') }), /quote expired or changed/)
 })
@@ -208,7 +211,7 @@ function priceFixture({ reversed = false, overrides = {} } = {}) {
     return offer[functionName === 'token0' ? (reversed ? 'token1' : 'token0') : (reversed ? 'token0' : 'token1')].address
   }
   globalThis.fetch = async url => {
-    assert.equal(url, '/fixture/prices/USDG')
+    assert.equal(url, `/fixture/prices/${offer.token1.address}`)
     return { ok: true, json: async () => ({ success: true, data: {
       chainId: 4663, tokenAddress: offer.token1.address, currency: 'usd', price: 1,
       timestamp: new Date().toISOString(), ...overrides,

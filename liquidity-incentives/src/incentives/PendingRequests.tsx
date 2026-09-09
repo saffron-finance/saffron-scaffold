@@ -5,6 +5,7 @@ import { Modal, ModalTitle } from '../host/ui'
 import { loadAdminRequests, type PendingRequest, type usePendingRequests } from '../host/usePendingRequests'
 import { Disclosure, ErrorText, FinePrint, Label, QuietButton, Row, Stack } from './styles'
 import { exactUsd } from './model'
+import { ProgramAdmin } from './ProgramAdmin'
 
 interface Props {
   account: Address | null
@@ -64,9 +65,12 @@ export function PendingRequests({ account, requests, onImport, onConnect, onClos
         {currentAdmin.error && <ErrorText role='alert'>{currentAdmin.error}</ErrorText>}
         {currentAdmin.rows && <RequestRows rows={currentAdmin.rows} />}
       </Disclosure>
+      <Disclosure><summary>Manage incentive programs</summary><AdminArea><ProgramAdmin account={account} onConnect={onConnect} /></AdminArea></Disclosure>
     </Stack>
   </Modal>
 }
+
+const AdminArea = styled.div`padding-top:18px;`
 
 /** Small-screen-friendly queue rows retain the canonical ID and payment link. */
 function RequestRows({ rows }: { rows: PendingRequest[] }) {

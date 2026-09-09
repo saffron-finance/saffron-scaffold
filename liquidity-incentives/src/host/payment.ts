@@ -55,8 +55,8 @@ export function preferredFeeAsset(balances: PaymentBalances, ethUsdRaw: string |
 }
 
 /** Use the existing durable server quote so retries preserve the exact fee. */
-export async function quoteRequestPayment(account: Address, asset: FeeAsset): Promise<FeeQuote> {
-  const value = await requestJson('/quote', { wallet: account, asset })
+export async function quoteRequestPayment(account: Address, asset: FeeAsset, details: import('@receipt').RequestDetails): Promise<FeeQuote> {
+  const value = await requestJson('/quote', { wallet: account, asset, details })
   if (!value || !validRequestPayment({ asset: value.asset, amountRaw: value.amountRaw, quoteId: value.id })
     || value.asset !== asset || !same(value.wallet, account) || !validAddress(value.recipient)
     || (asset === 'USDC' && value.amountRaw !== '2000000')

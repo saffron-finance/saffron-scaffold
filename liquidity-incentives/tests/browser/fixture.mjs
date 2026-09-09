@@ -9,6 +9,8 @@ import { createVaultRequestHandler } from '../../server/vault-requests.mjs'
 import { HASH, RECIPIENT, paymentFixture } from '../payment-fixture.mjs'
 import { postgresFixture } from '../postgres-fixture.mjs'
 import { feeRpc } from '../fee-fixture.mjs'
+import { createIncentiveProgramHandler } from '../../server/incentive-programs.mjs'
+import { catalogRpc } from '../catalog-fixture.mjs'
 
 const BASE = ''
 
@@ -29,12 +31,15 @@ export async function setup(page, options = {}) {
   const oracleRpc = feeRpc(fixture, options)
   const handler = createVaultRequestHandler({ recipient: options.enabled === false ? null : RECIPIENT,
     storePath, database: storage.database, adminOwner: async () => options.notAdmin ? RECIPIENT : account.address, basePath: BASE, rpc: (...args) => oracleRpc(...args) })
+  const programs = createIncentiveProgramHandler({ database: storage.database,
+    adminOwner: async () => options.notAdmin ? RECIPIENT : account.address, basePath: BASE, rpc: catalogRpc() })
   const server = createServer(async (req, res) => {
-    if (!await handler(req, res, new URL(req.url, 'http://localhost').pathname)) { res.writeHead(404); res.end() }
+    const pathname = new URL(req.url, 'http://localhost').pathname
+    if (!await handler(req, res, pathname) && !await programs(req, res, pathname)) { res.writeHead(404); res.end() }
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const api = `http://127.0.0.1:${server.address().port}`
-  await page.route(/\/vault-requests(?:\/[^?]*)?(?:\?.*)?$/,  async (route) => {
+  await page.route(/\/(?:vault-requests|incentive-programs)(?:\/[^?]*)?(?:\?.*)?$/,  async (route) => {
     const request = route.request()
     const response = await fetch(`${api}${new URL(request.url()).pathname}${new URL(request.url()).search}`, {
       method: request.method(), headers: { 'content-type': 'application/json' }, body: request.postData() ?? undefined,
@@ -48,9 +53,10 @@ export async function setup(page, options = {}) {
   // Same token-price endpoint as the deployed page; never read live prices.
   await page.route('**/prices/*', route => {
     const symbol = new URL(route.request().url()).pathname.split('/').at(-1)
+    const isEth = symbol === 'ETH' || symbol.toLowerCase() === '0x0bd7d308f8e1639fab988df18a8011f41eacad73'
     return route.fulfill({status: state.quoteOffline ? 503 : 200, json: {success: true, data: {
-      chainId: 4663, tokenAddress: symbol === 'ETH' ? '0x0bd7d308f8e1639fab988df18a8011f41eacad73' : '0x5fc5360d0400a0fd4f2af552add042d716f1d168',
-      price: symbol === 'ETH' ? 2000 : 1, timestamp: new Date().toISOString(), currency: 'usd',
+      chainId: 4663, tokenAddress: isEth ? '0x0bd7d308f8e1639fab988df18a8011f41eacad73' : '0x5fc5360d0400a0fd4f2af552add042d716f1d168',
+      price: isEth ? 2000 : 1, timestamp: new Date().toISOString(), currency: 'usd',
     }}})
   })
   await page.route('**/rpc/*', async (route) => {

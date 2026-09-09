@@ -1,20 +1,18 @@
 import styled from 'styled-components'
-import { INCENTIVE_PAIR } from './model'
-import cashcatLogo from './assets/cashcat.jpg'
-import ethLogo from './assets/eth.svg'
+import type { Offer } from './model'
+import { TokenIcon } from './TokenIcon'
 import uniswapLogo from './assets/uniswap.svg'
 import robinhoodLogo from './assets/robinhood.svg'
 
 /** Presentational header extracted from scaffold live-pool-apr/LivePoolAprPage.
  * Keeps its original artwork, copy and typography without importing the live
  * monitor, subscriptions or host shell. Offer metadata owns the pair/fee. */
-export function PairHeader() {
-  const { token0, token1, feeTier } = INCENTIVE_PAIR
+export function PairHeader({ pair: { token0, token1, feeTier } }: { pair: Offer }) {
   return <Header>
     <Title><PairHeading data-testid='pool-pair-heading'>
-      <PairLogos aria-hidden='true'><PairLogo src={cashcatLogo} alt='' width={48} height={48} /><PairLogo src={ethLogo} alt='' width={48} height={48} /></PairLogos>
+      <PairLogos aria-hidden='true'><PairLogo><TokenIcon {...token0} size={48} /></PairLogo><PairLogo><TokenIcon {...token1} size={48} /></PairLogo></PairLogos>
       <PairHeadingText>
-        <PairName data-testid='pool-pair-name'>{token0.symbol} / {token1.symbol} {feeTier / 10_000}%</PairName>
+        <PairName data-testid='pool-pair-name'>{token0.symbol} / {token1.symbol} {(feeTier ?? 0) / 10_000}%</PairName>
       </PairHeadingText>
     </PairHeading></Title>
     <Description><PoolDescription data-testid='pool-description'>
@@ -45,13 +43,15 @@ const PairLogos = styled.span`
   flex-shrink: 0;
   > * + * { margin-left: -12px; }
 `
-const PairLogo = styled.img`
+const PairLogo = styled.span`
   display: block;
   width: 48px;
   height: 48px;
   object-fit: cover;
   border: 2px solid ${({ theme }) => theme.colors.background.base};
   border-radius: 50%;
+  overflow: hidden;
+  > * { width: 100% !important; height: 100% !important; }
   @media (max-width: 480px) { width: 42px; height: 42px; }
 `
 const PairHeadingText = styled.span`

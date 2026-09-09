@@ -26,7 +26,7 @@ test('beta layout, isolated offers, two-step copy and mobile keyboard access', a
   try {
     await page.route('**/prices/*', async route => { await priceReady; await route.fallback() })
     await page.goto(PAGE)
-    await expect(page.getByLabel('Liquidity incentive offers').locator('[data-incentive-offer]')).toHaveCount(4)
+    await expect(page.getByLabel('CASHCAT / ETH liquidity incentive offers').locator('[data-incentive-offer]')).toHaveCount(4)
     await expect(page.getByLabel('Featured liquidity incentives')).toHaveCount(0)
     const offers = page.locator('[data-incentive-offer]')
     for (const offer of await offers.all()) {
@@ -150,7 +150,7 @@ test('USD formatting and live premium stay consistent with the signed request', 
     await expect(position).toHaveText('$10,000.25')
     await expect(premium).toHaveText('410,969=+$821.94')
     // A new live USD price changes the token quantity, not APR-based USD yield.
-    await page.route('**/prices/ETH', async route => {
+    await page.route('**/prices/0x0bd7d308f8e1639fab988df18a8011f41eacad73', async route => {
       await route.fulfill({ json: { success: true, data: {
         chainId: 4663, tokenAddress: '0x0bd7d308f8e1639fab988df18a8011f41eacad73',
         price: 4000, timestamp: new Date().toISOString(), currency: 'usd',

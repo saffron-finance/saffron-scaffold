@@ -129,7 +129,7 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
         const current = await loadPaymentConfig()
         setConfig(current)
         if (!current.enabled || !current.recipient) throw new Error('Payment collection is not configured yet.')
-        const quote = snapshot.version === 3 ? await quoteRequestPayment(account, asset) : undefined
+        const quote = snapshot.version === 3 ? await quoteRequestPayment(account, asset, snapshot) : undefined
         if (quote && quote.recipient.toLowerCase() !== current.recipient.toLowerCase()) throw new Error('Fee recipient changed. Review and retry.')
         const hash = await payRequest(account, current.recipient, quote)
         payment = { ...snapshot, wallet: account, recipient: current.recipient, paymentTxHash: hash,

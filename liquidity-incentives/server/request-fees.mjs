@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { decodeFunctionResult, encodeFunctionData, parseAbi } from 'viem'
+import { canonicalRequestDetails } from '../shared/vault-request.mjs'
 
 export const ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
 export const ARBITRUM_SEQUENCER_FEED = '0xFdB631F5EE196F0ed6FAa767959853A9F217697D'
@@ -37,12 +38,13 @@ export function createFeeService({ rpc, database, recipient, now = Date.now }) {
   }
   return {
     price,
-    async quote(wallet, asset) {
+    async quote(wallet, asset, details) {
       if (!['USDC', 'ETH'].includes(asset)) throw new Error('Unsupported fee asset')
       const current = asset === 'ETH' ? await price() : null
       const value = { id: randomUUID(), wallet: wallet.toLowerCase(), recipient: recipient.toLowerCase(), asset,
         amountRaw: asset === 'ETH' ? current.amountRaw : '2000000', ethUsdRaw: current?.ethUsdRaw ?? null,
-        expiresAt: new Date(now() + 15 * 60_000).toISOString() }
+        expiresAt: new Date(now() + 15 * 60_000).toISOString(),
+        ...(details ? { details: canonicalRequestDetails(details) } : {}) }
       await database.putQuote(value)
       return value
     },
@@ -51,6 +53,9 @@ export function createFeeService({ rpc, database, recipient, now = Date.now }) {
       if (!quote || quote.wallet !== body.wallet.toLowerCase() || quote.recipient !== body.recipient.toLowerCase()
         || quote.asset !== body.payment.asset || quote.amount_raw !== body.payment.amountRaw) {
         throw new Error('Payment quote does not match this request')
+      }
+      if (quote.request_details && JSON.stringify(canonicalRequestDetails(quote.request_details)) !== JSON.stringify(canonicalRequestDetails(body))) {
+        throw new Error('The request differs from the terms reviewed before payment')
       }
       // Use the verified canonical block time, never submission time. An ETH
       // transfer mined on time remains resumable after the quote has expired.

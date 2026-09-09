@@ -55,6 +55,13 @@ export function canonicalIncentive(t) {
       quotePerCashcat: t.quote.quotePerCashcat, quotedAt: t.quote.quotedAt } }
 }
 
+/** Stable request snapshot for new fee quotes; existing signing formats stay unchanged. */
+export function canonicalRequestDetails(value) {
+  return { ...(value.version === 3 ? { version: 3 } : {}), chain: value.chain,
+    depositToken: value.depositToken, pair: value.pair, depositAmount: value.depositAmount,
+    ...(value.kind === 'incentive' ? { kind: 'incentive', incentive: canonicalIncentive(value.incentive) } : {}) }
+}
+
 /** Version 3 binds the selected native/ERC-20 fee and server-issued quote. */
 export function validRequestPayment(value) {
   return Boolean(value && ['USDC', 'ETH'].includes(value.asset)

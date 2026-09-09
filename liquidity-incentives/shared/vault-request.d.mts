@@ -16,4 +16,5 @@ export function validDetails(value: unknown): value is RequestDetails
 export function validAddress(value: unknown): value is Address
 export function requestMessage(value: PaidRequest): string
 export function canonicalIncentive(value: IncentiveRequestTerms): IncentiveRequestTerms
+export function canonicalRequestDetails(value: RequestDetails): RequestDetails
 export function validRequestPayment(value: unknown): value is RequestPayment

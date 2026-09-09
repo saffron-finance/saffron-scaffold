@@ -11,7 +11,7 @@
     "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs",
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
-    "test:database": "node --test tests/pending-database.test.mjs"
+    "test:database": "node --test tests/pending-database.test.mjs tests/program-database.test.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

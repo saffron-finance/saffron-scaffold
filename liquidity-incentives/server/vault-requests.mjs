@@ -11,18 +11,18 @@ const AMOUNT = 2_000_000n
 const HASH = /^0x[0-9a-fA-F]{64}$/
 
 /** Expected errors carry only bounded, operator-independent public messages. */
-class RequestError extends Error {
+export class RequestError extends Error {
   constructor(status, message) { super(message); this.status = status }
 }
 
 /** Return JSON with no caching; never expose the queue or upstream RPC details. */
-function json(res, status, body) {
+export function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' })
   res.end(JSON.stringify(body))
 }
 
 /** Consume at most 16 KiB, including malformed or never-completing submissions. */
-async function readRequest(req) {
+export async function readRequest(req) {
   const chunks = []
   let length = 0
   for await (const chunk of req) {
@@ -178,7 +178,9 @@ export function createVaultRequestHandler({ recipient, storePath, rpc, basePath,
       if (!receivingAddress) throw new RequestError(503, 'Vault request payments are not configured.')
       if (pathname.endsWith('/quote')) {
         if (!fees || !validAddress(body.wallet) || !['USDC','ETH'].includes(body.asset)) throw new RequestError(400, 'Invalid fee quote request.')
-        json(res, 200, await fees.quote(body.wallet, body.asset)); return true
+        if (!validDetails(body.details)) throw new RequestError(400, 'Review valid request terms before requesting a fee quote.')
+        if (body.details.kind === 'incentive') await database.assertActiveProgram(body.details.incentive)
+        json(res, 200, await fees.quote(body.wallet, body.asset, body.details)); return true
       }
       if (!validDetails(body) || !validAddress(body.wallet) || !validAddress(body.recipient)
         || body.recipient.toLowerCase() !== receivingAddress || typeof body.paymentTxHash !== 'string' || !HASH.test(body.paymentTxHash)

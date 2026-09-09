@@ -1,6 +1,6 @@
 # Saffron Scaffold — liquidity incentives
 
-Standalone, beta-styled LP incentive offers and paid vault requests. This package
+Standalone, beta-styled, admin-managed LP incentive offers and paid vault requests. This package
 is isolated from the scaffold root application and its read-only Pages build.
 
 ## Run locally
@@ -22,7 +22,7 @@ open http://localhost:5187.
 Configure `RPC_ROBINHOOD` server-side to load the live pool price. Ethereum and
 Arbitrum have public read-only RPC fallbacks. Never put credentialed RPC URLs in
 browser-prefixed variables. The server proxies only allowlisted read methods
-and two fixed public token-price endpoints.
+and fixed-host public prices for catalog quote tokens (plus legacy ETH/USDG aliases).
 
 Payments stay disabled until the request database is healthy and an operator
 sets `VAULT_REQUEST_PAYMENT_ADDRESS`. Do not enable payment collection merely
@@ -58,6 +58,41 @@ If database initialization or legacy import fails, the next request after a
 five-second cooldown retries initialization. Concurrent requests share that
 attempt, and payments stay disabled until schema setup and import finish.
 
+### Admin-managed incentive catalog
+
+Open **My requests → Manage incentive programs → Load incentive catalog** with
+the Robinhood Chain `VaultFactory.owner()` wallet. Loading and saving each edit
+require a fresh wallet signature. Write signatures bind the complete edit,
+operation, wallet, chain, nonce, and expiry; a request-list signature cannot
+authorize a catalog change. The server rechecks current ownership on execution.
+
+`server/incentive-programs.sql` adds two related tables:
+
+- `liqifi.incentive_pairs`: pool address, token addresses/symbols/decimals, fee
+  tier, and active state. Multiple programs can share one pair. New and edited
+  pairs are checked against the configured Robinhood RPC before they are saved.
+- `liqifi.incentive_programs`: stable ID, pair ID, APR, duration, proposed USD
+  capacity, display order, NEW badge, and active state.
+
+The former CASHCAT/ETH pair and four offers are bootstrap rows. Initialization
+does not overwrite existing edits or pauses. Each row records its revision,
+last editor, and update time; stale concurrent edits fail with a reload message.
+Pause rows to remove them from the public catalog. Pausing a pair hides all its
+programs. Rows are retained, and their IDs cannot be changed in the editor.
+
+The public page loads `/incentive-programs`, groups offers by pair, and uses
+token addresses for prices. There is no fallback offer array. Loading, empty,
+and unavailable states remain distinct, with receipt recovery and administration
+available in all three states. This release supports full-range programs on
+Robinhood; token artwork is optional and unknown tokens get a local fallback.
+
+New `/vault-requests/quote` calls include the reviewed request details. The
+server checks the current active program before issuing a fee quote and stores
+that snapshot in `liqifi.request_fee_quotes.request_details`. Subsequent saves
+must match it, even if an administrator edits or pauses the program meanwhile.
+Existing quotes and legacy receipts retain their original verification format.
+Catalog capacity is proposed capacity, not a funded balance or reserved budget.
+
 ### Mounting beneath a path
 
 Build with `VITE_BASE_PATH=/incentives/` and serve with
@@ -70,7 +105,7 @@ No deployment-specific configuration is part of this package.
 
 | Directory | Purpose | Merge treatment |
 | --- | --- | --- |
-| `src/incentives` | Offer catalog, quote math, rows, two-step modal, summary | Port as the feature |
+| `src/incentives` | Catalog presentation/editor, quote math, rows, two-step modal, summary | Port as the feature |
 | `src/host` | Standalone wallet, API, theme and scene adapters | Replace with destination providers |
 | `src/adapters` | Explicit injected-wallet selection and chain metadata | Reuse destination equivalents |
 | `shared` | Versioned request messages and validation | Preserve signed-message bytes |
@@ -150,3 +185,11 @@ Receipt import verification on 2026-09-09: 73 API/adapter/relay tests,
 root live/mock builds. Browser checks cover actual downloaded files, storage
 loss, signed retries, legacy terms, invalid files, wallet conflicts, existing
 pending requests, unavailable lists and disconnected mobile recovery.
+
+Catalog verification on 2026-09-09: 73 API/adapter/relay tests, 25 PostgreSQL
+tests and 17 browser dry runs passed. Coverage includes owner-only catalog
+administration, signed edits, stale revisions, verified pair metadata, paused
+programs, persistent bootstrap data, catalog outages, and paid recovery after
+catalog changes. Normal/lab and root live/mock builds passed; the root mock
+performed no RPC or wallet calls. All database and payment checks used
+disposable PostgreSQL databases and unfunded wallet/RPC fixtures.

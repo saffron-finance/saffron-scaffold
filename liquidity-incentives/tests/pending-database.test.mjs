@@ -44,7 +44,7 @@ async function apiFixture(asset = 'USDC') {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const url = `http://127.0.0.1:${server.address().port}/app/vault-requests`
   const post = (path, body) => fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-  const quoted = await post('/quote', { wallet: account.address, asset }); assert.equal(quoted.status, 200)
+  const quoted = await post('/quote', { wallet: account.address, asset, details }); assert.equal(quoted.status, 200)
   const quote = await quoted.json()
   const body = { ...structuredClone(details), wallet: account.address, recipient: RECIPIENT, paymentTxHash: HASH,
     payment: { asset, amountRaw: quote.amountRaw, quoteId: quote.id } }
