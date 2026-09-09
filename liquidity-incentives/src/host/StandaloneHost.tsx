@@ -46,8 +46,8 @@ export function StandaloneHost() {
         <button onClick={() => setMenu(true)}>Menu</button>
       </Bottom>
     </Frame>
-    {/* Mount the wallet portal above the request dialog that opened it. */}
-    {wallet.modalOpen && <Modal isOpen onRequestClose={wallet.closeModal} shouldCloseOnOverlayClick={!wallet.connecting}>
+    {/* Explicit layering keeps wallet selection above existing form portals. */}
+    {wallet.modalOpen && <Modal isOpen layer='wallet' onRequestClose={wallet.closeModal} shouldCloseOnOverlayClick={!wallet.connecting}>
       <ModalTitle>Connect wallet</ModalTitle>
       <WalletList>
         {wallet.providers.map(provider => <WalletButton key={provider.id} disabled={wallet.connecting}

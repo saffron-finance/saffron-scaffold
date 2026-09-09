@@ -14,6 +14,8 @@ export interface ModalProps {
   size?: 'default' | 'wide'
   /** Optional per-dialog spacing; other shared modal defaults stay unchanged. */
   contentStyle?: React.CSSProperties
+  /** Wallet selection must stay above the form that requested a connection. */
+  layer?: 'dialog' | 'wallet'
 }
 
 const TRANSITION_MS = 200
@@ -30,6 +32,7 @@ export function Modal({
   shouldCloseOnOverlayClick = true,
   size = 'default',
   contentStyle,
+  layer = 'dialog',
 }: Props) {
   useEffect(() => {
     if (!isOpen) return
@@ -58,7 +61,7 @@ export function Modal({
         </ModalElement>
       )}
       overlayElement={(props, contentElement) => (
-        <ModalOverlayElement {...props} transitionMs={TRANSITION_MS}>
+        <ModalOverlayElement {...props} transitionMs={TRANSITION_MS} $layer={layer}>
           {contentElement}
         </ModalOverlayElement>
       )}
@@ -98,14 +101,15 @@ const ModalElement = styled.div<{ $size: 'default' | 'wide' }>`
   }
 `
 
-const ModalOverlayElement = styled.div<{ transitionMs: number }>`
+const ModalOverlayElement = styled.div<{ transitionMs: number; $layer: 'dialog' | 'wallet' }>`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background-color: ${(props) => props.theme.colors.effects.overlay};
-  z-index: 10;
+  /* Portal mount order can change when the underlying request form rerenders. */
+  z-index: ${({ $layer }) => $layer === 'wallet' ? 20 : 10};
   transition: opacity ${(props) => props.transitionMs}ms ease-out;
 
   &.ReactModal__Overlay {
