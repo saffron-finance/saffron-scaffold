@@ -135,12 +135,12 @@ const ColumnTitle = styled(HeaderCell)`min-width:0;padding-left:0;padding-right:
 const ProgramRow = styled.button`
   display:grid;grid-template-columns:${programColumns};align-items:center;column-gap:24px;
   width:100%;min-height:124px;padding:28px 32px;text-align:left;font:inherit;color:inherit;
-  border:1px solid rgb(42 10 86);border-radius:var(--radius-md);
-  /* Approved sunset background applies to every offer in both build modes. */
-  background:radial-gradient(75% 95% at 78% 0%, rgb(255 87 0 / 44%), rgb(145 39 181 / 21%) 38%, transparent 66%), #0a0619;
-  /* Match beta's featured-token hover without changing the approved 1px width. */
+  border:1px solid #1d1d1d;border-radius:var(--radius-md);
+  /* Quiet gray cards match the approved design in normal and staging builds. */
+  background:#0a0a0a;
+  /* Keep hover neutral without changing the border width or keyboard outline. */
   cursor:pointer;transition:border-color .16s ease;
-  &:hover{border-color:${({ theme }) => theme.colors.accent.gold}}
+  &:hover{border-color:#454545}
   &:focus-visible{outline:2px solid ${({ theme }) => theme.colors.accent.gold};outline-offset:4px}
   @media(max-width:800px){padding:24px 12px;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 38px;gap:24px 10px}
 `

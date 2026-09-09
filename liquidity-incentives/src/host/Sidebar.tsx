@@ -57,9 +57,9 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
 const Rail = styled.aside`
   ${sidebarVariables(sidebarDefaults)}
   position:sticky;top:0;height:100vh;height:100dvh;min-width:0;padding:22px 16px 16px;
-  display:flex;flex-direction:column;overflow:auto;border-right:1px solid rgba(255,255,255,.08);
+  display:flex;flex-direction:column;overflow:auto;border-right:1px solid #1d1d1d;
   background:linear-gradient(var(--sidebar-surface-angle),var(--sidebar-surface-top),var(--sidebar-surface-bottom));
-  @media(max-width:${sidebarMobileWidth}px){position:static;height:auto;padding:12px 16px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08);}
+  @media(max-width:${sidebarMobileWidth}px){position:static;height:auto;padding:12px 16px;border-right:0;border-bottom:1px solid #1d1d1d;}
   /* Attribute specificity keeps collapse above the mobile layout rules. */
   &[data-collapsed=true]{
     position:fixed;top:12px;left:12px;z-index:4;width:56px;height:56px;padding:6px;

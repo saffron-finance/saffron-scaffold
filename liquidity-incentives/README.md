@@ -140,6 +140,15 @@ No deployment-specific configuration is part of this package.
 
 ## Standalone sidebar and appearance preview
 
+Approved appearance (9 September): sidebar and offer cards use `#0a0a0a`
+with a `#1d1d1d` border against the unchanged black page canvas. Card hover is
+neutral gray. The sidebar uses the screenshot's purple Afterglow palette,
+150° button / 180° surface directions, 70% highlight, 75% border, 27% glow,
+29px spread, 12px radius/padding, 6px spacing and 20px icon size. Navigation
+icons are off; the active indicator remains on. Canonical colors/settings are
+in `src/host/sidebarTheme.ts`. The static approved paint is shared by normal
+and preview builds; optional styles stay isolated in `src/dev/`.
+
 The standalone shell uses a reference-style dark sidebar with one spinning
 Saffron emblem. Vaults is selected by default and stays within the current
 mount. Tokens, Fixed yield, Variable yield, and Stats open existing protocol
@@ -156,7 +165,7 @@ this standalone adapter, not the mergeable incentive feature.
 In `build:lab`, **Tweak → Sidebar appearance** controls background top/bottom,
 active gradient start/end, navigation text, gradient direction, and glow.
 Changes apply to the sidebar only and are saved locally under
-`saffron.staging.sidebar.v1`; **Reset sidebar** restores the reference defaults.
+`saffron.staging.sidebar.v1`; **Reset sidebar** restores the approved purple defaults.
 Only validated hex colors and bounded numbers are restored. Normal builds
 include the default sidebar but omit this preview UI and its persistence.
 Existing APR motion controls remain independent (3.5× page default, 1.5× modal).
@@ -168,7 +177,7 @@ pressing Enter/Space reopens the navigation. Neither the logo nor the incentive
 page is remounted. Focus transfers to the visible control, including on mobile;
 reduced motion disables the short pop animation. Collapse is per page visit.
 
-**Button style** keeps Reference as default and offers ten sunset presets:
+**Button style** now defaults to the approved purple Violet afterglow and still offers ten sunset presets:
 Classic sunset, Purple dusk, Ember glass, Golden horizon, Violet afterglow,
 Sunset outline, Sunset silk, Saffron aurora, Molten edge, and Sunset orbit.
 Presets affect the active button and hover; **Style all buttons** also applies
@@ -176,8 +185,9 @@ the treatment to idle buttons. Colors, gradient/background direction, highlight
 and border strength, glow/spread, corner radius, padding, row spacing, icon
 size/visibility, and the active indicator can be adjusted independently. Orbit
 has its own speed control and respects reduced motion. These optional presets
-stay in `src/dev/sidebarPresets.ts`; normal builds include none of their code.
-Existing saved colors are retained, and Reset sidebar restores reference values.
+stay in `src/dev/sidebarPresets.ts`; normal builds omit the optional presets; only the approved Afterglow paint is shared with the host.
+The September 9 approved design replaces older auto-saved appearance values once;
+subsequent Tweak choices persist. Reset sidebar restores the approved design.
 
 ## Feature boundary / later fixed-income merge
 

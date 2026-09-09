@@ -4,6 +4,8 @@ import { sidebarDefaults, sidebarVariables, type SidebarAppearance } from '../ho
 import { applySidebarPreset, sidebarOrbitCss, sidebarPreset, sidebarPresetCss, sidebarPresets } from './sidebarPresets'
 
 const storageKey = 'saffron.staging.sidebar.v1'
+// Apply the approved page design once; later explicit Tweak choices still persist.
+const defaultsVersion = 2
 const colors = [
   ['surfaceTop', 'Background top'], ['surfaceBottom', 'Background bottom'],
   ['gradientStart', 'Gradient start'], ['gradientMiddle', 'Gradient middle'], ['gradientEnd', 'Gradient end'],
@@ -23,10 +25,11 @@ const orbitSlider = ['orbitSpeed', 'Sidebar orbit speed', .25, 4, .25, '×'] as 
 const toggles = [['tintAll', 'Style all buttons'], ['showIcons', 'Show icons'], ['indicator', 'Show active indicator']] as const
 
 /** Restore only known presets, hex colors, booleans and bounded numbers.
- * Older saved palettes keep working; missing new controls use reference defaults. */
+ * Apply approved defaults to older storage once; preserve subsequent choices. */
 function savedAppearance(): SidebarAppearance {
   try {
     const stored = JSON.parse(localStorage.getItem(storageKey) || '{}'), result = { ...sidebarDefaults }
+    if (stored?.defaultsVersion !== defaultsVersion) return result
     for (const [key] of colors) if (typeof stored?.[key] === 'string' && /^#[0-9a-f]{6}$/i.test(stored[key])) result[key] = stored[key]
     if (stored?.selectedText === undefined) result.selectedText = result.gradientStart
     for (const [key, , min, max] of [...paintSliders, ...shapeSliders, orbitSlider]) {
@@ -44,7 +47,7 @@ export default function SidebarTweaks() {
   const id = useId()
   const [appearance, setAppearance] = useState<SidebarAppearance>(savedAppearance)
   useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(appearance)) } catch { /* In-memory preview still works. */ }
+    try { localStorage.setItem(storageKey, JSON.stringify({ ...appearance, defaultsVersion })) } catch { /* In-memory preview still works. */ }
   }, [appearance])
   // Reuse the same small slider renderer for paint, layout and optional motion.
   const slider = ([key, label, min, max, step, unit]: typeof paintSliders[number] | typeof shapeSliders[number] | typeof orbitSlider) =>

@@ -1,11 +1,12 @@
 /** Shared defaults keep the standalone sidebar and its optional preview controls
  * in agreement. Normal builds need neither preset code nor appearance storage. */
+// Approved screenshot palette (sRGB, converted from its embedded display profile).
 export const sidebarDefaults = {
-  style: 'reference', surfaceTop: '#0f121a', surfaceBottom: '#0a0c11',
-  gradientStart: '#f5d27b', gradientMiddle: '#e47e01', gradientEnd: '#b8842a',
-  text: '#98a0af', selectedText: '#f5d27b', angle: 90, surfaceAngle: 180,
-  glow: 10, glowSpread: 26, strength: 20, border: 38, radius: 12, padding: 12,
-  gap: 6, iconSize: 20, orbitSpeed: 3.5, tintAll: false, showIcons: true, indicator: true,
+  style: 'afterglow', surfaceTop: '#0a0a0a', surfaceBottom: '#0a0a0a',
+  gradientStart: '#d286ff', gradientMiddle: '#9a29b8', gradientEnd: '#c875ff',
+  text: '#d4d4d4', selectedText: '#fff0ff', angle: 150, surfaceAngle: 180,
+  glow: 27, glowSpread: 29, strength: 70, border: 75, radius: 12, padding: 12,
+  gap: 6, iconSize: 20, orbitSpeed: 3.5, tintAll: false, showIcons: false, indicator: true,
 }
 export type SidebarAppearance = typeof sidebarDefaults
 export const sidebarMobileWidth = 1000
@@ -19,6 +20,13 @@ export function sidebarChannels(hex: string): string {
  * while density, accessibility and palette controls continue to work normally. */
 export function sidebarVariables(value: SidebarAppearance): string {
   const start = sidebarChannels(value.gradientStart), end = sidebarChannels(value.gradientEnd)
+  // The approved Afterglow treatment belongs to the normal host as well as
+  // staging. Other optional preset treatments remain in the dev-only module.
+  const middle = sidebarChannels(value.gradientMiddle), opacity = value.strength / 100
+  const approvedPaint = value.style === 'afterglow' ? `
+    --sidebar-button-background:radial-gradient(110% 180% at 0% 100%,rgba(${start},${opacity}),rgba(${middle},${opacity}) 38%,transparent 75%),linear-gradient(var(--sidebar-angle),#130d1c,rgba(${end},${opacity}));
+    --sidebar-hover-background:var(--sidebar-button-background); --sidebar-hover-text:var(--sidebar-selected-text);
+  ` : ''
   return `
     --sidebar-surface-top:${value.surfaceTop}; --sidebar-surface-bottom:${value.surfaceBottom};
     --sidebar-surface-angle:${value.surfaceAngle}deg;
@@ -36,5 +44,6 @@ export function sidebarVariables(value: SidebarAppearance): string {
     --sidebar-radius:${value.radius}px; --sidebar-padding:${value.padding}px; --sidebar-gap:${value.gap}px;
     --sidebar-icon-size:${value.iconSize}px; --sidebar-icons:${value.showIcons ? 'block' : 'none'};
     --sidebar-indicator:${value.indicator ? 'block' : 'none'};
+    ${approvedPaint}
   `
 }
