@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
-import { HeaderCell, StepTitle, StepSubtitle, marbleHeaderBackground } from '../host/ui'
+import { HeaderCell, StepTitle, StepSubtitle } from '../host/ui'
 import { useRequestFlow } from '../host/useRequestFlow'
 import { usePendingRequests } from '../host/usePendingRequests'
 import { useOfferPrice } from '../host/useOfferPrice'
@@ -124,7 +124,8 @@ const Programs = styled.div`display:flex;flex-direction:column;gap:28px;margin-t
 const ProgramGroup = styled.div`display:flex;flex-direction:column;gap:28px;min-width:0;`
 const programColumns = 'minmax(88px,1fr) minmax(110px,1fr) minmax(80px,.8fr) minmax(220px,1.4fr) 56px'
 const ProgramHeading = styled.div`
-  ${marbleHeaderBackground}
+  /* Reduce only the heading gap: offer-to-offer spacing remains 28px. */
+  margin-bottom:-24px;background:none;
   display:grid;grid-template-columns:${programColumns};column-gap:24px;align-items:center;padding:4px 32px;
   border:1px solid transparent;border-radius:var(--radius-md);
   @media(max-width:800px){padding:4px 12px;grid-template-columns:.9fr 1.1fr .9fr 1.2fr;column-gap:8px}
@@ -154,7 +155,7 @@ const OfferApr = styled(Premium)`
   background-image:linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 `
-const Value = styled.span`font-size:24px;font-variant-numeric:tabular-nums;`
+const Value = styled.span`font-size:22px;font-variant-numeric:tabular-nums;`
 // A per-request ceiling is not an aggregate funding progress measurement.
 const CapacityCell = styled(Metric)`@media(max-width:800px){grid-column:1/-1;grid-row:2}`
 const CapacityMeter = styled.span`display:flex;align-items:center;gap:12px;width:100%;white-space:nowrap;`

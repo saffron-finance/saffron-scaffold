@@ -42,10 +42,9 @@ export default function RowTweaks() {
   const table = '[aria-label="Liquidity incentive offers"]'
   const heading = `${table} > [aria-hidden="true"]`
   const font = fonts.find(face => face.id === typography.font)
-  // The negative margin reduces only the heading-to-first-offer gap to 12px.
-  // All row-to-row gaps and the production feature's CSS remain unchanged.
+  // The feature owns the transparent heading and 4px gap in every build.
+  // This optional control changes only label typography.
   const headingCss = typography.compactHeader ? `
-    ${heading} { background:none; margin-bottom:-16px; }
     ${heading} > span { color:#fff; padding-top:8px; padding-bottom:8px; }
   ` : ''
   // A private family name confines local font loading to this preview. Existing
@@ -70,7 +69,7 @@ export default function RowTweaks() {
         <Highlight><input type='checkbox' checked={typography.compactHeader}
           onChange={event => setTypography(previous => ({ ...previous, compactHeader: event.target.checked }))} />
           Compact white heading</Highlight>
-        <small>No marble background; closer to the offer rows.</small>
+        <small>Compact white column labels.</small>
         <label htmlFor={fontId}>Table font</label>
         <select id={fontId} value={typography.font}
           onChange={event => setTypography(previous => ({ ...previous, font: event.target.value }))}>
