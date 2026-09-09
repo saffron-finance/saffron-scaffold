@@ -73,6 +73,8 @@ const presets: Record<Exclude<AprAnimation, 'none'>, string> = {
       background-image:radial-gradient(ellipse at center, rgb(255, 188, 9) 12%, rgb(228, 126, 1) 48%, rgb(250, 63, 6) 80%);
       background-size:200% 200%; animation:saffronAprOrbit var(--saffron-orbit-duration, 24s) linear infinite;
     }
+    /* Modal orbit is fixed at 1.5x (24 / 1.5), independent of the page slider. */
+    [role="dialog"] ${selector} { --saffron-orbit-duration:16s; }
   `,
   waves: `
     ${selector} {
