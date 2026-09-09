@@ -148,8 +148,13 @@ const MobileLabel = styled.span`display:none;@media(max-width:800px){display:blo
 // Keep the screenshot-sized chain badge anchored to the icon, not the cell.
 const YieldToken = styled.span`position:relative;display:inline-flex;flex-shrink:0;@media(max-width:800px){> :first-child{width:40px !important;height:40px !important}}`
 const ChainBadge = styled.img`position:absolute;right:-7px;bottom:-5px;border-radius:50%;background:#fff;object-fit:cover;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);`
-const OfferApr = styled(Premium)`font-size:21px;`
-const Value = styled.span`font-variant-numeric:tabular-nums;`
+// Homepage metrics have explicit sizes; secondary capacity text stays unchanged.
+const OfferApr = styled(Premium)`
+  font-size:28px;font-family:"Funnel Display", serif;
+  background-image:linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+`
+const Value = styled.span`font-size:24px;font-variant-numeric:tabular-nums;`
 // A per-request ceiling is not an aggregate funding progress measurement.
 const CapacityCell = styled(Metric)`@media(max-width:800px){grid-column:1/-1;grid-row:2}`
 const CapacityMeter = styled.span`display:flex;align-items:center;gap:12px;width:100%;white-space:nowrap;`
