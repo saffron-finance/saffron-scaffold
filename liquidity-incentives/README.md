@@ -162,6 +162,23 @@ include the default sidebar but omit this preview UI and its persistence.
 Existing APR motion controls remain independent (3.5× page default, 1.5× modal).
 No new runtime dependencies were added.
 
+The square left-arrow button hides the rail and releases its width. The same
+44px WebGL logo becomes a floating **Open sidebar** control; clicking it or
+pressing Enter/Space reopens the navigation. Neither the logo nor the incentive
+page is remounted. Focus transfers to the visible control, including on mobile;
+reduced motion disables the short pop animation. Collapse is per page visit.
+
+**Button style** keeps Reference as default and offers ten sunset presets:
+Classic sunset, Purple dusk, Ember glass, Golden horizon, Violet afterglow,
+Sunset outline, Sunset silk, Saffron aurora, Molten edge, and Sunset orbit.
+Presets affect the active button and hover; **Style all buttons** also applies
+the treatment to idle buttons. Colors, gradient/background direction, highlight
+and border strength, glow/spread, corner radius, padding, row spacing, icon
+size/visibility, and the active indicator can be adjusted independently. Orbit
+has its own speed control and respects reduced motion. These optional presets
+stay in `src/dev/sidebarPresets.ts`; normal builds include none of their code.
+Existing saved colors are retained, and Reset sidebar restores reference values.
+
 ## Feature boundary / later fixed-income merge
 
 | Directory | Purpose | Merge treatment |
