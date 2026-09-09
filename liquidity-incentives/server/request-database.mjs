@@ -2,10 +2,12 @@ import pg from 'pg'
 import { readFile } from 'node:fs/promises'
 import { randomInt } from 'node:crypto'
 import { createProgramDatabase } from './program-database.mjs'
+import { depositCents } from '../shared/vault-sizing.mjs'
 
 export const USD_TOKEN_ADDRESS = '0x0000000000000000000000000000000000555344'
 const schema = await readFile(new URL('./pending-vaults.sql', import.meta.url), 'utf8')
 const programSchema = await readFile(new URL('./incentive-programs.sql', import.meta.url), 'utf8')
+const sizingSchema = await readFile(new URL('./vault-sizing.sql', import.meta.url), 'utf8')
 
 /** Public IDs follow fixed-income's 12 uppercase alphanumeric convention. */
 function requestId() {
@@ -13,7 +15,7 @@ function requestId() {
   return Array.from({ length: 12 }, () => alphabet[randomInt(alphabet.length)]).join('')
 }
 
-/** Translate requested vault terms, NOT the user's deposit quote, into FI units. */
+/** One fixed-side depositor funds one vault, sized to the selected USD deposit. */
 export function toPendingVault(record, feeTier) {
   const t = record.incentive
   if (record.kind !== 'incentive' || !t) return null
@@ -24,7 +26,8 @@ export function toPendingVault(record, feeTier) {
     pool_address: t.poolAddress.toLowerCase(), fee_tier: feeTier, adapter_type: 'fullRange',
     min_tick: null, max_tick: null, duration_seconds: String(t.durationDays * 86400),
     fixed_capacity_token_address: USD_TOKEN_ADDRESS,
-    fixed_capacity_amount: String(Math.round(t.capacityUsd * 100)), // USD cents, not 18-decimal wei.
+    // Legacy sub-cent receipts remain recoverable but require manual sizing.
+    fixed_capacity_amount: depositCents(t.depositUsd),
     variable_asset_address: t.token0.address.toLowerCase(), variable_asset_amount: null,
     use_target_apr: true, target_apr: t.aprPercent / 100, is_advanced_mode: false,
     notes: `LiqiFi incentive ${t.id}. Intended deposit: ${t.depositUsd} USD. Full quote retained with payment evidence.`,
@@ -43,9 +46,9 @@ export function publicPending(row, admin = false) {
     variableAssetAddress: row.variable_asset_address, variableAssetAmount: row.variable_asset_amount,
     useTargetApr: row.use_target_apr, targetApr: row.target_apr === null ? null : Number(row.target_apr),
     isAdvancedMode: row.is_advanced_mode, notes: row.notes, rejectionReason: row.rejection_reason,
-    reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).getTime() : null,
+    reviewedAt: row.reviewed_at ? Math.floor(new Date(row.reviewed_at).getTime() / 1000) : null,
     createdVaultAddress: row.created_vault_address,
-    createdAt: new Date(row.created_at).getTime(), updatedAt: new Date(row.updated_at).getTime(),
+    createdAt: Math.floor(new Date(row.created_at).getTime() / 1000), updatedAt: Math.floor(new Date(row.updated_at).getTime() / 1000),
   }
   if (admin) Object.assign(value, { adminNotes: row.admin_notes, reviewedBy: row.reviewed_by,
     submitterTelegram: row.submitter_telegram, submitterDiscord: row.submitter_discord })
@@ -58,7 +61,8 @@ export function publicPending(row, admin = false) {
  * Schema install and legacy import finish before fees become available.
  */
 export function createRequestDatabase({ connection = {}, pool: injectedPool, legacyPath, resolvePoolFee,
-  retryDelayMs = 5000, now = Date.now } = {}) {
+  schemaMode = 'standalone', retryDelayMs = 5000, now = Date.now } = {}) {
+  if (!['standalone', 'fixed-income'].includes(schemaMode)) throw new Error('Invalid request database schema mode.')
   const pool = injectedPool ?? new pg.Pool({ host: process.env.SAFFRON_DB_HOST || '/var/run/postgresql',
     user: process.env.SAFFRON_DB_USER || 'saffron_incentives', database: process.env.SAFFRON_DB_NAME || 'saffron_incentives',
     max: 4, connectionTimeoutMillis: 5000, options: '-c timezone=UTC', ...connection })
@@ -92,8 +96,8 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
         await client.query(`INSERT INTO uniswap_v3_fiv.pending_vaults (${columns.join(',')}) VALUES (${columns.map((_, i) => '$' + (i + 1)).join(',')})`, Object.values(row))
       }
       await client.query(`INSERT INTO liqifi.request_payments
-        (payment_tx_hash,pending_request_id,legacy_id,request_digest,submitter_address,created_at,payload)
-        VALUES ($1,$2,$3,$4,$5,$6,$7)`, [record.paymentTxHash.toLowerCase(), id, record.id, record.requestDigest,
+        (payment_tx_hash,pending_request_id,legacy_id,request_digest,submitter_address,created_at,payload,sizing_version)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,2)`, [record.paymentTxHash.toLowerCase(), id, record.id, record.requestDigest,
         record.wallet.toLowerCase(), record.createdAt, record])
       await client.query('COMMIT')
       return { record: { ...record, id: id ?? record.id }, created: true }
@@ -106,8 +110,16 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
     try {
       await client.query('BEGIN')
       await client.query('SELECT pg_advisory_xact_lock(1966090601)')
-      await client.query(schema)
+      if (schemaMode === 'standalone') await client.query(schema)
+      else {
+        // The FI migration runner owns this table and its triggers in shared mode.
+        // Fail closed if the canonical queue has not been installed first.
+        await client.query('SELECT request_id,created_vault_address,rejection_reason,variable_asset_amount FROM uniswap_v3_fiv.pending_vaults LIMIT 0')
+        await client.query('CREATE SCHEMA IF NOT EXISTS liqifi')
+        await client.query(schema.slice(schema.indexOf('-- Sidecar:')))
+      }
       await client.query(programSchema)
+      await client.query(sizingSchema)
       await client.query('COMMIT')
     } catch (error) { await client.query('ROLLBACK'); throw error }
     finally { client.release() }
@@ -152,12 +164,13 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
       await ensureReady()
       return (await pool.query('SELECT * FROM liqifi.request_fee_quotes WHERE id=$1', [id])).rows[0] ?? null
     },
-    async list({ wallet, chainId, admin = false }) {
+    async list({ wallet, chainId, requestId, admin = false }) {
       await ensureReady()
       const rows = (await pool.query(`SELECT pv.*, rp.payload FROM uniswap_v3_fiv.pending_vaults pv
         JOIN liqifi.request_payments rp ON rp.pending_request_id=pv.request_id
         WHERE ($1::text IS NULL OR pv.submitter_address=$1) AND ($2::integer IS NULL OR pv.chain_id=$2)
-        ORDER BY pv.created_at DESC LIMIT 200`, [wallet?.toLowerCase() ?? null, chainId ?? null])).rows
+        AND ($3::text IS NULL OR pv.request_id=$3)
+        ORDER BY pv.created_at DESC LIMIT 200`, [wallet?.toLowerCase() ?? null, chainId ?? null, requestId ?? null])).rows
       return rows.map((row) => ({ ...publicPending(row, admin),
         // Public-grade display metadata only; never spread the complete receipt.
         display: { pair: row.payload.pair, depositUsd: row.payload.incentive?.depositUsd,

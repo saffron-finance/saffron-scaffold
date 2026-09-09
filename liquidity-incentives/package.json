@@ -8,9 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "build:lab": "VITE_DEV_TWEAKS=true npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs",
+    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs tests/fixed-income-handoff.test.mjs",
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
+    "test:fixed-income": "node tests/fixed-income/run.mjs",
     "test:database": "node --test tests/pending-database.test.mjs tests/program-database.test.mjs"
   },
   "dependencies": {

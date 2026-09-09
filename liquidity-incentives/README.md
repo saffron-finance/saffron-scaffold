@@ -45,8 +45,17 @@ operator-managed authentication. No credentials or request records are included.
 `server/pending-vaults.sql` installs the fixed-income-compatible
 `uniswap_v3_fiv.pending_vaults` table. Units remain seconds for duration, cents
 for USD capacity, and a decimal ratio for APR. Target-APR requests keep
-`variable_asset_amount = NULL`. The user's deposit is distinct from offer
-capacity and is preserved in the signed snapshot.
+`variable_asset_amount = NULL`. Each vault is sized to the user's selected
+deposit, converted exactly to integer USD cents. The catalog's capacity is the
+maximum permitted size per request; it is not the size of every resulting vault
+or a reservation against an aggregate program budget.
+
+`server/vault-sizing.sql` repairs the former catalog-sized projection only for
+untouched pending incentive requests. Reviewed, manually resized and created
+rows are preserved. `request_payments.sizing_version` makes this repair run once
+per old row. Signed receipts, fee quotes and payment evidence never change.
+New quotes require whole cents; legacy sub-cent receipts can still be recovered
+but require manual sizing review before a vault can be created.
 
 The `liqifi` evidence/quote sidecar schema and existing receipt/storage names
 are deliberately preserved for migration compatibility; do not rename them
@@ -92,6 +101,57 @@ that snapshot in `liqifi.request_fee_quotes.request_details`. Subsequent saves
 must match it, even if an administrator edits or pauses the program meanwhile.
 Existing quotes and legacy receipts retain their original verification format.
 Catalog capacity is proposed capacity, not a funded balance or reserved budget.
+
+### Handoff to fixed-income
+
+The handoff uses **one canonical pending-vault queue**. Run fixed-income's own
+migrations first, then configure this server's `SAFFRON_DB_*`/standard PostgreSQL
+environment variables to connect to that same database. Set these process
+environment variables for `npm run serve` (the URLs below are local examples):
+
+```text
+SAFFRON_DB_SCHEMA_MODE=fixed-income
+FIXED_INCOME_FRONTEND_URL=http://localhost:3000
+FIXED_INCOME_API_URL=http://localhost:3100
+```
+
+Both URLs are app roots, optionally including a mount path; omit `/api/v1` from
+the API base. Use the actual ports printed by the local fixed-income stack.
+HTTPS is required outside loopback, and URLs cannot contain credentials, query
+strings or fragments. These settings are process environment variables; copying
+them into `.env` alone does not configure the server. The configured frontend
+must use the configured API and both services must read the same chain/factory.
+
+In `fixed-income` schema mode this server requires the existing pending table
+and leaves its schema and triggers to fixed-income's migration runner. It
+installs only the feature-owned `liqifi` tables and applies the scoped sizing
+repair. Grant the service role access to that pending table/sequence and its
+own schema. The default `standalone` mode still creates a disposable-compatible
+queue for independent review; creation/entry links are unavailable in that mode.
+
+After an owner loads **My requests → Admin requests**, pending rows offer
+**Review & create vault**. This checks fixed-income's public `my-submissions`
+endpoint for the same request, submitter, chain, status and terms before opening its
+existing admin form. The URL uses the pinned upstream request mapper/encoder,
+including the same request ID, USD cents conversion, APR ratio and exact days.
+The fixed-income page owns its normal admin authentication and the adapter →
+vault → initialization → signed-completion workflow, including its retries.
+This navigation never copies a row or submits another request/payment.
+
+When fixed-income writes `status = created` and `created_vault_address`, the
+scaffold shows **Open fixed side** and **Open variable side**. These open the
+existing vault pages, where the actual deposit/claim/withdrawal controls and
+wallet confirmations live. Requests refresh when returning to the page and
+every 30 seconds while visible. A missing/divergent queue or API outage leaves
+the saved request visible with a retryable error. A completed request never
+offers another creation action.
+
+This is an optional shared-database bridge for integration testing. It does not
+copy fixed-income's API into the scaffold or replace its vault/deposit UI. The
+paid-request ingress still owns receipt verification; porting it into the FI
+submission service, its admission policy and its initial admin notification
+remains a later integration step. Program funding/reservations and stricter
+onchain completion-term validation also remain separate work.
 
 ### Mounting beneath a path
 
@@ -148,6 +208,17 @@ npm run test:database
 npm run test:browser
 ```
 
+With an installed sibling fixed-income checkout, additionally run
+`npm run test:fixed-income` (or append `-- /path/to/fixed-income`). This optional
+suite loads that checkout's actual request route, DB service, API projection,
+signature verification and URL decoder against a disposable PostgreSQL
+database. Only the PG connection plumbing, logging/notification transport and
+chain reads are fixtures. It checks that the same request is visible, rejects
+a non-owner completion, then completes it and opens both vault-side URLs. It
+does not claim to execute real vault-creation or deposit transactions. For that
+next layer use fixed-income's fork + local-stack harness, with both APIs reading
+the same fork and queue.
+
 Browser and database tests need local PostgreSQL with a dedicated CREATEDB test
 role. Configure `SAFFRON_TEST_DB_HOST` and `SAFFRON_TEST_DB_USER` (default
 `saffron_incentives_test`). Each test creates/drops its own randomly named
@@ -162,9 +233,9 @@ Wallets are freshly generated and unfunded; RPC and signatures use deterministic
 fixtures. Tests do not send funds. Installed-wallet acceptance remains manual.
 
 Known review limitations remain: these are proposed programs, so displayed
-capacity is not funded LP TVL; production integration still needs the target
-app's auth/status workflow. This export preserves the reviewed prototype, not
-a claim of completed fixed-income integration.
+capacity is not funded LP TVL. The optional bridge reuses fixed-income's
+auth/status workflow; production integration still needs the unified ingress,
+program funding and lifecycle accounting described above.
 
 ### Export verification — 2026-09-08
 
@@ -193,3 +264,13 @@ programs, persistent bootstrap data, catalog outages, and paid recovery after
 catalog changes. Normal/lab and root live/mock builds passed; the root mock
 performed no RPC or wallet calls. All database and payment checks used
 disposable PostgreSQL databases and unfunded wallet/RPC fixtures.
+
+Vault sizing/handoff/entry verification on 2026-09-09: 80 API/adapter/relay
+tests, 28 PostgreSQL tests, 21 browser dry runs and the optional integration
+test against fixed-income's actual route/provider/DB service passed (130 total).
+Coverage includes exact selected capacity, conservative legacy migration,
+shared-schema ownership, owner-signed completion, both vault-side destinations,
+return navigation, mobile layout and retryable handoff failures. Normal/lab and
+root live/mock builds passed. The root mock's filters, sorting, pagination,
+icons and ranges rendered with zero RPC or wallet calls. No real creation or
+deposit transaction, production database change or deployment was performed.

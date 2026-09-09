@@ -13,6 +13,7 @@ import { promisify } from 'node:util'
 import { createVaultRequestHandler } from './vault-requests.mjs'
 import { createRequestDatabase } from './request-database.mjs'
 import { createIncentiveProgramHandler } from './incentive-programs.mjs'
+import { createFixedIncomeHandoff } from './fixed-income-handoff.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -61,9 +62,13 @@ async function requestRpc(chain, method, params) {
   return payload.result
 }
 const storePath = resolve(process.env.VAULT_REQUEST_STORE_PATH || join(ROOT, 'data', 'vault-requests.json'))
+const schemaMode = process.env.SAFFRON_DB_SCHEMA_MODE || 'standalone'
+const handoff = createFixedIncomeHandoff({ frontendUrl: process.env.FIXED_INCOME_FRONTEND_URL,
+  apiUrl: process.env.FIXED_INCOME_API_URL })
+if (handoff && schemaMode !== 'fixed-income') throw new Error('Fixed-income handoff requires the shared database schema mode.')
 // JSON-only mode is deliberately restricted to isolated legacy test fixtures.
 const requestDatabase = process.env.NODE_ENV === 'test' && process.env.SAFFRON_REQUEST_STORAGE === 'json' ? null
-  : createRequestDatabase({ legacyPath: storePath, resolvePoolFee: async (chain, address) =>
+  : createRequestDatabase({ legacyPath: storePath, schemaMode, resolvePoolFee: async (chain, address) =>
     Number(BigInt(await requestRpc(chain, 'eth_call', [{ to: address, data: '0xddca3f43' }, 'latest']))) })
 const requestFactories = {
   1: ['ethereum', '0x7fE802B891734DB681b7353bFF9E6c85ce0ab200'],
@@ -81,7 +86,7 @@ const handlePrograms = createIncentiveProgramHandler({ database: requestDatabase
 const handleVaultRequest = createVaultRequestHandler({
   recipient: process.env.VAULT_REQUEST_PAYMENT_ADDRESS, storePath, database: requestDatabase,
   basePath: BASE_PATH, rpc: (method, params) => requestRpc('arbitrum', method, params),
-  adminOwner,
+  adminOwner, handoff,
 })
 
 const ALLOWED_METHODS = new Set([

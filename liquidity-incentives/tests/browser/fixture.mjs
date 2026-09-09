@@ -11,6 +11,7 @@ import { postgresFixture } from '../postgres-fixture.mjs'
 import { feeRpc } from '../fee-fixture.mjs'
 import { createIncentiveProgramHandler } from '../../server/incentive-programs.mjs'
 import { catalogRpc } from '../catalog-fixture.mjs'
+import { createFixedIncomeHandoff } from '../../server/fixed-income-handoff.mjs'
 
 const BASE = ''
 
@@ -29,16 +30,28 @@ export async function setup(page, options = {}) {
   if (options.reverted) fixture.receipt.status = '0x0'
   const storage = await postgresFixture({ resolvePoolFee: options.resolvePoolFee })
   const oracleRpc = feeRpc(fixture, options)
+  let handoff
   const handler = createVaultRequestHandler({ recipient: options.enabled === false ? null : RECIPIENT,
-    storePath, database: storage.database, adminOwner: async () => options.notAdmin ? RECIPIENT : account.address, basePath: BASE, rpc: (...args) => oracleRpc(...args) })
+    storePath, database: storage.database, adminOwner: async () => options.notAdmin ? RECIPIENT : account.address, basePath: BASE, rpc: (...args) => oracleRpc(...args),
+    handoff: options.handoff ? (...args) => handoff(...args) : undefined })
   const programs = createIncentiveProgramHandler({ database: storage.database,
     adminOwner: async () => options.notAdmin ? RECIPIENT : account.address, basePath: BASE, rpc: catalogRpc() })
   const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname
+    // Only the external FI read boundary is replaced here. Database writes,
+    // handoff validation and signatures are real. The optional FI integration
+    // suite exercises its actual route/provider against this same schema.
+    if (options.handoff && pathname.startsWith('/api/v1/pending-vaults/4663/my-submissions/')) {
+      state.handoffReads = (state.handoffReads ?? 0) + 1
+      const data = state.handoffMissing ? [] : await storage.database.list({ wallet: pathname.split('/').at(-1) })
+      res.writeHead(state.handoffOffline ? 503 : 200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ success: !state.handoffOffline, data })); return
+    }
     if (!await handler(req, res, pathname) && !await programs(req, res, pathname)) { res.writeHead(404); res.end() }
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const api = `http://127.0.0.1:${server.address().port}`
+  if (options.handoff) handoff = createFixedIncomeHandoff({ apiUrl: api, frontendUrl: 'http://127.0.0.1:13218/fixed-income' })
   await page.route(/\/(?:vault-requests|incentive-programs)(?:\/[^?]*)?(?:\?.*)?$/,  async (route) => {
     const request = route.request()
     const response = await fetch(`${api}${new URL(request.url()).pathname}${new URL(request.url()).search}`, {

@@ -24,7 +24,7 @@ test('owner edits a shared pair, creates and pauses programs, and sees database 
     await page.getByLabel('Program ID', { exact: true }).fill('weekly-cat')
     await page.getByLabel('APR (%)', { exact: true }).fill('550')
     await page.getByLabel('Duration (days)', { exact: true }).fill('7')
-    await page.getByLabel('Proposed capacity (USD)', { exact: true }).fill('25000')
+    await page.getByLabel('Maximum vault size (USD)', { exact: true }).fill('25000')
     await page.getByLabel('Display order', { exact: true }).fill('-1')
     await page.getByLabel('Show NEW badge', { exact: true }).check()
     await page.getByRole('button', { name: 'Save program', exact: true }).click()

@@ -5,6 +5,8 @@ import { decodeFunctionData, erc20Abi, formatUnits, keccak256, stringToHex, veri
 import { REQUEST_PAYMENT, requestMessage, validAddress, validDetails, canonicalIncentive, validRequestPayment } from '../shared/vault-request.mjs'
 import { createFeeService, PaymentQuoteExpiredError } from './request-fees.mjs'
 import { adminListMessage } from '../shared/request-admin.mjs'
+import { depositCents } from '../shared/vault-sizing.mjs'
+import { HandoffError } from './fixed-income-handoff.mjs'
 
 const TRANSFER_TOPIC = keccak256(stringToHex('Transfer(address,address,uint256)'))
 const AMOUNT = 2_000_000n
@@ -118,16 +120,17 @@ export function createRequestStore(storePath) {
 }
 
 /** Own only GET config and POST submission beneath the existing app prefix. */
-export function createVaultRequestHandler({ recipient, storePath, rpc, basePath, database, adminOwner }) {
+export function createVaultRequestHandler({ recipient, storePath, rpc, basePath, database, adminOwner, handoff }) {
   const receivingAddress = validAddress(recipient) ? recipient.toLowerCase() : null
   const save = database ? (record) => database.save(record) : createRequestStore(storePath)
   const fees = database ? createFeeService({ rpc, database, recipient: receivingAddress }) : null
   const challenges = new Map()
   let windowStart = 0
   let attempts = 0
+  const list = async options => (await database.list(options)).map(row => ({ ...row, handoffEnabled: Boolean(handoff) }))
   return async (req, res, pathname) => {
     const route = `${basePath}/vault-requests`
-    if (pathname !== route && ![`${route}/config`, `${route}/quote`, `${route}/my`, `${route}/admin/challenge`, `${route}/admin/list`].includes(pathname)) return false
+    if (pathname !== route && ![`${route}/config`, `${route}/quote`, `${route}/my`, `${route}/handoff`, `${route}/admin/challenge`, `${route}/admin/list`].includes(pathname)) return false
     if (pathname.endsWith('/config')) {
       let healthy = true, eth = null
       if (database) try { await database.health() } catch { healthy = false }
@@ -145,7 +148,26 @@ export function createVaultRequestHandler({ recipient, storePath, rpc, basePath,
         const wallet = new URL(req.url, 'http://localhost').searchParams.get('wallet')
         if (!validAddress(wallet)) throw new RequestError(400, 'A valid wallet address is required.')
         if (!database) throw new RequestError(503, 'Pending requests are unavailable.')
-        json(res, 200, { success: true, data: await database.list({ wallet }), inquiries: await database.inquiries(wallet), timestamp: new Date().toISOString() })
+        json(res, 200, { success: true, data: await list({ wallet }), inquiries: await database.inquiries(wallet), timestamp: new Date().toISOString() })
+        return true
+      }
+      if (pathname === `${route}/handoff`) {
+        if (req.method !== 'GET') throw new RequestError(405, 'GET only.')
+        if (!handoff || !database) throw new RequestError(503, 'The fixed-income connection is not configured yet.')
+        const query = new URL(req.url, 'http://localhost').searchParams
+        const wallet = query.get('wallet'), requestId = query.get('requestId'), action = query.get('action')
+        if (!validAddress(wallet) || !/^[A-Z0-9]{12}$/.test(requestId ?? '') || !['create','fixed','variable'].includes(action)) {
+          throw new RequestError(400, 'Invalid vault handoff.')
+        }
+        if (Date.now() - windowStart > 60_000) { windowStart = Date.now(); attempts = 0 }
+        if (++attempts > 60) throw new RequestError(429, 'Too many requests. Retry shortly.')
+        const [row] = await database.list({ wallet, requestId })
+        if (!row) throw new RequestError(404, 'Request not found for this wallet.')
+        try { json(res, 200, { url: await handoff(row, action) }) }
+        catch (error) {
+          throw new RequestError(error instanceof HandoffError ? error.status : 503,
+            error instanceof HandoffError ? error.message : 'Vault handoff is unavailable. Retry without paying again.')
+        }
         return true
       }
       if (req.method !== 'POST') throw new RequestError(405, 'POST only.')
@@ -172,13 +194,16 @@ export function createVaultRequestHandler({ recipient, storePath, rpc, basePath,
         try { verified = await verifyMessage({ address: body.wallet, message: adminListMessage(challenge), signature: body.signature }) } catch {}
         if (!verified) throw new RequestError(401, 'Invalid admin proof.')
         challenges.delete(body.nonce)
-        json(res, 200, { success: true, data: await database.list({ chainId: body.chainId, admin: true }), timestamp: new Date().toISOString() })
+        json(res, 200, { success: true, data: await list({ chainId: body.chainId, admin: true }), timestamp: new Date().toISOString() })
         return true
       }
       if (!receivingAddress) throw new RequestError(503, 'Vault request payments are not configured.')
       if (pathname.endsWith('/quote')) {
         if (!fees || !validAddress(body.wallet) || !['USDC','ETH'].includes(body.asset)) throw new RequestError(400, 'Invalid fee quote request.')
         if (!validDetails(body.details)) throw new RequestError(400, 'Review valid request terms before requesting a fee quote.')
+        if (body.details.kind === 'incentive' && !depositCents(body.details.incentive.depositUsd)) {
+          throw new RequestError(400, 'Use a deposit of at least $0.01 with no fractions of a cent.')
+        }
         if (body.details.kind === 'incentive') await database.assertActiveProgram(body.details.incentive)
         json(res, 200, await fees.quote(body.wallet, body.asset, body.details)); return true
       }

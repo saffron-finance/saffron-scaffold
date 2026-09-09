@@ -17,8 +17,8 @@ import { HASH, RECIPIENT, paymentFixture } from './payment-fixture.mjs'
 
 const account = privateKeyToAccount(generatePrivateKey())
 const stranger = privateKeyToAccount(generatePrivateKey())
-// Independent expected FI units: 3 days = 259200 seconds, $100k = 10m
-// cents, 1000% APR = decimal 10. The user's $10 intent is NOT capacity.
+// Independent FI units: 3 days = 259200 seconds, the selected $10 vault =
+// 1000 cents, 1000% APR = decimal 10. The $100k catalog maximum is separate.
 const details = { version: 3, kind: 'incentive', chain: 'robinhood', depositToken: 'USD', pair: 'CASHCAT / ETH', depositAmount: '10',
   incentive: { id: 'cashcat-eth-1000-3d', chainId: 4663, poolAddress: '0xA70fc67C9F69da90B63a0e4C05D229954574E313', feeTier: 10000,
     token0: { address: '0x020bfC650A365f8BB26819deAAbF3E21291018b4', symbol: 'CASHCAT', decimals: 18 },
@@ -86,7 +86,7 @@ for (const asset of ['USDC', 'ETH']) it(`${asset}: quote → signed payment → 
     assert.equal((await f.store.records()).length, 1)
     const row = (await f.store.database.pool.query('SELECT * FROM uniswap_v3_fiv.pending_vaults')).rows[0]
     assert.equal(row.status, 'pending'); assert.equal(row.duration_seconds, '259200')
-    assert.equal(row.fixed_capacity_token_address, USD_TOKEN_ADDRESS); assert.equal(row.fixed_capacity_amount, '10000000')
+    assert.equal(row.fixed_capacity_token_address, USD_TOKEN_ADDRESS); assert.equal(row.fixed_capacity_amount, '1000')
     assert.equal(row.target_apr, '10.0000'); assert.equal(row.variable_asset_amount, null)
     assert.equal(row.variable_asset_address, details.incentive.token0.address.toLowerCase())
     assert.equal(row.fee_tier, 10000)
@@ -95,6 +95,7 @@ for (const asset of ['USDC', 'ETH']) it(`${asset}: quote → signed payment → 
     assert.equal(mine.data.length, 1); assert.equal(mine.data[0].requestId, saved.id)
     assert.equal(mine.data[0].display.paymentAsset, asset)
     assert.equal(mine.data[0].display.depositUsd, '10')
+    assert.ok(mine.data[0].createdAt > 1_700_000_000 && mine.data[0].createdAt < 10_000_000_000, 'FI timestamps are seconds')
     assert.equal(mine.data[0].adminNotes, undefined); assert.equal(mine.data[0].reviewedBy, undefined)
     assert.doesNotMatch(JSON.stringify(mine), /Internal test note|private-contact|signature|quoteId/)
     const other = await (await fetch(f.url + '/my?wallet=' + stranger.address)).json()
@@ -120,6 +121,71 @@ it('v3 fee selection, quote and amount cannot change after signing or bypass the
     assert.equal((await f.store.records()).length, 0)
     assert.equal(validDetails({ ...details, incentive: { ...details.incentive, slippageBps: 50 } }), false)
   } finally { await f.close() }
+})
+
+it('refuses sub-cent sizing before a new fee quote but preserves already-paid legacy receipts', async () => {
+  const f = await apiFixture()
+  try {
+    const fractional = { ...structuredClone(details), depositAmount: '1.234' }
+    fractional.incentive.depositUsd = '1.234'
+    assert.equal(validDetails(fractional), true, 'Legacy receipt validation is unchanged')
+    const response = await f.post('/quote', { wallet: account.address, asset: 'USDC', details: fractional })
+    assert.equal(response.status, 400)
+    assert.match((await response.json()).error, /fractions of a cent/)
+    const record = { ...fractional, wallet: account.address, id: 'legacy-fraction', createdAt: new Date().toISOString(),
+      paymentTxHash: HASH, requestDigest: keccak256(stringToHex('legacy-fraction')) }
+    await f.store.database.save(record)
+    const [row] = await f.store.database.list({ wallet: account.address })
+    assert.equal(row.fixedCapacityAmount, null, 'Do not silently round the legacy intent')
+    assert.equal(row.display.depositUsd, '1.234')
+  } finally { await f.close() }
+})
+
+it('repairs only untouched pending catalog-sized rows once, preserving receipts and reviewed/created rows', async () => {
+  const f = await postgresFixture()
+  const records = []
+  let resumed
+  try {
+    for (let i = 0; i < 4; i++) {
+      const record = { ...structuredClone(details), wallet: account.address, id: `migration-${i}`, createdAt: new Date().toISOString(),
+        paymentTxHash: '0x' + String(i + 1).repeat(64), requestDigest: keccak256(stringToHex(`migration-${i}`)) }
+      records.push(await f.database.save(record))
+    }
+    await f.database.pool.query('UPDATE uniswap_v3_fiv.pending_vaults SET fixed_capacity_amount=10000000')
+    await f.database.pool.query('UPDATE liqifi.request_payments SET sizing_version=1')
+    await f.database.pool.query("UPDATE uniswap_v3_fiv.pending_vaults SET status='created',created_vault_address=$1 WHERE request_id=$2", [RECIPIENT, records[1].record.id])
+    await f.database.pool.query('UPDATE uniswap_v3_fiv.pending_vaults SET reviewed_by=$1 WHERE request_id=$2', [RECIPIENT, records[2].record.id])
+    await f.database.pool.query('UPDATE uniswap_v3_fiv.pending_vaults SET fixed_capacity_amount=2000 WHERE request_id=$1', [records[3].record.id])
+    const before = await f.records()
+    const pool = { on() {}, end: async () => {}, query: (...args) => f.database.pool.query(...args), connect: () => f.database.pool.connect() }
+    resumed = createRequestDatabase({ pool, schemaMode: 'fixed-income' })
+    await resumed.ready
+    const rows = await resumed.list({ wallet: account.address })
+    assert.deepEqual(records.map(saved => rows.find(row => row.requestId === saved.record.id).fixedCapacityAmount), ['1000','10000000','10000000','2000'])
+    assert.deepEqual(await f.records(), before)
+    await resumed.close()
+    // An operator's later change is never reinterpreted as the old projection.
+    await f.database.pool.query('UPDATE uniswap_v3_fiv.pending_vaults SET fixed_capacity_amount=10000000 WHERE request_id=$1', [records[0].record.id])
+    resumed = createRequestDatabase({ pool, schemaMode: 'fixed-income' }); await resumed.ready
+    assert.equal((await resumed.list({ requestId: records[0].record.id }))[0].fixedCapacityAmount, '10000000')
+  } finally { await resumed?.close(); await f.close() }
+})
+
+it('shared mode requires the existing FI queue and preserves its trigger definition', async () => {
+  const f = await postgresFixture()
+  let shared
+  try {
+    await f.database.pool.query("CREATE OR REPLACE FUNCTION uniswap_v3_fiv.touch_pending_vault() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = CURRENT_TIMESTAMP; /* FI owns this */ RETURN NEW; END; $$ LANGUAGE plpgsql")
+    const pool = { on() {}, end: async () => {}, query: (...args) => f.database.pool.query(...args), connect: () => f.database.pool.connect() }
+    shared = createRequestDatabase({ pool, schemaMode: 'fixed-income' }); await shared.ready
+    const definition = (await f.database.pool.query("SELECT pg_get_functiondef('uniswap_v3_fiv.touch_pending_vault()'::regprocedure) AS body")).rows[0].body
+    assert.match(definition, /FI owns this/)
+    await shared.close()
+    await f.database.pool.query('DROP TABLE uniswap_v3_fiv.pending_vaults CASCADE')
+    shared = createRequestDatabase({ pool, schemaMode: 'fixed-income' })
+    await assert.rejects(shared.ready, /does not exist/)
+    assert.equal((await f.database.pool.query("SELECT to_regclass('uniswap_v3_fiv.pending_vaults') AS table_name")).rows[0].table_name, null)
+  } finally { await shared?.close(); await f.close() }
 })
 
 it('rejects ETH payments mined at or after expiry without saving a request', async () => {

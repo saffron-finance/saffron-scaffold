@@ -133,8 +133,8 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
         <Disclosure aria-label='Vault request summary'><summary>Details</summary>
           <Terms>
             <div><dt>Pair / network</dt><dd>{request?.pair}, {terms.chainId === 4663 ? 'Robinhood Chain' : `Chain ${terms.chainId}`}</dd></div>
-            <div><dt>Deposit value</dt><dd>{exactUsd(terms.depositUsd)}</dd></div>
-            <div><dt>Vault capacity</dt><dd>{usd(terms.capacityUsd)}</dd></div>
+            <div><dt>Requested vault size</dt><dd>{exactUsd(terms.depositUsd)}</dd></div>
+            <div><dt>Program maximum</dt><dd>{usd(terms.capacityUsd)}</dd></div>
             <div><dt>Duration / APR</dt><dd>{terms.durationDays} days, {terms.aprPercent.toLocaleString()}% APR</dd></div>
             <div><dt>Upfront premium</dt><dd>+{tokenAmount(quote.rewardCashcat)} {terms.token0.symbol} ({usd(quote.rewardUsd)})</dd></div>
             <div><dt>Price range</dt><dd>Full range, 0 to ∞</dd></div>

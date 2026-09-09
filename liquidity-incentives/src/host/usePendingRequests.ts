@@ -7,6 +7,7 @@ import { requestJson } from './transport'
 /** This is the existing fixed-income-shaped projection, not a second schema. */
 export interface PendingRequest {
   requestId: string; chainId: number; status: string; token0Address: string; token1Address: string
+  submitterAddress: string; createdVaultAddress: string | null; handoffEnabled?: boolean
   poolAddress: string | null; durationSeconds: number; fixedCapacityAmount: string | null
   targetApr: number | null; createdAt: number; rejectionReason?: string; adminNotes?: string
   display: { pair: string; depositUsd?: string; paymentTxHash: string; paymentAsset: string; paymentAmount: string }
@@ -20,7 +21,16 @@ export function usePendingRequests(account: Address | null) {
   const refresh = () => setRevision((value) => value + 1)
   useEffect(() => {
     window.addEventListener('liqifi:request-saved', refresh)
-    return () => window.removeEventListener('liqifi:request-saved', refresh)
+    window.addEventListener('focus', refresh)
+    const visibleRefresh = () => { if (document.visibilityState === 'visible') refresh() }
+    document.addEventListener('visibilitychange', visibleRefresh)
+    const timer = window.setInterval(visibleRefresh, 30_000)
+    return () => {
+      window.removeEventListener('liqifi:request-saved', refresh)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', visibleRefresh)
+      window.clearInterval(timer)
+    }
   }, [])
   useEffect(() => {
     if (!account) return
@@ -36,6 +46,15 @@ export function usePendingRequests(account: Address | null) {
     return () => controller.abort()
   }, [account, revision])
   return { ...(state.wallet === account ? state : { rows: [], loading: Boolean(account), error: null }), refresh }
+}
+
+/** Resolve through the host before navigation; the server checks FI sees this row. */
+export async function requestHandoff(row: PendingRequest, action: 'create' | 'fixed' | 'variable') {
+  const query = new URLSearchParams({ wallet: row.submitterAddress, requestId: row.requestId, action })
+  const result = await requestJson(`/handoff?${query}`)
+  const url = new URL(result.url)
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid vault destination.')
+  return url.href
 }
 
 /** Owner verification is a nonce-bound read-only signature, never a payment. */

@@ -67,7 +67,7 @@ export function ProgramAdmin({ account, onConnect }: { account: Address | null; 
           <Field label='Program pair'><select value={program.pairId} disabled={busy} onChange={e => setProgram({ ...program, pairId: e.target.value })}>{current.pairs.map(value => <option key={value.id} value={value.id}>{value.token0.symbol} / {value.token1.symbol} ({value.id}){!value.active && ' · Paused'}</option>)}</select></Field>
           <Field label='APR (%)'><input required type='number' min={0.01} max={100000} step={0.01} value={program.apr} disabled={busy} onChange={e => setProgram({ ...program, apr: Number(e.target.value) })} /></Field>
           <Field label='Duration (days)'><input required type='number' min={1} max={3650} value={program.days} disabled={busy} onChange={e => setProgram({ ...program, days: Number(e.target.value) })} /></Field>
-          <Field label='Proposed capacity (USD)'><input required type='number' min={0.01} max={1e12} step={0.01} value={program.capacityUsd} disabled={busy} onChange={e => setProgram({ ...program, capacityUsd: Number(e.target.value) })} /></Field>
+          <Field label='Maximum vault size (USD)'><input required type='number' min={0.01} max={1e12} step={0.01} value={program.capacityUsd} disabled={busy} onChange={e => setProgram({ ...program, capacityUsd: Number(e.target.value) })} /></Field>
           <Field label='Display order'><input required type='number' min={-100000} max={100000} value={program.sortOrder} disabled={busy} onChange={e => setProgram({ ...program, sortOrder: Number(e.target.value) })} /></Field>
         </Fields>
         <Check><input type='checkbox' checked={program.active} disabled={busy} onChange={e => setProgram({ ...program, active: e.target.checked })} />Program active</Check>

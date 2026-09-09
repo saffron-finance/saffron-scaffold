@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
-import { HeaderCell, StepTitle, StepSubtitle, CapacityBar, marbleHeaderBackground } from '../host/ui'
+import { HeaderCell, StepTitle, StepSubtitle, marbleHeaderBackground } from '../host/ui'
 import { useRequestFlow } from '../host/useRequestFlow'
 import { usePendingRequests } from '../host/usePendingRequests'
 import { useOfferPrice } from '../host/useOfferPrice'
@@ -71,7 +71,7 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
         <ColumnTitle as='span'>Yield token</ColumnTitle>
         <ColumnTitle as='span'>Incentive APR</ColumnTitle>
         <ColumnTitle as='span'>Duration</ColumnTitle>
-        <ColumnTitle as='span'>Vault capacity</ColumnTitle>
+        <ColumnTitle as='span'>Vault limit</ColumnTitle>
       </ProgramHeading>
       {offers.map(offer => {
         const isNew = offer.isNew
@@ -84,16 +84,14 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
         </YieldToken></Metric>
         <Metric id={`${offer.id}-apr`}><MobileLabel>Incentive APR</MobileLabel><OfferApr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
         <Metric><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
-        <CapacityCell id={`${offer.id}-capacity`}><MobileLabel>Vault capacity</MobileLabel>
-          {/* Proposed offers have no deployed funding balance. Do not invent
-              progress from pending requests; those only pay a request fee. */}
-          <CapacityMeter title='Proposed capacity, no funded vault yet'><Value>{compactUsd(offer.capacityUsd)}</Value><CapacityTrack filledPercent={0} /><CapacityPercent>0%</CapacityPercent></CapacityMeter>
+        <CapacityCell id={`${offer.id}-capacity`}><MobileLabel>Vault limit</MobileLabel>
+          <CapacityMeter title='Maximum vault size per request'><Value>{compactUsd(offer.capacityUsd)}</Value><Muted>per request</Muted></CapacityMeter>
         </CapacityCell>
         {isNew && <NewTag id={`${offer.id}-new`}>NEW</NewTag>}
       </ProgramRow>})}
     </Programs>
     </ProgramGroup>)}
-    <Row><FinePrint>Request an LP vault with an upfront premium. Listed terms are proposed incentives, not funded vaults.</FinePrint>
+    <Row><FinePrint>Each requested vault is sized to your deposit. Listed terms are proposed incentives, not funded vaults.</FinePrint>
       <QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     {selected && activeOffer && <IncentiveRequestModal key={activeOffer.id} offer={activeOffer} account={account}
       flow={flow} price={price} onClose={() => setSelected(null)} />}
@@ -136,13 +134,9 @@ const YieldToken = styled.span`position:relative;display:inline-flex;flex-shrink
 const ChainBadge = styled.img`position:absolute;right:-7px;bottom:-5px;border-radius:50%;background:#fff;object-fit:cover;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);`
 const OfferApr = styled(Premium)`font-size:21px;`
 const Value = styled.span`font-variant-numeric:tabular-nums;`
-// Value, upstream hairline and percentage always share one horizontal line.
+// A per-request ceiling is not an aggregate funding progress measurement.
 const CapacityCell = styled(Metric)`@media(max-width:800px){grid-column:1/-1;grid-row:2}`
 const CapacityMeter = styled.span`display:flex;align-items:center;gap:12px;width:100%;white-space:nowrap;`
-const CapacityPercent = styled(Muted)`display:block;flex:none;font-family:${({ theme }) => theme.fonts.mono};
-  font-size:15px;color:${({ theme }) => theme.colors.text.secondary};font-variant-numeric:tabular-nums;
-  @media(max-width:800px){font-size:13px}`
-const CapacityTrack = styled(CapacityBar)`min-width:30px;`
 const NewTag = styled.span`grid-column:5;justify-self:end;padding:7px 10px;border-radius:var(--radius-md);
   background:${({ theme }) => theme.colors.accent.yellow};color:#0f1621;
   font:500 13px ${({ theme }) => theme.fonts.mono};line-height:1;letter-spacing:.02em;
