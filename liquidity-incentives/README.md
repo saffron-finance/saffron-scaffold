@@ -138,6 +138,30 @@ prices, RPC and request endpoints resolve beneath the mount. The production
 server binds loopback by default; TLS and access policy belong to the operator.
 No deployment-specific configuration is part of this package.
 
+## Standalone sidebar and appearance preview
+
+The standalone shell uses a reference-style dark sidebar with one spinning
+Saffron emblem. Vaults is selected by default and stays within the current
+mount. Tokens, Fixed yield, Variable yield, and Stats open existing protocol
+pages; Audits and Community open the existing documentation and Discord links.
+`VITE_PROTOCOL_APP_URL` optionally replaces the default public protocol origin
+at build time. Request, admin (where available), and wallet actions remain in
+the host menu. No backend, wallet signing, or request behavior changed.
+
+The sidebar is 252px wide (220px below 1100px), becoming a scrollable top
+navigation at 1000px and below so the existing vault rows keep enough room.
+`src/host/Sidebar.tsx`, `sidebarNavigation.ts`, and `sidebarTheme.ts` belong to
+this standalone adapter, not the mergeable incentive feature.
+
+In `build:lab`, **Tweak → Sidebar appearance** controls background top/bottom,
+active gradient start/end, navigation text, gradient direction, and glow.
+Changes apply to the sidebar only and are saved locally under
+`saffron.staging.sidebar.v1`; **Reset sidebar** restores the reference defaults.
+Only validated hex colors and bounded numbers are restored. Normal builds
+include the default sidebar but omit this preview UI and its persistence.
+Existing APR motion controls remain independent (3.5× page default, 1.5× modal).
+No new runtime dependencies were added.
+
 ## Feature boundary / later fixed-income merge
 
 | Directory | Purpose | Merge treatment |

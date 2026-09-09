@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import styled, { createGlobalStyle } from 'styled-components'
+import SidebarTweaks from './SidebarTweaks'
 import { aprAnimations, aprAnimationCss, newOfferBadgeCss, validAprAnimation, type AprAnimation } from './aprAnimations'
 import funnelLight from './fonts/FunnelDisplay-Light.ttf'
 import funnelSemibold from './fonts/FunnelDisplay-SemiBold.ttf'
@@ -79,7 +80,7 @@ export default function RowTweaks() {
         Tweak
       </summary>
       <Panel aria-label='Table styling tweaks'>
-        <strong>Table styling</strong>
+        <strong>Appearance</strong>
         <Highlight><input type='checkbox' checked={typography.compactHeader}
           onChange={event => setTypography(previous => ({ ...previous, compactHeader: event.target.checked }))} />
           Compact heading</Highlight>
@@ -105,6 +106,7 @@ export default function RowTweaks() {
           onChange={event => setTypography(previous => ({ ...previous, orbitSpeed: Number(event.target.value) }))} />
         <small>{typography.orbitSpeed}× · {Number(orbitSeconds.toFixed(1))} seconds per orbit. Slide right for faster.</small>
         <button type='button' onClick={() => { setTypography(defaultTypography) }}>Reset defaults</button>
+        <SidebarTweaks />
         <small>Preview only. Saved in this browser.</small>
       </Panel>
     </Control>
@@ -122,12 +124,12 @@ const Control = styled.details`
     background:${({ theme }) => theme.colors.background.card};}
   summary::-webkit-details-marker{display:none}
   summary:focus-visible{outline:2px solid ${({ theme }) => theme.colors.primary.saffron};outline-offset:3px;}
-  @media(max-width:1300px){right:16px;bottom:calc(var(--bottom-nav-height, 64px) + 16px);}
+  @media(max-width:1300px){right:16px;bottom:16px;}
 `
 const Panel = styled.div`
   position:absolute;right:0;bottom:calc(100% + 10px);width:min(280px, calc(100vw - 32px));
   display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:10px;
-  max-height:calc(100dvh - 180px);overflow:auto;
+  max-height:calc(100dvh - 100px);overflow:auto;
   background:${({ theme }) => theme.colors.background.card};border:1px solid transparent;
   box-shadow:0 8px 28px rgba(0,0,0,.2);
   strong{font:500 17px ${({ theme }) => theme.fonts.display};}
