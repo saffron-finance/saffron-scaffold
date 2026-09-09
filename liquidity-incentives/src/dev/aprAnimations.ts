@@ -7,7 +7,7 @@ export const aprAnimations = [
   { id: 'diagonal', label: 'Diagonal sweep', description: 'Warm colors drift diagonally · 20 seconds.' },
   { id: 'shimmer', label: 'Soft shimmer', description: 'A soft gold highlight passes across the numbers · 12 seconds.' },
   { id: 'breathe', label: 'Breathing glow', description: 'The gradient slowly brightens and settles · 10 seconds.' },
-  { id: 'orbit', label: 'Sunset orbit', description: 'A warm radial highlight follows a slow loop · 24 seconds.' },
+  { id: 'orbit', label: 'Sunset orbit', description: 'A warm radial highlight follows a slow loop.' },
   { id: 'waves', label: 'Color waves', description: 'Two warm color layers drift in opposite directions · 22 seconds.' },
 ] as const
 
@@ -32,7 +32,7 @@ export const newOfferBadgeCss = `
   }
   #cashcat-eth-1000-3d-new {
     background-image:${gradient} !important;
-    background-size:200% 200%; animation:saffronAprOrbit 24s linear infinite;
+    background-size:200% 200%; animation:saffronAprOrbit var(--saffron-orbit-duration, 24s) linear infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     #cashcat-eth-1000-3d-new {
@@ -71,7 +71,7 @@ const presets: Record<Exclude<AprAnimation, 'none'>, string> = {
   orbit: `
     ${selector} {
       background-image:radial-gradient(ellipse at center, rgb(255, 188, 9) 12%, rgb(228, 126, 1) 48%, rgb(250, 63, 6) 80%);
-      background-size:200% 200%; animation:saffronAprOrbit 24s linear infinite;
+      background-size:200% 200%; animation:saffronAprOrbit var(--saffron-orbit-duration, 24s) linear infinite;
     }
   `,
   waves: `

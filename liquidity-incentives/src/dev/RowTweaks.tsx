@@ -17,8 +17,8 @@ const fonts = [
   { id: 'host-medium', label: 'Host Grotesk Medium', weight: 500, src: hostMedium },
   { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
 ]
-type Typography = { compactHeader: boolean; font: string; aprAnimation: AprAnimation }
-const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'orbit' }
+type Typography = { compactHeader: boolean; font: string; aprAnimation: AprAnimation; orbitSpeed: number }
+const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 1 }
 
 /** Restore known font/animation IDs and a boolean; never inject stored CSS. */
 function savedTypography(): Typography {
@@ -29,7 +29,10 @@ function savedTypography(): Typography {
     const animation = saved?.aprDefaultVersion === 1 || saved?.aprAnimation !== 'none' ? saved?.aprAnimation : undefined
     return { compactHeader: typeof saved?.compactHeader === 'boolean' ? saved.compactHeader : defaultTypography.compactHeader,
       font: saved?.font === '' || fonts.some(font => font.id === saved?.font) ? saved.font : defaultTypography.font,
-      aprAnimation: validAprAnimation(animation) ? animation : defaultTypography.aprAnimation }
+      aprAnimation: validAprAnimation(animation) ? animation : defaultTypography.aprAnimation,
+      // Only bounded numbers may become a CSS duration; old settings retain 1x.
+      orbitSpeed: typeof saved?.orbitSpeed === 'number' && Number.isFinite(saved.orbitSpeed)
+        && saved.orbitSpeed >= .25 && saved.orbitSpeed <= 4 ? saved.orbitSpeed : 1 }
   } catch { return defaultTypography }
 }
 
@@ -39,6 +42,7 @@ function savedTypography(): Typography {
 export default function RowTweaks() {
   const fontId = useId()
   const animationId = useId()
+  const speedId = useId()
   const [typography, setTypography] = useState<Typography>(savedTypography)
 
   useEffect(() => {
@@ -48,6 +52,9 @@ export default function RowTweaks() {
   const table = '[aria-label="Liquidity incentive offers"]'
   const heading = `${table} > [aria-hidden="true"]`
   const font = fonts.find(face => face.id === typography.font)
+  // Larger slider values mean faster motion. CSS still renders every frame.
+  const orbitSeconds = 24 / typography.orbitSpeed
+  const speedCss = `[data-incentive-apr], #cashcat-eth-1000-3d-new { --saffron-orbit-duration:${orbitSeconds}s; }`
   // The feature owns the transparent heading and 4px gap in every build.
   // This optional control changes only label typography.
   const headingCss = typography.compactHeader ? `
@@ -62,7 +69,7 @@ export default function RowTweaks() {
   ` : ''
 
   return <>
-    <TableTypography $rules={headingCss + fontCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)} />
+    <TableTypography $rules={headingCss + fontCss + speedCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)} />
     <Control>
       <summary>
         <svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' aria-hidden='true'>
@@ -92,6 +99,11 @@ export default function RowTweaks() {
           {aprAnimations.map(animation => <option key={animation.id} value={animation.id}>{animation.label}</option>)}
         </select>
         <small>{aprAnimations.find(animation => animation.id === typography.aprAnimation)?.description}</small>
+        <label htmlFor={speedId}>Orbit speed</label>
+        <input id={speedId} type='range' min='.25' max='4' step='.25' value={typography.orbitSpeed}
+          aria-valuetext={`${typography.orbitSpeed} times speed`}
+          onChange={event => setTypography(previous => ({ ...previous, orbitSpeed: Number(event.target.value) }))} />
+        <small>{typography.orbitSpeed}× · {Number(orbitSeconds.toFixed(1))} seconds per orbit. Slide right for faster.</small>
         <button type='button' onClick={() => { setTypography(defaultTypography) }}>Reset defaults</button>
         <small>Preview only. Saved in this browser.</small>
       </Panel>
@@ -123,6 +135,7 @@ const Panel = styled.div`
     background:${({ theme }) => theme.colors.background.elevated};border-radius:6px;padding:10px;}
   button{cursor:pointer;}button[aria-pressed=true]{outline:2px solid ${({ theme }) => theme.colors.primary.saffron};}
   small{color:${({ theme }) => theme.colors.text.secondary};font-size:11px;}
+  input[type=range]{width:100%;margin:0;min-height:24px;accent-color:${({ theme }) => theme.colors.accent.gold};cursor:ew-resize;}
 `
 const Highlight = styled.label`
   display:flex;align-items:center;gap:8px;cursor:pointer;
