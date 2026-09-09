@@ -81,7 +81,7 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
     <RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
       {confirming ? `Claim ${usd(quote?.rewardUsd ?? 0)}` : <TitleContent>
         <Token><PairIcons><TokenIcon symbol={offer.token0.symbol} size={24} /><TokenIcon symbol={offer.token1.symbol} size={24} /></PairIcons>{pair}</Token>
-        <TitleStats><TitleApr>{offer.apr.toLocaleString('en-US')}% APR</TitleApr><TitleDays>{offer.days} days</TitleDays></TitleStats>
+        <TitleStats><TitleApr data-incentive-apr>{offer.apr.toLocaleString('en-US')}% APR</TitleApr><TitleDays>{offer.days} days</TitleDays></TitleStats>
       </TitleContent>}</RequestTitle>
       {!confirming && <InteractiveEmblem />}
     </Header>
@@ -181,7 +181,13 @@ const RequestTitle = styled(ModalTitle)`min-width:0;margin-bottom:0;&:focus{outl
 const TitleContent = styled.span`display:flex;flex-direction:column;align-items:flex-start;gap:16px;`
 const PairIcons = styled.span`display:inline-flex;align-items:center;img+img{margin-left:-6px;}`
 const TitleStats = styled.span`display:inline-flex;align-items:center;gap:16px;`
-const TitleApr = styled(Premium)`font-size:16px;white-space:nowrap;`
+// The same APR marker shares staging animation/speed settings with the table.
+// Keep a readable static gradient when motion is disabled or Tweak is absent.
+const TitleApr = styled(Premium)`
+  font-size:16px;white-space:nowrap;font-family:"Funnel Display", serif;font-weight:500 !important;
+  background-image:linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+`
 const TitleDays = styled(Muted)`font-size:14px;white-space:nowrap;font-weight:400;`
 const Range = styled.div`display:flex;flex-direction:column;gap:12px;`
 const RangeSwitch = styled(QuietButton)`border:0;background:${({ theme }) => theme.colors.background.tertiary};
