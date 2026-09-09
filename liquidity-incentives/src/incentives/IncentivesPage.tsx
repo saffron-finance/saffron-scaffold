@@ -118,7 +118,8 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
 // Shared grid tracks keep the independent header and button cards aligned.
 // Each row is a native button, so Enter/Space and focus work without handlers.
 const Page = styled.section`display:flex;flex-direction:column;gap:28px;width:100%;min-width:0;padding-top:24px;`
-const TitleRow = styled(Row)`button{white-space:nowrap;flex-shrink:0}`
+// A compact rail leaves less room on phones; the request action can move below the title.
+const TitleRow = styled(Row)`flex-wrap:wrap;button{white-space:nowrap;flex-shrink:0}`
 const Introduction = styled.div`display:flex;flex-direction:column;gap:18px;max-width:860px;`
 const Programs = styled.div`display:flex;flex-direction:column;gap:28px;margin-top:8px;`
 const ProgramGroup = styled.div`display:flex;flex-direction:column;gap:28px;min-width:0;`
@@ -138,9 +139,9 @@ const ProgramRow = styled.button`
   border:1px solid #1d1d1d;border-radius:var(--radius-md);
   /* Quiet gray cards match the approved design in normal and staging builds. */
   background:#0a0a0a;
-  /* Keep hover neutral without changing the border width or keyboard outline. */
+  /* Restore the gold hover without changing card geometry or the gray surface. */
   cursor:pointer;transition:border-color .16s ease;
-  &:hover{border-color:#454545}
+  &:hover{border-color:${({ theme }) => theme.colors.accent.gold}}
   &:focus-visible{outline:2px solid ${({ theme }) => theme.colors.accent.gold};outline-offset:4px}
   @media(max-width:800px){padding:24px 12px;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 38px;gap:24px 10px}
 `

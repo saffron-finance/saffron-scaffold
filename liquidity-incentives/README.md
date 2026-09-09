@@ -142,7 +142,7 @@ No deployment-specific configuration is part of this package.
 
 Approved appearance (9 September): sidebar and offer cards use `#0a0a0a`
 with a `#1d1d1d` border against the unchanged black page canvas. Card hover is
-neutral gray. The sidebar uses the screenshot's purple Afterglow palette,
+gold, without changing border width or the gray background. The sidebar uses the screenshot's purple Afterglow palette,
 150° button / 180° surface directions, 70% highlight, 75% border, 27% glow,
 29px spread, 12px radius/padding, 6px spacing and 20px icon size. Navigation
 icons are off; the active indicator remains on. Canonical colors/settings are
@@ -171,11 +171,17 @@ include the default sidebar but omit this preview UI and its persistence.
 Existing APR motion controls remain independent (3.5× page default, 1.5× modal).
 No new runtime dependencies were added.
 
-The square left-arrow button hides the rail and releases its width. The same
-44px WebGL logo becomes a floating **Open sidebar** control; clicking it or
-pressing Enter/Space reopens the navigation. Neither the logo nor the incentive
-page is remounted. Focus transfers to the visible control, including on mobile;
-reduced motion disables the short pop animation. Collapse is per page visit.
+The panel-outline button collapses the sidebar to a full-height, 64px icon rail,
+with the same spinning logo at the top. Click anywhere on the rail or press
+Enter/Space to reopen it; compact icons do not navigate to another page. The
+page reserves the rail's width. Hover moves only its painted surface 4px right
+in 160ms, returning when the pointer leaves; its hit area stays fixed to avoid
+edge flicker. Reduced motion disables the slide. Neither logo nor page remounts.
+Focus moves to the visible control, and collapse remains per page visit.
+
+Opening a request modal focuses the deposit field, as does Back to deposit.
+Quote updates and typing never refocus it; Continue focuses the review heading.
+Amounts, wallet actions, and the modal's existing focus trap remain unchanged.
 
 **Button style** now defaults to the approved purple Violet afterglow and still offers ten sunset presets:
 Classic sunset, Purple dusk, Ember glass, Golden horizon, Violet afterglow,

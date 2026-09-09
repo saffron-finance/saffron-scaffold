@@ -10,6 +10,8 @@ export const sidebarDefaults = {
 }
 export type SidebarAppearance = typeof sidebarDefaults
 export const sidebarMobileWidth = 1000
+// Reserve the compact rail's space so it never covers the page or its controls.
+export const sidebarCollapsedWidth = 64
 
 /** Convert a validated hex color to CSS channels; raw stored CSS is never used. */
 export function sidebarChannels(hex: string): string {

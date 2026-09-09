@@ -32,8 +32,17 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
   const attachTitle = useCallback((node: HTMLDivElement | null) => {
     titleRef.current = node
     node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby', titleId)
-    node?.focus()
   }, [titleId])
+  // CurrencyInput reattaches its forwarded ref on rerenders. Focus only a new
+  // input node (Open or Back), never the same node after quotes or typing change.
+  const focusedDeposit = useRef<HTMLInputElement | null>(null)
+  const attachDeposit = useCallback((node: HTMLInputElement | null) => {
+    if (node && node !== focusedDeposit.current) {
+      focusedDeposit.current = node
+      // Let the modal record its opener before moving focus into the portal.
+      queueMicrotask(() => { if (node.isConnected) node.focus({ preventScroll: true }) })
+    }
+  }, [])
   const amount = Number(deposit)
   const draft = price.value && amount > 0 && amount <= offer.capacityUsd
     ? requestDraft(offer, deposit, price.value) : null
@@ -48,7 +57,7 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
   // Continue/Done replace the focused action. Move focus inside the dialog so
   // its title is announced and Escape remains routed through ReactModal.
   const done = flow.step === 'done'
-  useEffect(() => { titleRef.current?.focus() }, [confirming, done])
+  useEffect(() => { if (confirming || done) titleRef.current?.focus() }, [confirming, done])
 
   // A frozen review may sit open longer than its live price poll. Expire the
   // button at the deadline and check again on click after background throttling.
@@ -98,7 +107,7 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
         <FormFieldGroup><FormLabel htmlFor='incentive-deposit'>Deposit</FormLabel>
           {/* Same formatter and field styles as create-vault. Store its raw string,
               never the dollar prefix/grouping, so signed amounts stay canonical. */}
-          <FormInput as={CurrencyInput} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal'
+          <FormInput as={CurrencyInput} ref={attachDeposit} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal'
             prefix='$' groupSeparator=',' decimalSeparator='.' allowNegativeValue={false} disableAbbreviations
             decimalsLimit={2} placeholder='$0.00' value={deposit} maxLength={24}
             onValueChange={(value: string | undefined) => setDeposit(value ?? '')} />
