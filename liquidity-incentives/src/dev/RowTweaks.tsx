@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import styled, { createGlobalStyle } from 'styled-components'
-import { aprAnimations, aprAnimationCss, validAprAnimation, type AprAnimation } from './aprAnimations'
+import { aprAnimations, aprAnimationCss, newOfferBadgeCss, validAprAnimation, type AprAnimation } from './aprAnimations'
 import funnelLight from './fonts/FunnelDisplay-Light.ttf'
 import funnelSemibold from './fonts/FunnelDisplay-SemiBold.ttf'
 import hostRegular from './fonts/HostGrotesk-Regular.ttf'
@@ -18,15 +18,18 @@ const fonts = [
   { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
 ]
 type Typography = { compactHeader: boolean; font: string; aprAnimation: AprAnimation }
-const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'none' }
+const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'orbit' }
 
 /** Restore known font/animation IDs and a boolean; never inject stored CSS. */
 function savedTypography(): Typography {
   try {
     const saved = JSON.parse(localStorage.getItem(typographyKey) || '{}')
+    // Replace the old auto-saved None default once. Other presets survive, and
+    // choosing None after this update remains an explicit, persistent choice.
+    const animation = saved?.aprDefaultVersion === 1 || saved?.aprAnimation !== 'none' ? saved?.aprAnimation : undefined
     return { compactHeader: typeof saved?.compactHeader === 'boolean' ? saved.compactHeader : defaultTypography.compactHeader,
       font: saved?.font === '' || fonts.some(font => font.id === saved?.font) ? saved.font : defaultTypography.font,
-      aprAnimation: validAprAnimation(saved?.aprAnimation) ? saved.aprAnimation : 'none' }
+      aprAnimation: validAprAnimation(animation) ? animation : defaultTypography.aprAnimation }
   } catch { return defaultTypography }
 }
 
@@ -39,7 +42,7 @@ export default function RowTweaks() {
   const [typography, setTypography] = useState<Typography>(savedTypography)
 
   useEffect(() => {
-    try { localStorage.setItem(typographyKey, JSON.stringify(typography)) } catch { /* Preview remains usable. */ }
+    try { localStorage.setItem(typographyKey, JSON.stringify({ ...typography, aprDefaultVersion: 1 })) } catch { /* Preview remains usable. */ }
   }, [typography])
 
   const table = '[aria-label="Liquidity incentive offers"]'
@@ -59,7 +62,7 @@ export default function RowTweaks() {
   ` : ''
 
   return <>
-    <TableTypography $rules={headingCss + fontCss + aprAnimationCss(typography.aprAnimation)} />
+    <TableTypography $rules={headingCss + fontCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)} />
     <Control>
       <summary>
         <svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' aria-hidden='true'>
