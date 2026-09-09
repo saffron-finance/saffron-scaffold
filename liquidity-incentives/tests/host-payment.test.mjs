@@ -25,7 +25,7 @@ const compiled = await build({ stdin: { contents: [
       ? 'export const arbitrumClient = globalThis.__featureLabTestRpc; export const robinhoodClient = arbitrumClient; export const requestJson = (...args) => globalThis.__featureLabTestApi.request(...args)'
       : 'export function walletClient(){ throw new Error("No wallet writes permitted") }; export async function assertWalletAccount(){}; export async function ensureChain(){}' }))
   } }] })
-const { assertPaymentEvidence, confirmPayment, PaymentRevertedError, preferredFeeAsset,
+const { assertPaymentEvidence, confirmPayment, PaymentRevertedError, PaymentCancelledError, preferredFeeAsset,
   loadPaymentConfig, quoteRequestPayment, payRequest, readOfferPrice, readPendingRequest, requestDraft, OFFERS } =
   await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`)
 const address = (digit) => `0x${digit.repeat(40)}`
@@ -96,8 +96,58 @@ test('wrong network and canonical reverts stop before a request signature', asyn
   rpc.getChainId = async () => 1
   await assert.rejects(confirmPayment(baseRequest), /wrong network/)
   rpc.getChainId = async () => 42161
-  rpc.waitForTransactionReceipt = async () => ({ status: 'reverted' })
+  const { tx, receipt } = usdcEvidence()
+  rpc.waitForTransactionReceipt = async () => ({ ...receipt, status: 'reverted' })
+  rpc.getTransaction = async () => tx
+  rpc.getBlock = async () => ({ hash: receipt.blockHash })
   await assert.rejects(confirmPayment(baseRequest), PaymentRevertedError)
+})
+
+for (const asset of ['USDC', 'ETH']) test(`${asset}: a mined self-cancellation is recoverable before and after reload`, async () => {
+  const { tx, receipt } = usdcEvidence()
+  Object.assign(tx, { to: wallet, value: 0n, input: '0x' })
+  receipt.logs = []
+  rpc.getChainId = async () => 42161
+  rpc.waitForTransactionReceipt = async () => receipt
+  rpc.getTransaction = async () => tx
+  rpc.getBlock = async ({ blockNumber }) => {
+    assert.equal(blockNumber, receipt.blockNumber)
+    return { hash: receipt.blockHash }
+  }
+  const pending = { ...baseRequest, version: 3, payment: { asset, amountRaw: asset === 'ETH' ? '1000000000000000' : '2000000' } }
+  const remembered = []
+  await assert.rejects(confirmPayment(pending, hash => remembered.push(hash)), PaymentCancelledError)
+  assert.deepEqual(remembered, [replacementHash])
+  await assert.rejects(confirmPayment({ ...pending, paymentTxHash: replacementHash }), PaymentCancelledError)
+})
+
+test('uncertain or unrelated replacements cannot unlock a pending payment', async () => {
+  for (const change of [{ from: address('3') }, { to: recipient }, { value: 1n },
+    { input: '0x1234' }, { blockHash: hash('d') }, { hash: hash('d') }]) {
+    const { tx, receipt } = usdcEvidence()
+    Object.assign(tx, { to: wallet, value: 0n, input: '0x' }, change)
+    receipt.logs = []
+    rpc.getChainId = async () => 42161
+    rpc.waitForTransactionReceipt = async () => receipt
+    rpc.getTransaction = async () => tx
+    rpc.getBlock = async () => ({ hash: receipt.blockHash })
+    await assert.rejects(confirmPayment(baseRequest), error =>
+      !(error instanceof PaymentCancelledError) && !(error instanceof PaymentRevertedError))
+  }
+  const { tx, receipt } = usdcEvidence()
+  Object.assign(tx, { to: wallet, value: 0n, input: '0x' })
+  rpc.waitForTransactionReceipt = async () => receipt
+  rpc.getTransaction = async () => tx
+  // Logs could contain a token transfer even if the top-level value is zero.
+  await assert.rejects(confirmPayment(baseRequest), error => !(error instanceof PaymentCancelledError))
+  receipt.logs = []
+  for (const status of ['success', 'reverted']) {
+    receipt.status = status
+    rpc.getBlock = async () => ({ hash: hash('d') })
+    await assert.rejects(confirmPayment(baseRequest), /Payment block changed/)
+    rpc.getBlock = async () => { throw new Error('Block RPC unavailable') }
+    await assert.rejects(confirmPayment(baseRequest), /Block RPC unavailable/)
+  }
 })
 
 test('a replacement hash is retained even if its evidence RPC subsequently fails', async () => {

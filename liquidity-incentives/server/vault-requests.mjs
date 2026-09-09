@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { decodeFunctionData, erc20Abi, formatUnits, keccak256, stringToHex, verifyMessage } from 'viem'
 import { REQUEST_PAYMENT, requestMessage, validAddress, validDetails, canonicalIncentive, validRequestPayment } from '../shared/vault-request.mjs'
-import { createFeeService } from './request-fees.mjs'
+import { createFeeService, PaymentQuoteExpiredError } from './request-fees.mjs'
 import { adminListMessage } from '../shared/request-admin.mjs'
 
 const TRANSFER_TOPIC = keccak256(stringToHex('Transfer(address,address,uint256)'))
@@ -75,7 +75,7 @@ export async function verifyPayment(body, rpc) {
   if (BigInt(head) < BigInt(receipt.blockNumber) + 1n) throw new RequestError(402, 'Payment needs two Arbitrum block confirmations. Retry shortly without paying again.')
   const block = await rpc('eth_getBlockByNumber', [receipt.blockNumber, false])
   if (!same(block?.hash, receipt.blockHash)) throw new RequestError(402, 'Payment block is not canonical. Retry shortly.')
-  return receipt
+  return { ...receipt, blockTimestamp: block.timestamp }
 }
 
 /**
@@ -189,11 +189,15 @@ export function createVaultRequestHandler({ recipient, storePath, rpc, basePath,
       try { authorized = await verifyMessage({ address: body.wallet, message, signature: body.signature }) }
       catch { /* Malformed signatures are an authentication failure, not a server error. */ }
       if (!authorized) throw new RequestError(401, 'Sign the request with the wallet that paid.')
-      if (body.version === 3) {
-        if (!fees) throw new RequestError(503, 'Payment quotes are unavailable.')
-        try { await fees.verifyQuote(body) } catch { throw new RequestError(402, 'Payment quote does not match this request.') }
-      }
+      if (body.version === 3 && !fees) throw new RequestError(503, 'Payment quotes are unavailable.')
       const receipt = await verifyPayment(body, rpc)
+      if (body.version === 3) {
+        try { await fees.verifyQuote(body, receipt.blockTimestamp) }
+        catch (error) {
+          throw new RequestError(402, error instanceof PaymentQuoteExpiredError
+            ? error.message : 'Payment quote does not match this request.')
+        }
+      }
       const payment = body.version === 3 ? body.payment : null
       const record = {
         id: `VR-${body.paymentTxHash.slice(2).toUpperCase()}`,

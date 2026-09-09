@@ -158,7 +158,7 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
           <Action onClick={() => { flow.clearFinished(); onClose() }}>Done</Action>
         </> : <>
           <RequestFeeSelector flow={flow} connected={Boolean(account)} />
-          <Action type='button' disabled={flow.busy || expired || !request || !validDetails(request)
+          <Action type='button' disabled={flow.busy || Boolean(flow.confirmedFailure) || expired || !request || !validDetails(request)
             || (!flow.pending && (!flow.config?.enabled || (Boolean(account) && !flow.canPay)))}
             onClick={submitReviewed}>
             {flow.busy ? ({ paying: `Confirm ${flow.selectedAsset} payment…`, confirming: 'Confirming payment…',
@@ -166,7 +166,9 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
               : !account ? 'Connect wallet' : flow.pending ? 'Resume request — no new payment' : 'Request'}
           </Action>
         </>}
-        {flow.confirmedRevert && <QuietButton onClick={() => { flow.clearFinished(); setReviewed(null) }}>Clear confirmed failed payment</QuietButton>}
+        {flow.confirmedFailure && <QuietButton onClick={() => { flow.clearFinished(); setReviewed(null) }}>
+          {flow.confirmedFailure === 'cancelled' ? 'Clear confirmed cancelled payment' : 'Clear confirmed failed payment'}
+        </QuietButton>}
       </> : null}
     </ModalContent>
   </Modal>

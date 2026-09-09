@@ -130,5 +130,5 @@ export async function setup(page, options = {}) {
       for (const detail of wallets) window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail }))
     })
   })
-  return { state, storePath, database: storage.database, records: storage.records, account, close: async () => { await new Promise((resolve) => server.close(resolve)); await storage.close() } }
+  return { state, storePath, chain: fixture, database: storage.database, records: storage.records, account, close: async () => { await new Promise((resolve) => server.close(resolve)); await storage.close() } }
 }

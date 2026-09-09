@@ -55,7 +55,8 @@ export function publicPending(row, admin = false) {
  * not a password. Tests inject a separate real PostgreSQL database/pool.
  * Schema install and legacy import finish before fees become available.
  */
-export function createRequestDatabase({ connection = {}, pool: injectedPool, legacyPath, resolvePoolFee } = {}) {
+export function createRequestDatabase({ connection = {}, pool: injectedPool, legacyPath, resolvePoolFee,
+  retryDelayMs = 5000, now = Date.now } = {}) {
   const pool = injectedPool ?? new pg.Pool({ host: process.env.SAFFRON_DB_HOST || '/var/run/postgresql',
     user: process.env.SAFFRON_DB_USER || 'saffron_incentives', database: process.env.SAFFRON_DB_NAME || 'saffron_incentives',
     max: 4, connectionTimeoutMillis: 5000, options: '-c timezone=UTC', ...connection })
@@ -98,7 +99,7 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
     finally { client.release() }
   }
 
-  const ready = (async () => {
+  async function initialize() {
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
@@ -115,24 +116,40 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
       for (const record of records) await saveNow(record)
       // The original file remains untouched as an independently recoverable archive.
     }
-  })()
-  ready.catch(() => {})
+  }
+
+  // Share one initialization attempt across readers. A failed startup can retry
+  // on a later request without a process restart or an unbounded retry loop.
+  // Schema installation and the entire legacy import must succeed first.
+  let initialization, failed = false, retryAt = 0, closed = false
+  function ensureReady() {
+    if (closed) return Promise.reject(new Error('Request database is closed.'))
+    if (!initialization || (failed && now() >= retryAt)) {
+      failed = false
+      initialization = initialize()
+      initialization.catch(() => { failed = true; retryAt = now() + retryDelayMs })
+    }
+    return initialization
+  }
+  ensureReady()
 
   return {
-    ready, pool, close: () => pool.end(),
-    async health() { await ready; await pool.query('SELECT 1') },
-    async save(record) { await ready; return saveNow(record) },
+    get ready() { return ensureReady() },
+    pool,
+    async close() { closed = true; await initialization.catch(() => {}); await pool.end() },
+    async health() { await ensureReady(); await pool.query('SELECT 1') },
+    async save(record) { await ensureReady(); return saveNow(record) },
     async putQuote(quote) {
-      await ready
+      await ensureReady()
       await pool.query(`INSERT INTO liqifi.request_fee_quotes (id,wallet,recipient,asset,amount_raw,eth_usd_raw,expires_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7)`, [quote.id, quote.wallet, quote.recipient, quote.asset, quote.amountRaw, quote.ethUsdRaw ?? null, quote.expiresAt])
     },
     async getQuote(id) {
-      await ready
+      await ensureReady()
       return (await pool.query('SELECT * FROM liqifi.request_fee_quotes WHERE id=$1', [id])).rows[0] ?? null
     },
     async list({ wallet, chainId, admin = false }) {
-      await ready
+      await ensureReady()
       const rows = (await pool.query(`SELECT pv.*, rp.payload FROM uniswap_v3_fiv.pending_vaults pv
         JOIN liqifi.request_payments rp ON rp.pending_request_id=pv.request_id
         WHERE ($1::text IS NULL OR pv.submitter_address=$1) AND ($2::integer IS NULL OR pv.chain_id=$2)
@@ -144,7 +161,7 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
           paymentAmount: row.payload.paymentAmount, legacyId: row.payload.id } }))
     },
     async inquiries(wallet) {
-      await ready
+      await ensureReady()
       const rows = (await pool.query(`SELECT legacy_id,created_at,payload FROM liqifi.request_payments
         WHERE pending_request_id IS NULL AND submitter_address=$1 ORDER BY created_at DESC LIMIT 200`, [wallet.toLowerCase()])).rows
       return rows.map((row) => ({ requestId: row.legacy_id, status: 'pending', createdAt: row.created_at,

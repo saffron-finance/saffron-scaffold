@@ -18,13 +18,15 @@ export function paymentFixture(wallet, hash = HASH, input) {
     logs: [{ address: REQUEST_PAYMENT.token, data: `0x${transfer.args[1].toString(16).padStart(64, '0')}`,
       topics: [keccak256(stringToHex('Transfer(address,address,uint256)')), topic(wallet), topic(transfer.args[0])],
       transactionHash: hash, transactionIndex: '0x0', blockHash: BLOCK_HASH, blockNumber: '0x64', logIndex: '0x0', removed: false }] }
+  const block = { hash: BLOCK_HASH, number: '0x64', transactions: [],
+    timestamp: '0x' + Math.floor(Date.now() / 1000).toString(16) }
   const rpc = async (method) => {
     if (method === 'eth_chainId') return '0xa4b1'
     if (method === 'eth_blockNumber') return '0x65'
     if (method === 'eth_getTransactionByHash') return tx
     if (method === 'eth_getTransactionReceipt') return receipt
-    if (method === 'eth_getBlockByNumber') return { hash: BLOCK_HASH, number: '0x64', transactions: [], timestamp: '0x1' }
+    if (method === 'eth_getBlockByNumber') return block
     throw new Error(`Unexpected fixture method: ${method}`)
   }
-  return { tx, receipt, rpc }
+  return { tx, receipt, block, rpc }
 }

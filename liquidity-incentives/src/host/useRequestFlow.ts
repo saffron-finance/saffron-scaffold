@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatUnits, type Address, type Hash } from 'viem'
 import { validAddress, validDetails, validRequestPayment, type PaidRequest, type RequestDetails } from '@receipt'
-import { confirmPayment, loadPaymentConfig, loadPaymentBalances, preferredFeeAsset, quoteRequestPayment, payRequest, saveRequest, signRequest, PaymentRevertedError, type PaymentConfig, type PaymentBalances, type FeeAsset } from './payment'
+import { confirmPayment, loadPaymentConfig, loadPaymentBalances, preferredFeeAsset, quoteRequestPayment, payRequest, saveRequest, signRequest, PaymentRevertedError, PaymentCancelledError, type PaymentConfig, type PaymentBalances, type FeeAsset } from './payment'
 
 export const INCENTIVE_REQUEST_KEY = 'liqifi.pending-incentive-request.v1'
 
@@ -35,7 +35,7 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
   const [error, setError] = useState<string | null>(null)
   const [storageWarning, setStorageWarning] = useState(false)
   const [requestId, setRequestId] = useState<string | null>(null)
-  const [confirmedRevert, setConfirmedRevert] = useState(false)
+  const [confirmedFailure, setConfirmedFailure] = useState<'reverted' | 'cancelled' | null>(null)
   const [asset, setAssetState] = useState<FeeAsset>('USDC')
   const [balances, setBalances] = useState<PaymentBalances>({})
   const [balanceAccount, setBalanceAccount] = useState<Address | null>(null)
@@ -93,7 +93,7 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
     // the request reviewed when this button was pressed.
     const snapshot: RequestDetails = JSON.parse(JSON.stringify(details))
     inFlight.current = true
-    setError(null); setConfirmedRevert(false)
+    setError(null); setConfirmedFailure(null)
     try {
       let payment = pending
       if (payment && payment.wallet.toLowerCase() !== account.toLowerCase()) {
@@ -139,7 +139,8 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
       setBalanceRevision((value) => value + 1)
       try { localStorage.removeItem(INCENTIVE_REQUEST_KEY) } catch { /* Visible receipt remains available. */ }
     } catch (cause) {
-      setConfirmedRevert(cause instanceof PaymentRevertedError)
+      setConfirmedFailure(cause instanceof PaymentRevertedError ? 'reverted'
+        : cause instanceof PaymentCancelledError ? 'cancelled' : null)
       const message = cause instanceof Error ? cause.message : String(cause)
       setError(/rejected|denied/i.test(message)
         ? 'Wallet action cancelled. If a payment hash is shown, resume it without paying again.'
@@ -148,10 +149,10 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
     } finally { inFlight.current = false }
   }
 
-  /** Only a proven revert or a saved request may release its immutable terms. */
+  /** Only a proven unpaid transaction or a saved request may release its terms. */
   function clearFinished() {
-    if (inFlight.current || (!confirmedRevert && step !== 'done')) return
-    setPending(null); setRequestId(null); setConfirmedRevert(false); setError(null); setStep('idle')
+    if (inFlight.current || (!confirmedFailure && step !== 'done')) return
+    setPending(null); setRequestId(null); setConfirmedFailure(null); setError(null); setStep('idle')
     manualSelection.current = null
     setBalanceRevision((value) => value + 1)
     try { localStorage.removeItem(INCENTIVE_REQUEST_KEY) } catch { /* Clear current-session state. */ }
@@ -165,7 +166,7 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
     && visibleBalances.ETH !== undefined && visibleBalances.ETH > (selectedAsset === 'ETH' ? BigInt(amountRaw) : 0n)
     && (selectedAsset !== 'ETH' || config.ethAvailable))
   const feeLabel = amountRaw ? `${formatUnits(BigInt(amountRaw), selectedAsset === 'ETH' ? 18 : 6)} ${selectedAsset}` : '≈ $2 in ETH'
-  return { pending, config, step, error, storageWarning, requestId, confirmedRevert, busy, submit, clearFinished,
+  return { pending, config, step, error, storageWarning, requestId, confirmedFailure, busy, submit, clearFinished,
     selectedAsset, setAsset, balances: visibleBalances, balanceLoading: balanceLoading || Boolean(account && account !== balanceAccount),
     refreshBalances: () => setBalanceRevision((value) => value + 1), canPay, feeLabel }
 }

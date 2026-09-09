@@ -11,6 +11,7 @@ export type PaymentConfig = typeof REQUEST_PAYMENT & { enabled: boolean; recipie
 export interface FeeQuote { id: string; wallet: Address; recipient: Address; asset: FeeAsset; amountRaw: string; expiresAt: string }
 export interface PaymentBalances { USDC?: bigint; ETH?: bigint; error?: string }
 export class PaymentRevertedError extends Error {}
+export class PaymentCancelledError extends Error {}
 const transferTopic = keccak256(stringToHex('Transfer(address,address,uint256)'))
 const same = (a: unknown, b: string) => typeof a === 'string' && a.toLowerCase() === b.toLowerCase()
 
@@ -88,15 +89,21 @@ export async function payRequest(account: Address, recipient: Address, quote?: F
     abi: erc20Abi, functionName: 'transfer', args: [recipient, amount] })
 }
 
-/** Validate mined evidence before signing, including a speed-up's replacement hash.
- * A successful cancellation is not a payment. The backend independently repeats
- * these checks and remains authoritative about confirmation, quote and storage.
- */
-export function assertPaymentEvidence(pending: PaidRequest, tx: Transaction, receipt: TransactionReceipt): void {
-  if (!same(tx.hash, receipt.transactionHash) || !same(tx.from, pending.wallet)
+/** Match mined transaction identity before classifying a payment or cancellation. */
+function assertMinedTransaction(pending: PaidRequest, tx: Transaction, receipt: TransactionReceipt): void {
+  if (typeof receipt.blockNumber !== 'bigint' || receipt.blockNumber < 0n
+    || !same(tx.hash, receipt.transactionHash) || !same(tx.from, pending.wallet)
     || !same(tx.blockHash, receipt.blockHash) || tx.blockNumber !== receipt.blockNumber) {
     throw new Error('Payment receipt does not match this wallet. Keep the original receipt and retry.')
   }
+}
+
+/** Validate the fee before signing, including a speed-up's replacement hash.
+ * The backend independently repeats these checks and remains authoritative
+ * about confirmation, quote and storage.
+ */
+export function assertPaymentEvidence(pending: PaidRequest, tx: Transaction, receipt: TransactionReceipt): void {
+  assertMinedTransaction(pending, tx, receipt)
   if (pending.payment?.asset === 'ETH') {
     if (!same(tx.to, pending.recipient) || tx.value !== BigInt(pending.payment.amountRaw) || !['', '0x'].includes(tx.input)) {
       throw new Error('Replacement transaction is not the quoted ETH fee. No request was signed.')
@@ -124,9 +131,21 @@ export async function confirmPayment(pending: PaidRequest, rememberHash?: (hash:
   // Persist a resolved replacement even if the next RPC read fails. Keeping the
   // old, now-dropped hash would make recovery after a reload impossible.
   if (!same(receipt.transactionHash, pending.paymentTxHash)) rememberHash?.(receipt.transactionHash)
-  if (receipt.status === 'reverted') throw new PaymentRevertedError('The payment reverted. No request fee was collected; network gas may have been spent.')
-  if (receipt.status !== 'success') throw new Error('Payment status is unknown. Keep this payment hash and retry.')
+  if (receipt.status !== 'success' && receipt.status !== 'reverted') throw new Error('Payment status is unknown. Keep this payment hash and retry.')
   const tx = await arbitrumClient.getTransaction({ hash: receipt.transactionHash })
+  assertMinedTransaction(pending, tx, receipt)
+  // Recognize only the wallet's zero-value, empty self-transfer as a cancellation.
+  // Other successful replacements remain locked because they may have moved funds.
+  const cancelled = receipt.status === 'success' && same(tx.to, pending.wallet)
+    && tx.value === 0n && ['', '0x'].includes(tx.input) && receipt.logs.length === 0
+  if (receipt.status === 'reverted' || cancelled) {
+    // A terminal state releases the payment guard. Recheck its canonical block;
+    // a reorg or unavailable RPC must keep the receipt recoverable instead.
+    const block = await arbitrumClient.getBlock({ blockNumber: receipt.blockNumber })
+    if (!same(block.hash, receipt.blockHash)) throw new Error('Payment block changed. Keep this payment hash and retry.')
+    if (cancelled) throw new PaymentCancelledError('The payment was cancelled onchain. No request fee was collected; clear it to start a new request.')
+    throw new PaymentRevertedError('The payment reverted. No request fee was collected; network gas may have been spent.')
+  }
   assertPaymentEvidence(pending, tx, receipt)
   return receipt.transactionHash
 }

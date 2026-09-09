@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { randomUUID } from 'node:crypto'
 import { setup } from './fixture.mjs'
 
 const PAGE = '/'
@@ -213,6 +214,55 @@ test('paid signature cancellation reloads and resumes without another fee', asyn
     await expect(page.getByText(/is paid and pending review/)).toBeVisible()
     expect(fixture.state.sends).toBe(1)
     expect(await fixture.records()).toHaveLength(1)
+  } finally { await fixture.close() }
+})
+
+test('a confirmed onchain cancellation can be cleared after reload and a new request submitted', async ({ page }) => {
+  const fixture = await setup(page)
+  const original = { tx: structuredClone(fixture.chain.tx), receipt: structuredClone(fixture.chain.receipt) }
+  const hash = '0x' + 'cd'.repeat(32)
+  const pending = { version: 3, kind: 'incentive', chain: 'robinhood', depositToken: 'USD',
+    pair: 'CASHCAT / ETH', depositAmount: '100', wallet: fixture.account.address,
+    recipient: '0x2222222222222222222222222222222222222222', paymentTxHash: hash,
+    payment: { asset: 'USDC', amountRaw: '2000000', quoteId: randomUUID() },
+    incentive: { id: 'cashcat-eth-1000-3d', chainId: 4663,
+      poolAddress: '0xA70fc67C9F69da90B63a0e4C05D229954574E313', feeTier: 10000,
+      token0: { address: '0x020bfC650A365f8BB26819deAAbF3E21291018b4', symbol: 'CASHCAT', decimals: 18 },
+      token1: { address: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73', symbol: 'ETH', decimals: 18 },
+      durationDays: 3, capacityUsd: 100000, aprPercent: 1000, depositUsd: '100', range: 'full',
+      quote: { cashcatAmount: 25000, quoteAmount: 0.025, rewardUsd: 1000 * 3 / 365,
+        rewardCashcat: 1000 * 3 / 365 / 0.002, cashcatUsd: 0.002, quoteTokenUsd: 2000,
+        quotePerCashcat: 0.000001, quotedAt: '2026-09-06T10:00:00.000Z' } } }
+  Object.assign(fixture.chain.tx, { hash, to: fixture.account.address, value: '0x0', input: '0x' })
+  Object.assign(fixture.chain.receipt, { transactionHash: hash, to: fixture.account.address, logs: [] })
+  await page.addInitScript(receipt => {
+    if (sessionStorage.getItem('fixture-cancel-receipt')) return
+    localStorage.setItem('liqifi.pending-incentive-request.v1', JSON.stringify(receipt))
+    sessionStorage.setItem('fixture-cancel-receipt', 'true')
+  }, pending)
+  try {
+    await page.goto(PAGE); await connect(page)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await page.getByRole('button', { name: 'Resume paid request', exact: true }).click()
+      await page.getByRole('button', { name: 'Resume request — no new payment', exact: true }).click()
+      await expect(page.getByRole('alert')).toContainText('cancelled onchain')
+      await expect(page.getByRole('button', { name: 'Clear confirmed cancelled payment', exact: true })).toBeVisible()
+      expect(fixture.state.sends).toBe(0)
+      expect(fixture.state.signs).toBe(0)
+      expect(await fixture.records()).toHaveLength(0)
+      if (attempt === 0) await page.reload()
+    }
+    await page.getByRole('button', { name: 'Clear confirmed cancelled payment', exact: true }).click()
+    await page.getByLabel('Deposit value in US dollars').fill('200')
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    Object.assign(fixture.chain.tx, original.tx)
+    Object.assign(fixture.chain.receipt, original.receipt)
+    await page.getByRole('button', { name: 'Request', exact: true }).click()
+    await expect(page.getByText(/is paid and pending review/)).toBeVisible()
+    expect(fixture.state.sends).toBe(1)
+    expect((await fixture.records())[0].incentive.depositUsd).toBe('200')
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Resume paid request', exact: true })).toHaveCount(0)
   } finally { await fixture.close() }
 })
 

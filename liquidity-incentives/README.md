@@ -30,6 +30,11 @@ to review the UI. A submitted fee is real: 2 USDC or a quoted native ETH amount
 on Arbitrum, followed by a wallet signature. The requested LP vault is on
 Robinhood. No LP principal moves and no premium is paid during this request.
 
+ETH fees must be mined before their 15-minute quote expires. Verification uses
+the canonical payment block time, so an on-time payment can still be resumed
+after expiry. A late ETH payment needs operator review; retain the receipt and
+do not pay again. The fixed 2 USDC fee remains recoverable after quote expiry.
+
 ### PostgreSQL
 
 Use a dedicated database and role; configure `SAFFRON_DB_HOST`,
@@ -48,6 +53,10 @@ are deliberately preserved for migration compatibility; do not rename them
 without a migration. Existing JSON receipts can be imported through the
 operator-only `VAULT_REQUEST_STORE_PATH`. No hosted data is included or accessed
 by default. Admin listing checks the selected chain's factory owner signature.
+
+If database initialization or legacy import fails, the next request after a
+five-second cooldown retries initialization. Concurrent requests share that
+attempt, and payments stay disabled until schema setup and import finish.
 
 ### Mounting beneath a path
 
@@ -74,6 +83,9 @@ The deposit field uses fixed-income's currency formatter and field styles.
 token and estimated USD premium at the current price. Continue freezes those
 terms before payment. Payment recovery and replay checks prevent retrying from
 charging twice; changed transaction hashes are retained before later RPC reads.
+A confirmed zero-value self-cancellation can be cleared to start a new request,
+including after reload. Reverts and cancellations are checked against the
+canonical block before clearing is allowed; uncertain payments remain resumable.
 
 The UI snapshot and exact emblem assets originate from Saffron fixed-income
 revision `dc104999f531611f2b5b772d3b72cc3ad8c2ed23`. See
@@ -103,10 +115,9 @@ Wallets are freshly generated and unfunded; RPC and signatures use deterministic
 fixtures. Tests do not send funds. Installed-wallet acceptance remains manual.
 
 Known review limitations remain: these are proposed programs, so displayed
-capacity is not funded LP TVL; production integration needs explicit handling
-of fee-quote expiry against payment time and the target app's auth/status
-workflow. This export preserves the reviewed prototype, not a claim of completed
-fixed-income integration.
+capacity is not funded LP TVL; production integration still needs the target
+app's auth/status workflow. This export preserves the reviewed prototype, not
+a claim of completed fixed-income integration.
 
 ### Export verification — 2026-09-08
 
@@ -116,3 +127,8 @@ fixed-income integration.
 - `/incentives/` hosting, exact 3D assets and request modal passed in-browser.
 - Source scan found no private deployment paths, credential markers or outputs.
 - No live payments, live database changes or production deployment performed.
+
+After the cancellation, ETH quote-expiry and database startup-retry fixes,
+70 API/adapter/relay tests, 18 PostgreSQL tests and 7 browser dry runs passed.
+Normal/lab and root live/mock builds also passed; the root mock remained
+read-only with zero RPC requests.

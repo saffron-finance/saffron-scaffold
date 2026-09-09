@@ -122,6 +122,133 @@ it('v3 fee selection, quote and amount cannot change after signing or bypass the
   } finally { await f.close() }
 })
 
+it('rejects ETH payments mined at or after expiry without saving a request', async () => {
+  const f = await apiFixture('ETH')
+  try {
+    const expiry = 1_700_000_000n
+    await f.store.database.pool.query('UPDATE liqifi.request_fee_quotes SET expires_at=$1 WHERE id=$2',
+      [new Date(Number(expiry) * 1000), f.body.payment.quoteId])
+    for (const delay of [0n, 1n, 7n * 86400n]) {
+      f.chain.block.timestamp = '0x' + (expiry + delay).toString(16)
+      const response = await f.post('', f.body)
+      assert.equal(response.status, 402)
+      const { error } = await response.json()
+      assert.match(error, /mined after its quote expired/)
+      assert.match(error, /do not pay again/)
+    }
+    assert.equal((await f.store.records()).length, 0)
+    assert.equal((await f.store.database.pool.query('SELECT count(*) FROM uniswap_v3_fiv.pending_vaults')).rows[0].count, '0')
+  } finally { await f.close() }
+})
+
+it('accepts and deduplicates on-time ETH payments submitted after quote expiry', async () => {
+  const f = await apiFixture('ETH')
+  try {
+    const expiry = 1_700_000_000n
+    await f.store.database.pool.query('UPDATE liqifi.request_fee_quotes SET expires_at=$1 WHERE id=$2',
+      [new Date(Number(expiry) * 1000), f.body.payment.quoteId])
+    f.chain.block.timestamp = '0x' + (expiry - 1n).toString(16)
+    const first = await f.post('', f.body)
+    assert.equal(first.status, 201)
+    const retry = await f.post('', f.body)
+    assert.equal(retry.status, 200)
+    assert.deepEqual(await retry.json(), await first.json())
+    assert.equal((await f.store.records()).length, 1)
+  } finally { await f.close() }
+})
+
+it('fails closed on unavailable or noncanonical ETH payment block times', async () => {
+  const f = await apiFixture('ETH')
+  try {
+    for (const timestamp of [undefined, null, 'invalid', '0x', '0x0', '-1', 1_700_000_000]) {
+      f.chain.block.timestamp = timestamp
+      assert.equal((await f.post('', f.body)).status, 402)
+    }
+    f.chain.block.timestamp = '0x1'
+    f.chain.block.hash = '0x' + 'ff'.repeat(32)
+    const response = await f.post('', f.body)
+    assert.equal(response.status, 402)
+    assert.match((await response.json()).error, /not canonical/)
+    assert.equal((await f.store.records()).length, 0)
+  } finally { await f.close() }
+})
+
+it('keeps the fixed 2 USDC fee resumable after quote expiry', async () => {
+  const f = await apiFixture('USDC')
+  try {
+    await f.store.database.pool.query('UPDATE liqifi.request_fee_quotes SET expires_at=$1 WHERE id=$2',
+      [new Date(1_700_000_000_000), f.body.payment.quoteId])
+    assert.equal((await f.post('', f.body)).status, 201)
+    assert.equal((await f.post('', f.body)).status, 200)
+    assert.equal((await f.store.records()).length, 1)
+  } finally { await f.close() }
+})
+
+it('retries a failed startup once after cooldown and restores payment configuration', async () => {
+  const f = await postgresFixture()
+  let time = 0, attempts = 0
+  const pool = {
+    on() {}, end: async () => {}, query: (...args) => f.database.pool.query(...args),
+    async connect() {
+      if (++attempts === 1) throw new Error('Temporary test connection failure')
+      return f.database.pool.connect()
+    },
+  }
+  const recovered = createRequestDatabase({ pool, now: () => time })
+  const handler = createVaultRequestHandler({ recipient: RECIPIENT, database: recovered,
+    basePath: '', rpc: feeRpc(paymentFixture(account.address)) })
+  const server = createServer(async (req, res) => handler(req, res, new URL(req.url, 'http://localhost').pathname))
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const config = async () => (await fetch(`http://127.0.0.1:${server.address().port}/vault-requests/config`)).json()
+  try {
+    await assert.rejects(recovered.ready, /Temporary test connection failure/)
+    assert.equal((await config()).enabled, false)
+    time = 4999
+    await assert.rejects(recovered.health())
+    assert.equal(attempts, 1)
+    time = 5000
+    const retry = recovered.ready
+    assert.equal(recovered.ready, retry, 'Concurrent callers must share the retry')
+    await Promise.all([retry, recovered.health(), recovered.list({ wallet: account.address })])
+    assert.equal(attempts, 2)
+    assert.equal((await config()).enabled, true)
+    assert.deepEqual(await recovered.inquiries(account.address), [])
+    await recovered.close()
+    await assert.rejects(recovered.ready, /closed/)
+    assert.equal(attempts, 2)
+  } finally { await new Promise(resolve => server.close(resolve)); await f.close() }
+})
+
+it('retries an interrupted legacy import without duplicating already imported payments', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'liqifi-import-retry-'))
+  const path = join(directory, 'legacy.json')
+  const records = [HASH, '0x' + '34'.repeat(32)].map(paymentTxHash => {
+    const record = { ...structuredClone(details), id: 'VR-' + paymentTxHash.slice(2).toUpperCase(),
+      wallet: account.address, status: 'paid_waiting_for_vault', createdAt: '2026-09-06T10:52:42.313Z',
+      recipient: RECIPIENT, paymentTxHash, requestDigest: keccak256(stringToHex(paymentTxHash)) }
+    delete record.version; delete record.incentive.feeTier; record.incentive.slippageBps = 50
+    return record
+  })
+  const original = JSON.stringify(records)
+  await writeFile(path, original)
+  const f = await postgresFixture()
+  let time = 0, feeReads = 0
+  const recovered = createRequestDatabase({ pool: f.database.pool, legacyPath: path, now: () => time,
+    resolvePoolFee: async () => { if (++feeReads === 2) throw new Error('Temporary legacy RPC failure'); return 10000 } })
+  try {
+    await assert.rejects(recovered.ready, /Temporary legacy RPC failure/)
+    await assert.rejects(recovered.health())
+    assert.equal((await f.records()).length, 1)
+    const originalId = (await f.database.list({ wallet: account.address }))[0].requestId
+    time = 5000
+    await recovered.health()
+    assert.equal((await f.records()).length, 2)
+    assert.equal(feeReads, 3, 'The first payment must not be imported again')
+    assert.ok((await recovered.list({ wallet: account.address })).some(row => row.requestId === originalId))
+    assert.equal(await readFile(path, 'utf8'), original)
+  } finally { await f.close() }
+})
+
 for (const field of ['to', 'value', 'input', 'status']) it(`native ETH verification rejects incorrect ${field}`, async () => {
   const chain = paymentFixture(account.address)
   Object.assign(chain.tx, { to: RECIPIENT, input: '0x', value: '0x' + (10n ** 15n).toString(16) })

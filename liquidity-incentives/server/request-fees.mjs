@@ -5,6 +5,8 @@ export const ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
 export const ARBITRUM_SEQUENCER_FEED = '0xFdB631F5EE196F0ed6FAa767959853A9F217697D'
 const oracleAbi = parseAbi(['function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)', 'function decimals() view returns (uint8)'])
 
+export class PaymentQuoteExpiredError extends Error {}
+
 /** Round up by at most one wei; no floating-point currency conversion. */
 export function ethFeeRaw(ethUsdRaw) {
   const price = BigInt(ethUsdRaw)
@@ -44,15 +46,24 @@ export function createFeeService({ rpc, database, recipient, now = Date.now }) {
       await database.putQuote(value)
       return value
     },
-    async verifyQuote(body) {
+    async verifyQuote(body, blockTimestamp) {
       const quote = await database.getQuote(body.payment.quoteId)
       if (!quote || quote.wallet !== body.wallet.toLowerCase() || quote.recipient !== body.recipient.toLowerCase()
         || quote.asset !== body.payment.asset || quote.amount_raw !== body.payment.amountRaw) {
         throw new Error('Payment quote does not match this request')
       }
-      // The browser refreshes expired quotes BEFORE requesting a transfer.
-      // Once sent, its exact amount stays valid for recovery: a later price
-      // change or expired display timer must never demand a second payment.
+      // Use the verified canonical block time, never submission time. An ETH
+      // transfer mined on time remains resumable after the quote has expired.
+      // USDC is always exactly $2 and does not depend on a historical ETH price.
+      if (quote.asset === 'ETH') {
+        const expiresAt = new Date(quote.expires_at).getTime()
+        if (!Number.isSafeInteger(expiresAt) || expiresAt <= 0
+          || typeof blockTimestamp !== 'string' || !/^0x[0-9a-fA-F]+$/.test(blockTimestamp)
+          || BigInt(blockTimestamp) <= 0n) throw new Error('Payment block time is unavailable')
+        if (BigInt(blockTimestamp) * 1000n >= BigInt(expiresAt)) {
+          throw new PaymentQuoteExpiredError('ETH payment was mined after its quote expired. Keep your receipt and contact the operator; do not pay again.')
+        }
+      }
       return quote
     },
   }
