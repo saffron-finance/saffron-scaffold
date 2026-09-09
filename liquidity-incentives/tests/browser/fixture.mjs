@@ -25,7 +25,7 @@ export async function setup(page, options = {}) {
     rejectPayment: false, rejectSignature: false, lostSave: false, usdcBalance: 100_000_000n, ethBalance: 10_000_000_000_000_000n, ...options }
   const fixture = paymentFixture(account.address)
   if (options.reverted) fixture.receipt.status = '0x0'
-  const storage = await postgresFixture()
+  const storage = await postgresFixture({ resolvePoolFee: options.resolvePoolFee })
   const oracleRpc = feeRpc(fixture, options)
   const handler = createVaultRequestHandler({ recipient: options.enabled === false ? null : RECIPIENT,
     storePath, database: storage.database, adminOwner: async () => options.notAdmin ? RECIPIENT : account.address, basePath: BASE, rpc: (...args) => oracleRpc(...args) })

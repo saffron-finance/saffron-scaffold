@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
 import { Modal, ModalTitle } from '../host/ui'
@@ -9,15 +9,29 @@ import { exactUsd } from './model'
 interface Props {
   account: Address | null
   requests: ReturnType<typeof usePendingRequests>
+  onImport: (file: File) => Promise<void>
   onConnect: () => void
   onClose: () => void
 }
 
 /** Both views read the existing queue. Admin access requires the host's
  * nonce-bound owner signature; no client-side wallet allowlist is trusted. */
-export function PendingRequests({ account, requests, onConnect, onClose }: Props) {
+export function PendingRequests({ account, requests, onImport, onConnect, onClose }: Props) {
   const [admin, setAdmin] = useState<{ wallet: Address | null; rows?: PendingRequest[]; loading?: boolean; error?: string }>({ wallet: null })
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const receiptInput = useRef<HTMLInputElement | null>(null)
   const titleId = useId()
+  const close = () => { if (!importing) onClose() }
+  async function selectReceipt(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = '' // Allow retrying the same file after an error.
+    if (!file) return
+    setImportError(null); setImporting(true)
+    try { await onImport(file) }
+    catch (cause) { setImportError(cause instanceof Error ? cause.message : 'The receipt could not be imported. Try again.') }
+    finally { setImporting(false) }
+  }
   useEffect(() => setAdmin({ wallet: null }), [account])
   async function loadAdmin() {
     if (!account) { onConnect(); return }
@@ -26,15 +40,24 @@ export function PendingRequests({ account, requests, onConnect, onClose }: Props
     catch (cause) { setAdmin({ wallet: account, error: cause instanceof Error ? cause.message.split('\n')[0] : 'Admin access unavailable.' }) }
   }
   const currentAdmin = admin.wallet === account ? admin : { wallet: null }
-  return <Modal isOpen onRequestClose={onClose} size='wide'>
+  const empty = Boolean(account && !requests.loading && !requests.error && !requests.rows.length)
+  return <Modal isOpen onRequestClose={close} shouldCloseOnOverlayClick={!importing} size='wide'>
     <ModalTitle id={titleId} role='heading' aria-level={2} ref={(node: HTMLDivElement | null) => {
       node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby', titleId)
     }}>My requests</ModalTitle><Stack>
-      <Row><FinePrint>Your saved vault requests, shared with LiqiFi.</FinePrint><QuietButton onClick={onClose} aria-label='Close pending requests'>Close</QuietButton></Row>
+      <Row><FinePrint>Your saved vault requests, shared with LiqiFi.</FinePrint><QuietButton onClick={close} disabled={importing} aria-label='Close pending requests'>Close</QuietButton></Row>
       {!account ? <QuietButton onClick={onConnect}>Connect wallet to view requests</QuietButton> : <>
         <Row><Label>Vault requests</Label><QuietButton onClick={requests.refresh} disabled={requests.loading}>Refresh requests</QuietButton></Row>
         {requests.loading ? <FinePrint role='status'>Loading requests…</FinePrint> : requests.error ? <ErrorText role='alert'>{requests.error}</ErrorText> : <RequestRows rows={requests.rows} />}
       </>}
+      <Row>
+        {empty && <FinePrint>Already paid?</FinePrint>}
+        <QuietButton type='button' onClick={() => receiptInput.current?.click()} disabled={importing || currentAdmin.loading}>
+          {importing ? 'Importing…' : empty ? 'Import your receipt' : 'Import receipt'}
+        </QuietButton>
+        <input ref={receiptInput} type='file' accept='.json,application/json' aria-label='Request receipt file' hidden onChange={event => void selectReceipt(event)} />
+      </Row>
+      {importError && <ErrorText role='alert'>{importError}</ErrorText>}
       <Disclosure><summary>Admin requests</summary>
         <p>Review requests using the Robinhood Chain factory-owner wallet. Verification is a free signature.</p>
         <QuietButton onClick={() => void loadAdmin()} disabled={currentAdmin.loading}>{currentAdmin.loading ? 'Verifying admin…' : 'Load admin requests'}</QuietButton>

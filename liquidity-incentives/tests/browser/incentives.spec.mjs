@@ -37,6 +37,7 @@ test('beta layout, isolated offers, two-step copy and mobile keyboard access', a
       await expect(badge).toHaveCSS('right', '-7px')
       await expect(badge).toHaveCSS('bottom', '-5px')
     }
+    await page.evaluate(() => document.fonts.ready)
     const beforeHover = await offers.first().boundingBox()
     await offers.first().hover()
     await expect(offers.first()).toHaveCSS('border-top-color', 'rgb(255, 188, 9)')

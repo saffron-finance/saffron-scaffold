@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { build } from 'esbuild'
 import { encodeFunctionData, erc20Abi, keccak256, stringToHex } from 'viem'
-import { REQUEST_PAYMENT } from '../shared/vault-request.mjs'
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { REQUEST_PAYMENT, requestMessage } from '../shared/vault-request.mjs'
 
 // Bundle only the adapter under test; its browser host boundary is inert.
 // RPC calls below are fixture reads and wallet writes deliberately throw.
@@ -15,6 +16,7 @@ const compiled = await build({ stdin: { contents: [
   "export * from './src/host/payment.ts'",
   "export * from './src/host/useOfferPrice.ts'",
   "export { readPendingRequest } from './src/host/useRequestFlow.ts'",
+  "export { parseRequestReceipt, MAX_RECEIPT_BYTES } from './src/host/requestReceipt.ts'",
   "export { requestDraft, OFFERS } from './src/incentives/model.ts'",
 ].join(';'), resolveDir: resolve('.') }, bundle: true, write: false,
   define: { 'import.meta.env.BASE_URL': JSON.stringify('/fixture/') },
@@ -26,7 +28,7 @@ const compiled = await build({ stdin: { contents: [
       : 'export function walletClient(){ throw new Error("No wallet writes permitted") }; export async function assertWalletAccount(){}; export async function ensureChain(){}' }))
   } }] })
 const { assertPaymentEvidence, confirmPayment, PaymentRevertedError, PaymentCancelledError, preferredFeeAsset,
-  loadPaymentConfig, quoteRequestPayment, payRequest, readOfferPrice, readPendingRequest, requestDraft, OFFERS } =
+  loadPaymentConfig, quoteRequestPayment, payRequest, readOfferPrice, readPendingRequest, parseRequestReceipt, MAX_RECEIPT_BYTES, requestDraft, OFFERS } =
   await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`)
 const address = (digit) => `0x${digit.repeat(40)}`
 const hash = (digit) => `0x${digit.repeat(64)}`
@@ -262,4 +264,56 @@ test('retired v3 and legacy v2 receipts round-trip their original paid terms unc
   delete receipt.incentive.feeTier
   receipt.incentive.slippageBps = 50
   assert.deepEqual(readPendingRequest(), receipt)
+})
+
+function exportedReceipt() {
+  return { ...requestDraft(OFFERS[0], '10.0001', {
+    quoteUsd: 2000, quotePerToken: 0.0001, observedAt: '2026-09-06T00:00:00.000Z', block: '1',
+  }), ...baseRequest, payment: { asset: 'USDC', amountRaw: '2000000', quoteId: '11111111-1111-4111-8111-111111111111' } }
+}
+
+test('receipt import preserves unsigned current and retired legacy terms exactly', async () => {
+  const receipt = exportedReceipt()
+  receipt.incentive.id = 'retired-offer'
+  for (const asset of ['USDC', 'ETH']) {
+    receipt.payment = { ...receipt.payment, asset, amountRaw: asset === 'USDC' ? '2000000' : '1000000000000000' }
+    assert.deepEqual(await parseRequestReceipt(JSON.stringify(receipt, null, 2)), receipt)
+  }
+  delete receipt.version; delete receipt.payment; delete receipt.incentive.feeTier
+  receipt.incentive.slippageBps = 50
+  const restored = await parseRequestReceipt(JSON.stringify(receipt))
+  assert.deepEqual(restored, receipt)
+  assert.equal(requestMessage(restored), requestMessage(receipt))
+})
+
+test('receipt import rejects malformed, oversized and unsupported files', async () => {
+  for (const text of ['', 'not json', 'null', '[]', JSON.stringify(baseRequest), ' '.repeat(MAX_RECEIPT_BYTES + 1),
+    JSON.stringify({ ...exportedReceipt(), extra: 'é'.repeat(MAX_RECEIPT_BYTES / 2) })]) {
+    await assert.rejects(parseRequestReceipt(text), /receipt|JSON/)
+  }
+  for (const change of [value => { value.version = 4 }, value => { value.chain = 'ethereum' },
+    value => { value.wallet = address('0') }, value => { value.paymentTxHash = '0x1234' },
+    value => { value.payment.quoteId = 'missing' }, value => { value.payment.asset = 'UNKNOWN' },
+    value => { value.payment.amountRaw = '1' }, value => { value.signature = '0x00' }, value => { value.signature = null }]) {
+    const receipt = exportedReceipt(); change(receipt)
+    await assert.rejects(parseRequestReceipt(JSON.stringify(receipt)), /not a supported/)
+  }
+})
+
+test('signed receipt import verifies current and legacy signatures before accepting the file', async () => {
+  const signer = privateKeyToAccount(generatePrivateKey())
+  for (const legacy of [false, true]) {
+    const receipt = { ...exportedReceipt(), wallet: signer.address }
+    if (legacy) {
+      delete receipt.version; delete receipt.payment; delete receipt.incentive.feeTier
+      receipt.incentive.slippageBps = 50
+    }
+    receipt.signature = await signer.signMessage({ message: requestMessage(receipt) })
+    assert.deepEqual(await parseRequestReceipt(JSON.stringify(receipt)), receipt)
+    const changed = structuredClone(receipt)
+    changed.incentive.aprPercent += 1
+    for (const invalid of [changed, { ...receipt, wallet }, { ...receipt, signature: '0x' + '00'.repeat(65) }]) {
+      await assert.rejects(parseRequestReceipt(JSON.stringify(invalid)), /signature does not match/)
+    }
+  }
 })

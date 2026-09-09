@@ -42,6 +42,12 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
     if (window.location.hash === '#requests') window.history.replaceState(null, '', window.location.pathname + window.location.search)
   }
 
+  async function importReceipt(file: File) {
+    const receipt = await flow.importReceipt(file)
+    closeRequests()
+    setSelected(offerFromRequest(receipt))
+  }
+
   function openOffer(offer: Offer) {
     if (flow.step === 'done') flow.clearFinished()
     setSelected(flow.pending && flow.step !== 'done' ? offerFromRequest(flow.pending) : offer)
@@ -54,7 +60,7 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
       <StepSubtitle>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</StepSubtitle>
     </Introduction>
     <PairHeader />
-    {flow.pending && flow.step !== 'done' && <Recovery><FinePrint>A paid request is ready to resume. No new fee is needed.</FinePrint>
+    {flow.pending && flow.step !== 'done' && <Recovery><FinePrint>A saved request is ready to resume. No new fee will be sent.</FinePrint>
       <QuietButton onClick={() => setSelected(offerFromRequest(flow.pending!))}>Resume paid request</QuietButton></Recovery>}
     <Programs aria-label='Liquidity incentive offers'>
       <ProgramHeading aria-hidden='true'>
@@ -85,7 +91,7 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
     <FinePrint>Request an LP vault with an upfront premium. Listed terms are proposed incentives, not funded vaults.</FinePrint>
     {selected && activeOffer && <IncentiveRequestModal key={activeOffer.id} offer={activeOffer} account={account}
       flow={flow} price={price} onClose={() => setSelected(null)} />}
-    {showPending && <PendingRequests account={account} requests={requests} onConnect={onConnect} onClose={closeRequests} />}
+    {showPending && <PendingRequests account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} />}
   </Page>
 }
 

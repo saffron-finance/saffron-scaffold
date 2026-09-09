@@ -87,6 +87,17 @@ A confirmed zero-value self-cancellation can be cleared to start a new request,
 including after reload. Reverts and cancellations are checked against the
 canonical block before clearing is allowed; uncertain payments remain resumable.
 
+Use **Save request receipt** in the payment/review dialog to download recovery
+data. To restore it in another browser, open **My requests** and choose
+**Import receipt** below the list (**Import your receipt** when the list is
+empty). Import remains available while disconnected or if the list cannot load.
+The saved terms open for review; connect the wallet named in the receipt and
+resume without another fee. Import validates the file and any existing signature,
+preserves legacy terms, and never replaces an unfinished request. Payment and
+fee-quote verification still occur when resuming; an imported file alone does
+not establish payment. For v3 receipts, the server's original fee quote must
+still be available.
+
 The UI snapshot and exact emblem assets originate from Saffron fixed-income
 revision `dc104999f531611f2b5b772d3b72cc3ad8c2ed23`. See
 [vendor provenance](vendor/fixed-income-ui/README.md). This package does not
@@ -110,7 +121,8 @@ Install the matching Chromium once with `npx playwright install chromium`.
 
 Checks cover formatted/cleared/over-capacity deposits, live-price changes,
 canonical signed amounts, USDC and ETH fee flows, pending/admin views, cancelled
-signatures, reload recovery, keyboard/mobile layout and relay rejections.
+signatures, receipt export/import, reload recovery, keyboard/mobile layout and
+relay rejections.
 Wallets are freshly generated and unfunded; RPC and signatures use deterministic
 fixtures. Tests do not send funds. Installed-wallet acceptance remains manual.
 
@@ -132,3 +144,9 @@ After the cancellation, ETH quote-expiry and database startup-retry fixes,
 70 API/adapter/relay tests, 18 PostgreSQL tests and 7 browser dry runs passed.
 Normal/lab and root live/mock builds also passed; the root mock remained
 read-only with zero RPC requests.
+
+Receipt import verification on 2026-09-09: 73 API/adapter/relay tests,
+18 PostgreSQL tests and 13 browser dry runs passed, along with normal/lab and
+root live/mock builds. Browser checks cover actual downloaded files, storage
+loss, signed retries, legacy terms, invalid files, wallet conflicts, existing
+pending requests, unavailable lists and disconnected mobile recovery.

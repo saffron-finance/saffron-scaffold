@@ -1,19 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatUnits, type Address, type Hash } from 'viem'
-import { validAddress, validDetails, validRequestPayment, type PaidRequest, type RequestDetails } from '@receipt'
+import { validDetails, type PaidRequest, type RequestDetails } from '@receipt'
 import { confirmPayment, loadPaymentConfig, loadPaymentBalances, preferredFeeAsset, quoteRequestPayment, payRequest, saveRequest, signRequest, PaymentRevertedError, PaymentCancelledError, type PaymentConfig, type PaymentBalances, type FeeAsset } from './payment'
+import { MAX_RECEIPT_BYTES, parseRequestReceipt, validPending } from './requestReceipt'
 
 export const INCENTIVE_REQUEST_KEY = 'liqifi.pending-incentive-request.v1'
-
-/** Accept only the right request kind and a structurally valid payment snapshot. */
-function validPending(value: unknown): value is PaidRequest {
-  if (!validDetails(value)) return false
-  const payment = value as PaidRequest
-  return validAddress(payment.wallet) && validAddress(payment.recipient)
-    && typeof payment.paymentTxHash === 'string' && /^0x[0-9a-fA-F]{64}$/.test(payment.paymentTxHash)
-    && payment.kind === 'incentive'
-    && (payment.version === 3 ? validRequestPayment(payment.payment) : payment.payment === undefined)
-}
 
 /** Stored browser data is a recovery hint only; the server still verifies it. */
 export function readPendingRequest(): PaidRequest | null {
@@ -43,6 +34,8 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
   const [balanceRevision, setBalanceRevision] = useState(0)
   const manualSelection = useRef<string | null>(null)
   const inFlight = useRef(false)
+  const currentFlow = useRef({ account, pending, step })
+  currentFlow.current = { account, pending, step }
   const busy = !['idle', 'done'].includes(step)
 
   useEffect(() => {
@@ -80,8 +73,34 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
   /** Write the full immutable request immediately once the wallet returns a hash. */
   function remember(value: PaidRequest) {
     setPending(value)
-    try { localStorage.setItem(INCENTIVE_REQUEST_KEY, JSON.stringify(value)) }
+    try { localStorage.setItem(INCENTIVE_REQUEST_KEY, JSON.stringify(value)); setStorageWarning(false) }
     catch { setStorageWarning(true) }
+  }
+
+  /** Import only restores review/recovery state; it never sends or signs. */
+  async function importReceipt(file: File): Promise<PaidRequest> {
+    if (inFlight.current) throw new Error('Finish the current action before importing a receipt.')
+    inFlight.current = true
+    try {
+      if (file.size > MAX_RECEIPT_BYTES) throw new Error('Choose a request receipt no larger than 16 KB.')
+      let text: string
+      try { text = await file.text() }
+      catch { throw new Error('The receipt file could not be read. Choose it again.') }
+      const receipt = await parseRequestReceipt(text)
+      // Read current state after asynchronous file/signature checks. Account
+      // changes or an existing payment must never be lost to a stale callback.
+      const current = currentFlow.current
+      if ((current.pending && current.step !== 'done') || readPendingRequest()) {
+        throw new Error('An unfinished request is already saved. Resume it before importing another receipt.')
+      }
+      if (current.account && current.account.toLowerCase() !== receipt.wallet.toLowerCase()) {
+        throw new Error(`This receipt belongs to ${receipt.wallet}. Connect that wallet and import again.`)
+      }
+      setError(null); setRequestId(null); setConfirmedFailure(null); setStep('idle')
+      manualSelection.current = null
+      remember(receipt)
+      return receipt
+    } finally { inFlight.current = false }
   }
 
   /** Retry the same hash after a cancellation/timeout; never charge it again. */
@@ -166,7 +185,7 @@ export function useRequestFlow(account: Address | null, onConnect: () => void) {
     && visibleBalances.ETH !== undefined && visibleBalances.ETH > (selectedAsset === 'ETH' ? BigInt(amountRaw) : 0n)
     && (selectedAsset !== 'ETH' || config.ethAvailable))
   const feeLabel = amountRaw ? `${formatUnits(BigInt(amountRaw), selectedAsset === 'ETH' ? 18 : 6)} ${selectedAsset}` : '≈ $2 in ETH'
-  return { pending, config, step, error, storageWarning, requestId, confirmedFailure, busy, submit, clearFinished,
+  return { pending, config, step, error, storageWarning, requestId, confirmedFailure, busy, submit, clearFinished, importReceipt,
     selectedAsset, setAsset, balances: visibleBalances, balanceLoading: balanceLoading || Boolean(account && account !== balanceAccount),
     refreshBalances: () => setBalanceRevision((value) => value + 1), canPay, feeLabel }
 }

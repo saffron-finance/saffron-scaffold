@@ -46,7 +46,8 @@ export function StandaloneHost() {
         <button onClick={() => setMenu(true)}>Menu</button>
       </Bottom>
     </Frame>
-    <Modal isOpen={wallet.modalOpen} onRequestClose={wallet.closeModal} shouldCloseOnOverlayClick={!wallet.connecting}>
+    {/* Mount the wallet portal above the request dialog that opened it. */}
+    {wallet.modalOpen && <Modal isOpen onRequestClose={wallet.closeModal} shouldCloseOnOverlayClick={!wallet.connecting}>
       <ModalTitle>Connect wallet</ModalTitle>
       <WalletList>
         {wallet.providers.map(provider => <WalletButton key={provider.id} disabled={wallet.connecting}
@@ -57,7 +58,7 @@ export function StandaloneHost() {
         {wallet.account && <WalletButton onClick={wallet.disconnect}>Disconnect wallet</WalletButton>}
         <WalletButton disabled={wallet.connecting} onClick={wallet.closeModal}>Close</WalletButton>
       </WalletList>
-    </Modal>
+    </Modal>}
     <Modal isOpen={menu} onRequestClose={() => setMenu(false)}>
       <ModalTitle>Saffron</ModalTitle>
       <WalletList>
