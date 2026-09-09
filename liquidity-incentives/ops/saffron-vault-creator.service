@@ -1,0 +1,24 @@
+[Unit]
+Description=Saffron isolated vault creator and approved premium funder
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=saffron_creator
+WorkingDirectory=/opt/saffron-scaffold/liquidity-incentives
+ExecStart=/usr/bin/node worker/run.mjs /etc/saffron/creator.json
+# Provision this encrypted credential through host-owned masked secret entry.
+# Never paste a key into the unit, shell command, environment or config JSON.
+LoadCredentialEncrypted=creator-eoa:/etc/credstore.encrypted/saffron-creator-eoa
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

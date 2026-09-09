@@ -6,7 +6,6 @@ import { REQUEST_PAYMENT, requestMessage, validAddress, validDetails, canonicalI
 import { createFeeService, PaymentQuoteExpiredError } from './request-fees.mjs'
 import { adminListMessage } from '../shared/request-admin.mjs'
 import { depositCents } from '../shared/vault-sizing.mjs'
-import { HandoffError } from './fixed-income-handoff.mjs'
 
 const TRANSFER_TOPIC = keccak256(stringToHex('Transfer(address,address,uint256)'))
 const AMOUNT = 2_000_000n
@@ -120,14 +119,14 @@ export function createRequestStore(storePath) {
 }
 
 /** Own only GET config and POST submission beneath the existing app prefix. */
-export function createVaultRequestHandler({ recipient, storePath, rpc, basePath, database, adminOwner, handoff }) {
+export function createVaultRequestHandler({ recipient, storePath, rpc, basePath, database, adminOwner, adminAllowed, lifecycle }) {
   const receivingAddress = validAddress(recipient) ? recipient.toLowerCase() : null
   const save = database ? (record) => database.save(record) : createRequestStore(storePath)
   const fees = database ? createFeeService({ rpc, database, recipient: receivingAddress }) : null
   const challenges = new Map()
   let windowStart = 0
   let attempts = 0
-  const list = async options => (await database.list(options)).map(row => ({ ...row, handoffEnabled: Boolean(handoff) }))
+  const list = async options => Promise.all((await database.list(options)).map(row => lifecycle ? lifecycle.decorate(row, options.admin) : row))
   return async (req, res, pathname) => {
     const route = `${basePath}/vault-requests`
     if (pathname !== route && ![`${route}/config`, `${route}/quote`, `${route}/my`, `${route}/handoff`, `${route}/admin/challenge`, `${route}/admin/list`].includes(pathname)) return false
@@ -152,23 +151,7 @@ export function createVaultRequestHandler({ recipient, storePath, rpc, basePath,
         return true
       }
       if (pathname === `${route}/handoff`) {
-        if (req.method !== 'GET') throw new RequestError(405, 'GET only.')
-        if (!handoff || !database) throw new RequestError(503, 'The fixed-income connection is not configured yet.')
-        const query = new URL(req.url, 'http://localhost').searchParams
-        const wallet = query.get('wallet'), requestId = query.get('requestId'), action = query.get('action')
-        if (!validAddress(wallet) || !/^[A-Z0-9]{12}$/.test(requestId ?? '') || !['create','fixed','variable'].includes(action)) {
-          throw new RequestError(400, 'Invalid vault handoff.')
-        }
-        if (Date.now() - windowStart > 60_000) { windowStart = Date.now(); attempts = 0 }
-        if (++attempts > 60) throw new RequestError(429, 'Too many requests. Retry shortly.')
-        const [row] = await database.list({ wallet, requestId })
-        if (!row) throw new RequestError(404, 'Request not found for this wallet.')
-        try { json(res, 200, { url: await handoff(row, action) }) }
-        catch (error) {
-          throw new RequestError(error instanceof HandoffError ? error.status : 503,
-            error instanceof HandoffError ? error.message : 'Vault handoff is unavailable. Retry without paying again.')
-        }
-        return true
+        throw new RequestError(410, 'Legacy handoff retired. Use the native requests page.')
       }
       if (req.method !== 'POST') throw new RequestError(405, 'POST only.')
       if (!pathname.includes('/admin/') && !receivingAddress) throw new RequestError(503, 'Vault request payments are not configured.')
@@ -177,10 +160,10 @@ export function createVaultRequestHandler({ recipient, storePath, rpc, basePath,
       if (++attempts > 60) throw new RequestError(429, 'Too many requests. Retry in a minute without paying again.')
       const body = await readRequest(req)
       if (pathname.startsWith(`${route}/admin/`)) {
-        if (!database || !adminOwner || !validAddress(body.wallet) || ![1,42161,4663].includes(body.chainId)) throw new RequestError(400, 'Invalid admin request.')
-        const owner = await adminOwner(body.chainId)
-        if (!validAddress(owner)) throw new RequestError(503, 'Admin ownership is unavailable.')
-        if (owner.toLowerCase() !== body.wallet.toLowerCase()) throw new RequestError(403, 'Connect the fixed-income VaultFactory owner wallet for this chain.')
+        if (!database || (!adminAllowed && !adminOwner) || !validAddress(body.wallet) || ![1,42161,4663].includes(body.chainId)) throw new RequestError(400, 'Invalid admin request.')
+        const permitted = adminAllowed ? await adminAllowed(body.wallet, body.chainId)
+          : (await adminOwner(body.chainId))?.toLowerCase() === body.wallet.toLowerCase()
+        if (!permitted) throw new RequestError(403, 'Connect an allowed test-operator wallet.')
         for (const [id, challenge] of challenges) if (Date.parse(challenge.expiresAt) < Date.now()) challenges.delete(id)
         if (pathname.endsWith('/challenge')) {
           if (challenges.size >= 100) throw new RequestError(429, 'Retry admin access shortly.')

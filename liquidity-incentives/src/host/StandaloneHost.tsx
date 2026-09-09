@@ -27,8 +27,8 @@ export function StandaloneHost() {
         <LogoLink href={mount} aria-label='Saffron'><Emblem3DLogo /></LogoLink>
         <Tabs>
           <NavLink href={mount} $active>Explore⌄</NavLink>
-          <NavLink href='#requests'>Portfolio</NavLink>
-          <NavLink href='https://beta.saffron.finance/network/robinhood/create-vault' target='_blank' rel='noreferrer'>Create vault</NavLink>
+          <NavLink href={mount + 'portfolio/requests'}>Portfolio</NavLink>
+          <NavLink href={mount + 'admin/requests'}>Admin queue</NavLink>
           <NavLink href='https://docs.saffron.finance/security/audits' target='_blank' rel='noreferrer'>Audits</NavLink>
         </Tabs>
         <Controls>
@@ -42,7 +42,7 @@ export function StandaloneHost() {
       <Body><IncentivesPage account={wallet.account} onConnect={wallet.openModal} /></Body>
       <Footer><a href={mount}>Saffron Feature Lab</a></Footer>
       <Bottom aria-label='Mobile navigation'>
-        <a href={mount}>Explore</a><a href='#requests'>Portfolio</a>
+        <a href={mount}>Explore</a><a href={mount + 'portfolio/requests'}>Portfolio</a>
         <button onClick={() => setMenu(true)}>Menu</button>
       </Bottom>
     </Frame>
@@ -62,7 +62,7 @@ export function StandaloneHost() {
     <Modal isOpen={menu} onRequestClose={() => setMenu(false)}>
       <ModalTitle>Saffron</ModalTitle>
       <WalletList>
-        <NavLink href='#requests' onClick={() => setMenu(false)}>My requests</NavLink>
+        <NavLink href={mount + 'portfolio/requests'} onClick={() => setMenu(false)}>My requests</NavLink>
         <NavLink href={mount}>Feature Lab</NavLink>
         <WalletButton onClick={() => setLight(value => !value)}>{light ? 'Dark' : 'Light'} theme</WalletButton>
         <WalletButton onClick={() => setMenu(false)}>Close</WalletButton>

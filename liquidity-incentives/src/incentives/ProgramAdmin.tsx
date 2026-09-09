@@ -28,7 +28,7 @@ export function ProgramAdmin({ account, onConnect }: { account: Address | null; 
   const editPair = (value: IncentivePair) => { setProgram(null); setPair(structuredClone(value)); setSaved(undefined) }
   const editProgram = (value: IncentiveProgram) => { setPair(null); setProgram(structuredClone(value)); setSaved(undefined) }
   return <Stack>
-    <FinePrint>The Robinhood Chain factory-owner wallet can add, edit, or pause pairs and programs. Each action uses a free wallet signature.</FinePrint>
+    <FinePrint>An allowed test-operator wallet can add, edit, or pause pairs and programs. Each action uses a free wallet signature.</FinePrint>
     <Row><QuietButton onClick={() => void run('list')} disabled={busy}>{busy ? 'Waiting for admin action…' : current ? 'Reload catalog' : 'Load incentive catalog'}</QuietButton></Row>
     {error && <ErrorText role='alert'>{error}</ErrorText>}
     {saved && <FinePrint role='status'>{saved}</FinePrint>}

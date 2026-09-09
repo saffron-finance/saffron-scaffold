@@ -13,7 +13,9 @@ import { promisify } from 'node:util'
 import { createVaultRequestHandler } from './vault-requests.mjs'
 import { createRequestDatabase } from './request-database.mjs'
 import { createIncentiveProgramHandler } from './incentive-programs.mjs'
-import { createFixedIncomeHandoff } from './fixed-income-handoff.mjs'
+import { createOperatorAuth } from './operator-auth.mjs'
+import { createLifecycleService } from './lifecycle-service.mjs'
+import { createLifecycleHandler } from './lifecycle-api.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -63,30 +65,26 @@ async function requestRpc(chain, method, params) {
 }
 const storePath = resolve(process.env.VAULT_REQUEST_STORE_PATH || join(ROOT, 'data', 'vault-requests.json'))
 const schemaMode = process.env.SAFFRON_DB_SCHEMA_MODE || 'standalone'
-const handoff = createFixedIncomeHandoff({ frontendUrl: process.env.FIXED_INCOME_FRONTEND_URL,
-  apiUrl: process.env.FIXED_INCOME_API_URL })
-if (handoff && schemaMode !== 'fixed-income') throw new Error('Fixed-income handoff requires the shared database schema mode.')
 // JSON-only mode is deliberately restricted to isolated legacy test fixtures.
 const requestDatabase = process.env.NODE_ENV === 'test' && process.env.SAFFRON_REQUEST_STORAGE === 'json' ? null
   : createRequestDatabase({ legacyPath: storePath, schemaMode, resolvePoolFee: async (chain, address) =>
     Number(BigInt(await requestRpc(chain, 'eth_call', [{ to: address, data: '0xddca3f43' }, 'latest']))) })
-const requestFactories = {
-  1: ['ethereum', '0x7fE802B891734DB681b7353bFF9E6c85ce0ab200'],
-  42161: ['arbitrum', '0xd4E8582e36AF0E0d5c1bcd8303984870b086d3d2'],
-  4663: ['robinhood', '0xb24b143ad6bB5bE9559CcC75f34A2261b7456904'],
-}
-async function adminOwner(chainId) {
-  const [chain, address] = requestFactories[chainId]
-  const result = await requestRpc(chain, 'eth_call', [{ to: address, data: '0x8da5cb5b' }, 'latest'])
-  if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(result)) throw new Error('Owner unavailable')
-  return '0x' + result.slice(-40)
-}
-const handlePrograms = createIncentiveProgramHandler({ database: requestDatabase, adminOwner,
+// Authorization belongs to an explicit operator policy, not factory ownership.
+const creatorSigner = process.env.SAFFRON_CREATOR_ADDRESS || null
+const operatorAuth = createOperatorAuth({ operators: (process.env.SAFFRON_ADMIN_WALLETS || '').split(','),
+  origin: process.env.SAFFRON_APP_ORIGIN, basePath: BASE_PATH })
+const lifecycle = requestDatabase ? createLifecycleService({ database: requestDatabase,
+  rpc: (method, params) => requestRpc('robinhood', method, params), signer: creatorSigner }) : null
+const handleLifecycle = createLifecycleHandler({ database: requestDatabase, auth: operatorAuth,
+  service: lifecycle, signer: creatorSigner, basePath: BASE_PATH })
+const observerTimer = setInterval(() => { void lifecycle?.poll().catch(() => {}) }, 5000)
+observerTimer.unref()
+const handlePrograms = createIncentiveProgramHandler({ database: requestDatabase, adminAllowed: operatorAuth.permitted,
   basePath: BASE_PATH, rpc: (method, params) => requestRpc('robinhood', method, params) })
 const handleVaultRequest = createVaultRequestHandler({
   recipient: process.env.VAULT_REQUEST_PAYMENT_ADDRESS, storePath, database: requestDatabase,
   basePath: BASE_PATH, rpc: (method, params) => requestRpc('arbitrum', method, params),
-  adminOwner, handoff,
+  adminAllowed: operatorAuth.permitted, lifecycle,
 })
 
 const ALLOWED_METHODS = new Set([
@@ -156,6 +154,7 @@ const server = createServer(async (req, res) => {
   try { url = new URL(req.url, 'http://localhost') }
   catch { return end(res, 400, 'invalid URL') }
 
+  if (await handleLifecycle(req, res, url.pathname)) return
   if (await handleVaultRequest(req, res, url.pathname)) return
   if (await handlePrograms(req, res, url.pathname)) return
   if (url.pathname.startsWith(`${BASE_PATH}/vault-requests/`)) return end(res, 404, 'not found')

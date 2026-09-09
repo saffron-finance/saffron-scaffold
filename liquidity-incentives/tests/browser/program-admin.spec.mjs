@@ -7,6 +7,11 @@ async function connect(page) {
 }
 async function admin(page) {
   await page.getByRole('button', { name: /^My requests/ }).click()
+  await page.getByRole('button', { name: 'Admin queue', exact: true }).click()
+  const signIn = page.getByRole('button', { name: 'Sign in as operator', exact: true })
+  const catalog = page.getByText('Manage incentive programs', { exact: true })
+  await expect(signIn.or(catalog)).toBeVisible()
+  if (await signIn.isVisible()) await signIn.click()
   await page.getByText('Manage incentive programs', { exact: true }).click()
   await page.getByRole('button', { name: 'Load incentive catalog', exact: true }).click()
 }
@@ -33,7 +38,7 @@ test('owner edits a shared pair, creates and pauses programs, and sees database 
     await page.getByLabel('Program active', { exact: true }).uncheck()
     await page.getByRole('button', { name: 'Save program', exact: true }).click()
     await expect(page.getByText('cashcat-eth-800-2d · 800% · 2 days · Paused', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Close pending requests' }).click()
+    await page.getByRole('button', { name: 'Back to offers' }).click()
     await expect(page.getByTestId('pool-pair-name')).toHaveText('CAT / ETH 1%')
     await expect(page.locator('[data-incentive-offer]').first()).toHaveAttribute('data-incentive-offer', 'weekly-cat')
     await expect(page.locator('[data-incentive-offer]')).toHaveCount(4)
@@ -42,12 +47,10 @@ test('owner edits a shared pair, creates and pauses programs, and sees database 
     await expect(page.getByRole('button', { name: 'Request CAT / ETH, 7 days' })).toContainText('550%')
     await page.screenshot({ path: 'validation/catalog-managed-desktop.png', fullPage: true })
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.getByRole('button', { name: /^My requests/ }).click()
-    await page.getByText('Manage incentive programs', { exact: true }).click()
-    await page.getByRole('button', { name: 'Load incentive catalog', exact: true }).click()
+    await admin(page)
     await page.getByRole('button', { name: 'Edit program weekly-cat', exact: true }).click()
     await page.getByLabel('APR (%)', { exact: true }).scrollIntoViewIfNeeded()
-    expect(await page.getByRole('dialog').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true)
+    expect(await page.locator('main').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true)
     await page.screenshot({ path: 'validation/catalog-admin-mobile.png', fullPage: true })
     expect(f.state.sends).toBe(0)
   } finally { await f.close() }
@@ -56,8 +59,11 @@ test('owner edits a shared pair, creates and pauses programs, and sees database 
 test('ordinary wallets cannot load or edit the administrative catalog', async ({ page }) => {
   const f = await setup(page, { notAdmin: true })
   try {
-    await page.goto('/'); await connect(page); await admin(page)
-    await expect(page.getByRole('alert')).toContainText('factory-owner wallet')
+    await page.goto('/'); await connect(page)
+    await page.getByRole('button', {name:/^My requests/}).click()
+    await page.getByRole('button', {name:'Admin queue',exact:true}).click()
+    await page.getByRole('button', {name:'Sign in as operator',exact:true}).click()
+    await expect(page.getByRole('alert')).toContainText('allowed test-operator')
     await expect(page.getByRole('button', { name: 'Add program', exact: true })).toHaveCount(0)
     expect(f.state.signs).toBe(0); expect(f.state.sends).toBe(0)
   } finally { await f.close() }
@@ -72,7 +78,7 @@ test('catalog outages and an empty catalog keep receipt recovery and admin acces
     await expect(page.locator('[data-incentive-offer]')).toHaveCount(0)
     await page.getByRole('button', { name: /^My requests/ }).click()
     await expect(page.getByRole('button', { name: 'Import receipt', exact: true })).toBeVisible()
-    await expect(page.getByText('Manage incentive programs', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Admin queue', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Close pending requests' }).click()
     await f.database.pool.query('UPDATE liqifi.incentive_programs SET active=FALSE')
     await page.unroute('**/incentive-programs')

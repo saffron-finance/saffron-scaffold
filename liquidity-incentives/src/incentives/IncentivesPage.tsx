@@ -13,6 +13,8 @@ import { TokenIcon } from './TokenIcon'
 import robinhoodLogo from './assets/robinhood.svg'
 import { IncentiveRequestModal } from './IncentiveRequestModal'
 import { PendingRequests } from './PendingRequests'
+import { AdminRequests } from './AdminRequests'
+import { VaultDepositModal } from './VaultDepositModal'
 
 /** Only the LP feature lives here. Wallet transport, prices, request storage
  * and fixed-income primitives enter through host adapters for a narrow merge. */
@@ -22,7 +24,16 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
   const catalog = useIncentivePrograms()
   const groups = Array.from(new Set(catalog.offers.map(offer => offer.pairId))).map(pairId => catalog.offers.filter(offer => offer.pairId === pairId))
   const [selected, setSelected] = useState<Offer | null>(null)
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  const [route, setRoute] = useState(() => window.location.pathname.slice(base.length))
+  const [depositId, setDepositId] = useState<string | null>(null)
   const [showPending, setShowPending] = useState(() => window.location.hash === '#requests')
+  function navigate(path: string) { window.history.pushState(null, '', base + path); setRoute(path); setShowPending(false) }
+  useEffect(() => {
+    const update = () => setRoute(window.location.pathname.slice(base.length))
+    window.addEventListener('popstate', update)
+    return () => window.removeEventListener('popstate', update)
+  }, [base])
   const activeOffer = flow.pending ? offerFromRequest(flow.pending) : selected
   const price = useOfferPrice(flow.pending ? null : selected)
 
@@ -39,6 +50,7 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
 
   function closeRequests() {
     setShowPending(false)
+    if (route === '/portfolio/requests') navigate('/')
     if (window.location.hash === '#requests') window.history.replaceState(null, '', window.location.pathname + window.location.search)
   }
 
@@ -54,10 +66,12 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
   }
 
   return <Page>
-    <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton id='requests' onClick={() => setShowPending(true)}>My requests{account && requests.rows.length ? ` (${requests.rows.length})` : ''}</QuietButton></TitleRow>
+    {route === '/admin/requests' ? <AdminRequests account={account} onConnect={onConnect} onBack={() => navigate('/')} /> : route === '/portfolio/requests' ?
+      <PendingRequests embedded account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} onDeposit={setDepositId} onAdmin={() => navigate('/admin/requests')} /> : <>
+    <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton id='requests' onClick={() => navigate('/portfolio/requests')}>My requests{account && requests.rows.length ? ` (${requests.rows.length})` : ''}</QuietButton></TitleRow>
     <Introduction aria-label='About liquidity incentives'>
-      <StepSubtitle>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</StepSubtitle>
-      <StepSubtitle>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</StepSubtitle>
+      <StepSubtitle>Choose a liquidity incentive and request a vault sized to your deposit.</StepSubtitle>
+      <StepSubtitle>An admin creates and funds your vault. Track its progress in My requests, then deposit here when it is ready.</StepSubtitle>
     </Introduction>
     {flow.pending && flow.step !== 'done' && <Recovery><FinePrint>A saved request is ready to resume. No new fee will be sent.</FinePrint>
       <QuietButton onClick={() => setSelected(offerFromRequest(flow.pending!))}>Resume paid request</QuietButton></Recovery>}
@@ -93,9 +107,11 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
     </ProgramGroup>)}
     <Row><FinePrint>Each requested vault is sized to your deposit. Listed terms are proposed incentives, not funded vaults.</FinePrint>
       <QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
+    </>}
     {selected && activeOffer && <IncentiveRequestModal key={activeOffer.id} offer={activeOffer} account={account}
       flow={flow} price={price} onClose={() => setSelected(null)} />}
-    {showPending && <PendingRequests account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} />}
+    {showPending && <PendingRequests account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} onDeposit={setDepositId} onAdmin={() => navigate('/admin/requests')} />}
+    {depositId && account && <VaultDepositModal key={`${account}:${depositId}`} account={account} requestId={depositId} onClose={() => { setDepositId(null); requests.refresh() }} />}
   </Page>
 }
 

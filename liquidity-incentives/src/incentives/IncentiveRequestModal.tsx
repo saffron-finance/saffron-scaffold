@@ -10,6 +10,7 @@ import { exactUsd, freshQuote, requestDraft, tokenAmount, usd, type Offer } from
 import { Action, Disclosure, ErrorText, FinePrint, Label, Muted, Premium, QuietButton, Row, Stack, Token } from './styles'
 import { TokenIcon } from './TokenIcon'
 import { RequestFeeSelector } from './RequestFeeSelector'
+import { VaultReview } from './VaultReview'
 
 interface Props {
   offer: Offer
@@ -123,14 +124,13 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
           onClick={() => { setNow(Date.now()); setReviewed(draft) }}>Continue</Action>
       </> : quote && terms ? <>
         {!locked && <QuietButton type='button' onClick={() => setReviewed(null)}>← Back to deposit</QuietButton>}
-        <Bullets>
+        <VaultReview bullets={<>
           <li><b>{tokenAmount(quote.cashcatAmount)} {terms.token0.symbol}</b> and <b>{tokenAmount(quote.quoteAmount)} {terms.token1.symbol}</b> are the requested Uniswap LP deposit.</li>
           <li>Requested LP lock: <b>{terms.durationDays} days</b>.</li>
           <li>Requested upfront reward: <Premium>+{tokenAmount(quote.rewardCashcat)} {terms.token0.symbol} ({usd(quote.rewardUsd)})</Premium>.</li>
           <li>Your position may suffer <b>impermanent loss</b>.</li>
           <li>Fee: <b>{flow.feeLabel}</b>{flow.selectedAsset === 'ETH' && ' (approximately $2)'}, plus ETH for network gas.</li>
-        </Bullets>
-        <Disclosure aria-label='Vault request summary'><summary>Details</summary>
+        </>} details={<>
           <Terms>
             <div><dt>Pair / network</dt><dd>{request?.pair}, {terms.chainId === 4663 ? 'Robinhood Chain' : `Chain ${terms.chainId}`}</dd></div>
             <div><dt>Requested vault size</dt><dd>{exactUsd(terms.depositUsd)}</dd></div>
@@ -139,9 +139,9 @@ export function IncentiveRequestModal({ offer, account, flow, price, onClose }: 
             <div><dt>Upfront premium</dt><dd>+{tokenAmount(quote.rewardCashcat)} {terms.token0.symbol} ({usd(quote.rewardUsd)})</dd></div>
             <div><dt>Price range</dt><dd>Full range, 0 to ∞</dd></div>
           </Terms>
-          <p>Request submits these terms for operator review. Sign the request details for free after the fee payment. Only the fee is transferred now; the LP deposit and reward await vault creation.</p>
+          <p>Request submits these terms for operator review. Sign the request details for free after the fee payment. Only the fee is transferred now; the LP deposit awaits vault creation and full admin premium funding.</p>
           <p>Requested liquidity: Uniswap v3.</p>
-        </Disclosure>
+        </>} />
         {flow.pending && <Receipt><FinePrint>Payment: <a href={`https://arbiscan.io/tx/${flow.pending.paymentTxHash}`}
           target='_blank' rel='noreferrer'>{flow.pending.paymentTxHash}</a></FinePrint><QuietButton onClick={saveReceipt}>Save request receipt</QuietButton></Receipt>}
         {flow.storageWarning && <ErrorText role='alert'>Browser storage is unavailable. Save your request receipt before closing.</ErrorText>}
@@ -198,7 +198,6 @@ const Track = styled.div`height:8px;border-radius:8px;background:${({ theme }) =
   i{position:absolute;left:50%;transform:translateX(-50%);top:-6px;width:5px;height:20px;border-radius:4px;background:${({ theme }) => theme.colors.background.white}}`
 const TokenAmounts = styled.div`display:flex;flex-direction:column;gap:16px;padding:14px;border:1px solid ${({ theme }) => theme.colors.border.base};border-radius:var(--radius-md);font-size:14px;
   b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}`
-const Bullets = styled.ul`display:flex;flex-direction:column;gap:3px;padding-left:17px;margin:0;font-size:13px;line-height:1.6;li::marker{color:${({ theme }) => theme.colors.semantic.success}}`
 // Wrapping long reward amounts keeps the summary inside narrow phone dialogs.
 const QuoteSummary = styled.dl`margin:0;display:flex;flex-direction:column;gap:16px;
   >div{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-height:24px;}

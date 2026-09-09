@@ -61,7 +61,7 @@ The `liqifi` evidence/quote sidecar schema and existing receipt/storage names
 are deliberately preserved for migration compatibility; do not rename them
 without a migration. Existing JSON receipts can be imported through the
 operator-only `VAULT_REQUEST_STORE_PATH`. No hosted data is included or accessed
-by default. Admin listing checks the selected chain's factory owner signature.
+by default. Admin authorization uses an explicit server-side test-operator allowlist.
 
 If database initialization or legacy import fails, the next request after a
 five-second cooldown retries initialization. Concurrent requests share that
@@ -69,11 +69,11 @@ attempt, and payments stay disabled until schema setup and import finish.
 
 ### Admin-managed incentive catalog
 
-Open **My requests → Manage incentive programs → Load incentive catalog** with
-the Robinhood Chain `VaultFactory.owner()` wallet. Loading and saving each edit
+Open **Admin queue → Sign in as operator → Manage incentive programs** with
+an address in `SAFFRON_ADMIN_WALLETS`. Loading and saving each edit
 require a fresh wallet signature. Write signatures bind the complete edit,
 operation, wallet, chain, nonce, and expiry; a request-list signature cannot
-authorize a catalog change. The server rechecks current ownership on execution.
+authorize a catalog change. The server rechecks its operator allowlist on execution.
 
 `server/incentive-programs.sql` adds two related tables:
 
@@ -102,56 +102,33 @@ must match it, even if an administrator edits or pauses the program meanwhile.
 Existing quotes and legacy receipts retain their original verification format.
 Catalog capacity is proposed capacity, not a funded balance or reserved budget.
 
-### Handoff to fixed-income
+### Native request → creation → funding → deposit
 
-The handoff uses **one canonical pending-vault queue**. Run fixed-income's own
-migrations first, then configure this server's `SAFFRON_DB_*`/standard PostgreSQL
-environment variables to connect to that same database. Set these process
-environment variables for `npm run serve` (the URLs below are local examples):
+Maze's four handoff commits are retained in Git history; their redirects are replaced.
 
-```text
-SAFFRON_DB_SCHEMA_MODE=fixed-income
-FIXED_INCOME_FRONTEND_URL=http://localhost:3000
-FIXED_INCOME_API_URL=http://localhost:3100
-```
+- `/admin/requests`: allowed operators sign in once per 30-minute session; Create
+  queues one durable job. The separate local worker creates the full-range adapter,
+  creates the vault, and initializes it on Robinhood using the unrestricted factory.
+- Admin premium funding is a second explicit approval with the exact raw budget.
+  Creation alone never approves spending that premium.
+- `/portfolio/requests`: wallet-filtered rows refresh every 5 seconds. Creation is
+  separate from eligibility. Only initialized, verified, unoccupied vaults with
+  full bearer supply and covered premium balance become **Depositable**.
+- Deposit opens the same `VaultReview` body as the front-page modal's second page.
+  The user's selected wallet wraps ETH if needed, approves LP tokens to the verified
+  adapter, then calls the fixed side. There is no second request fee or user variable action.
+- `/vault-requests/handoff` returns 410. No legacy app/API URL configuration remains.
 
-Both URLs are app roots, optionally including a mount path; omit `/api/v1` from
-the API base. Use the actual ports printed by the local fixed-income stack.
-HTTPS is required outside loopback, and URLs cannot contain credentials, query
-strings or fragments. These settings are process environment variables; copying
-them into `.env` alone does not configure the server. The configured frontend
-must use the configured API and both services must read the same chain/factory.
+The queue remains `uniswap_v3_fiv.pending_vaults`; receipts and catalog data retain
+Maze's schema. `server/vault-lifecycle.sql` adds private transaction/job and read-only
+observation sidecars. Both standalone and existing fixed-income schema modes work;
+no fixed-income frontend, router, indexer, or runtime is required. Existing external
+schema owners retain their table/trigger ownership.
 
-In `fixed-income` schema mode this server requires the existing pending table
-and leaves its schema and triggers to fixed-income's migration runner. It
-installs only the feature-owned `liqifi` tables and applies the scoped sizing
-repair. Grant the service role access to that pending table/sequence and its
-own schema. The default `standalone` mode still creates a disposable-compatible
-queue for independent review; creation/entry links are unavailable in that mode.
-
-After an owner loads **My requests → Admin requests**, pending rows offer
-**Review & create vault**. This checks fixed-income's public `my-submissions`
-endpoint for the same request, submitter, chain, status and terms before opening its
-existing admin form. The URL uses the pinned upstream request mapper/encoder,
-including the same request ID, USD cents conversion, APR ratio and exact days.
-The fixed-income page owns its normal admin authentication and the adapter →
-vault → initialization → signed-completion workflow, including its retries.
-This navigation never copies a row or submits another request/payment.
-
-When fixed-income writes `status = created` and `created_vault_address`, the
-scaffold shows **Open fixed side** and **Open variable side**. These open the
-existing vault pages, where the actual deposit/claim/withdrawal controls and
-wallet confirmations live. Requests refresh when returning to the page and
-every 30 seconds while visible. A missing/divergent queue or API outage leaves
-the saved request visible with a retryable error. A completed request never
-offers another creation action.
-
-This is an optional shared-database bridge for integration testing. It does not
-copy fixed-income's API into the scaffold or replace its vault/deposit UI. The
-paid-request ingress still owns receipt verification; porting it into the FI
-submission service, its admission policy and its initial admin notification
-remains a later integration step. Program funding/reservations and stricter
-onchain completion-term validation also remain separate work.
+Read [operator setup and rollback](ops/README.md) before enabling the worker.
+The worker defaults off; the HTTP server never holds the creator key or sends transactions.
+A stale terms digest conflicts. Legacy sizing mismatches require explicit approved
+USD cents and a review reason, saved separately without altering signed receipts.
 
 ### Mounting beneath a path
 
@@ -209,7 +186,7 @@ npm run test:browser
 ```
 
 With an installed sibling fixed-income checkout, additionally run
-`npm run test:fixed-income` (or append `-- /path/to/fixed-income`). This optional
+`npm run test:lifecycle` (or append `-- /path/to/fixed-income`). This optional
 suite loads that checkout's actual request route, DB service, API projection,
 signature verification and URL decoder against a disposable PostgreSQL
 database. Only the PG connection plumbing, logging/notification transport and
@@ -229,13 +206,29 @@ Checks cover formatted/cleared/over-capacity deposits, live-price changes,
 canonical signed amounts, USDC and ETH fee flows, pending/admin views, cancelled
 signatures, receipt export/import, reload recovery, keyboard/mobile layout and
 relay rejections.
-Wallets are freshly generated and unfunded; RPC and signatures use deterministic
-fixtures. Tests do not send funds. Installed-wallet acceptance remains manual.
+Payment tests use generated unfunded wallets/RPC fixtures. Native lifecycle tests
+execute pinned protocol bytecode on an isolated local Anvil chain with valueless
+test tokens and a position-manager double. No public-chain transactions are sent.
 
-Known review limitations remain: these are proposed programs, so displayed
-capacity is not funded LP TVL. The optional bridge reuses fixed-income's
-auth/status workflow; production integration still needs the unified ingress,
-program funding and lifecycle accounting described above.
+The funding gate is app-level, not an on-chain reservation or atomic premium lock.
+Admin withdrawals, competing deposits or reorgs can change availability until mining.
+Live acceptance requires separately provisioned signing, creation and full premium
+funding; do not infer that milestone from fixture tests.
+
+### Native checks
+
+```sh
+npm test
+npm run test:database
+npm run test:lifecycle
+npm run build
+npm run test:browser
+```
+
+Database/browser/lifecycle tests require a disposable PostgreSQL admin role (see
+above). `test:lifecycle` uses the dev-only Anvil binary and Solidity compiler.
+`tests/protocol/SOURCE.md` records the pinned source and fixture limitations.
+Historical verification below describes earlier commits, not the current release.
 
 ### Export verification — 2026-09-08
 
@@ -274,3 +267,16 @@ return navigation, mobile layout and retryable handoff failures. Normal/lab and
 root live/mock builds passed. The root mock's filters, sorting, pagination,
 icons and ranges rendered with zero RPC or wallet calls. No real creation or
 deposit transaction, production database change or deployment was performed.
+
+### Native lifecycle implementation — 2026-09-09
+
+- 81 API/adapter/relay/auth/math tests, 28 database regressions, 3 Solidity-EVM
+  lifecycle tests and 18 browser checks passed (130 total; reruns excluded).
+- Feature and mounted candidate builds plus root live/mock builds passed. Root
+  mock filters/sorting/pagination/icons/ranges remained RPC- and wallet-free.
+- Browser flow includes real local Solidity creation/funding/fixed deposit,
+  one-base-unit-short gating, native modal reuse, and lost-response/reload recovery.
+- Read-only live factory inspection matched vault type 1 and full-range type 2
+  against the protocol's recorded init-code hashes. No public-chain writes occurred.
+- Hosted activation still requires the operator's public allowlist address and
+  separately provisioned protected EOA. Fixture success is not live acceptance.

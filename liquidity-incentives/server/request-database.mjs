@@ -3,11 +3,13 @@ import { readFile } from 'node:fs/promises'
 import { randomInt } from 'node:crypto'
 import { createProgramDatabase } from './program-database.mjs'
 import { depositCents } from '../shared/vault-sizing.mjs'
+import { createLifecycleDatabase } from './lifecycle-database.mjs'
 
 export const USD_TOKEN_ADDRESS = '0x0000000000000000000000000000000000555344'
 const schema = await readFile(new URL('./pending-vaults.sql', import.meta.url), 'utf8')
 const programSchema = await readFile(new URL('./incentive-programs.sql', import.meta.url), 'utf8')
 const sizingSchema = await readFile(new URL('./vault-sizing.sql', import.meta.url), 'utf8')
+const lifecycleSchema = await readFile(new URL('./vault-lifecycle.sql', import.meta.url), 'utf8')
 
 /** Public IDs follow fixed-income's 12 uppercase alphanumeric convention. */
 function requestId() {
@@ -120,6 +122,7 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
       }
       await client.query(programSchema)
       await client.query(sizingSchema)
+      await client.query(lifecycleSchema)
       await client.query('COMMIT')
     } catch (error) { await client.query('ROLLBACK'); throw error }
     finally { client.release() }
@@ -148,7 +151,7 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
   }
   ensureReady()
 
-  return {
+  const database = {
     ...createProgramDatabase(pool, ensureReady),
     get ready() { return ensureReady() },
     pool,
@@ -164,13 +167,13 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
       await ensureReady()
       return (await pool.query('SELECT * FROM liqifi.request_fee_quotes WHERE id=$1', [id])).rows[0] ?? null
     },
-    async list({ wallet, chainId, requestId, admin = false }) {
+    async list({ wallet, chainId, requestId, admin = false }, executor = pool) {
       await ensureReady()
-      const rows = (await pool.query(`SELECT pv.*, rp.payload FROM uniswap_v3_fiv.pending_vaults pv
+      const rows = (await executor.query(`SELECT pv.*, rp.payload FROM uniswap_v3_fiv.pending_vaults pv
         JOIN liqifi.request_payments rp ON rp.pending_request_id=pv.request_id
         WHERE ($1::text IS NULL OR pv.submitter_address=$1) AND ($2::integer IS NULL OR pv.chain_id=$2)
         AND ($3::text IS NULL OR pv.request_id=$3)
-        ORDER BY pv.created_at DESC LIMIT 200`, [wallet?.toLowerCase() ?? null, chainId ?? null, requestId ?? null])).rows
+        ORDER BY pv.created_at DESC`, [wallet?.toLowerCase() ?? null, chainId ?? null, requestId ?? null])).rows
       return rows.map((row) => ({ ...publicPending(row, admin),
         // Public-grade display metadata only; never spread the complete receipt.
         display: { pair: row.payload.pair, depositUsd: row.payload.incentive?.depositUsd,
@@ -185,4 +188,6 @@ export function createRequestDatabase({ connection = {}, pool: injectedPool, leg
         pair: row.payload.pair, depositToken: row.payload.depositToken, depositAmount: row.payload.depositAmount }))
     },
   }
+  database.lifecycle = createLifecycleDatabase(pool, ensureReady, (options, executor) => database.list(options, executor))
+  return database
 }

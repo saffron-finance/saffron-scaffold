@@ -33,7 +33,7 @@ async function forgetAndOpenRequests(page, disconnect = false) {
     if (disconnect) localStorage.removeItem('liqifi.selected-wallet-rdns')
   }, { key: KEY, disconnect })
   await page.reload()
-  await page.getByRole('button', { name: /^My requests/ }).click()
+  if (!new URL(page.url()).pathname.endsWith('/portfolio/requests')) await page.getByRole('button', { name: /^My requests/ }).click()
 }
 
 for (const asset of ['USDC', 'ETH']) test(`${asset}: exported unsigned receipt restores after storage loss and submits without another fee`, async ({ page }) => {
@@ -75,7 +75,7 @@ test('signed export rejects changed terms, then resumes an already saved request
     const before = await fixture.database.list({ wallet: fixture.account.address })
     expect(before).toHaveLength(1)
     await forgetAndOpenRequests(page)
-    await expect(page.getByText('Pending review', { exact: true })).toBeVisible()
+    await expect(page.getByText('Awaiting creation', { exact: true }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Import receipt', exact: true })).toBeVisible()
     const changed = structuredClone(receipt)
     changed.incentive.aprPercent += 1
@@ -137,8 +137,8 @@ test('receipt import remains accessible disconnected and during list failures, w
     await page.setViewportSize({ width: 390, height: 844 })
     await expect(page.getByRole('button', { name: 'Connect wallet to view requests', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Import receipt', exact: true })).toBeEnabled()
-    await page.getByRole('dialog', { name: 'My requests', exact: true }).screenshot({ path: 'validation/import-mobile-requests.png', animations: 'disabled' })
-    expect(await page.getByRole('dialog').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true)
+    await page.locator('main').screenshot({ path: 'validation/import-mobile-requests.png', animations: 'disabled' })
+    expect(await page.locator('main').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true)
     await chooseReceipt(page, file)
     await expect(page.getByText('Claim $8.22', { exact: true })).toBeVisible()
     expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)).toEqual(receipt)

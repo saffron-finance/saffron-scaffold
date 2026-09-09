@@ -24,7 +24,7 @@ export async function verifyCatalogPair(pair, rpc) {
   }
 }
 
-export function createIncentiveProgramHandler({ database, adminOwner, rpc, basePath = '', now = Date.now }) {
+export function createIncentiveProgramHandler({ database, adminOwner, adminAllowed, rpc, basePath = '', now = Date.now }) {
   const challenges = new Map()
   let windowStart = 0, attempts = 0
   return async (req, res, pathname) => {
@@ -43,9 +43,9 @@ export function createIncentiveProgramHandler({ database, adminOwner, rpc, baseP
       if (++attempts > 60) throw new RequestError(429, 'Too many admin requests. Retry shortly.')
       const body = await readRequest(req)
       if (!validAddress(body?.wallet)) throw new RequestError(400, 'Connect a valid admin wallet.')
-      const owner = await adminOwner(4663)
-      if (!validAddress(owner)) throw new RequestError(503, 'Admin ownership is unavailable.')
-      if (owner.toLowerCase() !== body.wallet.toLowerCase()) throw new RequestError(403, 'Connect the Robinhood Chain factory-owner wallet.')
+      const permitted = adminAllowed ? await adminAllowed(body.wallet, 4663)
+        : (await adminOwner(4663))?.toLowerCase() === body.wallet.toLowerCase()
+      if (!permitted) throw new RequestError(403, 'Connect an allowed test-operator wallet.')
       for (const [nonce, proof] of challenges) if (Date.parse(proof.expiresAt) <= now()) challenges.delete(nonce)
       if (pathname.endsWith('/challenge')) {
         let payload

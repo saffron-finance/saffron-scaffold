@@ -55,7 +55,7 @@ export default defineConfig(({ mode }) => {
     },
     dedupe: ['react', 'react-dom', 'styled-components'],
   },
-  server: { port: 5187, proxy: { ...prices, [`${base}rpc`]: 'http://127.0.0.1:3201', [`${base}vault-requests`]: 'http://127.0.0.1:3201' } },
+  server: { port: 5187, proxy: { ...prices, [`${base}rpc`]: 'http://127.0.0.1:3201', [`${base}vault-requests`]: 'http://127.0.0.1:3201', [`${base}incentive-programs`]: 'http://127.0.0.1:3201' } },
   build: { outDir: 'dist' },
   }
 })

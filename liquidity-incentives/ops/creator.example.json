@@ -1,0 +1,23 @@
+{
+  "enabled": false,
+  "chainId": 4663,
+  "signerAddress": "SET_PUBLIC_CREATOR_ADDRESS",
+  "signerCredentialFile": "/run/credentials/saffron-vault-creator.service/creator-eoa",
+  "rpcUrl": "http://127.0.0.1:8545",
+  "priceApi": "http://127.0.0.1:3201/prices",
+  "database": {
+    "host": "/var/run/postgresql",
+    "user": "saffron_creator",
+    "database": "saffron_incentives"
+  },
+  "schemaMode": "standalone",
+  "vaultTypeId": 1,
+  "adapterTypeId": 2,
+  "factoryCodeHash": "0x8c2a5305bfe488b0b43e6b9221c36e881883277a6a45392bdd2dd2da08fb71af",
+  "vaultTypeHash": "0x89bfc535d437614afc43c1c334b9cdac8113273cf627f303cfce2b6c3c163683",
+  "adapterTypeHash": "0xd71b7265803869e18564b6f747b15a56a98cf3f62441095d36eeef34cd978383",
+  "confirmations": 2,
+  "maxGasPerTx": "15000000",
+  "maxGasPriceWei": "10000000000",
+  "maxPremiumRaw": "SET_REVIEWED_RAW_TOKEN_BUDGET"
+}
