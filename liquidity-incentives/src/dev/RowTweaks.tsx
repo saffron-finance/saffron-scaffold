@@ -18,7 +18,7 @@ const fonts = [
   { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
 ]
 type Typography = { compactHeader: boolean; font: string; aprAnimation: AprAnimation; orbitSpeed: number }
-const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 1 }
+const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 3.5 }
 
 /** Restore known font/animation IDs and a boolean; never inject stored CSS. */
 function savedTypography(): Typography {
@@ -30,9 +30,9 @@ function savedTypography(): Typography {
     return { compactHeader: typeof saved?.compactHeader === 'boolean' ? saved.compactHeader : defaultTypography.compactHeader,
       font: saved?.font === '' || fonts.some(font => font.id === saved?.font) ? saved.font : defaultTypography.font,
       aprAnimation: validAprAnimation(animation) ? animation : defaultTypography.aprAnimation,
-      // Only bounded numbers may become a CSS duration; old settings retain 1x.
+      // Preserve valid saved speeds; missing/invalid settings use the current default.
       orbitSpeed: typeof saved?.orbitSpeed === 'number' && Number.isFinite(saved.orbitSpeed)
-        && saved.orbitSpeed >= .25 && saved.orbitSpeed <= 4 ? saved.orbitSpeed : 1 }
+        && saved.orbitSpeed >= .25 && saved.orbitSpeed <= 4 ? saved.orbitSpeed : defaultTypography.orbitSpeed }
   } catch { return defaultTypography }
 }
 
