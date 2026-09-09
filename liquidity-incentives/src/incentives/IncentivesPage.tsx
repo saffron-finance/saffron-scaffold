@@ -82,23 +82,23 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
     <PairHeader pair={offers[0]} />
     <Programs aria-label={`${offers[0].token0.symbol} / ${offers[0].token1.symbol} liquidity incentive offers`}>
       <ProgramHeading aria-hidden='true'>
-        <ColumnTitle as='span'>Yield token</ColumnTitle>
-        <ColumnTitle as='span'>Incentive APR</ColumnTitle>
+        <ColumnTitle as='span'>Yield</ColumnTitle>
+        <ColumnTitle as='span'>APR</ColumnTitle>
         <ColumnTitle as='span'>Duration</ColumnTitle>
-        <ColumnTitle as='span'>Vault limit</ColumnTitle>
+        <ColumnTitle as='span'>Capacity</ColumnTitle>
       </ProgramHeading>
       {offers.map(offer => {
         const isNew = offer.isNew
         return <ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id}
         aria-label={`Request ${offer.token0.symbol} / ${offer.token1.symbol}, ${offer.days} days`}
         aria-describedby={`${offer.id}-yield ${offer.id}-apr ${offer.id}-capacity${isNew ? ` ${offer.id}-new` : ''}`} onClick={() => openOffer(offer)}>
-        <Metric id={`${offer.id}-yield`}><MobileLabel>Yield token</MobileLabel><YieldToken>
+        <Metric id={`${offer.id}-yield`}><MobileLabel>Yield</MobileLabel><YieldToken>
           <TokenIcon {...offer.token0} size={48} />
           <ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20} />
         </YieldToken></Metric>
-        <Metric id={`${offer.id}-apr`}><MobileLabel>Incentive APR</MobileLabel><OfferApr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
+        <Metric id={`${offer.id}-apr`}><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
         <Metric><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
-        <CapacityCell id={`${offer.id}-capacity`}><MobileLabel>Vault limit</MobileLabel>
+        <CapacityCell id={`${offer.id}-capacity`}><MobileLabel>Capacity</MobileLabel>
           <CapacityMeter title='Maximum vault size per request'><Value>{compactUsd(offer.capacityUsd)}</Value><Muted>per request</Muted></CapacityMeter>
         </CapacityCell>
         {isNew && <NewTag id={`${offer.id}-new`}>NEW</NewTag>}
@@ -130,7 +130,8 @@ const ProgramHeading = styled.div`
   border:1px solid transparent;border-radius:var(--radius-md);
   @media(max-width:800px){padding:4px 12px;grid-template-columns:.9fr 1.1fr .9fr 1.2fr;column-gap:8px}
 `
-const ColumnTitle = styled(HeaderCell)`min-width:0;padding-left:0;padding-right:0;`
+// Match the introductory body text using the shared, theme-aware gray.
+const ColumnTitle = styled(HeaderCell)`min-width:0;padding-left:0;padding-right:0;color:${({ theme }) => theme.colors.text.tertiary};`
 const ProgramRow = styled.button`
   display:grid;grid-template-columns:${programColumns};align-items:center;column-gap:24px;
   width:100%;min-height:124px;padding:28px 32px;text-align:left;font:inherit;color:inherit;
@@ -151,7 +152,7 @@ const YieldToken = styled.span`position:relative;display:inline-flex;flex-shrink
 const ChainBadge = styled.img`position:absolute;right:-7px;bottom:-5px;border-radius:50%;background:#fff;object-fit:cover;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);`
 // Homepage metrics have explicit sizes; secondary capacity text stays unchanged.
 const OfferApr = styled(Premium)`
-  font-size:28px;font-family:"Funnel Display", serif;
+  font-size:28px;font-family:"Funnel Display", serif;font-weight:500 !important;
   background-image:linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 `

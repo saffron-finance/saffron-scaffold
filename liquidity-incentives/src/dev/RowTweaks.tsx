@@ -45,13 +45,14 @@ export default function RowTweaks() {
   // The feature owns the transparent heading and 4px gap in every build.
   // This optional control changes only label typography.
   const headingCss = typography.compactHeader ? `
-    ${heading} > span { color:#fff; padding-top:8px; padding-bottom:8px; }
+    ${heading} > span { padding-top:8px; padding-bottom:8px; }
   ` : ''
   // A private family name confines local font loading to this preview. Existing
   // fonts, semantic colors and font sizes outside the table are left untouched.
+  // APR values retain their approved Funnel Display 500 instead of preview overrides.
   const fontCss = font ? `
     @font-face { font-family:"Saffron tweak ${font.id}"; src:url("${font.src}") format("truetype"); font-weight:${font.weight}; font-display:swap; }
-    ${table}, ${table} * { font-family:"Saffron tweak ${font.id}" !important; font-weight:${font.weight} !important; }
+    ${table}, ${table} :not([data-incentive-apr]) { font-family:"Saffron tweak ${font.id}" !important; font-weight:${font.weight} !important; }
   ` : ''
 
   return <>
@@ -68,8 +69,8 @@ export default function RowTweaks() {
         <strong>Table styling</strong>
         <Highlight><input type='checkbox' checked={typography.compactHeader}
           onChange={event => setTypography(previous => ({ ...previous, compactHeader: event.target.checked }))} />
-          Compact white heading</Highlight>
-        <small>Compact white column labels.</small>
+          Compact heading</Highlight>
+        <small>Compact column labels.</small>
         <label htmlFor={fontId}>Table font</label>
         <select id={fontId} value={typography.font}
           onChange={event => setTypography(previous => ({ ...previous, font: event.target.value }))}>
