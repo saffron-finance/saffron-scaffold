@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import styled, { createGlobalStyle } from 'styled-components'
+import { aprAnimations, aprAnimationCss, validAprAnimation, type AprAnimation } from './aprAnimations'
 import funnelLight from './fonts/FunnelDisplay-Light.ttf'
 import funnelSemibold from './fonts/FunnelDisplay-SemiBold.ttf'
 import hostRegular from './fonts/HostGrotesk-Regular.ttf'
@@ -16,23 +17,25 @@ const fonts = [
   { id: 'host-medium', label: 'Host Grotesk Medium', weight: 500, src: hostMedium },
   { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
 ]
-type Typography = { compactHeader: boolean; font: string }
-const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light' }
+type Typography = { compactHeader: boolean; font: string; aprAnimation: AprAnimation }
+const defaultTypography: Typography = { compactHeader: true, font: 'funnel-light', aprAnimation: 'none' }
 
-/** Restore only known font IDs and a boolean; never inject stored CSS. */
+/** Restore known font/animation IDs and a boolean; never inject stored CSS. */
 function savedTypography(): Typography {
   try {
     const saved = JSON.parse(localStorage.getItem(typographyKey) || '{}')
     return { compactHeader: typeof saved?.compactHeader === 'boolean' ? saved.compactHeader : defaultTypography.compactHeader,
-      font: saved?.font === '' || fonts.some(font => font.id === saved?.font) ? saved.font : defaultTypography.font }
+      font: saved?.font === '' || fonts.some(font => font.id === saved?.font) ? saved.font : defaultTypography.font,
+      aprAnimation: validAprAnimation(saved?.aprAnimation) ? saved.aprAnimation : 'none' }
   } catch { return defaultTypography }
 }
 
-/** Disposable typography preview. Controls, persistence and CSS stay in the
+/** Disposable typography/motion preview. Controls, persistence and CSS stay in the
  * standalone host; permanent row styling belongs to the incentive feature.
  */
 export default function RowTweaks() {
   const fontId = useId()
+  const animationId = useId()
   const [typography, setTypography] = useState<Typography>(savedTypography)
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function RowTweaks() {
   ` : ''
 
   return <>
-    <TableTypography $rules={headingCss + fontCss} />
+    <TableTypography $rules={headingCss + fontCss + aprAnimationCss(typography.aprAnimation)} />
     <Control>
       <summary>
         <svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' aria-hidden='true'>
@@ -77,6 +80,15 @@ export default function RowTweaks() {
           <option value=''>Site default (mixed fonts)</option>
           {fonts.map(font => <option key={font.id} value={font.id}>{font.label}</option>)}
         </select>
+        <label htmlFor={animationId}>APR animation</label>
+        <select id={animationId} value={typography.aprAnimation}
+          onChange={event => {
+            const value = event.target.value
+            if (validAprAnimation(value)) setTypography(previous => ({ ...previous, aprAnimation: value }))
+          }}>
+          {aprAnimations.map(animation => <option key={animation.id} value={animation.id}>{animation.label}</option>)}
+        </select>
+        <small>{aprAnimations.find(animation => animation.id === typography.aprAnimation)?.description}</small>
         <button type='button' onClick={() => { setTypography(defaultTypography) }}>Reset defaults</button>
         <small>Preview only. Saved in this browser.</small>
       </Panel>
