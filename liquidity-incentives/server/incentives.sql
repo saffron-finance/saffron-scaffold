@@ -1,0 +1,64 @@
+-- Initial schema for a new, independently operated application. No legacy imports.
+CREATE SCHEMA IF NOT EXISTS saffron_incentives;
+CREATE TABLE IF NOT EXISTS saffron_incentives.pairs (
+  id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK (revision > 0), body JSONB NOT NULL,
+  updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.budget_pools (
+  id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK (revision > 0), name TEXT NOT NULL,
+  chain_id INTEGER NOT NULL CHECK (chain_id=4663), reward_asset TEXT NOT NULL, decimals INTEGER NOT NULL CHECK (decimals BETWEEN 0 AND 18),
+  limit_raw NUMERIC(78,0) NOT NULL CHECK (limit_raw>=0), reserved_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (reserved_raw>=0),
+  allocated_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (allocated_raw>=0), paused BOOLEAN NOT NULL DEFAULT FALSE,
+  reconciliation_required BOOLEAN NOT NULL DEFAULT FALSE, updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (reserved_raw+allocated_raw<=limit_raw)
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.programs (
+  id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK (revision>0), pair_id TEXT NOT NULL REFERENCES saffron_incentives.pairs(id),
+  budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
+  updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
+  id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),
+  budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS quotes_wallet_time ON saffron_incentives.deployment_quotes(wallet,created_at);
+CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_intents (
+  id UUID PRIMARY KEY, quote_id UUID NOT NULL UNIQUE REFERENCES saffron_incentives.deployment_quotes(id), wallet TEXT NOT NULL,
+  budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), signature TEXT NOT NULL, plan_hash TEXT NOT NULL,
+  snapshot JSONB NOT NULL, accepted_plan JSONB NOT NULL, status TEXT NOT NULL DEFAULT 'queued',
+  cancel_requested BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS intents_wallet_time ON saffron_incentives.deployment_intents(wallet,created_at DESC);
+CREATE TABLE IF NOT EXISTS saffron_incentives.budget_reservations (
+  intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
+  premium_raw NUMERIC(78,0) NOT NULL CHECK (premium_raw>0), reserved_raw NUMERIC(78,0) NOT NULL CHECK (reserved_raw>=0),
+  allocated_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (allocated_raw>=0), released_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (released_raw>=0),
+  expires_at TIMESTAMPTZ NOT NULL, CHECK (reserved_raw+allocated_raw+released_raw=premium_raw)
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.budget_entries (
+  id BIGSERIAL PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
+  intent_id UUID REFERENCES saffron_incentives.deployment_intents(id), kind TEXT NOT NULL,
+  limit_delta NUMERIC(78,0) NOT NULL DEFAULT 0, reserved_delta NUMERIC(78,0) NOT NULL DEFAULT 0,
+  allocated_delta NUMERIC(78,0) NOT NULL DEFAULT 0, actor TEXT NOT NULL, evidence JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.vault_jobs (
+  intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), signer TEXT NOT NULL, factory TEXT NOT NULL,
+  chain_id INTEGER NOT NULL CHECK (chain_id=4663), state TEXT NOT NULL DEFAULT 'queued', funding_state TEXT NOT NULL DEFAULT 'unapproved',
+  plan JSONB NOT NULL, funding_max_raw NUMERIC(78,0), funding_operator TEXT, operation TEXT NOT NULL DEFAULT 'create',
+  resume_version INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  lease_owner TEXT, lease_until TIMESTAMPTZ, error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.chain_operations (
+  id BIGSERIAL PRIMARY KEY, intent_id UUID NOT NULL REFERENCES saffron_incentives.deployment_intents(id), step TEXT NOT NULL,
+  signer TEXT NOT NULL, nonce BIGINT NOT NULL CHECK (nonce>=0), resume_version INTEGER NOT NULL, hash TEXT NOT NULL UNIQUE,
+  raw_tx TEXT NOT NULL, transaction_data JSONB NOT NULL, receipt JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (signer,nonce), UNIQUE(intent_id,step,resume_version)
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.vault_observations (
+  intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), snapshot JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.worker_heartbeats (
+  signer TEXT PRIMARY KEY, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -8,10 +8,10 @@
     "build": "tsc --noEmit && vite build",
     "build:lab": "node scripts/build-lab.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs tests/dev-proxy.test.mjs tests/lifecycle-unit.test.mjs tests/lifecycle-api.test.mjs",
+    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs tests/dev-proxy.test.mjs tests/lifecycle-unit.test.mjs tests/lifecycle-api.test.mjs tests/incentives-auth.test.mjs",
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
-    "test:database": "node --test tests/pending-database.test.mjs tests/program-database.test.mjs",
+    "test:database": "node --test tests/pending-database.test.mjs tests/program-database.test.mjs tests/incentives-database.test.mjs",
     "test:lifecycle": "node --test tests/lifecycle-evm.test.mjs",
     "worker": "node worker/run.mjs",
     "worker:inspect": "node worker/inspect.mjs"

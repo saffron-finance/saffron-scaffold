@@ -41,3 +41,14 @@ operator deployment step; automated checks use generated wallets and disposable 
 - The focused browser layout/mobile flow passes with the approved card styling.
 - Anvil is pinned through platform-specific optional packages, avoiding the wrapper's
   shell-specific postinstall. Test setup must retain optional dependencies.
+
+### Stage 2: clean domain and budget core
+
+- Added the application-owned `saffron_incentives` schema, with no old tables required.
+- Wallet sessions are origin-bound, HttpOnly, expiring, and protected by CSRF; a
+  separate EIP-712 authorization binds the exact deployment quote and unique identity.
+- Concurrent acceptance reserves budget and persists the intent/job atomically.
+- Funding moves reserved premiums to allocated spending. Claim/maturity leave spending
+  allocated; pre-start withdrawal retains the obligation as a reservation.
+- Ten focused checks pass, including real PostgreSQL concurrency, transaction rollback,
+  duplicate response recovery, quote/revision expiry, queue limits, cancellation, and ledger drift.
