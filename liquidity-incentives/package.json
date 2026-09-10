@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "build:lab": "VITE_DEV_TWEAKS=true npm run build",
+    "build:lab": "node scripts/build-lab.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs tests/lifecycle-unit.test.mjs tests/lifecycle-api.test.mjs",
+    "test": "node --test tests/host-payment.test.mjs tests/vault-requests.test.mjs tests/proxy.test.mjs tests/dev-proxy.test.mjs tests/lifecycle-unit.test.mjs tests/lifecycle-api.test.mjs",
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
     "test:database": "node --test tests/pending-database.test.mjs tests/program-database.test.mjs",
@@ -27,7 +27,6 @@
     "viem": "^2.55.17"
   },
   "devDependencies": {
-    "@foundry-rs/anvil": "^1.7.1",
     "@openzeppelin/contracts": "^4.9.6",
     "@playwright/test": "^1.63.0",
     "@types/node": "^20.19.43",
@@ -43,5 +42,12 @@
     "typescript": "^5.5.4",
     "vite": "^6.4.3",
     "vite-plugin-svgr": "^4.5.0"
+  },
+  "optionalDependencies": {
+    "@foundry-rs/anvil-darwin-arm64": "1.7.1",
+    "@foundry-rs/anvil-darwin-amd64": "1.7.1",
+    "@foundry-rs/anvil-linux-arm64": "1.7.1",
+    "@foundry-rs/anvil-linux-amd64": "1.7.1",
+    "@foundry-rs/anvil-win32-amd64": "1.7.1"
   }
 }

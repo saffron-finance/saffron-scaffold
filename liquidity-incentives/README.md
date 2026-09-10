@@ -6,6 +6,9 @@ is isolated from the scaffold root application and its read-only Pages build.
 ## Run locally
 
 Node 22+ and npm are required. No sibling checkout or hosted account is needed.
+`npm ci` and `npm run build:lab` need no shell-specific configuration.
+Keep optional dependencies installed for native EVM tests; the fixture selects the
+pinned Anvil binary for the current operating system and architecture.
 
 ```sh
 cd liquidity-incentives

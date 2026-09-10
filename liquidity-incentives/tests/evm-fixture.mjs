@@ -8,6 +8,7 @@ import solc from 'solc'
 import { createPublicClient, createWalletClient, http, encodeFunctionData, parseAbi, keccak256, toHex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { CHAIN_ID, FACTORY, WETH, abi } from '../shared/vault-lifecycle.mjs'
+import { anvilBinary } from './anvil.mjs'
 
 export const CASHCAT='0x020bfc650a365f8bb26819deaabf3e21291018b4'
 export const POOL='0xa70fc67c9f69da90b63a0e4c05d229954574e313'
@@ -35,8 +36,7 @@ function contracts() {
  */
 export async function evmFixture({account=privateKeyToAccount(generatePrivateKey())}={}) {
   const net=createServer();net.listen(0,'127.0.0.1');await once(net,'listening');const port=net.address().port;await new Promise(resolve=>net.close(resolve))
-  const binary=fileURLToPath(new URL('../node_modules/@foundry-rs/anvil-linux-amd64/bin/anvil',import.meta.url))
-  const child=spawn(binary,['--silent','--host','127.0.0.1','--port',String(port),'--chain-id',String(CHAIN_ID)],{stdio:'ignore'})
+  const child=spawn(anvilBinary(),['--silent','--host','127.0.0.1','--port',String(port),'--chain-id',String(CHAIN_ID)],{stdio:'ignore',windowsHide:true})
   let startError;child.on('error',error=>{startError=error})
   const url='http://127.0.0.1:'+port
   const raw=async(method,params=[])=>{

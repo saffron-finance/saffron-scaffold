@@ -80,7 +80,7 @@ export default function IncentivesPage({ account, onConnect }: { account: Addres
     {!catalog.loading && !catalog.error && !catalog.offers.length && <FinePrint>No incentive programs are available right now.</FinePrint>}
     {groups.map(offers => <ProgramGroup key={offers[0].pairId}>
     <PairHeader pair={offers[0]} />
-    <Programs aria-label={`${offers[0].token0.symbol} / ${offers[0].token1.symbol} liquidity incentive offers`}>
+    <Programs data-incentive-programs aria-label={`${offers[0].token0.symbol} / ${offers[0].token1.symbol} liquidity incentive offers`}>
       <ProgramHeading aria-hidden='true'>
         <ColumnTitle as='span'>Yield</ColumnTitle>
         <ColumnTitle as='span'>APR</ColumnTitle>

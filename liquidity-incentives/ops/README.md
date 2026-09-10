@@ -47,7 +47,7 @@ and RPC authentication in the host's protected network/credential setup.
 Before enabling, run the read-only inspector:
 
 ```sh
-npm run worker:inspect -- /etc/saffron/creator.json
+npm run worker:inspect -- "<worker-config-file>"
 ```
 
 It prints only public chain/factory/type hashes and the observation block. Independently
@@ -61,7 +61,7 @@ asset are present in the creator wallet. Provision the matching protected databa
 Only then set `enabled: true` and install/start the included unit, or run:
 
 ```sh
-npm run worker -- /etc/saffron/creator.json
+npm run worker -- "<worker-config-file>"
 ```
 
 The same EOA owns adapter creation, vault creation and initialization. The API never

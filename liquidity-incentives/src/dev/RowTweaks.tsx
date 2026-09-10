@@ -50,7 +50,7 @@ export default function RowTweaks() {
     try { localStorage.setItem(typographyKey, JSON.stringify({ ...typography, aprDefaultVersion: 1 })) } catch { /* Preview remains usable. */ }
   }, [typography])
 
-  const table = '[aria-label="Liquidity incentive offers"]'
+  const table = '[data-incentive-programs]'
   const heading = `${table} > [aria-hidden="true"]`
   const font = fonts.find(face => face.id === typography.font)
   // Larger slider values mean faster motion. CSS still renders every frame.

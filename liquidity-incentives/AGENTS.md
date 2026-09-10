@@ -10,5 +10,5 @@ operator records must never be committed. Preserve message/storage/schema names
 used by existing receipts. Tests must use disposable databases and unfunded
 wallet fixtures. Do not modify the root app merely to run this package.
 
-The user requested a feature branch; never force-push or merge it into main
-without a separate instruction. Keep dev controls isolated from src/incentives.
+Never force-push or merge a feature branch into main without authorization.
+Keep dev controls isolated from src/incentives.
