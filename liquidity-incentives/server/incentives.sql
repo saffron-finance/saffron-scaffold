@@ -47,13 +47,14 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.vault_jobs (
   intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), signer TEXT NOT NULL, factory TEXT NOT NULL,
   chain_id INTEGER NOT NULL CHECK (chain_id=4663), state TEXT NOT NULL DEFAULT 'queued', funding_state TEXT NOT NULL DEFAULT 'unapproved',
   plan JSONB NOT NULL, funding_max_raw NUMERIC(78,0), funding_operator TEXT, operation TEXT NOT NULL DEFAULT 'create',
-  resume_version INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resume_version INTEGER NOT NULL DEFAULT 0, funding_round INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   lease_owner TEXT, lease_until TIMESTAMPTZ, error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.chain_operations (
   id BIGSERIAL PRIMARY KEY, intent_id UUID NOT NULL REFERENCES saffron_incentives.deployment_intents(id), step TEXT NOT NULL,
   signer TEXT NOT NULL, nonce BIGINT NOT NULL CHECK (nonce>=0), resume_version INTEGER NOT NULL, hash TEXT NOT NULL UNIQUE,
-  raw_tx TEXT NOT NULL, transaction_data JSONB NOT NULL, receipt JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  raw_tx TEXT NOT NULL, transaction_data JSONB NOT NULL, receipt JSONB, resolved_hash TEXT, resolution_kind TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (signer,nonce), UNIQUE(intent_id,step,resume_version)
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.vault_observations (

@@ -52,3 +52,10 @@ operator deployment step; automated checks use generated wallets and disposable 
   allocated; pre-start withdrawal retains the obligation as a reservation.
 - Ten focused checks pass, including real PostgreSQL concurrency, transaction rollback,
   duplicate response recovery, quote/revision expiry, queue limits, cancellation, and ledger drift.
+# Stage 3 — worker execution and application API
+
+Accepted user intents now dispatch automatically through the scaffold worker. Creation keeps its durable transaction journal and canonical checks; admin funding, retirement and variable fee collection are separate operations. Retry scheduling avoids repeatedly claiming a blocked job. Signed transactions are checked against the accepted quote and campaign pause inside the persistence transaction before broadcast.
+
+The clean API provides wallet sessions, quotes, deployments, catalog/budget administration and operator recovery. The HTTP process performs reads only; pricing is an explicitly configured provider. Operator reconciliation accepts only a confirmed semantic replacement or same-nonce zero-value self cancellation. A reorganization of a released commitment freezes admission and requires restoring the obligation before the worker repeats retirement.
+
+Validation: 10 intent/auth/database checks; one real HTTP authorization/privacy test; three local EVM scenarios covering create/fund/deposit/claim, lost receipts/restart/fair scheduling, and retirement plus an actual local-chain rollback. The EVM scenarios use real pinned Saffron contracts with a position-manager double; real Uniswap lifecycle coverage follows with the UI stage. The public UI still needs conversion to the new API in the next commit.

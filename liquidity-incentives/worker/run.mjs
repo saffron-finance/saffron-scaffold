@@ -2,7 +2,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { privateKeyToAccount } from 'viem/accounts'
 import { parseUnits } from 'viem'
-import { createRequestDatabase } from '../server/request-database.mjs'
+import { createIncentivesDatabase } from '../server/incentives-database.mjs'
 import { createCreator } from './creator.mjs'
 import { CHAIN_ID, sameAddress } from '../shared/vault-lifecycle.mjs'
 
@@ -15,7 +15,7 @@ async function main() {
   const config = JSON.parse(await readFile(configPath,'utf8'))
   if (config.chainId !== CHAIN_ID || !config.enabled) throw new Error('Robinhood creator must be explicitly enabled in operator config.')
   for (const name of ['factoryCodeHash','vaultTypeHash','adapterTypeHash']) if (!/^0x[0-9a-f]{64}$/i.test(config[name] ?? '')) throw new Error('Configure verified factory/type hashes first.')
-  for (const name of ['vaultTypeId','adapterTypeId','maxGasPerTx','maxGasPriceWei','maxPremiumRaw']) if (!/^[1-9][0-9]*$/.test(String(config[name] ?? ''))) throw new Error('Invalid positive operator limit.')
+  for (const name of ['vaultTypeId','adapterTypeId','maxGasPerTx','maxGasPriceWei','maxPremiumRaw','maxDailyGasWei']) if (!/^[1-9][0-9]*$/.test(String(config[name] ?? ''))) throw new Error('Invalid positive operator limit.')
   if (!Number.isInteger(config.confirmations) || config.confirmations < 2) throw new Error('At least two confirmations are required.')
   const info = await stat(config.signerCredentialFile)
   if (!info.isFile() || (info.mode & 0o077) || info.size > 256) throw new Error('Signer credential must be a protected, owner-only file.')
@@ -41,14 +41,14 @@ async function main() {
       || !Number.isFinite(value.data.price) || value.data.price <= 0) throw new Error('USD quote unavailable')
     return {priceRaw:parseUnits(value.data.price.toFixed(18),18).toString(),checkedAt:Date.parse(value.data.timestamp)}
   }
-  const database = createRequestDatabase({ schemaMode: config.schemaMode ?? 'standalone', connection: config.database })
+  const database = createIncentivesDatabase({ connection: config.database })
   const worker = createCreator({database,rpc,account,config,usdQuote})
   let stopped = false
   process.on('SIGINT',()=>{stopped=true});process.on('SIGTERM',()=>{stopped=true})
   let heartbeat
   try {
     await database.ready
-    heartbeat = setInterval(() => { void database.lifecycle.heartbeat(account.address).catch(() => {}) }, 5000)
+    heartbeat = setInterval(() => { void database.execution.heartbeat(account.address).catch(() => {}) }, 5000)
     heartbeat.unref()
     do {
       const result = await worker.tick()

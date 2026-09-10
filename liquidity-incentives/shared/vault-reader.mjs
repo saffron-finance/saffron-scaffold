@@ -29,10 +29,11 @@ export async function readVault(job, rpc, { confirmations = 2, now = Date.now } 
     read(FACTORY, 'deployedAdapterAddrToId', [plan.adapter]), read(FACTORY, 'deployedAdapterInfo', [BigInt(plan.adapterId)]),
   ])
   if (!initialized) throw new Error('Vault is not initialized')
-  const [registration, registeredId, claimSupply, supply, balance, decimals, token0, token1, poolFee, slot0] = await Promise.all([
+  const [registration, registeredId, claimSupply, supply, balance, decimals, token0, token1, poolFee, slot0, fixedBearer, endTime] = await Promise.all([
     read(FACTORY, 'vaultInfo', [vaultId]), read(FACTORY, 'vaultAddrToId', [plan.vault]),
     read(claim, 'totalSupply'), read(bearer, 'totalSupply'), read(asset, 'balanceOf', [plan.vault]),
     read(asset, 'decimals'), read(pool, 'token0'), read(pool, 'token1'), read(pool, 'fee'), read(pool, 'slot0'),
+    read(plan.vault, 'fixedBearerToken'), read(plan.vault, 'endTime'),
   ])
   const valid = sameAddress(factory, FACTORY) && sameAddress(adapterFactory, FACTORY)
     && adapterId.toString() === plan.adapterId && adapterRegistration[0].toString() === plan.adapterTypeId
@@ -51,11 +52,17 @@ export async function readVault(job, rpc, { confirmations = 2, now = Date.now } 
     && factoryCode !== '0x' && keccak256(factoryCode) === plan.factoryCodeHash
     && vaultCode !== '0x' && keccak256(vaultCode) === plan.vaultCodeHash
   if (!valid) throw new Error('Vault does not match approved terms')
+  const wallet=job.wallet??job.snapshot.submitterAddress
+  const [claimBalance,fixedBalance,fundingBearerBalance]=await Promise.all([
+    read(claim,'balanceOf',[wallet]),read(fixedBearer,'balanceOf',[wallet]),read(bearer,'balanceOf',[job.signer]),
+  ])
   const canonical = await rpc('eth_getBlockByNumber', [tag, false])
   if (canonical?.hash !== block.hash) throw new Error('Observation block changed')
   return {
     verified: true, canonical: true, chainId: CHAIN_ID, factory: FACTORY, vault: plan.vault, adapter: plan.adapter,
     initialized: Boolean(initialized), isStarted: Boolean(started), claimSupply: claimSupply.toString(),
+    positionWallet:wallet,claimBalance:claimBalance.toString(),fixedBalance:fixedBalance.toString(),fundingBearerBalance:fundingBearerBalance.toString(),
+    claimToken:claim,fixedBearerToken:fixedBearer,variableBearerToken:bearer,endTime:endTime.toString(),pool,
     variableCapacity: capacity.toString(), variableSupply: supply.toString(), variableBalance: balance.toString(),
     variableAsset: asset, variableDecimals: Number(decimals), variableSymbol: plan.variableSymbol,
     token0: plan.token0, token1: plan.token1, liquidity: fixed.toString(), minTick: Number(minTick), maxTick: Number(maxTick),

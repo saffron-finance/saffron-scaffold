@@ -10,7 +10,6 @@
     "user": "saffron_creator",
     "database": "saffron_incentives"
   },
-  "schemaMode": "standalone",
   "vaultTypeId": 1,
   "adapterTypeId": 2,
   "factoryCodeHash": "0x8c2a5305bfe488b0b43e6b9221c36e881883277a6a45392bdd2dd2da08fb71af",
@@ -19,5 +18,6 @@
   "confirmations": 2,
   "maxGasPerTx": "15000000",
   "maxGasPriceWei": "10000000000",
+  "maxDailyGasWei": "SET_REVIEWED_ROLLING_24_HOUR_GAS_LIMIT",
   "maxPremiumRaw": "SET_REVIEWED_RAW_TOKEN_BUDGET"
 }

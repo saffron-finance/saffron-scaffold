@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
+import { createExecutionDatabase } from './execution-database.mjs'
 import { verifyTypedData } from 'viem'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
   digest, deploymentTypedData, snapshotFor, jsonSafe, fault } from '../shared/incentives.mjs'
@@ -16,7 +17,11 @@ const asBudget = row => ({ id: row.id, revision: row.revision, name: row.name, c
 export function createIncentivesDatabase({ connection, now = Date.now, maxPendingPerWallet = 3, maxPending = 100,
   reservationMs = 15 * 60_000, quoteMs = 120_000 } = {}) {
   const pool = new pg.Pool({ ...connection, max: 8, options: '-c timezone=UTC' })
-  const ready = readFile(new URL('./incentives.sql', import.meta.url), 'utf8').then(sql => pool.query(sql))
+  const ready = readFile(new URL('./incentives.sql', import.meta.url), 'utf8').then(async sql => {
+    const client=await pool.connect()
+    try{await client.query('BEGIN');await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-incentives-schema',0))");await client.query(sql);await client.query('COMMIT')}
+    catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+  })
   ready.catch(() => {})
   const query = async (sql, values = []) => { await ready; return pool.query(sql, values) }
   async function transaction(run) {
@@ -37,7 +42,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   }
   async function getIntent(id, client = { query }) {
     return (await client.query(`SELECT i.*,j.signer,j.factory,j.chain_id,j.state,j.funding_state,j.plan,j.operation,j.funding_max_raw,j.funding_operator,
-      j.resume_version,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id
+      j.resume_version,j.funding_round,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id
       FROM ${schema}.deployment_intents i JOIN ${schema}.vault_jobs j ON j.intent_id=i.id WHERE i.id=$1`, [id])).rows[0] ?? null
   }
   const db = {
@@ -228,5 +233,6 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       })
     },
   }
+  db.execution=createExecutionDatabase(db)
   return db
 }

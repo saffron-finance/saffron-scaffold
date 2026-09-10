@@ -1,0 +1,178 @@
+import { FACTORY,CHAIN_ID,fault,digest } from '../shared/incentives.mjs'
+
+const s='saffron_incentives'
+
+/** Private worker journal. HTTP DTOs must never serialize these records directly. */
+export function createExecutionDatabase(db) {
+  const {query,transaction}=db
+  async function lockedJob(client,id,owner) {
+    const row=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 AND lease_owner=$2 AND lease_until>NOW() FOR UPDATE`,[id,owner])).rows[0]
+    if(!row) throw new Error('Worker job lease lost.')
+    return row
+  }
+  const execution={
+    job:db.getIntent,
+    async heartbeat(signer){await query(`INSERT INTO ${s}.worker_heartbeats (signer) VALUES ($1) ON CONFLICT(signer) DO UPDATE SET updated_at=NOW()`,[signer.toLowerCase()])},
+    async workerOnline(signer){return Boolean(signer&&(await query(`SELECT 1 FROM ${s}.worker_heartbeats WHERE signer=$1 AND updated_at>NOW()-INTERVAL '15 seconds'`,[signer.toLowerCase()])).rowCount)},
+    async signerLock(signer){
+      await db.ready;const client=await db.pool.connect()
+      const key='saffron-signer:'+signer.toLowerCase()
+      if(!(await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS locked',[key])).rows[0].locked){client.release();return null}
+      let alive=true;const lost=()=>{alive=false};client.on('error',lost)
+      return {assert:async()=>{if(!alive)throw new Error('Signer lock lost.');await client.query('SELECT 1')},
+        release:async()=>{client.off('error',lost);try{if(alive)await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key])}finally{client.release()}}}
+    },
+    async claim(signer,owner){
+      const row=(await query(`UPDATE ${s}.vault_jobs SET lease_owner=$2,lease_until=NOW()+INTERVAL '60 seconds',
+        state=CASE WHEN state='created' THEN state ELSE 'running' END,
+        funding_state=CASE WHEN operation='fund' THEN 'running' ELSE funding_state END,updated_at=NOW()
+        WHERE intent_id=(SELECT intent_id FROM ${s}.vault_jobs WHERE signer=$1 AND next_attempt_at<=NOW()
+          AND (state IN ('queued','running','waiting') OR (state='created' AND funding_state IN ('queued','running','waiting')))
+          AND (lease_until IS NULL OR lease_until<NOW()) ORDER BY next_attempt_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING intent_id`,[signer.toLowerCase(),owner])).rows[0]
+      return row?db.getIntent(row.intent_id):null
+    },
+    async renew(id,owner){
+      if(!(await query(`UPDATE ${s}.vault_jobs SET lease_until=NOW()+INTERVAL '60 seconds' WHERE intent_id=$1 AND lease_owner=$2 AND lease_until>NOW() RETURNING intent_id`,[id,owner])).rowCount) throw new Error('Worker job lease lost.')
+    },
+    async authorizeStep(id,owner,{allowRetirement=false}={}){
+      const job=await db.getIntent(id)
+      if(!job || job.lease_owner!==owner || job.lease_until?.getTime()<=db.now() || job.state==='retired') throw new Error('Worker job lease lost.')
+      const budget=(await query(`SELECT paused,reconciliation_required FROM ${s}.budget_pools WHERE id=$1`,[job.budget_pool_id])).rows[0]
+      if(budget?.reconciliation_required) throw fault(409,'Budget reconciliation is required before new transactions.')
+      if(!allowRetirement && (budget?.paused || job.cancel_requested)) throw fault(409,job.cancel_requested?'Cancellation requested. Operator retirement is required.':'Campaign execution is paused.')
+      if(digest(job.accepted_plan)!==digest(Object.fromEntries(Object.keys(job.accepted_plan).map(key=>[key,job.plan[key]])))) throw fault(409,'The accepted deployment plan changed.')
+      return job
+    },
+    async setPlan(id,owner,plan){await transaction(async client=>{await lockedJob(client,id,owner);await client.query(`UPDATE ${s}.vault_jobs SET plan=$3,updated_at=NOW() WHERE intent_id=$1 AND lease_owner=$2`,[id,owner,plan])})},
+    async setState(id,owner,state,fundingState,error=null){
+      await transaction(async client=>{
+        const job=await lockedJob(client,id,owner)
+        const waiting=state==='waiting'||fundingState==='waiting'
+        const seconds=waiting?Math.min(300,5*2**Math.min(job.attempts,6)):0
+        await client.query(`UPDATE ${s}.vault_jobs SET state=$3,funding_state=$4,error=$5,lease_owner=NULL,lease_until=NULL,
+          attempts=CASE WHEN $6 THEN attempts+1 ELSE 0 END,next_attempt_at=NOW()+$7*INTERVAL '1 second',updated_at=NOW()
+          WHERE intent_id=$1 AND lease_owner=$2`,[id,owner,state,fundingState,error,waiting,seconds])
+        if(state==='failed') await client.query(`UPDATE ${s}.deployment_intents SET status='needs_attention',updated_at=NOW() WHERE id=$1`,[id])
+      })
+    },
+    async lastTransaction(id,step){return (await query(`SELECT * FROM ${s}.chain_operations WHERE intent_id=$1 AND step=$2 ORDER BY id DESC LIMIT 1`,[id,step])).rows[0]??null},
+    async transactions(id){return(await query(`SELECT * FROM ${s}.chain_operations WHERE intent_id=$1 ORDER BY id`,[id])).rows},
+    async saveTransaction({requestId:id,owner,step,resumeVersion,signer,nonce,hash,raw,transaction:tx,maxDailyGasWei}){
+      await transaction(async client=>{
+        const intent=(await client.query(`SELECT * FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
+        const budget=await db.lockBudget(client,intent.budget_pool_id)
+        const job=await lockedJob(client,id,owner)
+        const latest=(await client.query(`SELECT cancel_requested FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
+        if(budget.reconciliation_required || (job.operation!=='retire' && (budget.paused||latest.cancel_requested))) throw fault(409,'Execution is paused pending operator review.')
+        const quote=(await client.query(`SELECT body FROM ${s}.deployment_quotes WHERE id=$1`,[intent.quote_id])).rows[0]?.body
+        if(!quote||digest(intent.snapshot)!==digest(quote.snapshot)||digest(intent.accepted_plan)!==digest(quote.plan)
+          ||digest(intent.accepted_plan)!==digest(Object.fromEntries(Object.keys(intent.accepted_plan).map(key=>[key,job.plan[key]])))) throw fault(409,'The accepted deployment plan changed.')
+        const amount=BigInt(tx.gas)*BigInt(tx.gasPrice)
+        if(maxDailyGasWei){
+          const spent=(await client.query(`SELECT COALESCE(sum((transaction_data->>'gas')::numeric*(transaction_data->>'gasPrice')::numeric),0)::text AS value
+            FROM ${s}.chain_operations WHERE signer=$1 AND (created_at>NOW()-INTERVAL '24 hours' OR receipt IS NULL)`,[signer.toLowerCase()])).rows[0].value
+          if(BigInt(spent)+amount>BigInt(maxDailyGasWei)) throw fault(409,'The worker gas budget is exhausted.')
+        }
+        await client.query(`INSERT INTO ${s}.chain_operations (intent_id,step,resume_version,signer,nonce,hash,raw_tx,transaction_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [id,step,resumeVersion,signer.toLowerCase(),String(nonce),hash,raw,tx])
+      })
+    },
+    async saveReceipt(hash,receipt){await query(`UPDATE ${s}.chain_operations SET receipt=$2 WHERE hash=$1`,[hash,receipt])},
+    async resolveTransaction(id,original,hash,receipt,kind,actor){
+      await transaction(async client=>{
+        const job=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        if(!job||job.lease_until>new Date(db.now()))throw fault(409,'Wait for the current worker lease to finish.')
+        const saved=(await client.query(`UPDATE ${s}.chain_operations SET resolved_hash=$3,receipt=$4,resolution_kind=$5 WHERE intent_id=$1 AND hash=$2 RETURNING id`,[id,original,hash,receipt,kind])).rows[0]
+        if(!saved)throw fault(404,'Saved transaction not found.')
+        const intent=await db.getIntent(id,client)
+        await db.entry(client,{budgetId:intent.budget_pool_id,intentId:id,kind:'transaction-reconciled',actor,evidence:{originalHash:original,hash,kind,blockHash:receipt.blockHash}})
+      })
+    },
+    async markCreated(id,owner,snapshot){
+      if(!snapshot?.verified||!snapshot.initialized) throw new Error('Creation verification failed.')
+      await transaction(async client=>{
+        const job=await lockedJob(client,id,owner)
+        if(job.plan.vault?.toLowerCase()!==snapshot.vault?.toLowerCase()) throw new Error('Creation identity changed.')
+        await client.query(`UPDATE ${s}.vault_jobs SET state='created',operation='fund',lease_owner=NULL,lease_until=NULL,error=NULL,attempts=0,updated_at=NOW() WHERE intent_id=$1`,[id])
+        await client.query(`UPDATE ${s}.deployment_intents SET status='created',updated_at=NOW() WHERE id=$1`,[id])
+      })
+      await execution.saveObservation(id,snapshot)
+    },
+    async saveObservation(id,snapshot){
+      const previous=(await query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot
+      // Older concurrent reads must not replace newer evidence or reverse completed state.
+      if(snapshot.verified&&previous?.verified&&BigInt(snapshot.blockNumber)<BigInt(previous.blockNumber)) return
+      await db.reconcileFunding(id,snapshot)
+      await query(`INSERT INTO ${s}.vault_observations (intent_id,snapshot) VALUES ($1,$2) ON CONFLICT(intent_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,updated_at=NOW()`,[id,snapshot])
+    },
+    async observation(id){return(await query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot??null},
+    async tracked(){return(await query(`SELECT intent_id FROM ${s}.vault_jobs WHERE plan ? 'vault' ORDER BY updated_at DESC LIMIT 500`)).rows},
+    async approveFunding(id,operator,planHash,maximum){
+      const current=await db.getIntent(id);if(!current)throw fault(404,'Deployment not found.')
+      await transaction(async client=>{
+        const budget=await db.lockBudget(client,current.budget_pool_id)
+        const job=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        if(current.plan_hash!==planHash||job.state!=='created'||current.cancel_requested||job.lease_until>new Date(db.now())) throw fault(409,'Refresh this deployment before funding.')
+        if(budget.paused||budget.reconciliation_required)throw fault(409,'Campaign funding is paused.')
+        if(String(maximum)!==String(current.accepted_plan.premium)) throw fault(409,'Funding must match the committed premium.')
+        const reservation=(await client.query(`SELECT * FROM ${s}.budget_reservations WHERE intent_id=$1`,[id])).rows[0]
+        if(BigInt(reservation.released_raw)>0n)throw fault(409,'This commitment was retired.')
+        if(['queued','running','waiting'].includes(job.funding_state))return
+        await client.query(`UPDATE ${s}.vault_jobs SET operation='fund',funding_state='queued',funding_operator=$2,funding_max_raw=$3,
+          resume_version=resume_version+1,funding_round=funding_round+1,error=NULL,attempts=0,next_attempt_at=NOW(),updated_at=NOW() WHERE intent_id=$1`,[id,operator,maximum])
+      })
+    },
+    async approveOperation(id,operator,planHash,operation){
+      if(!['resume','retire','collect'].includes(operation))throw fault(400,'Unsupported worker operation.')
+      const current=await db.getIntent(id);if(!current||current.plan_hash!==planHash)throw fault(409,'Refresh this deployment before continuing.')
+      await transaction(async client=>{
+        await db.lockBudget(client,current.budget_pool_id)
+        const job=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        if(job.state==='retired'||job.lease_until>new Date(db.now()))throw fault(409,'The worker must finish reconciling its current action.')
+        if(operation==='resume'&&!['failed','waiting'].includes(job.state)&&!['failed','waiting'].includes(job.funding_state))throw fault(409,'This deployment does not need a resume.')
+        if(operation==='collect'&&!job.plan.vault)throw fault(409,'The vault has not been created.')
+        await client.query(`UPDATE ${s}.vault_jobs SET operation=$2,state=$3,funding_state=$4,funding_operator=$5,resume_version=resume_version+1,
+          error=NULL,attempts=0,next_attempt_at=NOW(),updated_at=NOW() WHERE intent_id=$1`,
+          [id,operation==='resume'?job.operation:operation,operation==='resume'&&job.state==='created'?'created':'queued',operation==='resume'&&job.operation==='fund'?'queued':job.funding_state,operator])
+        if(operation==='retire')await client.query(`UPDATE ${s}.deployment_intents SET cancel_requested=TRUE WHERE id=$1`,[id])
+      })
+    },
+    async retire(id,owner,evidence){
+      const current=await db.getIntent(id)
+      await transaction(async client=>{
+        await db.lockBudget(client,current.budget_pool_id);const job=await lockedJob(client,id,owner)
+        if(job.operation!=='retire')throw new Error('Retirement is not authorized.')
+        const reservation=(await client.query(`SELECT * FROM ${s}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        if(BigInt(reservation.released_raw)>0n)throw new Error('Already retired.')
+        await db.entry(client,{budgetId:current.budget_pool_id,intentId:id,kind:'release-recovered',reserved:-BigInt(reservation.reserved_raw),
+          allocated:-BigInt(reservation.allocated_raw),actor:job.funding_operator,evidence})
+        await client.query(`UPDATE ${s}.budget_pools SET reserved_raw=reserved_raw-$2,allocated_raw=allocated_raw-$3 WHERE id=$1`,[current.budget_pool_id,reservation.reserved_raw,reservation.allocated_raw])
+        await client.query(`UPDATE ${s}.budget_reservations SET reserved_raw=0,allocated_raw=0,released_raw=premium_raw WHERE intent_id=$1`,[id])
+        await client.query(`UPDATE ${s}.vault_jobs SET state='retired',lease_owner=NULL,lease_until=NULL,error=NULL WHERE intent_id=$1`,[id])
+        await client.query(`UPDATE ${s}.deployment_intents SET status='retired',updated_at=NOW() WHERE id=$1`,[id])
+      })
+    },
+    async restoreReleased(id,actor){
+      const current=await db.getIntent(id)
+      return transaction(async client=>{
+        const budget=await db.lockBudget(client,current.budget_pool_id)
+        const reservation=(await client.query(`SELECT * FROM ${s}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        const amount=BigInt(reservation.released_raw)
+        if(!amount)return
+        if(BigInt(budget.limit_raw)-BigInt(budget.reserved_raw)-BigInt(budget.allocated_raw)<amount)throw fault(409,'Increase the paused budget to cover the reorganized commitment before reconciling.')
+        await db.entry(client,{budgetId:current.budget_pool_id,intentId:id,kind:'restore-reorganized-release',reserved:amount,actor})
+        await client.query(`UPDATE ${s}.budget_pools SET reserved_raw=reserved_raw+$2,paused=TRUE WHERE id=$1`,[current.budget_pool_id,amount.toString()])
+        await client.query(`UPDATE ${s}.budget_reservations SET reserved_raw=$2,allocated_raw=0,released_raw=0 WHERE intent_id=$1`,[id,amount.toString()])
+        await client.query(`UPDATE ${s}.vault_jobs SET state='queued',operation='retire',resume_version=resume_version+1,next_attempt_at=NOW(),error=NULL WHERE intent_id=$1`,[id])
+        await client.query(`UPDATE ${s}.deployment_intents SET status='needs_attention' WHERE id=$1`,[id])
+      })
+    },
+    async expireQueued(){
+      const rows=(await query(`SELECT i.id,i.wallet FROM ${s}.deployment_intents i JOIN ${s}.budget_reservations r ON r.intent_id=i.id
+        JOIN ${s}.vault_jobs j ON j.intent_id=i.id WHERE r.expires_at<NOW() AND j.state IN ('queued','waiting','failed')
+        AND NOT EXISTS(SELECT 1 FROM ${s}.chain_operations t WHERE t.intent_id=i.id) LIMIT 100`)).rows
+      for(const row of rows)await db.cancelDeployment(row.id,row.wallet)
+    },
+  }
+  return execution
+}

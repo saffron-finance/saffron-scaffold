@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { decodeEventLog, decodeFunctionResult, encodeAbiParameters, encodeFunctionData, keccak256, parseUnits } from 'viem'
-import { abi, CHAIN_ID, FACTORY, sameAddress, termsDigest } from '../shared/vault-lifecycle.mjs'
+import { decodeEventLog, decodeFunctionResult, encodeAbiParameters, encodeFunctionData, keccak256 } from 'viem'
+import { abi, CHAIN_ID, FACTORY, sameAddress } from '../shared/vault-lifecycle.mjs'
+import { digest } from '../shared/incentives.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
-import { resolveCapacities } from '../shared/liquidity-math.mjs'
+export { resolvePlan } from '../shared/deployment-plan.mjs'
 
 const jsonSafe = value => JSON.parse(JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item))
 class Waiting extends Error {}
@@ -11,95 +12,45 @@ const read = async (rpc, address, functionName, args = [], block = 'latest') =>
   decodeFunctionResult({ abi, functionName, data: await rpc('eth_call', [{ to: address,
     data: encodeFunctionData({ abi, functionName, args }) }, block]) })
 
-/** Freeze the reviewed USD/APR intent into contract units against one live pool
- * block and a fresh quote-token USD observation. Subsequent retries keep it.
- */
-export async function resolvePlan(job, rpc, usdQuote, config) {
-  if (BigInt(await rpc('eth_chainId', [])) !== BigInt(CHAIN_ID)) throw new ConfirmedFailure('Wrong deployer chain.')
-  const head = await rpc('eth_getBlockByNumber', ['latest', false])
-  if (Date.now() - Number(BigInt(head.timestamp)) * 1000 > 60_000) throw new Waiting('Chain head is stale.')
-  const t = job.snapshot, tag = head.number
-  const [factoryCode, vaultType, adapterType, token0, token1, decimals0, decimals1, spacing, fee, slot, feeBps] = await Promise.all([
-    rpc('eth_getCode', [FACTORY, tag]), read(rpc, FACTORY, 'vaultTypeByteCode', [BigInt(config.vaultTypeId)], tag),
-    read(rpc, FACTORY, 'adapterTypeByteCode', [BigInt(config.adapterTypeId)], tag),
-    read(rpc, t.poolAddress, 'token0', [], tag), read(rpc, t.poolAddress, 'token1', [], tag),
-    read(rpc, t.token0.address, 'decimals', [], tag), read(rpc, t.token1.address, 'decimals', [], tag),
-    read(rpc, t.poolAddress, 'tickSpacing', [], tag), read(rpc, t.poolAddress, 'fee', [], tag),
-    read(rpc, t.poolAddress, 'slot0', [], tag), read(rpc, FACTORY, 'feeBps', [], tag),
-  ])
-  if (factoryCode === '0x' || vaultType === '0x' || adapterType === '0x'
-    || keccak256(factoryCode) !== config.factoryCodeHash || keccak256(vaultType) !== config.vaultTypeHash
-    || keccak256(adapterType) !== config.adapterTypeHash) throw new ConfirmedFailure('Factory/type hashes need operator review.')
-  if (!sameAddress(t.variableAssetAddress, t.token0.address)
-    || ![token0, token1].every(token => [t.token0.address,t.token1.address].some(value => sameAddress(token,value)))
-    || Number(decimals0) !== t.token0.decimals || Number(decimals1) !== t.token1.decimals
-    || Number(fee) !== t.feeTier || Number(spacing) <= 0) throw new ConfirmedFailure('Pool or token metadata changed.')
-  const sorted0 = sameAddress(token0,t.token0.address) ? t.token0 : t.token1
-  const sorted1 = sameAddress(token1,t.token1.address) ? t.token1 : t.token0
-  const quote = await usdQuote(t.token1.address)
-  if (!quote?.priceRaw || !Number.isFinite(quote.checkedAt) || Date.now() - quote.checkedAt > 60_000 || quote.checkedAt > Date.now() + 5000) throw new Waiting('Fresh USD pricing unavailable.')
-  const p = slot[0], square = p * p, q192 = 1n << 192n
-  const quotePrice = BigInt(quote.priceRaw)
-  const price0 = sameAddress(token1, t.token1.address)
-    ? quotePrice * square * 10n ** BigInt(sorted0.decimals) / (q192 * 10n ** BigInt(sorted1.decimals)) : quotePrice
-  const price1 = sameAddress(token1,t.token1.address)
-    ? quotePrice : quotePrice * q192 * 10n ** BigInt(sorted1.decimals) / (square * 10n ** BigInt(sorted0.decimals))
-  const variablePrice = sameAddress(token0,t.variableAssetAddress) ? price0 : price1
-  const minTick = Math.ceil(-887272 / Number(spacing)) * Number(spacing), maxTick = -minTick
-  const capacities = resolveCapacities({ cents: t.fixedCapacityAmount,
-    aprRaw: parseUnits(String(t.targetApr), 18), duration: t.durationSeconds,
-    price0, price1, variablePrice, decimals0: sorted0.decimals, decimals1: sorted1.decimals,
-    variableDecimals: t.token0.decimals, sqrtPrice: p, minTick, maxTick })
-  if (BigInt(capacities.premium) > BigInt(config.maxPremiumRaw)) throw new ConfirmedFailure('Premium exceeds the configured operator budget.')
-  if ((await rpc('eth_getBlockByNumber',[tag,false]))?.hash !== head.hash) throw new Waiting('Sizing block changed.')
-  return { ...capacities, token0: { ...sorted0, address: token0.toLowerCase() }, token1: { ...sorted1, address: token1.toLowerCase() },
-    minTick, maxTick, variableDecimals: t.token0.decimals, variableSymbol: t.token0.symbol,
-    vaultTypeId: String(config.vaultTypeId), adapterTypeId: String(config.adapterTypeId),
-    feeBps: feeBps.toString(), factoryCodeHash: config.factoryCodeHash,
-    vaultTypeHash: config.vaultTypeHash, adapterTypeHash: config.adapterTypeHash,
-    price0: price0.toString(), price1: price1.toString(), variablePrice: variablePrice.toString(),
-    sizingBlock: head.number, sizingBlockHash: head.hash, usdCheckedAt: quote.checkedAt }
-}
-
 /** Execute at most one leased job; durable signed bytes precede every broadcast.
  * The injected account lives only in this worker, never the HTTP process.
  */
 export function createCreator({ database, rpc, account, config, usdQuote }) {
   const owner = randomUUID()
   async function tick() {
-    await database.lifecycle.heartbeat(account.address)
-    const lock = await database.lifecycle.signerLock(account.address)
+    await database.execution.expireQueued()
+    await database.execution.heartbeat(account.address)
+    const lock = await database.execution.signerLock(account.address)
     if (!lock) return { state: 'locked' }
     let job
     try {
-      job = await database.lifecycle.claim(account.address, owner)
+      job = await database.execution.claim(account.address, owner)
       if (!job) return { state: 'idle' }
       if (!sameAddress(job.signer, account.address) || !sameAddress(job.factory, FACTORY) || job.chain_id !== CHAIN_ID) throw new ConfirmedFailure('Job signer, factory or chain mismatch.')
       if (BigInt(await rpc('eth_chainId', [])) !== BigInt(CHAIN_ID)) throw new ConfirmedFailure('Wrong deployer chain.')
-      const [current] = await database.list({ requestId: job.request_id })
-      if (!current || termsDigest(current) !== job.approved_digest || ['rejected'].includes(current.status)) throw new ConfirmedFailure('Approved request changed.')
-      if (!job.plan) {
-        job.plan = await resolvePlan(job, rpc, usdQuote, config)
-        await database.lifecycle.setPlan(job.request_id, owner, job.plan)
-      }
+      if (!job.plan || digest(job.accepted_plan) !== digest(Object.fromEntries(Object.keys(job.accepted_plan).map(key => [key,job.plan[key]])))) throw new ConfirmedFailure('Accepted deployment plan changed.')
       const plan = job.plan
-      async function guard() { await lock.assert(); await database.lifecycle.renew(job.request_id, owner) }
-      async function savePlan() { await database.lifecycle.setPlan(job.request_id, owner, plan) }
+      async function guard() { await lock.assert(); await database.execution.renew(job.intent_id, owner) }
+      async function savePlan() { await database.execution.setPlan(job.intent_id, owner, plan) }
       async function receiptFor(tx) {
-        const receipt = await rpc('eth_getTransactionReceipt', [tx.hash])
+        const hash=tx.resolved_hash??tx.hash
+        const receipt = await rpc('eth_getTransactionReceipt', [hash])
         if (!receipt) return null
-        const mined = await rpc('eth_getTransactionByHash', [tx.hash])
+        const mined = await rpc('eth_getTransactionByHash', [hash])
         const intended = tx.transaction_data
-        if (receipt.transactionHash?.toLowerCase() !== tx.hash.toLowerCase() || !mined || !sameAddress(mined.from, account.address) || !sameAddress(mined.to, intended.to) || mined.input !== intended.data || BigInt(mined.value) !== BigInt(intended.value) || BigInt(mined.nonce) !== BigInt(tx.nonce)) throw new Waiting('Transaction evidence does not match the saved action.')
+        const matching=tx.resolution_kind==='cancelled'
+          ? sameAddress(mined?.to,account.address)&&mined.input==='0x'&&BigInt(mined.value)===0n
+          : sameAddress(mined?.to,intended.to)&&mined.input===intended.data&&BigInt(mined.value)===BigInt(intended.value)
+        if (receipt.transactionHash?.toLowerCase() !== hash.toLowerCase() || !mined || !sameAddress(mined.from, account.address) || !matching || BigInt(mined.nonce) !== BigInt(tx.nonce)) throw new Waiting('Transaction evidence does not match the saved action.')
         const block = await rpc('eth_getBlockByNumber', [receipt.blockNumber, false])
         const head = BigInt(await rpc('eth_blockNumber', []))
         if (block?.hash !== receipt.blockHash || head < BigInt(receipt.blockNumber) + BigInt(config.confirmations - 1)) throw new Waiting('Waiting for canonical transaction confirmations.')
-        await database.lifecycle.saveReceipt(tx.hash, receipt)
-        return receipt
+        await database.execution.saveReceipt(tx.hash, receipt)
+        return tx.resolution_kind==='cancelled'?{...receipt,status:'0x0',cancelled:true}:receipt
       }
       async function transact(step, to, data) {
         await guard()
-        let tx = await database.lifecycle.lastTransaction(job.request_id, step)
+        let tx = await database.execution.lastTransaction(job.intent_id, step)
         if (tx) {
           const receipt = await receiptFor(tx)
           if (receipt?.status === '0x1') return receipt
@@ -109,6 +60,7 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
           }
         }
         if (!tx) {
+          await database.execution.authorizeStep(job.intent_id,owner,{allowRetirement:job.operation==='retire'})
           // Verify current factory/type identity again before signing a new step.
           const code = await rpc('eth_getCode',[FACTORY,'latest'])
           const types = await Promise.all([read(rpc, FACTORY, 'vaultTypeByteCode', [BigInt(plan.vaultTypeId)]), read(rpc, FACTORY, 'adapterTypeByteCode', [BigInt(plan.adapterTypeId)])])
@@ -122,8 +74,8 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
           const transaction = { chainId: CHAIN_ID, type: 'legacy', nonce, to, data, value: 0n, gas, gasPrice }
           const raw = await account.signTransaction(transaction), hash = keccak256(raw)
           await guard()
-          await database.lifecycle.saveTransaction({ requestId: job.request_id, step, resumeVersion: job.resume_version,
-            signer: from, nonce, hash, raw, transaction: jsonSafe(transaction) })
+          await database.execution.saveTransaction({ requestId: job.intent_id, step, resumeVersion: job.resume_version,
+            owner, signer: from, nonce, hash, raw, transaction: jsonSafe(transaction), maxDailyGasWei: config.maxDailyGasWei })
           tx = { hash, raw_tx: raw, nonce, transaction_data: jsonSafe(transaction) }
         }
         await guard()
@@ -145,7 +97,51 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         if (decoded.length !== 1 || !sameAddress(decoded[0].creator, account.address)) throw new ConfirmedFailure('Factory event identity did not match.')
         return decoded[0]
       }
-      if (job.state !== 'created') {
+      if (job.operation === 'retire') {
+        // Resolve every previously signed transaction, including broadcasts whose
+        // response was lost. A clock or user cancellation never proves non-execution.
+        for (const tx of await database.execution.transactions(job.intent_id)) {
+          let receipt=await receiptFor(tx)
+          if(!receipt){
+            await guard()
+            const used=BigInt(await rpc('eth_getTransactionCount',[account.address,'latest']))
+            if(used>BigInt(tx.nonce))throw new Waiting('Unknown nonce outcome must be reconciled before retirement.')
+            try{await rpc('eth_sendRawTransaction',[tx.raw_tx])}catch{}
+            receipt=await receiptFor(tx)
+            if(!receipt)throw new Waiting('Waiting for the saved transaction before retirement.')
+          }
+        }
+        let evidence={transactionHashes:(await database.execution.transactions(job.intent_id)).map(tx=>tx.hash)}
+        if(plan.vault && await read(rpc,plan.vault,'initialized')) {
+          let snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
+          if(snapshot.isStarted||BigInt(snapshot.claimSupply)>0n)throw new ConfirmedFailure('The fixed position must be empty and the vault unstarted before retirement.')
+          if(BigInt(snapshot.variableSupply)>0n){
+            const bearer=await read(rpc,plan.vault,'variableBearerToken')
+            const owned=await read(rpc,bearer,'balanceOf',[account.address])
+            if(owned!==BigInt(snapshot.variableSupply))throw new ConfirmedFailure('The funding wallet must recover all variable bearer tokens before retirement.')
+            await transact('retire-premium',plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
+            snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
+          }
+          if(snapshot.isStarted||BigInt(snapshot.claimSupply)!==0n||BigInt(snapshot.variableSupply)!==0n)throw new Waiting('Recovery is not yet confirmed.')
+          evidence={...evidence,blockNumber:snapshot.blockNumber,blockHash:snapshot.blockHash,vault:plan.vault}
+        }
+        // Even a partially created vault is harmless to the budget once all signed
+        // work is settled and this intent can never authorize another funding job.
+        await guard()
+        evidence.transactionHashes=(await database.execution.transactions(job.intent_id)).map(tx=>tx.hash)
+        await database.execution.retire(job.intent_id,owner,evidence)
+        return {state:'retired',deploymentId:job.intent_id}
+      }
+      if(job.operation==='collect'){
+        const snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
+        const end=await read(rpc,plan.vault,'endTime')
+        if(!snapshot.isStarted||BigInt(snapshot.blockTimestamp)<=end)throw new ConfirmedFailure('Variable fees are available only after maturity.')
+        await transact('collect-variable',plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
+        await database.execution.saveObservation(job.intent_id,await readVault(job,rpc,{confirmations:config.confirmations}))
+        await database.execution.setState(job.intent_id,owner,'created','collected')
+        return {state:'collected',deploymentId:job.intent_id}
+      }
+      if (job.operation === 'create') {
         const adapterReceipt = await transact('create-adapter', FACTORY, encodeFunctionData({ abi, functionName: 'createAdapter', args: [BigInt(plan.adapterTypeId), job.snapshot.poolAddress, '0x'] }))
         const adapterEvent = event(adapterReceipt, 'AdapterCreated')
         if (!sameAddress(adapterEvent.pool,job.snapshot.poolAddress) || adapterEvent.adapterTypeId.toString() !== plan.adapterTypeId) throw new ConfirmedFailure('Adapter terms mismatch.')
@@ -159,14 +155,18 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         await transact('initialize-vault', FACTORY, encodeFunctionData({ abi, functionName: 'initializeVault',
           args: [BigInt(plan.vaultId),BigInt(plan.liquidity),BigInt(plan.premium),BigInt(job.snapshot.durationSeconds),job.snapshot.variableAssetAddress,BigInt(plan.feeBps)] }))
         const snapshot = await readVault(job, rpc, { confirmations: config.confirmations })
-        await database.lifecycle.markCreated(job.request_id, owner, snapshot)
-        return { state: 'created', requestId: job.request_id }
+        await database.execution.markCreated(job.intent_id, owner, snapshot)
+        return { state: 'created', requestId: job.intent_id }
       }
       // Finish reconciling earlier funding broadcasts even if somebody else
       // filled capacity meanwhile. Never abandon an unresolved signed spend.
-      for (const prefix of ['reset-premium-', 'approve-premium-', 'fund-premium-']) {
-        const previous = await database.lifecycle.lastTransaction(job.request_id, prefix + job.resume_version)
-        if (previous) await transact(previous.step, previous.transaction_data.to, previous.transaction_data.data)
+      for (const previous of (await database.execution.transactions(job.intent_id)).filter(tx=>/^(reset|approve|fund)-premium-/.test(tx.step))) {
+        if(await receiptFor(previous))continue
+        await guard()
+        const used=BigInt(await rpc('eth_getTransactionCount',[account.address,'latest']))
+        if(used>BigInt(previous.nonce))throw new Waiting('Saved funding transaction outcome is unknown.')
+        try{await rpc('eth_sendRawTransaction',[previous.raw_tx])}catch{}
+        if(!await receiptFor(previous))throw new Waiting('Waiting for the saved funding transaction.')
       }
       // Premium funding is a distinct, separately approved job stage.
       const snapshot = await readVault(job, rpc, { confirmations: config.confirmations })
@@ -177,24 +177,24 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         const allowance = await read(rpc, asset, 'allowance', [account.address, plan.vault])
         if (allowance < remaining) {
           // Reset nonzero allowance for ERC-20s that require zero-before-change.
-          if (allowance > 0n) await transact('reset-premium-' + job.resume_version, asset, encodeFunctionData({ abi, functionName: 'approve', args: [plan.vault,0n] }))
-          await transact('approve-premium-' + job.resume_version, asset, encodeFunctionData({ abi, functionName: 'approve', args: [plan.vault,remaining] }))
+          if (allowance > 0n) await transact('reset-premium-' + job.funding_round, asset, encodeFunctionData({ abi, functionName: 'approve', args: [plan.vault,0n] }))
+          await transact('approve-premium-' + job.funding_round, asset, encodeFunctionData({ abi, functionName: 'approve', args: [plan.vault,remaining] }))
         }
         const minimum = encodeAbiParameters([{type:'uint256'}],[remaining])
-        await transact('fund-premium-' + job.resume_version, plan.vault, encodeFunctionData({ abi, functionName:'deposit',args:[remaining,1n,minimum] }))
+        await transact('fund-premium-' + job.funding_round, plan.vault, encodeFunctionData({ abi, functionName:'deposit',args:[remaining,1n,minimum] }))
       }
       const funded = await readVault(job, rpc, { confirmations: config.confirmations })
       if (BigInt(funded.variableSupply) !== BigInt(funded.variableCapacity) || BigInt(funded.variableBalance) < BigInt(funded.variableCapacity)) throw new ConfirmedFailure('Funding changed; fresh admin review is required.')
-      await database.lifecycle.saveObservation(job.request_id, funded)
-      await database.lifecycle.setState(job.request_id, owner, 'created', 'funded')
-      return { state: 'funded', requestId: job.request_id }
+      await database.execution.saveObservation(job.intent_id, funded)
+      await database.execution.setState(job.intent_id, owner, 'created', 'funded')
+      return { state: 'funded', requestId: job.intent_id }
     } catch (error) {
       if (job) {
         const waiting = error instanceof Waiting || !(error instanceof ConfirmedFailure)
         const reason = error instanceof Waiting || error instanceof ConfirmedFailure ? error.message : 'Worker/RPC unavailable; all saved transactions retained.'
-        await database.lifecycle.setState(job.request_id, owner, job.state === 'created' ? 'created' : waiting ? 'waiting' : 'failed',
+        await database.execution.setState(job.intent_id, owner, job.state === 'created' ? 'created' : waiting ? 'waiting' : 'failed',
           job.state === 'created' ? waiting ? 'waiting' : 'failed' : job.funding_state, reason)
-        return { state: waiting ? 'waiting' : 'failed', requestId: job.request_id, reason }
+        return { state: waiting ? 'waiting' : 'failed', requestId: job.intent_id, reason }
       }
       throw error
     } finally { await lock.release() }

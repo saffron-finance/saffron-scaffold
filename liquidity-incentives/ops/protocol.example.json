@@ -1,0 +1,11 @@
+{
+  "chainId": 4663,
+  "signerAddress": "REPLACE_WITH_WORKER_PUBLIC_ADDRESS",
+  "vaultTypeId": 1,
+  "adapterTypeId": 1,
+  "confirmations": 2,
+  "factoryCodeHash": "REPLACE_WITH_VERIFIED_HASH",
+  "vaultTypeHash": "REPLACE_WITH_VERIFIED_HASH",
+  "adapterTypeHash": "REPLACE_WITH_VERIFIED_HASH",
+  "maxPremiumRaw": "REPLACE_WITH_PER_VAULT_RAW_TOKEN_LIMIT"
+}

@@ -10,12 +10,11 @@ import { extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
-import { createVaultRequestHandler } from './vault-requests.mjs'
-import { createRequestDatabase } from './request-database.mjs'
-import { createIncentiveProgramHandler } from './incentive-programs.mjs'
-import { createOperatorAuth } from './operator-auth.mjs'
-import { createLifecycleService } from './lifecycle-service.mjs'
-import { createLifecycleHandler } from './lifecycle-api.mjs'
+import { createIncentivesDatabase } from './incentives-database.mjs'
+import { createWalletAuth } from './wallet-auth.mjs'
+import { createIncentivesService } from './incentives-service.mjs'
+import { createIncentivesHandler } from './incentives-api.mjs'
+import { createPriceService } from './price-service.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -49,8 +48,7 @@ const RPC = {
   robinhood: process.env.RPC_ROBINHOOD || env.VITE_RPC_ROBINHOOD,
 }
 
-// All request, oracle and admin-ownership reads use operator-owned RPCs.
-// Neither database access nor fee quotes can broadcast a transaction.
+// Read-only protocol calls use application-owned RPC endpoints.
 async function requestRpc(chain, method, params) {
   const target = Object.hasOwn(RPC, chain) ? RPC[chain] : null
   if (!target) throw new Error('RPC unavailable')
@@ -63,29 +61,22 @@ async function requestRpc(chain, method, params) {
   if (payload.error || payload.result === undefined) throw new Error('RPC unavailable')
   return payload.result
 }
-const storePath = resolve(process.env.VAULT_REQUEST_STORE_PATH || join(ROOT, 'data', 'vault-requests.json'))
-const schemaMode = process.env.SAFFRON_DB_SCHEMA_MODE || 'standalone'
-// JSON-only mode is deliberately restricted to isolated legacy test fixtures.
-const requestDatabase = process.env.NODE_ENV === 'test' && process.env.SAFFRON_REQUEST_STORAGE === 'json' ? null
-  : createRequestDatabase({ legacyPath: storePath, schemaMode, resolvePoolFee: async (chain, address) =>
-    Number(BigInt(await requestRpc(chain, 'eth_call', [{ to: address, data: '0xddca3f43' }, 'latest']))) })
-// Authorization belongs to an explicit operator policy, not factory ownership.
-const creatorSigner = process.env.SAFFRON_CREATOR_ADDRESS || null
-const operatorAuth = createOperatorAuth({ operators: (process.env.SAFFRON_ADMIN_WALLETS || '').split(','),
-  origin: process.env.SAFFRON_APP_ORIGIN, basePath: BASE_PATH })
-const lifecycle = requestDatabase ? createLifecycleService({ database: requestDatabase,
-  rpc: (method, params) => requestRpc('robinhood', method, params), signer: creatorSigner }) : null
-const handleLifecycle = createLifecycleHandler({ database: requestDatabase, auth: operatorAuth,
-  service: lifecycle, signer: creatorSigner, basePath: BASE_PATH })
-const observerTimer = setInterval(() => { void lifecycle?.poll().catch(() => {}) }, 5000)
+const configured = name => process.env[name] || env[name]
+const database = configured('SAFFRON_API_DISABLED') === '1' ? null : createIncentivesDatabase({connection:{
+  host:configured('PGHOST'),port:Number(configured('PGPORT')||5432),user:configured('PGUSER'),
+  password:configured('PGPASSWORD'),database:configured('PGDATABASE'),connectionTimeoutMillis:5000,
+}})
+let protocol
+try { if(configured('SAFFRON_PROTOCOL_CONFIG'))protocol=JSON.parse(readFileSync(configured('SAFFRON_PROTOCOL_CONFIG'),'utf8')) }
+catch { throw new Error('Cannot read protocol configuration.') }
+const signer=protocol?.signerAddress
+const rpc=(method,params)=>requestRpc('robinhood',method,params)
+const prices=createPriceService({database,root:configured('PRICE_API_ROOT')})
+const auth=createWalletAuth({operators:(configured('SAFFRON_ADMIN_WALLETS')||'').split(','),origin:configured('SAFFRON_APP_ORIGIN'),basePath:BASE_PATH})
+const service=database?createIncentivesService({database,rpc,usdQuote:prices.quote,config:protocol,signer,origin:auth.origin}):null
+const handleIncentives=createIncentivesHandler({database,auth,service,rpc,basePath:BASE_PATH})
+const observerTimer=setInterval(()=>{void service?.poll().catch(()=>{})},5000)
 observerTimer.unref()
-const handlePrograms = createIncentiveProgramHandler({ database: requestDatabase, adminAllowed: operatorAuth.permitted,
-  basePath: BASE_PATH, rpc: (method, params) => requestRpc('robinhood', method, params) })
-const handleVaultRequest = createVaultRequestHandler({
-  recipient: process.env.VAULT_REQUEST_PAYMENT_ADDRESS, storePath, database: requestDatabase,
-  basePath: BASE_PATH, rpc: (method, params) => requestRpc('arbitrum', method, params),
-  adminAllowed: operatorAuth.permitted, lifecycle,
-})
 
 const ALLOWED_METHODS = new Set([
   'eth_chainId',
@@ -154,25 +145,14 @@ const server = createServer(async (req, res) => {
   try { url = new URL(req.url, 'http://localhost') }
   catch { return end(res, 400, 'invalid URL') }
 
-  if (await handleLifecycle(req, res, url.pathname)) return
-  if (await handleVaultRequest(req, res, url.pathname)) return
-  if (await handlePrograms(req, res, url.pathname)) return
-  if (url.pathname.startsWith(`${BASE_PATH}/vault-requests/`)) return end(res, 404, 'not found')
-
-  // Catalog tokens and legacy aliases only; the upstream host/chain are always fixed.
-  if (url.pathname.startsWith(`${BASE_PATH}/prices/`)) {
-    if (!['GET', 'HEAD'].includes(req.method)) return end(res, 405, 'GET or HEAD only')
-    const key = url.pathname.slice(`${BASE_PATH}/prices/`.length)
-    const tokens = { ETH: '0x0bd7d308f8e1639fab988df18a8011f41eacad73', USDG: '0x5fc5360d0400a0fd4f2af552add042d716f1d168' }
-    try {
-      const token = Object.hasOwn(tokens, key) ? { address: tokens[key], symbol: key }
-        : /^0x[0-9a-fA-F]{40}$/.test(key) ? await requestDatabase?.quoteToken(key) : null
-      if (!token) return end(res, 404, 'unknown token')
-      const response = await fetch(`https://api.saffron.finance/api/v1/tokens/4663/${token.address}/price?symbol=${encodeURIComponent(token.symbol)}`, { signal: AbortSignal.timeout(15000) })
-      if (!response.ok) throw new Error('Price unavailable')
-      const payload = await response.json()
-      endJson(res, 200, payload)
-    } catch { endJson(res, 502, { success: false, error: 'Token price unavailable' }) }
+  if (await handleIncentives(req,res,url.pathname)) return
+  if (url.pathname.startsWith(BASE_PATH+'/api/')) return endJson(res,404,{error:'Endpoint not found.'})
+  if (url.pathname.startsWith(BASE_PATH+'/prices/')) {
+    if (!['GET','HEAD'].includes(req.method)) return end(res,405,'GET or HEAD only')
+    const address=url.pathname.slice((BASE_PATH+'/prices/').length)
+    if(!/^0x[0-9a-fA-F]{40}$/.test(address))return endJson(res,404,{error:'Unknown price token.'})
+    try { endJson(res,200,await prices.payload(address)) }
+    catch { endJson(res,502,{success:false,error:'Token price unavailable'}) }
     return
   }
 
