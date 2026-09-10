@@ -107,7 +107,9 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(!['created','retired'].includes(job.state)&&now()-job.created_at.getTime()>24*60*60_000)state='needs_attention'
       let depositable=false,canClaim=false,canWithdraw=false,canRecover=false
       const fresh=eligible.state!=='checking'
-      if(job.state==='created'&&fresh){
+      // Position ownership survives failed or queued operator work. Only new
+      // deposits depend on the creation job having completed successfully.
+      if(fresh){
         if(observation.isStarted){
           canClaim=BigInt(observation.claimBalance)>0n
           const owned=canClaim||BigInt(observation.fixedBalance)>0n
@@ -118,7 +120,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         }else if(BigInt(observation.claimSupply)>0n){
           canRecover=BigInt(observation.claimBalance)>0n
           state=canRecover?'fixed_awaiting_funding':'occupied'
-        }else{state=eligible.state;depositable=eligible.depositable}
+        }else if(job.state==='created'){state=eligible.state;depositable=eligible.depositable}
       }
       if(job.cancel_requested&&job.state!=='retired'&&!observation?.isStarted){state='retirement_requested';depositable=false}
       const transactions=(await db.execution.transactionMetadata(job.id)).map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:tx.receipt?.status==='0x1'&&tx.resolution_kind!=='cancelled',reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))

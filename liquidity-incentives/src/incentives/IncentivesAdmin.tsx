@@ -35,9 +35,10 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
     <Row style={{flexWrap:'wrap'}}>
       {row.workerState==='created'&&s?.verified&&!s.isStarted&&!row.cancelRequested&&BigInt(s.variableSupply)<BigInt(s.variableCapacity)&&<QuietButton disabled={busy||['queued','running','waiting'].includes(row.fundingState)} onClick={()=>void run('fund')}>Approve premium funding</QuietButton>}
       {(row.workerState==='failed'||['failed','waiting'].includes(row.fundingState)||row.error)&&row.workerState!=='retired'&&<QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton>}
-      {row.workerState!=='retired'&&!s?.isStarted&&<QuietButton disabled={busy} onClick={()=>void run('retire')}>Recover unused funding and retire</QuietButton>}
+      {row.workerState!=='retired'&&(!row.plan.vault||(s?.verified&&!s.isStarted&&BigInt(s.claimSupply)===0n))&&<QuietButton disabled={busy} onClick={()=>void run('retire')}>Recover unused funding and retire</QuietButton>}
       {s?.isStarted&&Number(s.blockTimestamp)>Number(s.endTime)&&BigInt(s.fundingBearerBalance)>0n&&<QuietButton disabled={busy} onClick={()=>void run('collect')}>Collect variable-side fees</QuietButton>}
     </Row>
+    {s?.verified&&!s.isStarted&&BigInt(s.claimSupply)>0n&&<FinePrint>The fixed-position owner must recover their LP assets before this vault can be retired.</FinePrint>}
     <Disclosure><summary>Transaction journal and recovery</summary>
       <FinePrint>Worker signer: {row.signer}. Reconcile a replacement only after checking its onchain outcome. Then resume the saved operation.</FinePrint>
       {row.transactions.map(tx=><p key={tx.hash}><a href={'https://robinhoodchain.blockscout.com/tx/'+tx.hash} target='_blank' rel='noreferrer'>{tx.step} · nonce {tx.nonce} · {tx.confirmed?'confirmed':tx.reverted?'failed':'pending'} ↗</a></p>)}

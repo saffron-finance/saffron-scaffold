@@ -34,6 +34,7 @@ export function VaultLifecyclePanel({account,id,onBusy}:{account:Address;id:stri
     {row?.state==='active'&&s&&<FinePrint>Premium claimed. Your LP assets unlock after {new Date(Number(s.endTime)*1000).toLocaleString()}.</FinePrint>}
     {row?.state==='matured'&&row.canClaim&&<FinePrint>Your position has matured. Claim the premium first, then withdraw the LP assets.</FinePrint>}
     {row?.canRecover&&<FinePrint>Your fixed deposit was confirmed, but the vault has not started. You can recover the LP assets while it remains unstarted.</FinePrint>}
+    {row?.canRecover&&row.cancelRequested&&<FinePrint>Recover your LP assets before the operator can finish retiring this vault.</FinePrint>}
     {flow.quote&&mode!=='claim'&&<>
       <Row><span>{mode==='deposit'?'LP assets required':'Estimated LP assets returned'}</span></Row>
       {[0,1].map(i=><FinePrint key={i}>{flow.amountLabel(i)} {flow.quote.tokens[i].symbol}</FinePrint>)}

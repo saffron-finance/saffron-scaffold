@@ -33,6 +33,12 @@ it('real Uniswap factory and position manager: mint, claim conversion, maturity,
     assert.ok(BigInt(s.adapterLiquidity)>0n)
     assert.equal(s.claimBalance,'1');assert.equal(s.fixedBalance,'0')
     assert.throws(()=>positionAction(s,'withdraw'),/not matured/)
+    // A failed operator collection must not remove the owner's claim action.
+    row=await service.detail(id,chain.account.address)
+    await db.execution.approveOperation(id,chain.account.address,row.planHash,'collect')
+    assert.equal((await worker.tick()).state,'failed')
+    row=await service.detail(id,chain.account.address)
+    assert.equal(row.workerState,'failed');assert.equal(row.canClaim,true)
     const action=positionAction(s,'claim'),claimed=await chain.send(action.to,action.data)
     assert.equal((await service.recordUserAction(id,chain.account.address,claimed.transactionHash)).action,'claim')
     s=(await service.context(id,chain.account.address)).snapshot
@@ -41,6 +47,11 @@ it('real Uniswap factory and position manager: mint, claim conversion, maturity,
     offset=Number(s.endTime)*1000-Date.now()+3000
     await chain.raw('evm_setNextBlockTimestamp',[Number(s.endTime)+2]);await chain.raw('evm_mine');await chain.raw('evm_mine')
     row=await service.detail(id,chain.account.address);assert.equal(row.state,'matured')
+    await db.execution.approveOperation(id,chain.account.address,row.planHash,'collect')
+    const unavailableRpc=(method,params)=>{if(method==='eth_estimateGas')throw new Error('Gas estimation unavailable');return chain.rpc(method,params)}
+    assert.equal((await createCreator({database:db,rpc:unavailableRpc,account:chain.account,config:chain.config}).tick()).state,'waiting')
+    row=await service.detail(id,chain.account.address)
+    assert.equal(row.workerState,'waiting');assert.equal(row.canWithdraw,true)
     const withdraw=positionAction(row.observation,'withdraw',Date.now()+offset)
     const receipt=await chain.send(withdraw.to,withdraw.data)
     assert.equal(receipt.status,'success')
@@ -83,11 +94,16 @@ it('real pre-start LP recovery follows current claim ownership and preserves the
     const returned=await other.sendTransaction({to:s.claimToken,data:encodeFunctionData({abi:tokenAbi,functionName:'transfer',args:[chain.account.address,1n]})})
     await chain.client.waitForTransactionReceipt({hash:returned});await chain.raw('evm_mine')
     row=await service.detail(id,chain.account.address)
+    // Retirement can race with entry. Its failure must leave LP recovery usable.
+    await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
+    assert.equal((await worker.tick()).state,'failed')
+    row=await service.detail(id,chain.account.address)
+    assert.equal(row.workerState,'failed');assert.equal(row.cancelRequested,true);assert.equal(row.canRecover,true)
     const action=positionAction(row.observation,'recover'),receipt=await chain.send(action.to,action.data)
     assert.equal((await service.recordUserAction(id,chain.account.address,receipt.transactionHash)).action,'recover')
     row=await service.detail(id,chain.account.address)
     assert.equal(row.observation.adapterLiquidity,'0');assert.equal(row.observation.claimBalance,'0')
-    assert.equal(row.state,'awaiting_funding');assert.equal(row.canRecover,false)
+    assert.equal(row.state,'retirement_requested');assert.equal(row.canRecover,false)
     assert.equal((await db.catalog(true)).budgets[0].reservedRaw,row.plan.premium)
     await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
     assert.equal((await worker.tick()).state,'retired')
