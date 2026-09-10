@@ -3,7 +3,7 @@ import styled, { ThemeProvider } from 'styled-components'
 import { useWallet } from '@lab/hooks/useWallet'
 import IncentivesPage from '../incentives/IncentivesPage'
 import { Sidebar } from './Sidebar'
-import { sidebarMobileWidth } from './sidebarTheme'
+import { sidebarCollapsedWidth, sidebarMobileWidth } from './sidebarTheme'
 import { darkTheme, lightTheme, GlobalStyles, Modal, ModalTitle, NAV_BUTTON_CHROME, NAV_SQUARE_BUTTON, ICON_BUTTON_HOVER } from './ui'
 
 const mount = import.meta.env.BASE_URL
@@ -24,7 +24,7 @@ export function StandaloneHost() {
     <Frame $sidebarCollapsed={sidebarCollapsed}>
       <Sidebar home={mount} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)} />
       <Content>
-      <Nav $sidebarCollapsed={sidebarCollapsed} aria-label='Account controls'>
+      <Nav aria-label='Account controls'>
         <Controls>
           <Connect aria-label={wallet.account ? 'Manage wallet' : 'Connect wallet'} onClick={wallet.openModal}>
             {wallet.account ? `${wallet.account.slice(0, 6)}…${wallet.account.slice(-4)}` : 'Connect'}
@@ -69,10 +69,10 @@ const Frame = styled.div<{ $sidebarCollapsed: boolean }>`
   min-height:100vh;color:${p => p.theme.colors.text.primary};display:grid;grid-template-columns:252px minmax(0,1fr);align-items:start;
   @media(max-width:1100px){grid-template-columns:220px minmax(0,1fr);}
   @media(max-width:${sidebarMobileWidth}px){grid-template-columns:minmax(0,1fr);}
-  ${p => p.$sidebarCollapsed ? 'display:block;' : ''}
+  ${p => p.$sidebarCollapsed ? `&&{grid-template-columns:${sidebarCollapsedWidth}px minmax(0,1fr);}` : ''}
 `
 const Content = styled.div`min-width:0;min-height:100vh;display:flex;flex-direction:column;`
-const Nav = styled.header<{ $sidebarCollapsed: boolean }>`display:flex;align-items:center;gap:12px;width:100%;max-width:var(--page-max-width);padding:var(--page-padding-x);margin:0 auto;${p => p.$sidebarCollapsed ? 'padding-left:max(80px,var(--page-padding-x));' : ''}`
+const Nav = styled.header`display:flex;align-items:center;gap:12px;width:100%;max-width:var(--page-max-width);padding:var(--page-padding-x);margin:0 auto;`
 const NavLink = styled.a<{ $active?: boolean }>`padding:0 20px;height:44px;font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;white-space:nowrap;color:${p => p.$active ? p.theme.colors.text.primary : p.theme.colors.text.tertiary};&:hover{color:${p => p.theme.colors.text.primary}}`
 const Controls = styled.div`display:flex;align-items:center;gap:12px;margin-left:auto;`
 const Connect = styled.button`${NAV_BUTTON_CHROME}${ICON_BUTTON_HOVER}border-color:transparent;min-width:110px;padding:0 18px;color:${p => p.theme.colors.text.primary};font:500 14px ${p => p.theme.fonts.mono};letter-spacing:.06em;text-transform:uppercase;cursor:pointer;`

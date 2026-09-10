@@ -17,8 +17,17 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
   const second=Boolean(id||reviewed),busy=flow.busy||nativeBusy
   const titleId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
-  const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby',titleId);node?.focus()},[titleId])
-  useEffect(()=>{titleRef.current?.focus()},[second,id])
+  const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby',titleId)},[titleId])
+  const focusedDeposit=useRef<HTMLInputElement|null>(null)
+  const attachDeposit=useCallback((node:HTMLInputElement|null)=>{
+    // The formatter reattaches its ref on updates. Focus only a newly mounted
+    // field, after the modal has recorded the control that opened it.
+    if(node&&node!==focusedDeposit.current){
+      focusedDeposit.current=node
+      queueMicrotask(()=>{if(node.isConnected)node.focus({preventScroll:true})})
+    }
+  },[])
+  useEffect(()=>{if(second)titleRef.current?.focus()},[second,id])
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return ()=>clearInterval(timer)},[])
   const amount=Number(deposit),max=offer?.eligibleMaximumCents?Number(offer.eligibleMaximumCents)/100:0
   const minimum=offer?Number(offer.minimumCents)/100:0
@@ -50,7 +59,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
         {flow.saved?<QuietButton disabled={busy} onClick={()=>void flow.discardRejected()}>Check saved authorization</QuietButton>:<QuietButton disabled={busy} onClick={flow.reset}>Change amount / refresh quote</QuietButton>}
       </>:offer?<>
         <Range aria-label='Full price range'><Row><Label>Price range: full</Label><RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch></Row><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></Range>
-        <FormFieldGroup><FormLabel htmlFor='incentive-deposit'>LP deposit value</FormLabel><FormInput as={CurrencyInput} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal' prefix='$' groupSeparator=',' decimalSeparator='.' allowNegativeValue={false} disableAbbreviations decimalsLimit={2} value={deposit} maxLength={24} onValueChange={(value:string|undefined)=>setDeposit(value??'')}/>
+        <FormFieldGroup><FormLabel htmlFor='incentive-deposit'>LP deposit value</FormLabel><FormInput as={CurrencyInput} ref={attachDeposit} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal' prefix='$' groupSeparator=',' decimalSeparator='.' allowNegativeValue={false} disableAbbreviations decimalsLimit={2} value={deposit} maxLength={24} onValueChange={(value:string|undefined)=>setDeposit(value??'')}/>
           <FinePrint>{offer.eligibleMaximumCents===null?'Live capacity unavailable':max>0?usd(minimum)+' minimum · '+usd(max)+' available per vault':'This campaign currently has no available capacity.'}</FinePrint>
           {amount>max&&max>0&&<ErrorText>Amount exceeds the available {usd(max)}.</ErrorText>}
         </FormFieldGroup>

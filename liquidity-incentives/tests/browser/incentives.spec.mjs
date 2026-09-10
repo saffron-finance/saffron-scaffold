@@ -62,7 +62,7 @@ test('approved cards, mobile layout, keyboard focus and local lifecycle navigati
       await page.getByText('Tweak',{exact:true}).click()
     }else await expect(page.getByText('Tweak',{exact:true})).toHaveCount(0)
     await expect(offers.first()).toHaveCSS('border-top-color','rgb(29, 29, 29)')
-    await offers.first().hover();await expect(offers.first()).toHaveCSS('border-top-color','rgb(69, 69, 69)')
+    await offers.first().hover();await expect(offers.first()).toHaveCSS('border-top-color','rgb(255, 188, 9)')
     await page.emulateMedia({reducedMotion:'reduce'})
     for(const width of [1440,1000,800,390]){
       await page.setViewportSize({width,height:900})

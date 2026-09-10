@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, useState, type MouseEvent, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import styled from 'styled-components'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
 import { sidebarDestinations, type SidebarIcon } from './sidebarNavigation'
-import { sidebarDefaults, sidebarMobileWidth, sidebarVariables } from './sidebarTheme'
+import { sidebarCollapsedWidth, sidebarDefaults, sidebarMobileWidth, sidebarVariables } from './sidebarTheme'
 
 // Small inline line icons keep this shell independent of an icon dependency.
 const icons: Record<SidebarIcon, string> = {
@@ -15,37 +15,35 @@ const icons: Record<SidebarIcon, string> = {
   community: 'M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M5 21v-3a7 7 0 0 1 14 0v3 M19 5a3 3 0 0 1 0 6 M21 21v-4a5 5 0 0 0-2-4 M5 5a3 3 0 0 0 0 6 M3 21v-4a5 5 0 0 1 2-4',
 }
 
-/** One persistent logo canvas serves both the rail and the floating reopen
- * control. Hiding navigation never unmounts the WebGL renderer or the page. */
+/** Keep the same logo and icons mounted in either rail size. A single overlay
+ * button makes the entire compact rail an accessible reopen target, not links. */
 export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed: boolean; onToggle: () => void }) {
   const [path,setPath]=useState(location.pathname)
   useEffect(()=>{const update=()=>setPath(location.pathname);window.addEventListener('popstate',update);window.addEventListener('saffron:navigation',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('saffron:navigation',update)}},[])
-  const navigationId = useId(), logo = useRef<HTMLAnchorElement>(null), toggle = useRef<HTMLButtonElement>(null)
+  const navigationId = useId(), reopen = useRef<HTMLButtonElement>(null), toggle = useRef<HTMLButtonElement>(null)
   const previous = useRef(collapsed)
   useEffect(() => {
     if (previous.current === collapsed) return
     previous.current = collapsed
     // Move keyboard focus out of hidden controls. Reopening on a scrolled mobile
     // page also brings the newly revealed menu into view.
-    if (collapsed) logo.current?.focus({ preventScroll: true })
+    if (collapsed) reopen.current?.focus({ preventScroll: true })
     else toggle.current?.focus()
   }, [collapsed])
   return <Rail data-saffron-sidebar data-collapsed={collapsed} aria-label='Saffron sidebar'>
-    <Heading>
-      <Brand ref={logo} href={home} aria-label={collapsed ? 'Open sidebar' : 'Saffron home'}
-        role={collapsed ? 'button' : undefined} aria-expanded={collapsed ? false : undefined}
-        aria-controls={collapsed ? navigationId : undefined} title={collapsed ? 'Open sidebar' : 'Saffron home'}
-        onClick={(event: MouseEvent<HTMLAnchorElement>) => { if (collapsed) { event.preventDefault(); onToggle() } }}
-        onKeyDown={(event: KeyboardEvent<HTMLAnchorElement>) => { if (collapsed && event.key === ' ') { event.preventDefault(); onToggle() } }}>
+    <Surface data-sidebar-surface>
+    <Heading aria-hidden={collapsed || undefined}>
+      <Brand href={home} aria-label='Saffron home' title='Saffron home' tabIndex={collapsed ? -1 : undefined}>
         <Logo><Emblem3DLogo /></Logo><span data-sidebar-wordmark>SAFFRON</span>
       </Brand>
-      <Collapse ref={toggle} data-sidebar-collapse type='button' aria-label='Hide sidebar' title='Hide sidebar'
+      <Collapse ref={toggle} data-sidebar-collapse type='button' aria-label='Collapse sidebar' title='Collapse sidebar'
         aria-expanded={!collapsed} aria-controls={navigationId} onClick={onToggle}>
-        <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M19 12H5m6-6-6 6 6 6' /></svg>
+        <svg viewBox='0 0 24 24' aria-hidden='true'><rect x='4' y='4' width='16' height='16' rx='2' /><path d='M10 4v16' /></svg>
       </Collapse>
     </Heading>
-    <Navigation id={navigationId} aria-label='Main navigation'>
+    <Navigation id={navigationId} aria-label='Main navigation' aria-hidden={collapsed || undefined}>
       {sidebarDestinations(home).map(item => <NavItem key={item.icon} href={item.href}
+        tabIndex={collapsed ? -1 : undefined}
         aria-current={!item.external&&path.replace(/\/$/,'')===item.href.replace(/\/$/,'')?'page':undefined}
         target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>
         <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'><path d={icons[item.icon]} /></svg>
@@ -53,25 +51,42 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
       </NavItem>)}
     </Navigation>
     <Signature data-sidebar-signature href='https://saffron.finance/' target='_blank' rel='noopener noreferrer'>saffron.finance</Signature>
+    </Surface>
+    {collapsed && <Reopen ref={reopen} type='button' aria-label='Open sidebar' title='Open sidebar'
+      aria-expanded={false} aria-controls={navigationId} onClick={onToggle} />}
   </Rail>
 }
 
 const Rail = styled.aside`
   ${sidebarVariables(sidebarDefaults)}
-  position:sticky;top:0;height:100vh;height:100dvh;min-width:0;padding:22px 16px 16px;
-  display:flex;flex-direction:column;overflow:auto;border-right:1px solid #1d1d1d;
-  background:linear-gradient(var(--sidebar-surface-angle),var(--sidebar-surface-top),var(--sidebar-surface-bottom));
-  @media(max-width:${sidebarMobileWidth}px){position:static;height:auto;padding:12px 16px;border-right:0;border-bottom:1px solid #1d1d1d;}
+  position:sticky;top:0;height:100vh;height:100dvh;min-width:0;
+  @media(max-width:${sidebarMobileWidth}px){position:static;height:auto;}
   /* Attribute specificity keeps collapse above the mobile layout rules. */
   &[data-collapsed=true]{
-    position:fixed;top:12px;left:12px;z-index:4;width:56px;height:56px;padding:6px;
-    border:0;background:transparent;overflow:visible;
-    nav,[data-sidebar-wordmark],[data-sidebar-collapse],[data-sidebar-signature]{display:none;}
-    header{margin:0;}
-    a{animation:saffronSidebarPop .18s ease-out;}
+    position:sticky;top:0;z-index:4;width:${sidebarCollapsedWidth}px;height:100vh;height:100dvh;
+    [data-sidebar-surface]{padding:22px 8px 16px;border-right:1px solid #1d1d1d;border-bottom:0;pointer-events:none;}
+    [data-sidebar-wordmark],[data-sidebar-collapse],[data-sidebar-signature],nav span{display:none;}
+    header{justify-content:center;margin-bottom:28px;}
+    nav{flex-direction:column;overflow:visible;padding:0;}
+    nav a{justify-content:center;width:100%;padding:12px 10px;}
+    nav svg{display:block;width:20px;height:20px;}
+    nav a::before{display:none;}
+    /* Animate paint only: the hit area stays still so edge hovering cannot flicker. */
+    &:hover [data-sidebar-surface]{transform:translateX(4px);}
   }
-  @keyframes saffronSidebarPop{from{transform:scale(.85)}to{transform:scale(1)}}
-  @media(prefers-reduced-motion:reduce){&[data-collapsed=true] a{animation:none;}}
+  @media(prefers-reduced-motion:reduce){&[data-collapsed=true]:hover [data-sidebar-surface]{transform:none;}}
+`
+const Surface = styled.div`
+  height:100%;padding:22px 16px 16px;display:flex;flex-direction:column;overflow:auto;
+  border-right:1px solid #1d1d1d;
+  background:linear-gradient(var(--sidebar-surface-angle),var(--sidebar-surface-top),var(--sidebar-surface-bottom));
+  transition:transform .16s ease-out;
+  @media(max-width:${sidebarMobileWidth}px){padding:12px 16px;border-right:0;border-bottom:1px solid #1d1d1d;}
+  @media(prefers-reduced-motion:reduce){transition:none;}
+`
+const Reopen = styled.button`
+  position:absolute;inset:0 -4px 0 0;padding:0;border:0;background:transparent;cursor:pointer;
+  &:focus-visible{outline:2px solid var(--sidebar-start);outline-offset:-3px;}
 `
 const Heading = styled.header`
   display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:28px;
@@ -85,9 +100,9 @@ const Brand = styled.a`
 const Logo = styled.div`width:44px;height:44px;flex:none;`
 const Collapse = styled.button`
   width:32px;height:32px;flex:none;padding:6px;display:grid;place-items:center;
-  border:1px solid rgba(255,255,255,.24);border-radius:0;background:#0b0b10;color:#ddd;cursor:pointer;
-  svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
-  &:hover{color:var(--sidebar-start);border-color:var(--sidebar-start);}
+  border:1px solid transparent;border-radius:0;background:transparent;color:#8a8a8a;cursor:pointer;
+  svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  &:hover{color:var(--sidebar-start);background:rgba(255,255,255,.04);}
   &:focus-visible{outline:2px solid var(--sidebar-start);outline-offset:3px;}
 `
 const Navigation = styled.nav`

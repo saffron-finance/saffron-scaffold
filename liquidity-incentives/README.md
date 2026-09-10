@@ -86,6 +86,15 @@ on port 3201, change `SAFFRON_APP_ORIGIN` and restart the server. `localhost` an
 them. `SAFFRON_API_DISABLED=1` allows a shell/relay inspection without a database;
 it does not seed programs or accept deployments.
 
+The sidebar collapses to a full-height 64px icon rail that reserves its space.
+Clicking the rail or pressing Enter/Space reopens navigation without remounting
+the logo or page. Hover shifts only its painted surface; reduced motion disables
+the shift. Offer cards retain their gray surface with a gold hover border.
+
+Opening the vault modal or returning to its amount step focuses the deposit field.
+Typing and price updates preserve focus. Continuing focuses the review heading,
+and closing returns focus to the control that opened the modal.
+
 ## Domain and accounting
 
 - An origin-bound wallet session and separate EIP-712 signature authorize one
