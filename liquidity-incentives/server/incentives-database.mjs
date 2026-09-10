@@ -16,20 +16,34 @@ const asBudget = row => ({ id: row.id, revision: row.revision, name: row.name, c
 
 /** All acceptance/accounting mutations use real SQL transactions. No RPC occurs under a row lock. */
 export function createIncentivesDatabase({ connection, now = Date.now, maxPendingPerWallet = 3, maxPending = 100,
-  reservationMs = 15 * 60_000, quoteMs = 120_000 } = {}) {
-  const pool = new pg.Pool({ ...connection, max: 8, options: '-c timezone=UTC' })
+  reservationMs = 15 * 60_000, quoteMs = 120_000, initializationRetryMs = 5_000 } = {}) {
+  const pool = new pg.Pool({ connectionTimeoutMillis:5_000, ...connection, max: 8, options: '-c timezone=UTC' })
   // pg removes a failed idle client. Subsequent requests reconnect; the HTTP
   // boundary returns generic failures rather than crashing/logging provider data.
   pool.on('error',()=>{})
-  const ready = readFile(new URL('./incentives.sql', import.meta.url), 'utf8').then(async sql => {
+  let initialized=false,initializing=null,retryAt=0,initializationError,closing=false,closed
+  async function initialize(){
+    const sql=await readFile(new URL('./incentives.sql', import.meta.url), 'utf8')
     const client=await pool.connect()
     try{await client.query('BEGIN');await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-incentives-schema',0))");await client.query(sql);await client.query('COMMIT')}
-    catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
-  })
-  ready.catch(() => {})
-  const query = async (sql, values = []) => { await ready; return pool.query(sql, values) }
+    catch(error){try{await client.query('ROLLBACK')}catch{}throw error}finally{client.release()}
+  }
+  function ready(){
+    if(closing)return Promise.reject(new Error('Database is closed.'))
+    if(initialized)return Promise.resolve()
+    if(initializing)return initializing
+    if(Date.now()<retryAt)return Promise.reject(initializationError)
+    // One initialization attempt is shared by all requests. A failed attempt
+    // leaves a bounded backoff, not a permanently rejected startup promise.
+    initializing=initialize().then(()=>{initialized=true;initializationError=undefined},error=>{
+      initializationError=error;retryAt=Date.now()+initializationRetryMs;throw error
+    }).finally(()=>{initializing=null})
+    return initializing
+  }
+  void ready().catch(()=>{})
+  const query = async (sql, values = []) => { await ready(); return pool.query(sql, values) }
   async function transaction(run) {
-    await ready
+    await ready()
     const client = await pool.connect()
     try { await client.query('BEGIN'); const result = await run(client); await client.query('COMMIT'); return result }
     catch (error) { await client.query('ROLLBACK'); throw error }
@@ -50,8 +64,11 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       FROM ${schema}.deployment_intents i JOIN ${schema}.vault_jobs j ON j.intent_id=i.id WHERE i.id=$1`, [id])).rows[0] ?? null
   }
   const db = {
-    pool, ready, query, transaction, lockBudget, entry, getIntent, now,
-    close: () => pool.end(),
+    pool, get ready(){return ready()}, query, transaction, lockBudget, entry, getIntent, now,
+    close: () => {
+      closing=true
+      return closed??=(async()=>{try{await initializing}catch{}await pool.end()})()
+    },
     async catalog(admin = false) {
       return transaction(async client => {
         await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')

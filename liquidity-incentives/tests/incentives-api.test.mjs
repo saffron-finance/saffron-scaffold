@@ -1,12 +1,15 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
+import net from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
 import { once } from 'node:events'
 import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
 import { incentivesFixture,ORIGIN } from './incentives-fixture.mjs'
 import { createWalletAuth } from '../server/wallet-auth.mjs'
 import { createIncentivesHandler } from '../server/incentives-api.mjs'
 import { createIncentivesService } from '../server/incentives-service.mjs'
+import { createIncentivesDatabase } from '../server/incentives-database.mjs'
 import { walletSessionMessage,deploymentTypedData } from '../shared/incentives.mjs'
 
 it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operator permissions',async()=>{
@@ -62,4 +65,47 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     assert.equal((await call('/deployments',undefined,u)).status,401)
     assert.equal((await call('/unknown',undefined,a)).status,404)
   }finally{await new Promise(resolve=>server.close(resolve));await store.close()}
+})
+
+it('HTTP requests recover after an initial database outage without restarting the application',async()=>{
+  const store=await incentivesFixture(),account=privateKeyToAccount(generatePrivateKey()),sockets=new Set()
+  let available=false,database,server
+  const proxy=net.createServer(client=>{
+    if(!available){client.destroy();return}
+    const target=net.createConnection({host:store.connection.host,port:store.connection.port})
+    for(const socket of [client,target]){sockets.add(socket);socket.on('close',()=>sockets.delete(socket))}
+    client.on('error',()=>target.destroy());target.on('error',()=>client.destroy())
+    client.pipe(target);target.pipe(client)
+  })
+  try{
+    await store.seed(account.address)
+    const accepted=await store.accept(account,await store.quote(account))
+    proxy.listen(0,'127.0.0.1');await once(proxy,'listening')
+    database=createIncentivesDatabase({connection:{...store.connection,host:'127.0.0.1',port:proxy.address().port,connectionTimeoutMillis:500},initializationRetryMs:20})
+    await assert.rejects(database.ready)
+    const auth=createWalletAuth({origin:ORIGIN,operators:[account.address]})
+    const service=createIncentivesService({database,signer:account.address,rpc:async()=>{throw new Error('RPC not used')}})
+    const handler=createIncentivesHandler({database,auth,service})
+    server=createServer(async(req,res)=>{if(!await handler(req,res,new URL(req.url,ORIGIN).pathname)){res.statusCode=404;res.end()}})
+    server.listen(0,'127.0.0.1');await once(server,'listening')
+    const root='http://127.0.0.1:'+server.address().port+'/api/incentives'
+    const challenge=await fetch(root+'/session/challenge',{method:'POST',headers:{origin:ORIGIN,'content-type':'application/json'},body:JSON.stringify({wallet:account.address})}).then(response=>response.json())
+    const login=await fetch(root+'/session/login',{method:'POST',headers:{origin:ORIGIN,'content-type':'application/json'},body:JSON.stringify({wallet:account.address,nonce:challenge.nonce,signature:await account.signMessage({message:walletSessionMessage(challenge)})})})
+    assert.equal(login.status,200)
+    const headers={cookie:login.headers.get('set-cookie').split(';')[0]}
+    const unavailable=await fetch(root+'/deployments',{headers})
+    assert.equal(unavailable.status,503)
+    assert.deepEqual(await unavailable.json(),{error:'Incentives are unavailable. Your accepted deployment remains saved.'})
+    available=true;await delay(25)
+    const responses=await Promise.all(Array.from({length:12},()=>fetch(root+'/deployments',{headers})))
+    for(const response of responses){assert.equal(response.status,200);assert.equal((await response.json()).deployments[0].id,accepted.id)}
+    assert.equal((await database.auditBudget('cashcat-campaign')).budget.reservedRaw,'60000')
+    await database.ready
+  }finally{
+    if(server)await new Promise(resolve=>server.close(resolve))
+    if(database)await database.close()
+    for(const socket of sockets)socket.destroy()
+    if(proxy.listening)await new Promise(resolve=>proxy.close(resolve))
+    await store.close()
+  }
 })

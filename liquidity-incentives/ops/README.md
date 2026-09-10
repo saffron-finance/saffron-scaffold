@@ -155,6 +155,11 @@ credentials and raw signed bytes.
 
 ## Recovery and reconciliation
 
+- **Database startup outage:** the HTTP service returns generic unavailable
+  responses while PostgreSQL is unreachable. Subsequent requests and observer
+  polls retry schema initialization after a five-second backoff, sharing one
+  attempt across concurrent requests. Connection establishment defaults to a
+  five-second timeout. Restoring PostgreSQL does not require an HTTP restart.
 - **Unsigned cancellation:** users can cancel before any worker transaction is
   signed, once an active lease resolves. Release/retirement are atomic; replaying
   the authorization still returns the same retired intent.
