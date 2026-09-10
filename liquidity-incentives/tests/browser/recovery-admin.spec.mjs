@@ -30,7 +30,7 @@ test('lost acceptance response and lost wallet response survive reload without a
     await expect(page.getByRole('button',{name:'Check transaction',exact:true})).toBeVisible()
     const hash=f.state.lastHash
     await page.reload()
-    await page.getByRole('button',{name:/^My vaults/}).click()
+    await page.getByRole('button',{name:/^My requests/}).click()
     await page.getByRole('button',{name:'Deposit',exact:true}).click()
     await page.getByLabel('Recover transaction hash').fill(hash)
     await page.getByRole('button',{name:'Check transaction',exact:true}).click()

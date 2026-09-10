@@ -28,7 +28,7 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
     expect((await f.worker.tick()).state).toBe('idle')
     await expect(page.getByRole('button',{name:'Wrap ETH',exact:true})).toBeEnabled({timeout:20000})
     await page.getByRole('button',{name:'Close incentive vault'}).click()
-    await page.getByRole('button',{name:/^My vaults/}).click()
+    await page.getByRole('button',{name:/^My requests/}).click()
     await expect(page.getByRole('button',{name:'Deposit',exact:true})).toBeVisible({timeout:20000})
     await page.getByRole('button',{name:'Deposit',exact:true}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toHaveAttribute('data-vault-lifecycle',id)
@@ -74,8 +74,8 @@ test('approved cards, mobile layout, keyboard focus and local lifecycle navigati
     expect(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
     await page.screenshot({path:'validation/mobile-create.png',fullPage:true})
     await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(offers.first()).toBeFocused()
-    await expect(page.locator('a[href*="beta.saffron.finance"]')).toHaveCount(0)
-    await expect(page.getByRole('link',{name:'Variable yield',exact:true})).toHaveCount(0)
+    await expect(page.locator('a[href*="beta.saffron.finance"]')).toHaveCount(4)
+    await expect(page.getByRole('link',{name:'Variable yield',exact:true})).toHaveAttribute('href',/view=variable$/)
   }finally{await f.close()}
 })
 
@@ -94,7 +94,7 @@ test('a received claim appears in the holder profile and uses the native claim m
     await chain.send(s.vault,encodeFunctionData({abi,functionName:'deposit',args:[0n,0n,data]}))
     await chain.send(s.claimToken,encodeFunctionData({abi:parseAbi(['function transfer(address,uint256) returns(bool)']),functionName:'transfer',args:[f.account.address,1n]}))
     await page.goto(f.origin);await connect(page)
-    await page.getByRole('button',{name:/^My vaults/}).click()
+    await page.getByRole('button',{name:/^My requests/}).click()
     await expect(page.getByRole('button',{name:'Claim premium',exact:true})).toBeVisible({timeout:20000})
     await page.getByRole('button',{name:'Claim premium',exact:true}).click()
     const dialog=page.getByRole('dialog')
@@ -120,7 +120,7 @@ test('profile and administration can page to older vaults and retain that page o
       oldest??=id;await database.cancelDeployment(id,account.address)
     }
     await page.goto(f.origin);await connect(page)
-    await page.getByRole('button',{name:'My vaults',exact:true}).click()
+    await page.getByRole('button',{name:'My requests',exact:true}).click()
     await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
     await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toHaveCount(0)
     await page.getByRole('button',{name:'Older vaults',exact:true}).click()

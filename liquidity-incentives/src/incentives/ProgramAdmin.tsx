@@ -84,9 +84,9 @@ function PairEditor({account,onSaved}:{account:Address;onSaved:()=>Promise<void>
     {(['token0','token1'] as const).map((key,i)=><div key={key}><b>{i===0?'Reward token':'Quote token'}</b>{(['address','symbol','decimals'] as const).map(field=><Field key={field}>{field}<input required value={body[key][field]} onChange={e=>setBody({...body,[key]:{...body[key],[field]:field==='decimals'?Number(e.target.value):e.target.value}})}/></Field>)}</div>)}
   </Fields>{error&&<ErrorText role='alert'>{error}</ErrorText>}<Action disabled={busy}>Save pair</Action></Editor>
 }
-const Card=styled.div`display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #1d1d1d;border-radius:12px;`
-const Editor=styled.form`display:flex;flex-direction:column;gap:16px;padding:16px 0;border-top:1px solid #7775;`
+const Card=styled.div`display:flex;flex-direction:column;gap:20px;padding:28px 32px;background:#0a0a0a;border:1px solid #1d1d1d;border-radius:var(--radius-md);>div:first-child{flex-wrap:wrap}b{font-family:${p=>p.theme.fonts.display};font-size:22px;font-weight:400}@media(max-width:650px){padding:24px 16px}`
+const Editor=styled(Card).attrs({as:'form'})`gap:24px;>label{font-size:13px;color:${p=>p.theme.colors.text.secondary}}`
 const Fields=styled.div`display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;@media(max-width:650px){grid-template-columns:minmax(0,1fr)}`
-const Field=styled.label`display:flex;flex-direction:column;gap:6px;font-size:12px;min-width:0;input,select{width:100%;min-width:0;box-sizing:border-box;background:transparent;color:inherit;border:1px solid #7775;border-radius:6px;padding:10px;font:inherit}input:read-only{opacity:.75}`
+const Field=styled.label`display:flex;flex-direction:column;gap:8px;min-width:0;color:${p=>p.theme.colors.text.tertiary};font:400 11px ${p=>p.theme.fonts.mono};input,select{width:100%;min-width:0;background:#0a0a0a;color:${p=>p.theme.colors.text.primary};border:1px solid ${p=>p.theme.colors.border.base};border-radius:var(--radius-md);padding:12px;font:400 14px ${p=>p.theme.fonts.body}}input:focus-visible,select:focus-visible{outline:1px solid ${p=>p.theme.colors.accent.gold}}input:read-only{color:${p=>p.theme.colors.accent.gold}}`
 const Stats=styled.div`display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;font-size:12px;`
 const Strong=styled.b`display:block;margin-top:5px;font-size:18px;`

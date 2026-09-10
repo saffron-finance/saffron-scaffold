@@ -37,7 +37,7 @@ function budgets(){return state.budgets.map(b=>{
 })}
 function offers():Offer[]{return state.programs.map(p=>{const budget=budgets().find(b=>b.id===p.budgetPoolId);return {...pair,...p,pairRevision:1,budget,
   capacityUsd:Number(budget.campaign.capacityCents)/100,eligibleMaximumCents:budget.paused?'0':budget.accounting.availableCapacityCents,availability:budget.paused?'Campaign paused':null}})}
-const session=()=>({wallet:PREVIEW_ACCOUNT,csrf:'preview-only',operator:false,expires:Date.now()+1800000})
+const session=()=>({wallet:PREVIEW_ACCOUNT,csrf:'preview-only',operator:true,expires:Date.now()+1800000})
 export async function readSession(){return session()}
 export async function ensureOperatorSession(){return {...session(),operator:true}}
 export async function ensureSession(){return session()}

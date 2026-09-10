@@ -1,7 +1,7 @@
 import { useEffect,useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
-import { HeaderCell,StepTitle,StepSubtitle } from '../host/ui'
+import { CapacityBar,HeaderCell,StepTitle,StepSubtitle } from '../host/ui'
 import { useDeploymentFlow } from '../host/useDeploymentFlow'
 import { useDeployments } from '../host/useDeployments'
 import { useOfferPrice } from '../host/useOfferPrice'
@@ -13,13 +13,14 @@ import { TokenIcon } from './TokenIcon'
 import robinhoodLogo from './assets/robinhood.svg'
 import { IncentiveModal } from './IncentiveModal'
 import { MyVaults } from './MyVaults'
+import { ProgramAdmin } from './ProgramAdmin'
 import { IncentivesAdmin } from './IncentivesAdmin'
 
-export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void}){
+export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void;preview?:boolean}){
   const [selected,setSelected]=useState<Offer|null>(null)
   return <WalletPage key={props.account??'guest'} {...props} selected={selected} setSelected={setSelected}/>
 }
-function WalletPage({account,onConnect,selected,setSelected}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void}){
+function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void;preview?:boolean}){
   const flow=useDeploymentFlow(account),positions=useDeployments(account),catalog=useIncentivePrograms()
   const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false)
   const base=import.meta.env.BASE_URL.replace(/\/$/,'')
@@ -31,9 +32,9 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   function openOffer(offer:Offer){if(flow.saved){setResume(true);return}flow.reset();setSelected(offer);setVaultId(null)}
   function close(){setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page>
-    {route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>
-      <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My vaults</QuietButton></TitleRow>
-      <Introduction aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit.</StepSubtitle><StepSubtitle>We fund the premium. Once your vault is ready, deposit your LP assets and claim the incentive here.</StepSubtitle></Introduction>
+    {route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Vaults</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>
+      <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My requests</QuietButton></TitleRow>
+      <Introduction aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration, target APR and available capacity. Review your position and premium before paying the $2 creation fee in ETH.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from My requests.</StepSubtitle></Introduction>
       {flow.saved&&<Recovery><FinePrint>A creation payment request is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
       {catalog.loading&&<FinePrint role='status'>Loading incentive programs…</FinePrint>}
       {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
@@ -42,16 +43,32 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
         <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','Capacity'].map(label=><ColumnTitle as='span' key={label}>{label}</ColumnTitle>)}</ProgramHeading>
         {offers.map(offer=><ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} onClick={()=>openOffer(offer)}>
           <Metric><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
-          <Metric><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
+          <Metric><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</OfferApr></Metric>
           <Metric><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
-          <CapacityCell><MobileLabel>Capacity</MobileLabel><CapacityMeter title={offer.availability??'Available size under the shared campaign budget'}><Value>{offer.eligibleMaximumCents===null?'Unavailable':compactUsd(Number(offer.budget.accounting?.availableCapacityCents??offer.eligibleMaximumCents)/100)}</Value><Muted>{offer.budget.paused?'Paused':offer.eligibleMaximumCents==='0'?'Exhausted':offer.budget.accounting?'campaign capacity remaining':'up to per vault'}</Muted></CapacityMeter></CapacityCell>
-          {offer.isNew&&<NewTag>NEW</NewTag>}
+          <CapacityCell><MobileLabel>Capacity</MobileLabel><OfferCapacity offer={offer}/></CapacityCell>
+          {offer.isNew&&<NewTag data-incentive-new>NEW</NewTag>}
         </ProgramRow>)}
       </Programs></ProgramGroup>)}
       <Row><FinePrint>Available size depends on the shared campaign budget and current prices.{!catalog.creatorOnline&&catalog.offers.length?' The deployment worker is currently offline.':''}</FinePrint><QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     </>}
-    {(selected||vaultId||resume)&&<IncentiveModal offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} onClose={close} onConnect={onConnect}/>}
+    {(selected||vaultId||resume)&&<IncentiveModal preview={preview} offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} onClose={close} onConnect={onConnect}/>}
   </Page>
+}
+
+/** Restore the approved compact meter using real campaign accounting.
+ * Utilization includes funded capacity, reservations and payment holds, not LP
+ * deposits alone. Unavailable/legacy catalogs never invent a percentage. */
+function OfferCapacity({offer}:{offer:Offer}) {
+  const accounting=offer.budget.accounting
+  const available=Number(accounting?.availableCapacityCents??offer.eligibleMaximumCents)/100
+  const target=Number(accounting?.targetCapacityCents)/100
+  const known=offer.eligibleMaximumCents!==null
+  const used=known&&accounting&&target>0?Math.max(0,Math.min(100,(1-available/target)*100)):null
+  const label=offer.budget.paused?'Campaign paused':offer.availability??(used===null?'Available per vault':`${used.toLocaleString('en-US',{maximumFractionDigits:1})}% committed to funded vaults, reservations or payment holds; ${compactUsd(available)} capacity remaining`)
+  return <CapacityMeter title={label}>
+    <Value>{known?compactUsd(available):'Unavailable'}</Value>
+    {used!==null?<><CapacityTrack filledPercent={used}/><CapacityPercent>{offer.budget.paused?'Paused':used.toLocaleString('en-US',{maximumFractionDigits:1})+'%'}</CapacityPercent></>:<Muted>{known?'per vault':'—'}</Muted>}
+  </CapacityMeter>
 }
 
 // Shared grid tracks keep the independent header and button cards aligned.
@@ -69,6 +86,7 @@ const ProgramHeading = styled.div`
   display:grid;grid-template-columns:${programColumns};column-gap:24px;align-items:center;padding:4px 32px;
   border:1px solid transparent;border-radius:var(--radius-md);
   @media(max-width:800px){padding:4px 12px;grid-template-columns:.9fr 1.1fr .9fr 1.2fr;column-gap:8px}
+  @media(max-width:480px){display:none}
 `
 // Match the introductory body text using the shared, theme-aware gray.
 const ColumnTitle = styled(HeaderCell)`min-width:0;padding-left:0;padding-right:0;color:${({ theme }) => theme.colors.text.tertiary};`
@@ -83,6 +101,13 @@ const ProgramRow = styled.button`
   &:hover{border-color:${({ theme }) => theme.colors.accent.gold}}
   &:focus-visible{outline:2px solid ${({ theme }) => theme.colors.accent.gold};outline-offset:4px}
   @media(max-width:800px){padding:24px 12px;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 38px;gap:24px 10px}
+  /* Keep room for a compact sidebar on phones: duration moves below APR,
+     so long rates cannot collide with the adjacent value. Desktop geometry
+     stays unchanged; media rules work with the pinned styled-components. */
+  @media(max-width:480px){
+    grid-template-columns:40px minmax(0,1fr) 38px;
+    > :nth-child(3){grid-column:2;grid-row:2;}
+  }
 `
 const Metric = styled.span`display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;font-size:20px;
   @media(max-width:800px){font-size:18px}`
@@ -95,13 +120,16 @@ const OfferApr = styled(Premium)`
   font-size:28px;font-family:"Funnel Display", serif;font-weight:500 !important;
   background-image:linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
+  @media(max-width:480px){font-size:clamp(20px,6.5vw,28px)}
 `
 const Value = styled.span`font-size:22px;font-variant-numeric:tabular-nums;`
-// A per-request ceiling is not an aggregate funding progress measurement.
-const CapacityCell = styled(Metric)`@media(max-width:800px){grid-column:1/-1;grid-row:2}`
+// Capacity uses the original inline amount, hairline and utilization layout.
+const CapacityCell = styled(Metric)`@media(max-width:800px){grid-column:1/-1;grid-row:2}@media(max-width:480px){grid-row:3}`
 const CapacityMeter = styled.span`display:flex;align-items:center;gap:12px;width:100%;white-space:nowrap;`
+const CapacityPercent = styled.span`font-size:15px;color:${({theme})=>theme.colors.text.secondary};font-family:${({theme})=>theme.fonts.mono};@media(max-width:800px){font-size:13px}`
+const CapacityTrack = styled(CapacityBar)`min-width:30px;`
 const NewTag = styled.span`grid-column:5;justify-self:end;padding:7px 10px;border-radius:var(--radius-md);
-  background:${({ theme }) => theme.colors.accent.yellow};color:#0f1621;
+  background:linear-gradient(110deg,#ffbc09 10%,#e47e01 65%,#fa3f06 100%);color:#0f1621;
   font:500 13px ${({ theme }) => theme.fonts.mono};line-height:1;letter-spacing:.02em;
-  @media(max-width:800px){grid-column:4;grid-row:1;padding:6px;font-size:11px}`
+  @media(max-width:800px){grid-column:4;grid-row:1;padding:6px;font-size:11px}@media(max-width:480px){grid-column:3;grid-row:1}`
 const Recovery = styled(Row)`padding:12px 14px;border:1px solid transparent;border-radius:var(--radius-md);flex-wrap:wrap;`

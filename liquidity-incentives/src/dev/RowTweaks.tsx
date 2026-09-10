@@ -55,7 +55,7 @@ export default function RowTweaks() {
   const font = fonts.find(face => face.id === typography.font)
   // Larger slider values mean faster motion. CSS still renders every frame.
   const orbitSeconds = 24 / typography.orbitSpeed
-  const speedCss = `[data-incentive-apr], #cashcat-eth-1000-3d-new { --saffron-orbit-duration:${orbitSeconds}s; }`
+  const speedCss = `[data-incentive-apr], [data-incentive-new] { --saffron-orbit-duration:${orbitSeconds}s; }`
   // The feature owns the transparent heading and 4px gap in every build.
   // This optional control changes only label typography.
   const headingCss = typography.compactHeader ? `

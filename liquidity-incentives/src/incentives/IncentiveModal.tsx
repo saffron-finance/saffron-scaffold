@@ -12,7 +12,7 @@ import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
 import { VaultLifecyclePanel } from './VaultLifecyclePanel'
 
-export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,onConnect}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;onClose:()=>void;onConnect:()=>void}){
+export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,onConnect,preview}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;onClose:()=>void;onConnect:()=>void;preview?:boolean}){
   const [deposit,setDeposit]=useState('100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[now,setNow]=useState(Date.now)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
   const second=Boolean(id||reviewed),busy=flow.busy||nativeBusy
@@ -45,6 +45,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
         <TitleStats><TitleApr data-incentive-apr>{offer!.apr.toLocaleString()}% APR</TitleApr><TitleDays>{offer!.days} days</TitleDays></TitleStats></TitleContent>}
     </RequestTitle>{!second&&<InteractiveEmblem/>}</Header>
     <ModalContent>
+      {preview&&<FinePrint>Preview only · sample prices and simulated payments. No funds move.</FinePrint>}
       {id&&account?<VaultLifecyclePanel key={account+id} account={account} id={id} onBusy={setNativeBusy}/>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li>LP value at request: <b>{usd(Number(reviewed.principalCents)/100)}</b>.</li>

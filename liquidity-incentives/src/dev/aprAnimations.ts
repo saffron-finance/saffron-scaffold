@@ -20,7 +20,7 @@ export function validAprAnimation(value: unknown): value is AprAnimation {
 
 const gradient = 'linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%)'
 const selector = '[data-incentive-apr]'
-// The badge and APR share one orbit timeline. Only this specific offer's NEW
+// The badge and APR share one orbit timeline. Only a new offer's NEW
 // badge gets the requested surface; the row and other badges stay unchanged.
 // Important applies to the image, not the shorthand, so position can animate.
 export const newOfferBadgeCss = `
@@ -30,12 +30,12 @@ export const newOfferBadgeCss = `
     50% { background-position:100% 50%; }
     75% { background-position:50% 100%; }
   }
-  #cashcat-eth-1000-3d-new {
+  [data-incentive-new] {
     background-image:${gradient} !important;
     background-size:200% 200%; animation:saffronAprOrbit var(--saffron-orbit-duration, 24s) linear infinite;
   }
   @media (prefers-reduced-motion: reduce) {
-    #cashcat-eth-1000-3d-new {
+    [data-incentive-new] {
       animation:none !important; background-size:100% 100%; background-position:0% 0%;
     }
   }

@@ -184,10 +184,17 @@ Local tests do not establish a live deployment or live funding.
 `npm run build:preview` builds the actual campaign form and user modals with an
 explicit preview-only transport in `dist-preview/`. Set `VITE_BASE_PATH` for the
 host mount. The preview starts with the $10,000/$1,000,000, three-day example at
-50% premium-funded; `?view=campaigns` opens the calculator immediately. Campaign
+50% premium-funded. Vaults is the homepage; the hamburger menu links to My requests,
+Campaigns (`campaigns/`) and Administration (`admin/`). Existing `?view=campaigns`
+links still open the calculator. Campaign
 edits and simulated requests stay in a separate browser-local storage namespace.
 
-The UI always labels sample data. It imports no wallet provider, sends no API/RPC
+Every page reuses the approved `src/host/AppShell.tsx`: original sidebar, account
+header, gray vault cards, fonts and spacing. Funnel Display, Host Grotesk and
+Roboto Mono are bundled locally with SIL Open Font Licenses so preview routes
+cannot lose their typography. Appearance controls remain review-build-only.
+
+The footer and payment modal label sample data. It imports no wallet provider, sends no API/RPC
 or price requests, and cannot make payments, deploy vaults or fund them. This is
 not the production application or a substitute for backend integration. Normal
 and lab builds exclude the preview entry/runtime. `node tests/preview-ui.mjs`
