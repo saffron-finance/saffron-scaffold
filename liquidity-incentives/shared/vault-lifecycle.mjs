@@ -1,5 +1,5 @@
-import { keccak256, stringToHex, parseAbi } from 'viem'
-import { validAddress } from './vault-request.mjs'
+import { parseAbi } from 'viem'
+import { validAddress } from './incentives.mjs'
 
 export const CHAIN_ID = 4663
 export const FACTORY = '0xce97ee64ad415976c465a783725014e67832be1a'
@@ -15,6 +15,7 @@ export const abi = parseAbi([
   'function variableAsset() view returns (address)', 'function variableBearerToken() view returns (address)',
   'function claimToken() view returns (address)', 'function totalSupply() view returns (uint256)',
   'function fixedBearerToken() view returns (address)', 'function endTime() view returns (uint256)',
+  'function liquidity() view returns (uint128)',
   'function balanceOf(address) view returns (uint256)', 'function allowance(address,address) view returns (uint256)',
   'function approve(address,uint256) returns (bool)', 'function decimals() view returns (uint8)',
   'function deposit(uint256,uint256,bytes)', 'function claim()', 'function deposit() payable',
@@ -38,22 +39,10 @@ export const abi = parseAbi([
   'event VaultCreated(uint256 vaultId,uint256 indexed vaultTypeId,address adapter,address indexed creator,address indexed vault)',
   'event VaultInitialized(uint256 duration,address adapter,uint256 fixedSideCapacity,uint256 variableSideCapacity,address variableAsset,uint256 feeBps,address feeReceiver,address indexed creator,address indexed vault)',
   'event FundsDeposited(uint256[] amounts,uint256 side,address indexed user)',
+  'event FundsWithdrawn(uint256[] amounts,uint256 side,address indexed user,bool indexed isEarly)',
+  'event Transfer(address indexed from,address indexed to,uint256 value)',
 ])
 
-/** A fixed field order gives HTTP approval and DB jobs the same immutable digest. */
-export function creationTerms(row) {
-  const lower = value => typeof value === 'string' ? value.toLowerCase() : null
-  return {
-    requestId: row.requestId, chainId: row.chainId, submitterAddress: lower(row.submitterAddress),
-    token0Address: lower(row.token0Address), token1Address: lower(row.token1Address),
-    poolAddress: lower(row.poolAddress), feeTier: row.feeTier, adapterType: row.adapterType,
-    minTick: row.minTick ?? null, maxTick: row.maxTick ?? null, durationSeconds: row.durationSeconds,
-    fixedCapacityTokenAddress: lower(row.fixedCapacityTokenAddress), fixedCapacityAmount: row.fixedCapacityAmount,
-    variableAssetAddress: lower(row.variableAssetAddress), variableAssetAmount: row.variableAssetAmount ?? null,
-    useTargetApr: row.useTargetApr, targetApr: row.targetApr, factory: FACTORY,
-  }
-}
-export const termsDigest = row => keccak256(stringToHex(JSON.stringify(creationTerms(row))))
 export const sameAddress = (a, b) => validAddress(a) && validAddress(b) && a.toLowerCase() === b.toLowerCase()
 
 /** App availability, not a contract-level reservation. Unknown/stale always closes the gate. */
@@ -75,8 +64,3 @@ export function eligibility(snapshot, now = Date.now()) {
   return { depositable: true, state: 'depositable', reason: 'Depositable' }
 }
 
-/** Origin- and action-bound authentication; never reuse request/payment signatures. */
-export function adminSessionMessage(proof) {
-  return ['Saffron operator session v1', 'Origin: ' + proof.origin, 'Wallet: ' + proof.wallet,
-    'Chain: ' + CHAIN_ID, 'Nonce: ' + proof.nonce, 'Expires: ' + proof.expiresAt].join('\n')
-}

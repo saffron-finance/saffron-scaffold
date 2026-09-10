@@ -1,9 +1,7 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { eligibility, FACTORY, adminSessionMessage, termsDigest } from '../shared/vault-lifecycle.mjs'
+import { eligibility, FACTORY } from '../shared/vault-lifecycle.mjs'
 import { sqrtAtTick, amountsForLiquidity, resolveCapacities } from '../shared/liquidity-math.mjs'
-import { createOperatorAuth } from '../server/operator-auth.mjs'
 
 const now = Date.now()
 const funded = { verified:true,canonical:true,chainId:4663,factory:FACTORY,checkedAt:now,headTimestamp:Math.floor(now/1000),
@@ -33,31 +31,4 @@ it('sizes asymmetric-decimal tokens and one-sided ranges using integer units', (
   assert.ok(amounts.amount0>=49999998n&&amounts.amount0<=50000002n)
   assert.equal(amountsForLiquidity(1000000n,sqrtAtTick(-60),0,60).amount1,0n)
   assert.equal(amountsForLiquidity(1000000n,sqrtAtTick(120),0,60).amount0,0n)
-})
-it('operator sessions are origin/action-bound, expiring, and require CSRF on writes', async () => {
-  const account=privateKeyToAccount(generatePrivateKey()),stranger=privateKeyToAccount(generatePrivateKey())
-  let clock=now
-  const auth=createOperatorAuth({operators:[account.address],origin:'https://example.test',basePath:'/candidate',now:()=>clock})
-  const req={headers:{origin:'https://example.test'}},headers={}
-  assert.throws(()=>auth.challenge({headers:{origin:'https://attacker.test'}},account.address))
-  assert.throws(()=>auth.challenge(req,stranger.address))
-  const proof=auth.challenge(req,account.address)
-  const body={wallet:account.address,nonce:proof.nonce,signature:await account.signMessage({message:adminSessionMessage(proof)})}
-  const session=await auth.login(req,{setHeader:(key,value)=>headers[key]=value},body)
-  assert.match(headers['Set-Cookie'],/HttpOnly; SameSite=Strict; Path=\/candidate; Max-Age=1800; Secure/)
-  await assert.rejects(()=>auth.login(req,{setHeader(){}},body))
-  const signed={headers:{...req.headers,cookie:headers['Set-Cookie'].split(';')[0]}}
-  assert.equal(auth.session(signed).wallet,account.address.toLowerCase())
-  assert.throws(()=>auth.session(signed,{mutation:true}))
-  signed.headers['x-saffron-csrf']=session.csrf
-  assert.equal(auth.session(signed,{mutation:true}).wallet,account.address.toLowerCase())
-  clock+=1800001
-  assert.throws(()=>auth.session(signed))
-})
-it('creation digest binds pool, premium, duration, size and requester but not UI status', () => {
-  const row={requestId:'ABCDEFGHIJKL',chainId:4663,poolAddress:FACTORY,token0Address:FACTORY,token1Address:FACTORY,
-    fixedCapacityAmount:'1000',durationSeconds:259200,targetApr:10,submitterAddress:FACTORY}
-  assert.equal(termsDigest(row),termsDigest({...row,status:'created'}))
-  for(const update of [{fixedCapacityAmount:'1001'},{durationSeconds:1},{targetApr:11},{poolAddress:'0x'+'11'.repeat(20)}])
-    assert.notEqual(termsDigest(row),termsDigest({...row,...update}))
 })

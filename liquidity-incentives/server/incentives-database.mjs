@@ -176,11 +176,11 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       const rows=await query(`SELECT id FROM ${schema}.deployment_intents ${admin?'':'WHERE wallet=$1'} ORDER BY created_at DESC LIMIT ${Math.min(200,limit)}`,admin?[]:[wallet?.toLowerCase()])
       return Promise.all(rows.rows.map(row=>getIntent(row.id)))
     },
-    async reconcileFunding(id,snapshot,actor='observer') {
+    async reconcileFunding(id,snapshot,actor='observer',client) {
       if (!snapshot?.verified || !snapshot.canonical || now()-snapshot.checkedAt>15_000) return
-      const current=await getIntent(id)
+      const current=await getIntent(id,client)
       if(!current || current.plan.vault?.toLowerCase()!==snapshot.vault?.toLowerCase()) throw fault(409,'Observation does not match the deployment.')
-      return transaction(async client=>{
+      const reconcile=async client=>{
         await lockBudget(client,current.budget_pool_id)
         const reservation=(await client.query(`SELECT * FROM ${schema}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(BigInt(reservation.released_raw)>0n) return
@@ -195,7 +195,8 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
             evidence:{blockNumber:snapshot.blockNumber,blockHash:snapshot.blockHash,isStarted:snapshot.isStarted,variableSupply:snapshot.variableSupply}})
         }
         if(snapshot.isStarted) await client.query(`UPDATE ${schema}.deployment_intents SET status='active',updated_at=NOW() WHERE id=$1 AND status<>'completed'`,[id])
-      })
+      }
+      return client?reconcile(client):transaction(reconcile)
     },
     async cancelDeployment(id,wallet) {
       const current=await getIntent(id)

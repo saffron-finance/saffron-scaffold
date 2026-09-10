@@ -108,9 +108,10 @@ const ModalOverlayElement = styled.div<{ transitionMs: number; $layer: 'dialog' 
   right: 0;
   bottom: 0;
   background-color: ${(props) => props.theme.colors.effects.overlay};
-  /* Portal mount order can change when the underlying request form rerenders. */
+  /* Wallet selection remains above the originating form regardless of portal order. */
   z-index: ${({ $layer }) => $layer === 'wallet' ? 20 : 10};
   transition: opacity ${(props) => props.transitionMs}ms ease-out;
+  @media(prefers-reduced-motion:reduce){transition:none;}
 
   &.ReactModal__Overlay {
     opacity: 0;

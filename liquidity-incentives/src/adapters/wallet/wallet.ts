@@ -1,7 +1,7 @@
 import { createPublicClient, createWalletClient, custom, type Address, type Chain } from 'viem'
 
 // This module deliberately implements only the small browser-wallet boundary
-// LiqiFi needs. EIP-6963 discovery allows multiple extensions—including the
+// This application needs. EIP-6963 discovery allows multiple extensions—including the
 // Uniswap Extension—to coexist without fighting over `window.ethereum`.
 
 export type Eip1193Provider = {
@@ -41,8 +41,8 @@ type InjectedWindow = Window & {
   uniswap?: Eip1193Provider
 }
 
-const SELECTED_PROVIDER_KEY = 'liqifi.selected-wallet-provider'
-const SELECTED_RDNS_KEY = 'liqifi.selected-wallet-rdns'
+const SELECTED_PROVIDER_KEY = 'saffron.incentives.selected-wallet-provider'
+const SELECTED_RDNS_KEY = 'saffron.incentives.selected-wallet-rdns'
 const providers = new Map<string, WalletProvider>()
 const providerIds = new WeakMap<object, string>()
 const providerListeners = new Set<() => void>()
@@ -221,7 +221,7 @@ export async function connect(providerId: string): Promise<Address> {
 }
 
 /**
- * Disconnect LiqiFi locally. Browser extensions do not expose a consistent,
+ * Disconnect This application locally. Browser extensions do not expose a consistent,
  * permission-safe disconnect RPC, so clearing the selected provider is the
  * interoperable dapp behavior and never locks or alters the wallet itself.
  */
@@ -237,7 +237,7 @@ export function disconnect(): void {
 
 // Read already-authorized accounts without prompting. No provider is consulted
 // after a local disconnect, which prevents an authorized extension from silently
-// reconnecting the LiqiFi UI on the next render.
+// reconnecting the This application UI on the next render.
 export async function currentAccounts(): Promise<Address[]> {
   try {
     return await walletClient().getAddresses()

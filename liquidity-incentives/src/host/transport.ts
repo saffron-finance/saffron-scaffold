@@ -1,24 +1,39 @@
-import { createPublicClient, http } from 'viem'
-import { arbitrum } from 'viem/chains'
+import { createPublicClient,http,type Address } from 'viem'
 import { robinhoodChain } from '@lab/chain/chains'
+import { assertWalletAccount,walletClient } from '@lab/wallet/wallet'
+import { walletSessionMessage } from '../../shared/incentives.mjs'
 
-// Resolve this standalone server below the Vite mount. A fixed-income merge
-// replaces the host boundary with the destination's chain-aware API client.
-export const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
-export const requestUrl = (suffix = '') => `${BASE}/vault-requests${suffix}`
-export const arbitrumClient = createPublicClient({ chain: arbitrum,
-  transport: http(`${BASE}/rpc/arbitrum`, { batch: true, timeout: 15_000 }) })
-export const robinhoodClient = createPublicClient({ chain: robinhoodChain,
-  transport: http(`${BASE}/rpc/robinhood`, { batch: true, timeout: 15_000 }) })
-
-/** Same-origin JSON requests preserve existing login and API error handling. */
-export async function requestJson(path: string, body?: object, signal?: AbortSignal) {
-  const response = await fetch(requestUrl(path), { cache: 'no-store',
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
-    ...(body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}) })
-  const result = await response.json().catch(() => null)
-  if (!response.ok || !result || typeof result !== 'object') {
-    throw new Error(typeof result?.error === 'string' ? result.error : 'Requests are unavailable. Retry without paying again.')
-  }
+export const BASE=import.meta.env.BASE_URL.replace(/\/$/,'')
+export const apiUrl=(path='')=>BASE+'/api/incentives'+path
+export const robinhoodClient=createPublicClient({chain:robinhoodChain,transport:http(BASE+'/rpc/robinhood',{batch:true,timeout:15_000})})
+export type WalletSession={wallet:Address;csrf:string;operator:boolean;expires:number}
+let session:WalletSession|null=null
+let signing:Promise<WalletSession>|null=null
+export async function requestJson(path:string,body?:object,signal?:AbortSignal){
+  const response=await fetch(apiUrl(path),{cache:'no-store',credentials:'same-origin',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(30_000)]):AbortSignal.timeout(30_000),
+    ...(body?{method:'POST',headers:{'content-type':'application/json','x-saffron-csrf':session?.csrf??''},body:JSON.stringify(body)}:{})})
+  const result=await response.json().catch(()=>null)
+  if(!response.ok||!result){if(response.status===401)session=null;throw new Error(result?.error??'The application is unavailable. Your saved deployment can be resumed.')}
   return result
 }
+export async function readSession(account:Address|null){
+  session=(await requestJson('/session')).session
+  return session?.wallet.toLowerCase()===account?.toLowerCase()?session:null
+}
+export async function ensureSession(account:Address):Promise<WalletSession>{
+  await assertWalletAccount(account)
+  if(session?.wallet.toLowerCase()===account.toLowerCase()&&session.expires>Date.now()+5000)return session
+  if(signing){await signing;return ensureSession(account)}
+  signing=(async()=>{
+    const proof=await requestJson('/session/challenge',{wallet:account})
+    if(proof.origin!==location.origin||proof.wallet!==account.toLowerCase()||proof.chainId!==4663||Date.parse(proof.expiresAt)<=Date.now())throw new Error('Wallet sign-in challenge changed.')
+    await assertWalletAccount(account)
+    const signature=await walletClient().signMessage({account,message:walletSessionMessage(proof)})
+    await assertWalletAccount(account)
+    session=(await requestJson('/session/login',{wallet:account,nonce:proof.nonce,signature})).session
+    if(!session||session.wallet!==account.toLowerCase())throw new Error('Wallet session changed.')
+    window.dispatchEvent(new Event('saffron:session'));return session
+  })().finally(()=>{signing=null})
+  return signing
+}
+export async function authedJson(account:Address,path:string,body?:object){await ensureSession(account);await assertWalletAccount(account);return requestJson(path,body)}

@@ -2,6 +2,7 @@ import { resolvePlan } from '../shared/deployment-plan.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
 import { eligibility,sameAddress } from '../shared/vault-lifecycle.mjs'
 import { cents,snapshotFor,fault,jsonSafe,validAddress } from '../shared/incentives.mjs'
+import { userActionEvidence } from '../shared/user-evidence.mjs'
 
 /** Read-only sizing/observation service; the separate worker owns all signing. */
 export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,now=Date.now}) {
@@ -16,6 +17,11 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       try{observation=await readVault(job,rpc,{confirmations:config?.confirmations??2,now})}
       catch{observation={verified:false,canonical:false,checkedAt:now(),reason:'Checking availability'}}
       await db.execution.saveObservation(id,observation)
+      for(const record of (await db.query('SELECT hash,receipt FROM saffron_incentives.user_operations WHERE intent_id=$1',[id])).rows){
+        let canonical=false
+        try{canonical=(await rpc('eth_getBlockByNumber',[record.receipt.blockNumber,false]))?.hash===record.receipt.blockHash}catch{}
+        await db.query('UPDATE saffron_incentives.user_operations SET canonical=$2 WHERE hash=$1',[record.hash,canonical])
+      }
       return observation
     })().finally(()=>pending.delete(id))
     pending.set(id,operation);return operation
@@ -99,6 +105,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           const matured=BigInt(observation.blockTimestamp)>BigInt(observation.endTime)
           canWithdraw=matured&&BigInt(observation.fixedBalance)>0n
           state=owned?(matured?'matured':canClaim?'claimable':'active'):'no_position'
+          if(!owned&&BigInt(observation.adapterLiquidity??'0')===0n&&(await db.query("SELECT 1 FROM saffron_incentives.user_operations WHERE intent_id=$1 AND wallet=$2 AND action='withdraw' AND canonical=TRUE LIMIT 1",[job.id,job.wallet])).rowCount)state='completed'
         }else if(BigInt(observation.claimSupply)>0n){
           canRecover=BigInt(observation.claimBalance)>0n
           state=canRecover?'fixed_awaiting_funding':'occupied'
@@ -122,6 +129,19 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async context(id,wallet){
       const deployment=await service.detail(id,wallet)
       return {deployment,job:{plan:deployment.plan,signer:deployment.signer,snapshot:deployment.snapshot,wallet:deployment.wallet},snapshot:deployment.observation}
+    },
+    async recordUserAction(id,wallet,hash){
+      if(!/^0x[0-9a-f]{64}$/i.test(hash??''))throw fault(400,'Provide a transaction hash.')
+      const deployment=await service.detail(id,wallet)
+      const [receipt,transaction,head,chain]=await Promise.all([rpc('eth_getTransactionReceipt',[hash]),rpc('eth_getTransactionByHash',[hash]),rpc('eth_blockNumber',[]),rpc('eth_chainId',[])])
+      if(BigInt(chain)!==4663n||!receipt||!transaction||receipt.transactionHash?.toLowerCase()!==hash.toLowerCase()
+        ||BigInt(head)<BigInt(receipt.blockNumber)+BigInt((config?.confirmations??2)-1)
+        ||(await rpc('eth_getBlockByNumber',[receipt.blockNumber,false]))?.hash!==receipt.blockHash)throw fault(409,'Transaction confirmations are not available yet.')
+      let action
+      try{action=userActionEvidence({receipt,transaction,job:deployment})}catch(error){throw fault(409,error.message)}
+      await db.query(`INSERT INTO saffron_incentives.user_operations(hash,intent_id,wallet,action,receipt) VALUES($1,$2,$3,$4,$5)
+        ON CONFLICT(hash) DO UPDATE SET receipt=EXCLUDED.receipt,canonical=TRUE`,[hash.toLowerCase(),id,wallet.toLowerCase(),action,receipt])
+      return {action,deployment:await service.detail(id,wallet,false,{fresh:false})}
     },
     async reconcileTransaction(id,operator,original,hash){
       if(![original,hash].every(value=>/^0x[0-9a-f]{64}$/i.test(value??'')))throw fault(400,'Provide the saved and replacement transaction hashes.')

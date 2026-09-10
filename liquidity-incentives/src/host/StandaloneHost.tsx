@@ -12,10 +12,7 @@ const mount = import.meta.env.BASE_URL
 const RowTweaks = import.meta.env.VITE_DEV_TWEAKS === 'true'
   ? lazy(() => import('../dev/RowTweaks')) : null
 
-/** Disposable preview shell: the merge uses fixed-income's existing navbar,
- * wallet providers and theme owner. The feature receives only account/connect.
- * Reuse LiqiFi's tested EIP-6963 manager here, not a second wallet implementation.
- */
+/** Application-owned wallet, theme, navigation and modal layering. */
 export function StandaloneHost() {
   const wallet = useWallet()
   const [light, setLight] = useState(false)
@@ -37,7 +34,7 @@ export function StandaloneHost() {
         </Controls>
       </Nav>
       <Body id='main-content'><IncentivesPage account={wallet.account} onConnect={wallet.openModal} /></Body>
-      <Footer><a href={mount}>Saffron Feature Lab</a></Footer>
+      <Footer><a href={mount}>Saffron Liquidity Incentives</a></Footer>
       </Content>
     </Frame>
     {/* Explicit layering keeps wallet selection above existing form portals. */}
@@ -56,9 +53,9 @@ export function StandaloneHost() {
     <Modal isOpen={menu} onRequestClose={() => setMenu(false)}>
       <ModalTitle>Saffron</ModalTitle>
       <WalletList>
-        <NavLink href={mount + 'portfolio/requests'} onClick={() => setMenu(false)}>My requests</NavLink>
-        <NavLink href={mount + 'admin/requests'} onClick={() => setMenu(false)}>Admin queue</NavLink>
-        <NavLink href={mount}>Feature Lab</NavLink>
+        <NavLink href={mount + 'portfolio/vaults'} onClick={() => setMenu(false)}>My vaults</NavLink>
+        <NavLink href={mount + 'admin'} onClick={() => setMenu(false)}>Administration</NavLink>
+        <NavLink href={mount}>Liquidity Incentives</NavLink>
         <WalletButton onClick={() => setLight(value => !value)}>{light ? 'Dark' : 'Light'} theme</WalletButton>
         <WalletButton onClick={() => setMenu(false)}>Close</WalletButton>
       </WalletList>

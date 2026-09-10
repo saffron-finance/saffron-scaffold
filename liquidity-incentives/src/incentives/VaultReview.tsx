@@ -2,10 +2,10 @@ import type { ReactNode } from 'react'
 import styled from 'styled-components'
 import { Disclosure } from './styles'
 
-/** The same page-two review body in both request and real-deposit modes.
+/** The same page-two review body in both deployment and position modes.
  * Controllers own wallet actions; the presentational component never submits.
  */
-export function VaultReview({ bullets, details, label = 'Vault request summary' }:
+export function VaultReview({ bullets, details, label = 'Vault terms' }:
   { bullets: ReactNode; details: ReactNode; label?: string }) {
   return <>
     <Bullets>{bullets}</Bullets>

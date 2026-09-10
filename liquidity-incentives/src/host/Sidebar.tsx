@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type MouseEvent, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type MouseEvent, type KeyboardEvent } from 'react'
 import styled from 'styled-components'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
 import { sidebarDestinations, type SidebarIcon } from './sidebarNavigation'
@@ -18,6 +18,8 @@ const icons: Record<SidebarIcon, string> = {
 /** One persistent logo canvas serves both the rail and the floating reopen
  * control. Hiding navigation never unmounts the WebGL renderer or the page. */
 export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed: boolean; onToggle: () => void }) {
+  const [path,setPath]=useState(location.pathname)
+  useEffect(()=>{const update=()=>setPath(location.pathname);window.addEventListener('popstate',update);window.addEventListener('saffron:navigation',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('saffron:navigation',update)}},[])
   const navigationId = useId(), logo = useRef<HTMLAnchorElement>(null), toggle = useRef<HTMLButtonElement>(null)
   const previous = useRef(collapsed)
   useEffect(() => {
@@ -44,7 +46,7 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
     </Heading>
     <Navigation id={navigationId} aria-label='Main navigation'>
       {sidebarDestinations(home).map(item => <NavItem key={item.icon} href={item.href}
-        aria-current={item.icon === 'vaults' ? 'page' : undefined}
+        aria-current={!item.external&&path.replace(/\/$/,'')===item.href.replace(/\/$/,'')?'page':undefined}
         target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>
         <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'><path d={icons[item.icon]} /></svg>
         <span>{item.label}</span>

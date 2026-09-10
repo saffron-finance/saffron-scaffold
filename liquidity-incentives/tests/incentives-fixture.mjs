@@ -21,9 +21,9 @@ export async function incentivesFixture(options={}) {
   await control.query(`CREATE DATABASE "${name}"`)
   const database=createIncentivesDatabase({...options,connection:{...connection,database:name}})
   try{await database.ready}catch(error){await database.close();await control.query(`DROP DATABASE "${name}"`);await control.end();throw error}
-  return {database,
-    async seed(actor,limitRaw='100000') {
-      await database.savePair(pair,actor)
+  return {database,connection:{...connection,database:name},
+    async seed(actor,limitRaw='100000',pairOverride={}) {
+      await database.savePair({...pair,...pairOverride},actor)
       await database.saveBudget({id:program.budgetPoolId,revision:0,name:'Test campaign',chainId:4663,rewardAsset:TOKEN,decimals:18,limitRaw,paused:false},actor)
       await database.saveProgram(program,actor)
     },

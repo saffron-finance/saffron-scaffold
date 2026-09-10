@@ -20,7 +20,7 @@ type PendingConnection = {
 }
 
 /**
- * Own LiqiFi's portable wallet-picker state.
+ * Own This application's portable wallet-picker state.
  *
  * EIP-6963 providers can announce after React mounts, so discovery and account
  * state are subscribed independently. Deposit modals may await `connect()`;

@@ -29,9 +29,6 @@
       "@lab/*": [
         "src/adapters/*"
       ],
-      "@receipt": [
-        "shared/vault-request.d.mts"
-      ],
       "react": [
         "node_modules/@types/react"
       ],

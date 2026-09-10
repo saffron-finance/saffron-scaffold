@@ -34,7 +34,7 @@ function contracts() {
 /** Fresh loopback-only EVM; keys are generated in memory and never logged.
  * The live factory address is occupied only inside this disposable chain.
  */
-export async function evmFixture({account=privateKeyToAccount(generatePrivateKey())}={}) {
+export async function evmFixture({account=privateKeyToAccount(generatePrivateKey()),realPositionManager=false}={}) {
   const net=createServer();net.listen(0,'127.0.0.1');await once(net,'listening');const port=net.address().port;await new Promise(resolve=>net.close(resolve))
   const child=spawn(anvilBinary(),['--silent','--host','127.0.0.1','--port',String(port),'--chain-id',String(CHAIN_ID)],{stdio:'ignore',windowsHide:true})
   let startError;child.on('error',error=>{startError=error})
@@ -54,8 +54,19 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
     async function deploy(file,name,args=[]) {const c=artifacts[file][name];const hash=await wallet.deployContract({abi:c.abi,bytecode:'0x'+c.evm.bytecode.object,args});return(await client.waitForTransactionReceipt({hash})).contractAddress}
     const token=await deploy('Fixture.sol','FixtureToken'),tokenCode=await client.getCode({address:token})
     await raw('anvil_setCode',[CASHCAT,tokenCode]);await raw('anvil_setCode',[WETH,tokenCode])
-    const pool=await deploy('Fixture.sol','FixturePool',[CASHCAT,WETH]);await raw('anvil_setCode',[POOL,await client.getCode({address:pool})])
-    const manager=await deploy('Fixture.sol','FixturePositionManager',[POOL])
+    let poolAddress=POOL,manager
+    if(realPositionManager){
+      async function deployArtifact(path,args){const artifact=JSON.parse(readFileSync(new URL('../node_modules/'+path,import.meta.url),'utf8'))
+        const hash=await wallet.deployContract({abi:artifact.abi,bytecode:artifact.bytecode,args});return {address:(await client.waitForTransactionReceipt({hash})).contractAddress,abi:artifact.abi}}
+      const factory=await deployArtifact('@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json',[])
+      const position=await deployArtifact('@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json',[factory.address,WETH,'0x'+'0'.repeat(40)])
+      manager=position.address
+      await send(manager,encodeFunctionData({abi:position.abi,functionName:'createAndInitializePoolIfNecessary',args:[CASHCAT,WETH,10000,(1n<<96n)/1000n]}))
+      poolAddress=await client.readContract({address:factory.address,abi:factory.abi,functionName:'getPool',args:[CASHCAT,WETH,10000]})
+    }else{
+      const pool=await deploy('Fixture.sol','FixturePool',[CASHCAT,WETH]);await raw('anvil_setCode',[POOL,await client.getCode({address:pool})])
+      manager=await deploy('Fixture.sol','FixturePositionManager',[POOL])
+    }
     const factory=await deploy('VaultFactory.sol','VaultFactory',[manager]);await raw('anvil_setCode',[FACTORY,await client.getCode({address:factory})])
     // Copy constructor storage, including Ownable ownership; mappings are empty.
     for(let i=0;i<20;i++)await raw('anvil_setStorageAt',[FACTORY,toHex(i,{size:32}),await raw('eth_getStorageAt',[factory,toHex(i),'latest'])])
@@ -74,7 +85,7 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
       await beforeBroadcast?.(params[0]);broadcasts++;const hash=await raw(method,params);await raw('evm_mine')
       if(loseBroadcast){loseBroadcast=false;throw new Error('Simulated lost broadcast response')}return hash
     }
-    return {account,client,wallet,raw,rpc,send,config,manager,artifacts,abi,tokenAbi,
+    return {account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
       get broadcasts(){return broadcasts},set loseBroadcast(value){loseBroadcast=value},set beforeBroadcast(value){beforeBroadcast=value},
       usdQuote:async()=>({priceRaw:(2000n*10n**18n).toString(),checkedAt:Date.now()}),
       close:async()=>{child.kill('SIGTERM');if(child.exitCode===null)await once(child,'exit')},

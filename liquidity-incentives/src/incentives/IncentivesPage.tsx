@@ -1,117 +1,56 @@
-import { useEffect, useState } from 'react'
+import { useEffect,useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
-import { HeaderCell, StepTitle, StepSubtitle } from '../host/ui'
-import { useRequestFlow } from '../host/useRequestFlow'
-import { usePendingRequests } from '../host/usePendingRequests'
+import { HeaderCell,StepTitle,StepSubtitle } from '../host/ui'
+import { useDeploymentFlow } from '../host/useDeploymentFlow'
+import { useDeployments } from '../host/useDeployments'
 import { useOfferPrice } from '../host/useOfferPrice'
 import { useIncentivePrograms } from '../host/useIncentivePrograms'
-import { compactUsd, offerFromRequest, type Offer } from './model'
-import { ErrorText, FinePrint, Muted, Premium, QuietButton, Row } from './styles'
+import { compactUsd,type Offer } from './model'
+import { ErrorText,FinePrint,Muted,Premium,QuietButton,Row } from './styles'
 import { PairHeader } from './PairHeader'
 import { TokenIcon } from './TokenIcon'
 import robinhoodLogo from './assets/robinhood.svg'
-import { IncentiveRequestModal } from './IncentiveRequestModal'
-import { PendingRequests } from './PendingRequests'
-import { AdminRequests } from './AdminRequests'
-import { VaultDepositModal } from './VaultDepositModal'
+import { IncentiveModal } from './IncentiveModal'
+import { MyVaults } from './MyVaults'
+import { IncentivesAdmin } from './IncentivesAdmin'
 
-/** Only the LP feature lives here. Wallet transport, prices, request storage
- * and fixed-income primitives enter through host adapters for a narrow merge. */
-export default function IncentivesPage({ account, onConnect }: { account: Address | null; onConnect: () => void }) {
-  const flow = useRequestFlow(account, onConnect)
-  const requests = usePendingRequests(account)
-  const catalog = useIncentivePrograms()
-  const groups = Array.from(new Set(catalog.offers.map(offer => offer.pairId))).map(pairId => catalog.offers.filter(offer => offer.pairId === pairId))
-  const [selected, setSelected] = useState<Offer | null>(null)
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-  const [route, setRoute] = useState(() => window.location.pathname.slice(base.length))
-  const [depositId, setDepositId] = useState<string | null>(null)
-  const [showPending, setShowPending] = useState(() => window.location.hash === '#requests')
-  function navigate(path: string) { window.history.pushState(null, '', base + path); setRoute(path); setShowPending(false) }
-  useEffect(() => {
-    const update = () => setRoute(window.location.pathname.slice(base.length))
-    window.addEventListener('popstate', update)
-    return () => window.removeEventListener('popstate', update)
-  }, [base])
-  const activeOffer = flow.pending ? offerFromRequest(flow.pending) : selected
-  const price = useOfferPrice(flow.pending ? null : selected)
-
-  // Imported receipts can name an old catalog entry. Render their stored terms,
-  // not today's offer, and keep the page-level flow alive when a modal closes.
-  useEffect(() => {
-    if (flow.pending && selected) setSelected(offerFromRequest(flow.pending))
-  }, [flow.pending])
-  useEffect(() => {
-    const showFromHash = () => { if (window.location.hash === '#requests') setShowPending(true) }
-    window.addEventListener('hashchange', showFromHash)
-    return () => window.removeEventListener('hashchange', showFromHash)
-  }, [])
-
-  function closeRequests() {
-    setShowPending(false)
-    if (route === '/portfolio/requests') navigate('/')
-    if (window.location.hash === '#requests') window.history.replaceState(null, '', window.location.pathname + window.location.search)
-  }
-
-  async function importReceipt(file: File) {
-    const receipt = await flow.importReceipt(file)
-    closeRequests()
-    setSelected(offerFromRequest(receipt))
-  }
-
-  function openOffer(offer: Offer) {
-    if (flow.step === 'done') flow.clearFinished()
-    setSelected(flow.pending && flow.step !== 'done' ? offerFromRequest(flow.pending) : offer)
-  }
-
+export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void}){
+  const [selected,setSelected]=useState<Offer|null>(null)
+  return <WalletPage key={props.account??'guest'} {...props} selected={selected} setSelected={setSelected}/>
+}
+function WalletPage({account,onConnect,selected,setSelected}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void}){
+  const flow=useDeploymentFlow(account),positions=useDeployments(account),catalog=useIncentivePrograms()
+  const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false)
+  const base=import.meta.env.BASE_URL.replace(/\/$/,'')
+  const [route,setRoute]=useState(()=>location.pathname.slice(base.length))
+  const price=useOfferPrice(flow.quote?null:selected)
+  const groups=Array.from(new Set(catalog.offers.map(o=>o.pairId))).map(id=>catalog.offers.filter(o=>o.pairId===id))
+  function navigate(path:string){history.pushState(null,'',base+path);setRoute(path);window.dispatchEvent(new Event('saffron:navigation'))}
+  useEffect(()=>{const update=()=>setRoute(location.pathname.slice(base.length));window.addEventListener('popstate',update);return()=>window.removeEventListener('popstate',update)},[base])
+  function openOffer(offer:Offer){if(flow.saved){setResume(true);return}flow.reset();setSelected(offer);setVaultId(null)}
+  function close(){setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page>
-    {route === '/admin/requests' ? <AdminRequests account={account} onConnect={onConnect} onBack={() => navigate('/')} /> : route === '/portfolio/requests' ?
-      <PendingRequests embedded account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} onDeposit={setDepositId} onAdmin={() => navigate('/admin/requests')} /> : <>
-    <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton id='requests' onClick={() => navigate('/portfolio/requests')}>My requests{account && requests.rows.length ? ` (${requests.rows.length})` : ''}</QuietButton></TitleRow>
-    <Introduction aria-label='About liquidity incentives'>
-      <StepSubtitle>Choose a liquidity incentive and request a vault sized to your deposit.</StepSubtitle>
-      <StepSubtitle>An admin creates and funds your vault. Track its progress in My requests, then deposit here when it is ready.</StepSubtitle>
-    </Introduction>
-    {flow.pending && flow.step !== 'done' && <Recovery><FinePrint>A saved request is ready to resume. No new fee will be sent.</FinePrint>
-      <QuietButton onClick={() => setSelected(offerFromRequest(flow.pending!))}>Resume paid request</QuietButton></Recovery>}
-    {catalog.loading && <FinePrint role='status'>Loading incentive programs…</FinePrint>}
-    {catalog.error && <ErrorText role='alert'>{catalog.error}</ErrorText>}
-    {!catalog.loading && !catalog.error && !catalog.offers.length && <FinePrint>No incentive programs are available right now.</FinePrint>}
-    {groups.map(offers => <ProgramGroup key={offers[0].pairId}>
-    <PairHeader pair={offers[0]} />
-    <Programs data-incentive-programs aria-label={`${offers[0].token0.symbol} / ${offers[0].token1.symbol} liquidity incentive offers`}>
-      <ProgramHeading aria-hidden='true'>
-        <ColumnTitle as='span'>Yield</ColumnTitle>
-        <ColumnTitle as='span'>APR</ColumnTitle>
-        <ColumnTitle as='span'>Duration</ColumnTitle>
-        <ColumnTitle as='span'>Capacity</ColumnTitle>
-      </ProgramHeading>
-      {offers.map(offer => {
-        const isNew = offer.isNew
-        return <ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id}
-        aria-label={`Request ${offer.token0.symbol} / ${offer.token1.symbol}, ${offer.days} days`}
-        aria-describedby={`${offer.id}-yield ${offer.id}-apr ${offer.id}-capacity${isNew ? ` ${offer.id}-new` : ''}`} onClick={() => openOffer(offer)}>
-        <Metric id={`${offer.id}-yield`}><MobileLabel>Yield</MobileLabel><YieldToken>
-          <TokenIcon {...offer.token0} size={48} />
-          <ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20} />
-        </YieldToken></Metric>
-        <Metric id={`${offer.id}-apr`}><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
-        <Metric><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
-        <CapacityCell id={`${offer.id}-capacity`}><MobileLabel>Capacity</MobileLabel>
-          <CapacityMeter title='Maximum vault size per request'><Value>{compactUsd(offer.capacityUsd)}</Value><Muted>per request</Muted></CapacityMeter>
-        </CapacityCell>
-        {isNew && <NewTag id={`${offer.id}-new`}>NEW</NewTag>}
-      </ProgramRow>})}
-    </Programs>
-    </ProgramGroup>)}
-    <Row><FinePrint>Each requested vault is sized to your deposit. Listed terms are proposed incentives, not funded vaults.</FinePrint>
-      <QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
+    {route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>
+      <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My vaults{positions.rows.length?' ('+positions.rows.length+')':''}</QuietButton></TitleRow>
+      <Introduction aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit.</StepSubtitle><StepSubtitle>We fund the premium. Once your vault is ready, deposit your LP assets and claim the incentive here.</StepSubtitle></Introduction>
+      {flow.saved&&<Recovery><FinePrint>A signed deployment authorization is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
+      {catalog.loading&&<FinePrint role='status'>Loading incentive programs…</FinePrint>}
+      {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
+      {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
+      {groups.map(offers=><ProgramGroup key={offers[0].pairId}><PairHeader pair={offers[0]}/><Programs data-incentive-programs aria-label={offers[0].token0.symbol+' / '+offers[0].token1.symbol+' liquidity incentive offers'}>
+        <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','Capacity'].map(label=><ColumnTitle as='span' key={label}>{label}</ColumnTitle>)}</ProgramHeading>
+        {offers.map(offer=><ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} onClick={()=>openOffer(offer)}>
+          <Metric><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
+          <Metric><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
+          <Metric><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
+          <CapacityCell><MobileLabel>Capacity</MobileLabel><CapacityMeter title={offer.availability??'Available size under the shared campaign budget'}><Value>{offer.eligibleMaximumCents===null?'Unavailable':compactUsd(Number(offer.eligibleMaximumCents)/100)}</Value><Muted>{offer.budget.paused?'Paused':offer.eligibleMaximumCents==='0'?'Exhausted':'up to per vault'}</Muted></CapacityMeter></CapacityCell>
+          {offer.isNew&&<NewTag>NEW</NewTag>}
+        </ProgramRow>)}
+      </Programs></ProgramGroup>)}
+      <Row><FinePrint>Available size depends on the shared campaign budget and current prices.{!catalog.creatorOnline&&catalog.offers.length?' The deployment worker is currently offline.':''}</FinePrint><QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     </>}
-    {selected && activeOffer && <IncentiveRequestModal key={activeOffer.id} offer={activeOffer} account={account}
-      flow={flow} price={price} onClose={() => setSelected(null)} />}
-    {showPending && <PendingRequests account={account} requests={requests} onImport={importReceipt} onConnect={onConnect} onClose={closeRequests} onDeposit={setDepositId} onAdmin={() => navigate('/admin/requests')} />}
-    {depositId && account && <VaultDepositModal key={`${account}:${depositId}`} account={account} requestId={depositId} onClose={() => { setDepositId(null); requests.refresh() }} />}
+    {(selected||vaultId||resume)&&<IncentiveModal offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} onClose={close} onConnect={onConnect}/>}
   </Page>
 }
 

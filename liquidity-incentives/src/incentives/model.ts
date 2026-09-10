@@ -1,66 +1,12 @@
-import type { IncentiveRequestTerms, RequestDetails } from '@receipt'
-
-/** API catalog terms describe proposals, not funded or deployed vault balances. */
-export interface Offer {
-  id: string
-  chainId: number
-  pool: `0x${string}`
-  feeTier?: number
-  token0: IncentiveRequestTerms['token0']
-  token1: IncentiveRequestTerms['token1']
-  apr: number
-  days: number
-  capacityUsd: number
-  pairId?: string
-  isNew?: boolean
-}
-export interface PriceSnapshot { quotePerToken: number; quoteUsd: number; observedAt: string; block: string }
-
-/** Full-range indicative quote; no rounded display value becomes calldata. */
-export function requestDraft(offer: Offer, depositUsd: string, price: PriceSnapshot): RequestDetails {
-  const principal = Number(depositUsd)
-  const cashcatUsd = price.quotePerToken * price.quoteUsd
-  const rewardUsd = principal * offer.apr / 100 * offer.days / 365
-  return {
-    version: 3, kind: 'incentive', chain: 'robinhood', depositToken: 'USD',
-    pair: `${offer.token0.symbol} / ${offer.token1.symbol}`, depositAmount: depositUsd,
-    incentive: {
-      id: offer.id, chainId: offer.chainId, poolAddress: offer.pool, feeTier: offer.feeTier,
-      token0: offer.token0, token1: offer.token1, durationDays: offer.days,
-      capacityUsd: offer.capacityUsd, aprPercent: offer.apr, depositUsd, range: 'full',
-      quote: { cashcatAmount: principal / 2 / cashcatUsd, quoteAmount: principal / 2 / price.quoteUsd,
-        rewardUsd, rewardCashcat: rewardUsd / cashcatUsd, cashcatUsd,
-        quoteTokenUsd: price.quoteUsd, quotePerCashcat: price.quotePerToken, quotedAt: price.observedAt },
-    },
-  }
-}
-
-/** Magnitude-based display only. Raw signed amounts remain unchanged. */
-export function tokenAmount(value: number) {
-  return Number.isFinite(value) ? value.toLocaleString('en-US', {
-    maximumFractionDigits: value >= 100 ? 0 : value >= 10 ? 1 : value >= 1 ? 2 : 4,
-  }) : '—'
-}
-export const usd = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
-export const compactUsd = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })
-
-/** Display stored USD input without rounding legacy receipt precision away. */
-export function exactUsd(value: string) {
-  if (!/^\d+(\.\d+)?$/.test(value)) return usd(Number(value))
-  const [whole, fraction = ''] = value.split('.')
-  return `$${BigInt(whole).toLocaleString('en-US')}.${fraction.padEnd(2, '0')}`
-}
-
-/** Unpaid reviews expire; an already paid receipt always keeps its old quote. */
-export function freshQuote(quotedAt: string | undefined, now = Date.now()) {
-  const age = now - Date.parse(quotedAt ?? '')
-  return Number.isFinite(age) && age >= -60_000 && age < 120_000
-}
-
-/** Resume rendering does not depend on the current offer catalog still existing. */
-export function offerFromRequest(request: RequestDetails): Offer {
-  const t = request.incentive!
-  return { id: t.id, chainId: t.chainId, pool: t.poolAddress, feeTier: t.feeTier,
-    token0: t.token0, token1: t.token1,
-    apr: t.aprPercent, days: t.durationDays, capacityUsd: t.capacityUsd }
-}
+import type { Address,Hex } from 'viem'
+export interface Token {address:Address;symbol:string;decimals:number}
+export interface Pair {id:string;revision:number;chainId:number;pool:Address;feeTier:number;token0:Token;token1:Token;active:boolean}
+export interface Program {id:string;revision:number;pairId:string;budgetPoolId:string;apr:number;days:number;minimumCents:string;maximumCents:string;sortOrder:number;isNew:boolean;active:boolean}
+export interface Budget {id:string;revision:number;name:string;chainId:number;rewardAsset:Address;decimals:number;limitRaw:string;reservedRaw:string;allocatedRaw:string;availableRaw:string;paused:boolean;reconciliationRequired:boolean}
+export interface Offer extends Pair,Program {pairRevision:number;capacityUsd:number;budget:Budget;eligibleMaximumCents:string|null;availability:string|null}
+export interface PriceSnapshot {quotePerToken:number;quoteUsd:number;observedAt:string;block:string}
+export interface Deployment {id:string;wallet:Address;programId:string;createdAt:string;planHash:Hex;plan:any;snapshot:any;signer:Address;observation:any;state:string;depositable:boolean;canClaim:boolean;canWithdraw:boolean;canRecover:boolean;workerState:string;fundingState:string;cancelRequested:boolean;error:string|null;transactions:{hash:Hex;originalHash:Hex;step:string;nonce:string;confirmed:boolean;reverted:boolean}[];nextAttemptAt:string;fundingOperator:Address|null}
+export const tokenAmount=(value:number)=>Number.isFinite(value)?value.toLocaleString('en-US',{maximumSignificantDigits:6}):'—'
+export const usd=(value:number)=>value.toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2})
+export const compactUsd=(value:number)=>value.toLocaleString('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:1})
+export const statusLabel=(state:string)=>({queued:'Deployment queued',deploying:'Creating vault',checking:'Checking availability',retired:'Retired',needs_attention:'Needs operator attention',awaiting_funding:'Awaiting admin funding',depositable:'Depositable',claimable:'Premium claimable',active:'Position active',matured:'Ready to withdraw',completed:'Completed',fixed_awaiting_funding:'Deposit confirmed · vault has not started',retirement_requested:'Retirement requested',occupied:'Fixed side occupied',no_position:'No position held'}[state]??state.replaceAll('_',' '))

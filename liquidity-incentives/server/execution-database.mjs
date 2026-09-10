@@ -99,11 +99,15 @@ export function createExecutionDatabase(db) {
       await execution.saveObservation(id,snapshot)
     },
     async saveObservation(id,snapshot){
-      const previous=(await query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot
-      // Older concurrent reads must not replace newer evidence or reverse completed state.
-      if(snapshot.verified&&previous?.verified&&BigInt(snapshot.blockNumber)<BigInt(previous.blockNumber)) return
-      await db.reconcileFunding(id,snapshot)
-      await query(`INSERT INTO ${s}.vault_observations (intent_id,snapshot) VALUES ($1,$2) ON CONFLICT(intent_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,updated_at=NOW()`,[id,snapshot])
+      await transaction(async client=>{
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['saffron-observation:'+id])
+        const previous=(await client.query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot
+        if(previous?.checkedAt>snapshot.checkedAt)return
+        // Publish accounting and its evidence together across API/worker processes.
+        if(snapshot.verified&&previous?.verified&&BigInt(snapshot.blockNumber)<BigInt(previous.blockNumber))return
+        await db.reconcileFunding(id,snapshot,'observer',client)
+        await client.query(`INSERT INTO ${s}.vault_observations (intent_id,snapshot) VALUES ($1,$2) ON CONFLICT(intent_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,updated_at=NOW()`,[id,snapshot])
+      })
     },
     async observation(id){return(await query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot??null},
     async tracked(){return(await query(`SELECT intent_id FROM ${s}.vault_jobs WHERE plan ? 'vault' ORDER BY updated_at DESC LIMIT 500`)).rows},

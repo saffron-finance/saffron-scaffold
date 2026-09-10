@@ -54,6 +54,6 @@ export async function resolvePlan(job, rpc, usdQuote, config) {
     feeBps: feeBps.toString(), factoryCodeHash: config.factoryCodeHash,
     vaultTypeHash: config.vaultTypeHash, adapterTypeHash: config.adapterTypeHash,
     price0: price0.toString(), price1: price1.toString(), variablePrice: variablePrice.toString(),
-    sizingBlock: head.number, sizingBlockHash: head.hash, usdCheckedAt: quote.checkedAt }
+    sqrtPrice:p.toString(),sizingBlock: head.number, sizingBlockHash: head.hash, usdCheckedAt: quote.checkedAt }
 }
 

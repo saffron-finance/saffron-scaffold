@@ -30,7 +30,6 @@ export default defineConfig(({ mode }) => {
     alias: {
       '@fixed': fixed,
       '@lab': here('./src/adapters'),
-      '@receipt': here('./shared/vault-request.mjs'),
       // Resolve imported host source against this prototype's pinned runtime.
       react: here('./node_modules/react'),
       'react-dom': here('./node_modules/react-dom'),
@@ -41,7 +40,7 @@ export default defineConfig(({ mode }) => {
     dedupe: ['react', 'react-dom', 'styled-components'],
   },
   // Node owns address validation and upstream pricing in development and production.
-  server: { port: 5187, proxy: Object.fromEntries(['prices', 'rpc', 'vault-requests', 'incentive-programs', 'api/incentives'].map(path => [`${base}${path}`, api])) },
+  server: { port: 5187, proxy: Object.fromEntries(['prices', 'rpc', 'api/incentives'].map(path => [`${base}${path}`, api])) },
   build: { outDir: 'dist' },
   }
 })

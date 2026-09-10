@@ -2,8 +2,8 @@ import styled from 'styled-components'
 import { Button } from '../host/ui'
 
 /** Feature-only composition. Colors/type/control dimensions stay upstream-owned. */
-export const Stack = styled.div`display:flex;flex-direction:column;gap:20px;`
-export const Row = styled.div`display:flex;align-items:center;justify-content:space-between;gap:12px;`
+export const Stack = styled.div`display:flex;flex-direction:column;gap:20px;min-width:0;overflow-wrap:anywhere;`
+export const Row = styled.div`display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;`
 export const Token = styled.span`display:inline-flex;align-items:center;gap:10px;min-width:0;`
 export const Muted = styled.span`color:${({ theme }) => theme.colors.text.tertiary};font-size:13px;`
 export const Label = styled.div`font-family:${({ theme }) => theme.fonts.mono};font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${({ theme }) => theme.colors.text.label};`

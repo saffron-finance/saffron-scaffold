@@ -25,7 +25,7 @@ before(async () => {
   await new Promise((resolve) => reservation.close(resolve))
   origin = `http://127.0.0.1:${port}`
   processUnderTest = spawn(process.execPath, ['server/proxy.mjs'], {
-    env: { ...process.env, NODE_ENV: 'test', BASE_PATH: base, SAFFRON_REQUEST_STORAGE: 'json', PORT: String(port), DIST_DIR: 'dist', RPC_ETHEREUM: rpc,
+    env: { ...process.env, NODE_ENV: 'test', BASE_PATH: base, SAFFRON_API_DISABLED: '1', PORT: String(port), DIST_DIR: 'dist', RPC_ETHEREUM: rpc,
       RPC_ARBITRUM: rpc, RPC_ROBINHOOD: rpc, VAULT_REQUEST_PAYMENT_ADDRESS: '', ZAP_QUOTES_ENABLED: 'false' },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -75,10 +75,7 @@ it('bounds RPC bodies and malformed paths without crashing the server', async ()
   assert.equal(response, 403)
   assert.equal((await fetch(`${origin}${base}/`)).status, 200)
 })
-it('fails closed without a recipient and never exposes the queue', async () => {
-  const config = await (await fetch(`${origin}${base}/vault-requests/config`)).json()
-  assert.equal(config.enabled, false)
-  assert.equal((await fetch(`${origin}${base}/vault-requests`, { method: 'POST' })).status, 503)
-  assert.equal((await fetch(`${origin}${base}/vault-requests/list`)).status, 404)
+it('fails closed when the API database is explicitly disabled', async () => {
+  assert.equal((await fetch(origin+base+'/api/incentives/programs')).status,503)
   assert.doesNotMatch(output, /EACCES|stack|RPC_ETHEREUM=|RPC_ARBITRUM=/)
 })

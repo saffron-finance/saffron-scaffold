@@ -63,3 +63,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.vault_observations (
 CREATE TABLE IF NOT EXISTS saffron_incentives.worker_heartbeats (
   signer TEXT PRIMARY KEY, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS saffron_incentives.user_operations (
+  hash TEXT PRIMARY KEY,intent_id UUID NOT NULL REFERENCES saffron_incentives.deployment_intents(id),wallet TEXT NOT NULL,
+  action TEXT NOT NULL,receipt JSONB NOT NULL,canonical BOOLEAN NOT NULL DEFAULT TRUE,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

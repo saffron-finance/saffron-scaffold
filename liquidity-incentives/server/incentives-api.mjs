@@ -46,8 +46,9 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
         const accepted=await db.acceptDeployment({wallet:session.wallet,quoteId:body.quoteId,signature:body.signature,origin:auth.origin})
         sendJson(res,accepted.replayed?200:201,{...accepted,deployment:await service.detail(accepted.id,session.wallet,false,{fresh:false})});return true
       }
-      const deployment=/^\/deployments\/([0-9a-f-]{36})(?:\/(context|cancel))?$/.exec(path)
+      const deployment=/^\/deployments\/([0-9a-f-]{36})(?:\/(context|cancel|transactions))?$/.exec(path)
       if(deployment){
+        if(method==='POST'&&deployment[2]==='transactions'){sendJson(res,200,await service.recordUserAction(deployment[1],session.wallet,body.hash));return true}
         if(method==='POST'&&deployment[2]==='cancel'){sendJson(res,200,await db.cancelDeployment(deployment[1],session.wallet));return true}
         if(method==='GET'&&!deployment[2]){sendJson(res,200,{deployment:await service.detail(deployment[1],session.wallet)});return true}
         if(method==='GET'&&deployment[2]==='context'){sendJson(res,200,await service.context(deployment[1],session.wallet));return true}

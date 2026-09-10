@@ -1,5 +1,4 @@
-// Exact fixed-income primitives. This host boundary is replaced by src/shared
-// imports at merge; none of the beta styling is forked into the feature.
+// This application's UI facade owns its pinned, vendored Saffron primitives.
 export { InteractiveEmblem } from './InteractiveEmblem'
 export { darkTheme } from '@fixed/shared/styles/themes/darkTheme'
 export { lightTheme } from '@fixed/shared/styles/themes/lightTheme'

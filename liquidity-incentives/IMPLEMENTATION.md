@@ -52,10 +52,20 @@ operator deployment step; automated checks use generated wallets and disposable 
   allocated; pre-start withdrawal retains the obligation as a reservation.
 - Ten focused checks pass, including real PostgreSQL concurrency, transaction rollback,
   duplicate response recovery, quote/revision expiry, queue limits, cancellation, and ledger drift.
-# Stage 3 — worker execution and application API
+### Stage 3: worker execution and application API
 
 Accepted user intents now dispatch automatically through the scaffold worker. Creation keeps its durable transaction journal and canonical checks; admin funding, retirement and variable fee collection are separate operations. Retry scheduling avoids repeatedly claiming a blocked job. Signed transactions are checked against the accepted quote and campaign pause inside the persistence transaction before broadcast.
 
 The clean API provides wallet sessions, quotes, deployments, catalog/budget administration and operator recovery. The HTTP process performs reads only; pricing is an explicitly configured provider. Operator reconciliation accepts only a confirmed semantic replacement or same-nonce zero-value self cancellation. A reorganization of a released commitment freezes admission and requires restoring the obligation before the worker repeats retirement.
 
 Validation: 10 intent/auth/database checks; one real HTTP authorization/privacy test; three local EVM scenarios covering create/fund/deposit/claim, lost receipts/restart/fair scheduling, and retirement plus an actual local-chain rollback. The EVM scenarios use real pinned Saffron contracts with a position-manager double; real Uniswap lifecycle coverage follows with the UI stage. The public UI still needs conversion to the new API in the next commit.
+
+### Stage 4: unified interface and native position lifecycle
+
+- Replaced paid requests with exact deployment review and a shared page-two lifecycle panel, also opened by My vaults. Removed fee, receipt-file, compatibility-schema, legacy API, and obsolete browser/test code.
+- Added wallet-session renewal, durable authorization replay and wallet-action recovery, exact approvals, optional ETH wrapping, fixed entry, premium claim, maturity withdrawal and pre-start recovery. Completion requires verified withdrawal evidence rather than a zero balance.
+- Added operator budget/program maintenance and separate funding, retirement, fee collection, and transaction reconciliation controls. No admin creation form or public variable-side entry remains.
+- The normal build passes. Twelve unit/relay checks and nine database/API checks pass. Three existing new-flow EVM scenarios pass; an additional real Uniswap position-manager test completes mint, claim conversion, withdrawal and fee collection.
+- Six browser scenarios have passed against the actual production server and disposable PostgreSQL/Anvil: the full lifecycle, mobile/keyboard layout, two wallet-layer cases, interrupted authorization/wallet-response recovery, and exact operator budget/program editing. The maturity test also exercises session expiry and renewal.
+
+Final delivery will add the remaining recovery edge cases and operational/setup documentation, then run the finished suite.

@@ -5,10 +5,11 @@ import { robinhoodChain } from '@lab/chain/chains'
 import { abi, WETH, eligibility, sameAddress } from '../../shared/vault-lifecycle.mjs'
 import { readVault } from '../../shared/vault-reader.mjs'
 import { amountsForLiquidity, ceilDiv } from '../../shared/liquidity-math.mjs'
-import { robinhoodClient, requestJson } from './transport'
+import { robinhoodClient, authedJson, requestJson, ensureSession } from './transport'
+import { positionAction } from '../../shared/position-actions.mjs'
 
-type Intent = { stage: string; account: Address; requestId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex }
-export const depositStorageKey = (account: string, requestId: string) => 'saffron.fixed-deposit.v1:' + account.toLowerCase() + ':' + requestId
+type Intent = { stage: string; account: Address; deploymentId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex }
+export const positionStorageKey = (account: string, deploymentId: string) => 'saffron.position-action.v1:' + account.toLowerCase() + ':' + deploymentId
 const rejected = (cause: unknown): boolean => {
   let current = cause as { code?: number; cause?: unknown } | undefined
   for (let i = 0; current && i < 8; i++, current = current.cause as typeof current) if (current.code === 4001) return true
@@ -18,8 +19,8 @@ const rejected = (cause: unknown): boolean => {
 /** Native fixed-only controller. Durable intent precedes a wallet prompt; lost
  * responses never silently become permission to send a second transaction.
  */
-export function useVaultDeposit(account: Address, requestId: string) {
-  const key = depositStorageKey(account, requestId)
+export function useVaultPosition(account: Address, deploymentId: string, mode: string) {
+  const key = positionStorageKey(account, deploymentId)
   const [context, setContext] = useState<any>(null)
   const [quote, setQuote] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -28,18 +29,25 @@ export function useVaultDeposit(account: Address, requestId: string) {
   const [pending, setPending] = useState<Intent | null>(() => {
     try {
       const value = JSON.parse(localStorage.getItem(key) ?? 'null')
-      return value?.account?.toLowerCase() === account.toLowerCase() && value.requestId === requestId ? value : null
+      return value?.account?.toLowerCase() === account.toLowerCase() && value.deploymentId === deploymentId ? value : null
     } catch { return null }
   })
   function persist(value: Intent | null) {
-    setPending(value)
     if (value) localStorage.setItem(key, JSON.stringify(value))
     else localStorage.removeItem(key)
+    setPending(value)
   }
   async function load() {
-    const value = await requestJson('/' + requestId + '/deposit-context?wallet=' + account)
-    const snapshot = await readVault(value.job, (method, params) => robinhoodClient.request({ method, params } as any), { confirmations: 1 })
-    if (!eligibility(snapshot).depositable) throw new Error('Vault funding or availability changed.')
+    const value = await requestJson('/deployments/' + deploymentId + '/context')
+    const snapshot = await readVault(value.job, (method, params) => robinhoodClient.request({ method, params } as any), { confirmations: 2 })
+    setContext({...value,snapshot})
+    if(mode==='view'){setQuote(null);return null}
+    if(mode!=='deposit'){
+      const action=positionAction(snapshot,mode)
+      const fresh={snapshot,tokens:[snapshot.token0,snapshot.token1],rawAmounts:action.amounts??[0n,0n],maximums:action.amounts??[0n,0n],action,blocked:null}
+      setQuote(fresh);setError(null);return fresh
+    }
+    if (!value.deployment.depositable || !eligibility(snapshot).depositable) throw new Error('Vault funding or availability changed.')
     const amounts = amountsForLiquidity(snapshot.liquidity,snapshot.sqrtPrice,snapshot.minTick,snapshot.maxTick)
     const tokens = [snapshot.token0,snapshot.token1]
     const rawAmounts = [amounts.amount0,amounts.amount1]
@@ -79,7 +87,7 @@ export function useVaultDeposit(account: Address, requestId: string) {
     setError(null)
     try { await load() } catch(cause) { setQuote(null);setError(cause instanceof Error?cause.message:'Deposit unavailable.') }
   }
-  useEffect(()=>{ void refresh() },[account,requestId])
+  useEffect(()=>{ void refresh() },[account,deploymentId,mode])
 
   async function confirm(intent: Intent) {
     if (!intent.hash || !/^0x[0-9a-fA-F]{64}$/.test(intent.hash)) throw new Error('Enter the transaction hash from your wallet to recover.')
@@ -102,8 +110,9 @@ export function useVaultDeposit(account: Address, requestId: string) {
       })
       if (!deposited) throw new Error('Expected fixed-deposit event not found. Recovery retained.')
     }
+    if(['deposit','claim','withdraw','recover'].includes(intent.stage))await authedJson(account,'/deployments/'+deploymentId+'/transactions',{hash})
     persist(null)
-    if(intent.stage==='deposit'){setCompleted(true);setQuote(null);window.dispatchEvent(new Event('saffron:vault-updated'))}
+    if(['deposit','claim','withdraw','recover'].includes(intent.stage)){setCompleted(true);setQuote(null);window.dispatchEvent(new Event('saffron:vault-updated'))}
     else await refresh()
   }
   async function recover(hash?: Hex) {
@@ -113,14 +122,17 @@ export function useVaultDeposit(account: Address, requestId: string) {
     catch(cause){setError(cause instanceof Error?cause.message:'Recovery check failed. Record retained.')}
     finally{setBusy(false)}
   }
-  async function advance() {
+  async function sendAction() {
+    const stored=localStorage.getItem(key)
     if(pending){await recover();return}
+    if(stored){setPending(JSON.parse(stored));return}
     setBusy(true);setError(null)
     try {
-      await assertWalletAccount(account);await ensureChain(robinhoodChain)
+      await ensureSession(account);await assertWalletAccount(account);await ensureChain(robinhoodChain)
       const fresh=await load()
+      if(!fresh?.action)throw new Error('This position has no available wallet action.')
       if(fresh.blocked) throw new Error(fresh.blocked)
-      if(quote && (fresh.action.stage!==quote.action.stage || fresh.rawAmounts.some((value:bigint,i:number)=>value>quote.maximums[i]))) {
+      if(quote && (fresh.action.stage!==quote.action.stage || fresh.action.stage==='deposit'&&fresh.rawAmounts.some((value:bigint,i:number)=>value>quote.maximums[i]))) {
         throw new Error('Required action or amounts changed. Review the updated modal before continuing.')
       }
       const action=fresh.action
@@ -129,7 +141,7 @@ export function useVaultDeposit(account: Address, requestId: string) {
       await assertWalletAccount(account)
       // Bind recovery to this nonce, not an older identical wrap/approval hash.
       const nonce = await walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'})
-      const intent:Intent={stage:action.stage,account,requestId,to:action.to,data:action.data,value:action.value.toString(),nonce}
+      const intent:Intent={stage:action.stage,account,deploymentId,to:action.to,data:action.data,value:action.value.toString(),nonce}
       persist(intent)
       let hash:Hex
       try {hash=await walletClient().sendTransaction({chain:robinhoodChain,account,to:action.to,data:action.data,value:action.value,nonce})}
@@ -137,6 +149,13 @@ export function useVaultDeposit(account: Address, requestId: string) {
       const saved={...intent,hash};persist(saved);await confirm(saved)
     }catch(cause){setError(cause instanceof Error?cause.message:'Wallet action failed. Check recovery before retrying.')}
     finally{setBusy(false)}
+  }
+  async function advance(){
+    if(!navigator.locks){setError('This browser cannot coordinate wallet actions safely. Use a browser with Web Locks support.');return}
+    await navigator.locks.request('saffron.wallet-action:'+account.toLowerCase(),{ifAvailable:true},async lock=>{
+      if(!lock){setError('Another Saffron wallet action is in progress. Finish it before continuing.');return}
+      await sendAction()
+    })
   }
   return {context,quote,error,busy,completed,pending,refresh,advance,recover,
     amountLabel:(i:number)=>quote?formatUnits(quote.rawAmounts[i],quote.tokens[i].decimals):'—'}

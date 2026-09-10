@@ -1,137 +1,64 @@
-import { expect } from '@playwright/test'
 import { createServer } from 'node:http'
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { once } from 'node:events'
+import { spawn } from 'node:child_process'
+import { mkdtemp,writeFile,rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { hexToString, encodeAbiParameters } from 'viem'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { createVaultRequestHandler } from '../../server/vault-requests.mjs'
-import { HASH, RECIPIENT, paymentFixture } from '../payment-fixture.mjs'
-import { postgresFixture } from '../postgres-fixture.mjs'
-import { feeRpc } from '../fee-fixture.mjs'
-import { createIncentiveProgramHandler } from '../../server/incentive-programs.mjs'
-import { catalogRpc } from '../catalog-fixture.mjs'
-import { createOperatorAuth } from '../../server/operator-auth.mjs'
-import { createLifecycleService } from '../../server/lifecycle-service.mjs'
-import { createLifecycleHandler } from '../../server/lifecycle-api.mjs'
+import { join,resolve,sep } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { createWalletClient,http,hexToString,encodeFunctionData,toHex } from 'viem'
+import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
+import { incentivesFixture,program } from '../incentives-fixture.mjs'
+import { evmFixture,CASHCAT } from '../evm-fixture.mjs'
 import { createCreator } from '../../worker/creator.mjs'
-import { evmFixture } from '../evm-fixture.mjs'
+import { WETH } from '../../shared/vault-lifecycle.mjs'
 
-const BASE = ''
-
-/**
- * Use real EIP-6963 discovery, viem calldata/signatures, HTTP verification, and
- * queue writes, with only the wallet/RPC replaced by unfunded local fixtures.
- * The default injected provider is MetaMask; Uniswap must be selected explicitly.
- */
-export async function setup(page, options = {}) {
-  const account = privateKeyToAccount(generatePrivateKey())
-  const directory = await mkdtemp(join(tmpdir(), 'liqifi-browser-'))
-  const storePath = join(directory, 'queue.json')
-  const state = { chain: '0x1', sends: 0, signs: 0, saved: 0, calls: [], messages: [], receipt: null,
-    rejectPayment: false, rejectSignature: false, lostSave: false, usdcBalance: 100_000_000n, ethBalance: 10_000_000_000_000_000n, ...options }
-  const fixture = paymentFixture(account.address)
-  if (options.reverted) fixture.receipt.status = '0x0'
-  const storage = await postgresFixture({ resolvePoolFee: options.resolvePoolFee })
-  const oracleRpc = feeRpc(fixture, options)
-  const native = options.native ? await evmFixture({account}) : null
-  const auth = createOperatorAuth({operators:options.notAdmin?[]:[account.address],origin:'http://127.0.0.1:13218'})
-  const lifecycle = createLifecycleService({database:storage.database,rpc:native?.rpc ?? (async()=>{throw new Error('No fixture chain')}),signer:account.address})
-  const nativeHandler = createLifecycleHandler({database:storage.database,auth,service:lifecycle,signer:account.address})
-  const creator = native ? createCreator({database:storage.database,rpc:native.rpc,account,config:native.config,usdQuote:native.usdQuote}) : null
-  const handler = createVaultRequestHandler({ recipient: options.enabled === false ? null : RECIPIENT,
-    storePath, database: storage.database, adminAllowed:auth.permitted, lifecycle, basePath: BASE, rpc: (...args) => oracleRpc(...args) })
-  const programs = createIncentiveProgramHandler({ database: storage.database,
-    adminAllowed: auth.permitted, basePath: BASE, rpc: catalogRpc() })
-  const server = createServer(async (req, res) => {
-    const pathname = new URL(req.url, 'http://localhost').pathname
-    if (!await nativeHandler(req,res,pathname) && !await handler(req, res, pathname) && !await programs(req, res, pathname)) { res.writeHead(404); res.end() }
-  })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const api = `http://127.0.0.1:${server.address().port}`
-  await page.route(/\/(?:vault-requests|incentive-programs)(?:\/[^?]*)?(?:\?.*)?$/,  async (route) => {
-    const request = route.request()
-    const response = await fetch(`${api}${new URL(request.url()).pathname}${new URL(request.url()).search}`, {
-      method: request.method(), headers: { 'content-type': 'application/json', ...await request.allHeaders() }, body: request.postData() ?? undefined,
-    })
-    if (request.method() === 'POST' && new URL(request.url()).pathname === `${BASE}/vault-requests`) {
-      state.saved++
-      if (state.lostSave) { state.lostSave = false; await route.fulfill({ status: 503, json: { error: 'Simulated lost response. Retry without paying again.' } }); return }
+/** Actual production server, real PostgreSQL, and real local protocol/Uniswap.
+ * Only the injected test wallet and external USD provider are substituted. */
+export async function setup(page,{admin=false,wrap=false}={}){
+  const account=privateKeyToAccount(generatePrivateKey()),chain=await evmFixture({realPositionManager:true})
+  const store=await incentivesFixture(),database=store.database
+  const dir=await mkdtemp(join(tmpdir(),'saffron-incentives-test-')),clockFile=join(dir,'clock.txt')
+  await writeFile(clockFile,'0')
+  await store.seed(chain.account.address,10n**30n+'',{pool:chain.pool})
+  for(const days of [7,14,30])await database.saveProgram({...program,id:'cashcat-'+days+'d',days},chain.account.address)
+  await chain.raw('anvil_setBalance',[account.address,toHex(100n*10n**18n)])
+  for(const token of [CASHCAT,...(wrap?[]:[WETH])])await chain.send(token,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[account.address,10n**26n]}))
+  const worker=createCreator({database,rpc:chain.rpc,account:chain.account,config:chain.config})
+  await database.execution.heartbeat(chain.account.address)
+  const heart=setInterval(()=>void database.execution.heartbeat(chain.account.address),5000)
+  const price=createServer((req,res)=>{const address=new URL(req.url,'http://localhost').pathname.split('/')[1];res.setHeader('content-type','application/json');res.end(JSON.stringify({success:true,data:{chainId:4663,tokenAddress:address,currency:'usd',price:2000,timestamp:new Date().toISOString()}}))})
+  price.listen(0,'127.0.0.1');await once(price,'listening')
+  const portReservation=createServer();portReservation.listen(0,'127.0.0.1');await once(portReservation,'listening');const port=portReservation.address().port;await new Promise(r=>portReservation.close(r))
+  const origin='http://127.0.0.1:'+port,protocolFile=join(dir,'protocol.json')
+  await writeFile(protocolFile,JSON.stringify({...chain.config,signerAddress:chain.account.address}))
+  const conn=store.connection
+  const child=spawn(process.execPath,['--import','./tests/clock-env.mjs','server/proxy.mjs'],{windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...process.env,NODE_ENV:'test',SAFFRON_TEST_CLOCK_FILE:clockFile,
+    SAFFRON_API_DISABLED:'',PORT:String(port),BASE_PATH:'',RPC_ROBINHOOD:chain.url,SAFFRON_APP_ORIGIN:origin,SAFFRON_PROTOCOL_CONFIG:protocolFile,
+    PRICE_API_ROOT:'http://127.0.0.1:'+price.address().port,SAFFRON_ADMIN_WALLETS:admin?account.address:chain.account.address,
+    PGHOST:conn.host,PGPORT:String(conn.port),PGUSER:conn.user,PGPASSWORD:conn.password,PGDATABASE:conn.database}})
+  let output='';child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
+  for(let i=0;i<100;i++){try{if((await fetch(origin+'/')).ok)break}catch{}if(i===99)throw new Error('Application startup failed: '+output);await delay(100)}
+  const wallet=createWalletClient({account,chain:chain.client.chain,transport:http(chain.url)})
+  const state={chain:'0x1237',sends:0,signs:0,calls:[],messages:[],lostSend:false,lastHash:null,connected:false,holdSend:false}
+  await page.exposeFunction('fixtureWalletRequest',async(name,{method,params=[]})=>{
+    state.calls.push(method)
+    if(method==='eth_requestAccounts'){state.connected=true;return [account.address]}
+    if(method==='eth_accounts')return state.connected?[account.address]:[]
+    if(method==='eth_chainId')return state.chain
+    if(method==='wallet_switchEthereumChain'){state.chain=params[0].chainId;return null}
+    if(method==='wallet_addEthereumChain')return null
+    if(method==='wallet_getCapabilities')return {}
+    if(method==='personal_sign'){state.signs++;state.messages.push(hexToString(params[0]));return account.signMessage({message:hexToString(params[0])})}
+    if(method==='eth_signTypedData_v4'){state.signs++;return account.signTypedData(JSON.parse(params[1]))}
+    if(method==='eth_sendTransaction'){
+      const tx=params[0];state.sends++
+      if(state.holdSend)await new Promise(r=>{state.releaseSend=r})
+      const hash=await wallet.sendTransaction({to:tx.to,data:tx.data,value:BigInt(tx.value??0),...(tx.nonce?{nonce:Number(BigInt(tx.nonce))}:{})})
+      state.lastHash=hash;await chain.raw('evm_mine')
+      if(state.lostSend){state.lostSend=false;throw new Error('Simulated lost wallet response')}
+      return hash
     }
-    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() })
-  })
-  // Same token-price endpoint as the deployed page; never read live prices.
-  await page.route('**/prices/*', route => {
-    const symbol = new URL(route.request().url()).pathname.split('/').at(-1)
-    const isEth = symbol === 'ETH' || symbol.toLowerCase() === '0x0bd7d308f8e1639fab988df18a8011f41eacad73'
-    return route.fulfill({status: state.quoteOffline ? 503 : 200, json: {success: true, data: {
-      chainId: 4663, tokenAddress: isEth ? '0x0bd7d308f8e1639fab988df18a8011f41eacad73' : '0x5fc5360d0400a0fd4f2af552add042d716f1d168',
-      price: isEth ? 2000 : 1, timestamp: new Date().toISOString(), currency: 'usd',
-    }}})
-  })
-  await page.route('**/rpc/*', async (route) => {
-    const body = route.request().postDataJSON()
-    const resolve = async (call) => {
-      if(native && new URL(route.request().url()).pathname.endsWith('/robinhood')) {
-        try { return {jsonrpc:'2.0',id:call.id,result:await native.rpc(call.method,call.params)} }
-        catch { return {jsonrpc:'2.0',id:call.id,error:{code:-32000,message:'Local EVM unavailable'}} }
-      }
-      if (state.failEthBalance && call.method === 'eth_getBalance') return { jsonrpc: '2.0', id: call.id, error: { code: -32000, message: 'Fixture balance unavailable' } }
-      const slot0 = call.method === 'eth_call' && call.params?.[0]?.data === '0x3850c7bd'
-      const sqrtPrice = call.params?.[0]?.to?.toLowerCase() === '0x4b0c312ffbb068f6a0bea128759e35d94b94d0e1' ? (2n ** 96n) / 10_000_000n : (2n ** 96n) / 1000n
-      const usdcBalance = call.method === 'eth_call' && call.params?.[0]?.to?.toLowerCase() === '0xaf88d065e77c8cc2239327c5edb3a432268e5831' && call.params?.[0]?.data?.startsWith('0x70a08231')
-      const result = call.method === 'eth_getBalance' ? '0x' + state.ethBalance.toString(16)
-        : usdcBalance ? '0x' + state.usdcBalance.toString(16).padStart(64, '0')
-        : call.method === 'eth_call' && call.params?.[0]?.data === '0x0dfe1681' ? encodeAbiParameters([{type:'address'}], ['0x020bfC650A365f8BB26819deAAbF3E21291018b4'])
-        : call.method === 'eth_call' && call.params?.[0]?.data === '0xd21220a7' ? encodeAbiParameters([{type:'address'}], [call.params[0].to.toLowerCase() === '0x4b0c312ffbb068f6a0bea128759e35d94b94d0e1' ? '0x5fc5360d0400a0fd4f2af552add042d716f1d168' : '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'])
-        : slot0 ? encodeAbiParameters([{ type: 'uint160' }, { type: 'int24' }, { type: 'uint16' }, { type: 'uint16' }, { type: 'uint16' }, { type: 'uint8' }, { type: 'bool' }], [sqrtPrice, 0, 0, 0, 0, 0, true])
-        : call.method === 'eth_call' ? `0x${'0'.repeat(64)}`
-        : call.method === 'eth_chainId' ? ({ ethereum: '0x1', arbitrum: '0xa4b1', robinhood: '0x1237' })[new URL(route.request().url()).pathname.split('/').at(-1)]
-        : await fixture.rpc(call.method, call.params)
-      return { jsonrpc: '2.0', id: call.id, result }
-    }
-    await route.fulfill({ json: Array.isArray(body) ? await Promise.all(body.map(resolve)) : await resolve(body) })
-  })
-  await page.exposeFunction('fixtureWalletRequest', async (name, { method, params }) => {
-    state.calls.push({ name, method })
-    if (method === 'eth_chainId') return state.chain
-    if (method === 'eth_accounts' || method === 'eth_requestAccounts') return [account.address]
-    if (method === 'wallet_switchEthereumChain') { state.chain = params[0].chainId; return null }
-    if(native && state.chain === '0x1237' && ['eth_estimateGas','eth_gasPrice','eth_getBlockByNumber','eth_getTransactionCount','eth_maxPriorityFeePerGas','eth_feeHistory','eth_call'].includes(method)) return native.raw(method,params)
-    if (method === 'eth_sendTransaction') {
-      if(native && state.chain === '0x1237') {
-        state.nativeSends = (state.nativeSends ?? 0) + 1
-        const hash = await native.wallet.sendTransaction({to:params[0].to,data:params[0].data,value:BigInt(params[0].value ?? '0x0')})
-        await native.raw('evm_mine')
-        state.lastNativeHash = hash
-        if (state.loseNativeResponse) { state.loseNativeResponse = false; throw new Error('Fixture lost wallet response') }
-        return hash
-      }
-      if (state.rejectPayment) throw new Error('User rejected payment')
-      expect(name).toBe('Uniswap Extension')
-      if (params[0].to.toLowerCase() === RECIPIENT.toLowerCase()) {
-        expect(BigInt(params[0].value)).toBe(1_000_000_000_000_000n)
-        expect(params[0].data ?? '0x').toBe('0x')
-        Object.assign(fixture.tx, { to: RECIPIENT, input: '0x', value: params[0].value })
-        Object.assign(fixture.receipt, { to: RECIPIENT, logs: [] })
-      } else {
-        expect(params[0].to.toLowerCase()).toBe(fixture.tx.to.toLowerCase())
-        expect(params[0].data.toLowerCase()).toBe(fixture.tx.input.toLowerCase())
-      }
-      state.sends++
-      if (state.holdPayment) await new Promise((resolve) => { state.releasePayment = resolve })
-      return HASH
-    }
-    if (method === 'personal_sign') {
-      state.signs++
-      state.messages.push(hexToString(params[0]))
-      if (state.rejectSignature) { state.rejectSignature = false; throw new Error('User rejected signature') }
-      return account.signMessage({ message: hexToString(params[0]) })
-    }
-    // Reproduce the Uniswap receipt shape. Correct application code never
-    // reaches this branch: all receipts must come from the independent RPC.
-    if (method === 'eth_getTransactionReceipt') return { ...fixture.receipt, status: 1 }
-    throw new Error(`Unsupported fixture wallet method ${method}`)
+    return chain.raw(method,params)
   })
   await page.addInitScript(() => {
     const makeProvider = (name) => {
@@ -159,5 +86,12 @@ export async function setup(page, options = {}) {
       for (const detail of wallets) window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail }))
     })
   })
-  return { state, storePath, chain: fixture, native, creator, lifecycle, database: storage.database, records: storage.records, account, close: async () => { await new Promise((resolve) => server.close(resolve)); await storage.close(); await native?.close() } }
+
+  await page.addInitScript(()=>{const actual=Date.now;window.testClockOffset=0;Date.now=()=>actual()+window.testClockOffset})
+  return {account,chain,database,worker,state,origin,
+    async advanceTo(timestamp){const offset=timestamp*1000-Date.now();await writeFile(clockFile,String(offset));await page.evaluate(value=>{window.testClockOffset=value},offset);await chain.raw('evm_setNextBlockTimestamp',[timestamp]);await chain.raw('evm_mine');await chain.raw('evm_mine')},
+    close:async()=>{clearInterval(heart);if(child.exitCode===null){child.kill();await once(child,'exit')}await new Promise(r=>price.close(r));await store.close();await chain.close();
+      const resolved=resolve(dir);if(!resolved.startsWith(resolve(tmpdir())+sep+'saffron-incentives-test-'))throw new Error('Unsafe fixture cleanup path');await rm(resolved,{recursive:true,force:true})},
+  }
 }
+export async function connect(page){await page.getByRole('button',{name:'Connect wallet',exact:true}).first().click();await page.getByRole('button',{name:'Uniswap Extension',exact:true}).click()}
