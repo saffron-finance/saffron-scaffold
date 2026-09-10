@@ -177,3 +177,30 @@ it('reservation expiry releases abandoned unsigned jobs but preserves active lea
     assert.equal(audit.valid,true);assert.equal(audit.budget.reservedRaw,'1000')
   }finally{await fixture.close()}
 })
+
+it('deployment pages retain every entry beyond 100, including timestamp ties, while new inserts and wallet filters remain stable',async()=>{
+  let time=Date.now()
+  const fixture=await incentivesFixture({now:()=>time,maxPending:200,maxPendingPerWallet:200}),a=account(),b=account()
+  try{
+    const db=fixture.database;await fixture.seed(a.address)
+    for(let i=0;i<101;i++){
+      if(i===29)time=Date.now()+600_000
+      await fixture.accept(a,await fixture.quote(a,{premium:'100'}))
+    }
+    await db.query("UPDATE saffron_incentives.deployment_intents SET created_at='2020-01-01T12:00:00.123456Z'")
+    const expected=(await db.query('SELECT id FROM saffron_incentives.deployment_intents ORDER BY created_at DESC,id DESC')).rows.map(row=>row.id)
+    const first=await db.list({wallet:a.address,limit:17}),ids=first.jobs.map(row=>row.id)
+    assert.equal(ids.length,17)
+    const newer=(await fixture.accept(a,await fixture.quote(a,{premium:'100'}))).id
+    const foreign=(await fixture.accept(b,await fixture.quote(b,{premium:'100'}))).id
+    let cursor=first.nextCursor
+    while(cursor){const page=await db.list({wallet:a.address,limit:17,cursor});ids.push(...page.jobs.map(row=>row.id));cursor=page.nextCursor}
+    assert.deepEqual(ids,expected);assert.equal(ids.includes(newer),false);assert.equal(ids.includes(foreign),false)
+    assert.equal((await db.list({wallet:a.address})).jobs[0].id,newer)
+    const all=[];cursor=null
+    do{const page=await db.list({admin:true,limit:31,cursor});all.push(...page.jobs.map(row=>row.id));cursor=page.nextCursor}while(cursor)
+    assert.equal(all.length,103);assert.equal(new Set(all).size,103);assert.ok(all.includes(foreign))
+    assert.equal((await db.list({wallet:b.address,cursor:first.nextCursor})).jobs.length,0)
+    for(const options of [{limit:0},{limit:101},{limit:'1; SELECT 1'},{cursor:'bad'},{cursor:'!'}])await assert.rejects(db.list({wallet:a.address,...options}),error=>error.status===400)
+  }finally{await fixture.close()}
+})

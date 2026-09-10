@@ -45,6 +45,19 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     assert.equal(rows.body.deployments.length,1)
     assert.doesNotMatch(JSON.stringify(rows.body),/raw_tx|transaction_data|privateKey|signature/)
     assert.equal((await call('/deployments/'+id+'/cancel',{},u)).body.retired,true)
+    for(let i=0;i<2;i++)await store.accept(user,await store.quote(user,{premium:'1000',signer:admin.address}))
+    const foreign=(await store.accept(admin,await store.quote(admin,{premium:'1000'}))).id
+    let cursor=null;const paged=[]
+    do{
+      const page=await call('/deployments?limit=1'+(cursor?'&cursor='+cursor:''),undefined,u)
+      assert.equal(page.status,200);assert.equal(page.body.deployments.length,1)
+      paged.push(page.body.deployments[0].id);cursor=page.body.nextCursor
+    }while(cursor)
+    assert.equal(paged.length,3);assert.equal(new Set(paged).size,3);assert.ok(paged.includes(id));assert.equal(paged.includes(foreign),false)
+    const adminPage=await call('/admin/deployments?limit=2',undefined,a)
+    assert.equal(adminPage.body.deployments.length,2);assert.ok(adminPage.body.nextCursor)
+    assert.equal((await call('/admin/deployments?limit=2&cursor='+adminPage.body.nextCursor,undefined,a)).body.deployments.length,2)
+    for(const query of ['limit=0','limit=101','limit=1.5','cursor=invalid'])assert.equal((await call('/deployments?'+query,undefined,u)).status,400)
     assert.equal((await call('/session/logout',{},u)).status,200)
     assert.equal((await call('/deployments',undefined,u)).status,401)
     assert.equal((await call('/unknown',undefined,a)).status,404)

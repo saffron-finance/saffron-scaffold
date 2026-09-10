@@ -10,10 +10,13 @@ export function useDeployments(account:Address|null,admin=false){
   const [revision,setRevision]=useState(0),[loading,setLoading]=useState(true)
   const [operatorStatus,setOperatorStatus]=useState<OperatorStatus|null>(null)
   const [positionsUpdating,setPositionsUpdating]=useState(false)
+  const [cursors,setCursors]=useState<(string|null)[]>([null]),[nextCursor,setNextCursor]=useState<string|null>(null)
+  const cursor=cursors[cursors.length-1]
   const refresh=()=>setRevision(value=>value+1)
+  useEffect(()=>{setCursors([null]);setNextCursor(null);setPositionsUpdating(false)},[account,admin])
   useEffect(()=>{
     let alive=true,pending=false
-    setRows([]);setSession(null);setOperatorStatus(null);setLoading(true)
+    setRows([]);setSession(null);setOperatorStatus(null);setNextCursor(null);setLoading(true)
     async function load(){
       if(pending)return;pending=true
       try{
@@ -21,15 +24,19 @@ export function useDeployments(account:Address|null,admin=false){
         if(!alive)return
         setSession(current)
         if(!current){setRows([]);setOperatorStatus(null);return}
-        const [data,status]=await Promise.all([requestJson(admin?'/admin/deployments':'/deployments'),admin&&current.operator?requestJson('/admin/status'):null])
-        if(alive){setRows(data.deployments);setOnline(data.creatorOnline);setPositionsUpdating(data.positionsUpdating);setOperatorStatus(status);setError(undefined)}
+        const path=(admin?'/admin/deployments':'/deployments')+(cursor?'?cursor='+encodeURIComponent(cursor):'')
+        const [data,status]=await Promise.all([requestJson(path),admin&&current.operator?requestJson('/admin/status'):null])
+        if(alive){setRows(data.deployments);setNextCursor(data.nextCursor);setOnline(data.creatorOnline);setPositionsUpdating(data.positionsUpdating);setOperatorStatus(status);setError(undefined)}
       }catch(cause){if(alive){setError((cause as Error).message);setRows([]);setOperatorStatus(null)}}
       finally{pending=false;if(alive)setLoading(false)}
     }
     void load();const timer=setInterval(()=>void load(),5000)
     window.addEventListener('saffron:vault-updated',refresh);window.addEventListener('saffron:session',refresh)
     return ()=>{alive=false;clearInterval(timer);window.removeEventListener('saffron:vault-updated',refresh);window.removeEventListener('saffron:session',refresh)}
-  },[account,admin,revision])
+  },[account,admin,revision,cursor])
   async function signIn(){if(!account)return;setBusy(true);setError(undefined);try{await ensureSession(account);refresh()}catch(cause){setError((cause as Error).message)}finally{setBusy(false)}}
-  return {rows,session,error,busy,online,operatorStatus,positionsUpdating,loading,refresh,signIn}
+  return {rows,session,error,busy,online,operatorStatus,positionsUpdating,loading,refresh,signIn,
+    page:cursors.length,hasNext:Boolean(nextCursor),
+    nextPage:()=>{if(nextCursor&&!loading)setCursors(value=>[...value,nextCursor])},
+    previousPage:()=>{if(!loading)setCursors(value=>value.length>1?value.slice(0,-1):value)}}
 }

@@ -107,3 +107,39 @@ test('a received claim appears in the holder profile and uses the native claim m
     expect((await database.getIntent(id)).wallet).toBe(chain.account.address.toLowerCase())
   }finally{await f.close()}
 })
+
+test('profile and administration can page to older vaults and retain that page on refresh',async({page})=>{
+  const f=await setup(page,{admin:true})
+  try{
+    const {chain,database,account}=f
+    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,origin:f.origin})
+    const template=await service.quote(account.address,'cashcat-3d','100'),offer=await database.offer('cashcat-3d')
+    let oldest
+    for(let i=0;i<26;i++){
+      const quote=i===0?template:await database.putQuote({offer,principalCents:'10000',wallet:account.address,origin:f.origin,plan:{...template.plan,usdCheckedAt:Date.now()},signer:chain.account.address})
+      const {id}=await database.acceptDeployment({wallet:account.address,quoteId:quote.id,signature:await account.signTypedData(deploymentTypedData(quote)),origin:f.origin})
+      oldest??=id;await database.cancelDeployment(id,account.address)
+    }
+    await page.goto(f.origin);await connect(page)
+    await page.getByRole('button',{name:'My vaults',exact:true}).click()
+    await page.getByRole('button',{name:'Sign in to view your vaults',exact:true}).click()
+    await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
+    await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toHaveCount(0)
+    await page.getByRole('button',{name:'Older vaults',exact:true}).click()
+    await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toBeVisible()
+    await expect(page.getByText('Page 2',{exact:true})).toBeVisible()
+    await page.getByRole('button',{name:'Refresh vaults',exact:true}).click()
+    await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toBeVisible()
+    await expect(page.getByText('Page 2',{exact:true})).toBeVisible()
+    await page.getByRole('button',{name:'View vault',exact:true}).click()
+    await expect(page.locator('[data-vault-lifecycle]')).toHaveAttribute('data-vault-lifecycle',oldest)
+    await page.getByRole('button',{name:'Close incentive vault'}).click()
+    await page.getByRole('button',{name:'Administration',exact:true}).click()
+    await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
+    await page.getByRole('button',{name:'Older vaults',exact:true}).click()
+    await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toBeVisible()
+    await page.getByRole('button',{name:'Newer vaults',exact:true}).click()
+    await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
+    await expect(page.getByText('Page 1',{exact:true})).toBeVisible()
+  }finally{await f.close()}
+})

@@ -24,6 +24,10 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
     try{
       if(!db)throw fault(503,'The incentives database is not configured.')
       const path=pathname.slice(root.length),method=req.method
+      const page=()=>{
+        const params=new URL(req.url,'http://localhost').searchParams
+        return {cursor:params.get('cursor'),...(params.has('limit')?{limit:params.get('limit')}:{})}
+      }
       // Only the trusted direct peer is used; public proxies enforce per-client limits.
       const key=req.socket.remoteAddress??'local',current=windows.get(key)
       if(!current||current.until<=now()){for(const [id,w]of windows)if(w.until<=now())windows.delete(id);windows.set(key,{count:1,until:now()+60_000})}
@@ -39,7 +43,7 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='POST'&&path==='/session/login'){sendJson(res,200,{session:await auth.login(req,res,body)});return true}
       const session=auth.session(req,{mutation:method==='POST',operator:path.startsWith('/admin/')})
       if(method==='POST'&&path==='/session/logout'){auth.logout(req,res);sendJson(res,200,{success:true});return true}
-      if(method==='GET'&&['/deployments','/positions'].includes(path)){sendJson(res,200,await service.list(session.wallet));return true}
+      if(method==='GET'&&['/deployments','/positions'].includes(path)){sendJson(res,200,await service.list(session.wallet,false,page()));return true}
       if(method==='POST'&&path==='/deployment-quotes'){sendJson(res,200,{quote:await service.quote(session.wallet,body.programId,body.amountUsd)});return true}
       if(method==='POST'&&path==='/deployments'){
         if(typeof body.quoteId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.quoteId)||typeof body.signature!=='string'||body.signature.length>2048)throw fault(400,'Invalid deployment authorization.')
@@ -56,7 +60,7 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       }
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
-      if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true));return true}
+      if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
       if(method==='POST'&&path==='/admin/pairs'){const pair=normalizePair(body);await verifyPair(pair,rpc);sendJson(res,200,{pair:await db.savePair(pair,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/programs'){sendJson(res,200,{program:await db.saveProgram(body,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/budgets'){sendJson(res,200,{budget:await db.saveBudget(body,session.wallet)});return true}

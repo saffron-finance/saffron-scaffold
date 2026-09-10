@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
+import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
 import { verifyTypedData } from 'viem'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
@@ -175,12 +176,16 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         return {id,replayed:false}
       })
     },
-    async list({wallet,admin=false,limit=100}={}) {
-      const rows=await query(`SELECT i.id FROM ${schema}.deployment_intents i ${admin?'':`WHERE i.wallet=$1
+    async list({wallet,admin=false,...options}={}) {
+      const {limit,after}=deploymentPage(options)
+      const rows=await query(`SELECT i.id,to_char(i.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_time
+        FROM ${schema}.deployment_intents i WHERE ($2::boolean OR i.wallet=$1
         OR EXISTS(SELECT 1 FROM ${schema}.vault_observations o WHERE o.intent_id=i.id AND o.snapshot->'positionOwners' ? $1)
-        OR EXISTS(SELECT 1 FROM ${schema}.user_operations u WHERE u.intent_id=i.id AND u.wallet=$1 AND u.canonical=TRUE)`}
-        ORDER BY i.created_at DESC LIMIT ${Math.min(200,limit)}`,admin?[]:[wallet?.toLowerCase()])
-      return Promise.all(rows.rows.map(row=>getIntent(row.id)))
+        OR EXISTS(SELECT 1 FROM ${schema}.user_operations u WHERE u.intent_id=i.id AND u.wallet=$1 AND u.canonical=TRUE))
+        AND ($3::timestamptz IS NULL OR (i.created_at,i.id)<($3::timestamptz,$4::uuid))
+        ORDER BY i.created_at DESC,i.id DESC LIMIT $5`,[wallet?.toLowerCase()??null,admin,after?.[0]??null,after?.[1]??null,limit+1])
+      const page=rows.rows.slice(0,limit)
+      return {jobs:await Promise.all(page.map(row=>getIntent(row.id))),nextCursor:rows.rows.length>limit?deploymentCursor(page.at(-1)):null}
     },
     async hasPositionHistory(id,wallet){return Boolean((await query(`SELECT 1 FROM ${schema}.user_operations WHERE intent_id=$1 AND wallet=$2 AND canonical=TRUE LIMIT 1`,[id,wallet.toLowerCase()])).rowCount)},
     async positionsUpdating(){return Boolean((await query(`SELECT 1 FROM ${schema}.vault_jobs j LEFT JOIN ${schema}.vault_observations o ON o.intent_id=j.intent_id

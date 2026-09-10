@@ -36,7 +36,7 @@ try{
         if(line.trim()!=='mature'||advancing)return
         advancing=true
         try{
-          const rows=await fixture.database.list({admin:true})
+          const {jobs:rows}=await fixture.database.list({admin:true})
           const snapshots=await Promise.all(rows.map(row=>fixture.database.execution.observation(row.id)))
           const ends=snapshots.filter(s=>s?.verified&&s.isStarted).map(s=>Number(s.endTime))
           if(!ends.length){console.log('No started local vault yet. Deposit and claim first.');return}

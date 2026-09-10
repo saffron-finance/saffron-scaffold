@@ -108,6 +108,10 @@ it does not seed programs or accept deployments.
   holder's profile. Discovery follows bounded block ranges and checks reorganizations;
   fresh canonical balances authorize actions. Deployment cancellation stays with
   the original requester. Confirmed user actions preserve position history.
+- Profile and administration lists have 25 entries per page with newer/older
+  navigation. Refresh retains the current page. API clients may request 1–100
+  entries with `limit` and continue using the returned `nextCursor` as `cursor`.
+  Ordering retains timestamp precision and an ID tie-breaker as new entries arrive.
 
 The clean `saffron_incentives` schema contains `pairs`, `budget_pools`, `programs`,
 `deployment_quotes`, `deployment_intents`, `budget_reservations`, `budget_entries`,

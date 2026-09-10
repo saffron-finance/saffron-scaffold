@@ -32,7 +32,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   function close(){setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page>
     {route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>
-      <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My vaults{positions.rows.length?' ('+positions.rows.length+')':''}</QuietButton></TitleRow>
+      <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My vaults</QuietButton></TitleRow>
       <Introduction aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit.</StepSubtitle><StepSubtitle>We fund the premium. Once your vault is ready, deposit your LP assets and claim the incentive here.</StepSubtitle></Introduction>
       {flow.saved&&<Recovery><FinePrint>A signed deployment authorization is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
       {catalog.loading&&<FinePrint role='status'>Loading incentive programs…</FinePrint>}

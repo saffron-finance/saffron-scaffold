@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_intents (
   cancel_requested BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS intents_wallet_time ON saffron_incentives.deployment_intents(wallet,created_at DESC);
+CREATE INDEX IF NOT EXISTS intents_page ON saffron_incentives.deployment_intents(created_at DESC,id DESC);
+CREATE INDEX IF NOT EXISTS intents_wallet_page ON saffron_incentives.deployment_intents(wallet,created_at DESC,id DESC);
 CREATE TABLE IF NOT EXISTS saffron_incentives.budget_reservations (
   intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
   premium_raw NUMERIC(78,0) NOT NULL CHECK (premium_raw>0), reserved_raw NUMERIC(78,0) NOT NULL CHECK (reserved_raw>=0),

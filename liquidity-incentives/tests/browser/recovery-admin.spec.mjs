@@ -18,7 +18,7 @@ test('lost acceptance response and lost wallet response survive reload without a
     await page.getByRole('dialog').getByRole('button',{name:'Resume deployment',exact:true}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toBeVisible()
     expect(f.state.signs).toBe(signs)
-    const rows=await f.database.list({wallet:f.account.address});expect(rows).toHaveLength(1)
+    const {jobs:rows}=await f.database.list({wallet:f.account.address});expect(rows).toHaveLength(1)
     const id=rows[0].id
     expect((await f.worker.tick()).state).toBe('created')
     const job=await f.database.getIntent(id)

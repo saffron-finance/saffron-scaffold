@@ -156,8 +156,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       }
       return deployment
     },
-    async list(wallet,admin=false){
-      const jobs=await db.list({wallet,admin}),deployments=[]
+    async list(wallet,admin=false,page={}){
+      const {jobs,nextCursor}=await db.list({...page,wallet,admin}),deployments=[]
       for(let start=0;start<jobs.length;start+=4){
         const rows=await Promise.all(jobs.slice(start,start+4).map(async job=>{
           const row=await service.describe(job,admin?job.wallet:wallet)
@@ -165,7 +165,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         }))
         deployments.push(...rows.filter(Boolean))
       }
-      return {deployments,creatorOnline:await db.execution.workerOnline(signer),positionsUpdating:await db.positionsUpdating()}
+      return {deployments,nextCursor,creatorOnline:await db.execution.workerOnline(signer),positionsUpdating:await db.positionsUpdating()}
     },
     async context(id,wallet){
       const deployment=await service.detail(id,wallet)
