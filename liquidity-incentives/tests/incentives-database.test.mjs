@@ -3,6 +3,7 @@ import { it } from 'node:test'
 import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
 import { incentivesFixture,program,ORIGIN } from './incentives-fixture.mjs'
 import { deploymentTypedData } from '../shared/incentives.mjs'
+import { keccak256 } from 'viem'
 import pg from 'pg'
 import { once } from 'node:events'
 
@@ -138,5 +139,41 @@ it('expired quotes and per-wallet queue limits cannot create additional commitme
     const fresh=await fixture.quote(a,{premium:'1000'});await fixture.accept(a,fresh)
     const extra=await fixture.quote(a,{premium:'1000'});await assert.rejects(fixture.accept(a,extra),e=>e.status===429)
     assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'1000')
+  }finally{await fixture.close()}
+})
+
+it('reservation expiry releases abandoned unsigned jobs but preserves active leases and durable transactions',async()=>{
+  const fixture=await incentivesFixture(),a=account()
+  try{
+    const db=fixture.database;await fixture.seed(a.address)
+    const quote=await fixture.quote(a,{premium:'1000'}),{id}=await fixture.accept(a,quote)
+    await db.execution.claim(a.address,'interrupted')
+    await db.query("UPDATE saffron_incentives.budget_reservations SET expires_at=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[id])
+    await db.execution.expireQueued()
+    assert.equal((await db.getIntent(id)).state,'running')
+    assert.equal((await db.getIntent(id)).cancel_requested,false,'an active lease is not cancelled by expiry')
+    await assert.rejects(db.execution.authorizeStep(id,'interrupted'),/reservation expired/)
+    const transaction={chainId:4663,type:'legacy',nonce:0,to:a.address,value:0n,gas:21000n,gasPrice:1n}
+    const raw=await a.signTransaction(transaction),saved={requestId:id,owner:'interrupted',step:'create-adapter',resumeVersion:0,signer:a.address,nonce:0,hash:keccak256(raw),raw,
+      transaction:JSON.parse(JSON.stringify(transaction,(_,value)=>typeof value==='bigint'?value.toString():value))}
+    await assert.rejects(db.execution.saveTransaction(saved),/reservation expired/)
+    await db.query("UPDATE saffron_incentives.vault_jobs SET lease_until=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[id])
+    assert.equal(await db.execution.claim(a.address,'restarted'),null,'expired unsigned work cannot be reclaimed before cleanup')
+    await Promise.all([db.execution.expireQueued(),db.execution.expireQueued()])
+    assert.equal((await db.getIntent(id)).state,'retired')
+    assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'0')
+    assert.equal((await fixture.accept(a,quote)).id,id,'replay cannot revive the expired commitment')
+
+    const signed=(await fixture.accept(a,await fixture.quote(a,{premium:'1000'}))).id
+    await db.execution.claim(a.address,'signed')
+    await db.execution.saveTransaction({...saved,requestId:signed,owner:'signed'})
+    await db.query("UPDATE saffron_incentives.budget_reservations SET expires_at=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[signed])
+    await db.query("UPDATE saffron_incentives.vault_jobs SET lease_until=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[signed])
+    await db.execution.expireQueued()
+    assert.equal((await db.getIntent(signed)).state,'running')
+    assert.equal((await db.execution.claim(a.address,'reconcile')).id,signed)
+    await db.execution.authorizeStep(signed,'reconcile')
+    const audit=await db.auditBudget(program.budgetPoolId)
+    assert.equal(audit.valid,true);assert.equal(audit.budget.reservedRaw,'1000')
   }finally{await fixture.close()}
 })

@@ -10,6 +10,11 @@ export function createExecutionDatabase(db) {
     if(!row) throw new Error('Worker job lease lost.')
     return row
   }
+  async function requireReservation(id,client={query}) {
+    const expired=await client.query(`SELECT 1 FROM ${s}.budget_reservations r WHERE r.intent_id=$1 AND r.expires_at<=NOW()
+      AND NOT EXISTS(SELECT 1 FROM ${s}.chain_operations t WHERE t.intent_id=r.intent_id)`,[id])
+    if(expired.rowCount)throw fault(409,'Unused deployment reservation expired. Review a fresh quote.')
+  }
   const execution={
     job:db.getIntent,
     async heartbeat(signer){await query(`INSERT INTO ${s}.worker_heartbeats (signer) VALUES ($1) ON CONFLICT(signer) DO UPDATE SET updated_at=NOW()`,[signer.toLowerCase()])},
@@ -28,6 +33,8 @@ export function createExecutionDatabase(db) {
         funding_state=CASE WHEN operation='fund' THEN 'running' ELSE funding_state END,updated_at=NOW()
         WHERE intent_id=(SELECT intent_id FROM ${s}.vault_jobs WHERE signer=$1 AND next_attempt_at<=NOW()
           AND (state IN ('queued','running','waiting') OR (state='created' AND funding_state IN ('queued','running','waiting')))
+          AND (EXISTS(SELECT 1 FROM ${s}.chain_operations t WHERE t.intent_id=${s}.vault_jobs.intent_id)
+            OR EXISTS(SELECT 1 FROM ${s}.budget_reservations r WHERE r.intent_id=${s}.vault_jobs.intent_id AND r.expires_at>NOW()))
           AND (lease_until IS NULL OR lease_until<NOW()) ORDER BY next_attempt_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING intent_id`,[signer.toLowerCase(),owner])).rows[0]
       return row?db.getIntent(row.intent_id):null
     },
@@ -37,6 +44,7 @@ export function createExecutionDatabase(db) {
     async authorizeStep(id,owner,{allowRetirement=false}={}){
       const job=await db.getIntent(id)
       if(!job || job.lease_owner!==owner || job.lease_until?.getTime()<=db.now() || job.state==='retired') throw new Error('Worker job lease lost.')
+      await requireReservation(id)
       const budget=(await query(`SELECT paused,reconciliation_required FROM ${s}.budget_pools WHERE id=$1`,[job.budget_pool_id])).rows[0]
       if(budget?.reconciliation_required) throw fault(409,'Budget reconciliation is required before new transactions.')
       if(!allowRetirement && (budget?.paused || job.cancel_requested)) throw fault(409,job.cancel_requested?'Cancellation requested. Operator retirement is required.':'Campaign execution is paused.')
@@ -63,6 +71,9 @@ export function createExecutionDatabase(db) {
         const intent=(await client.query(`SELECT * FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
         const budget=await db.lockBudget(client,intent.budget_pool_id)
         const job=await lockedJob(client,id,owner)
+        // Recheck under the job/budget locks in case expiry passed during signing.
+        // Existing journaled transactions always retain their commitment.
+        await requireReservation(id,client)
         const latest=(await client.query(`SELECT cancel_requested FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
         if(budget.reconciliation_required || (job.operation!=='retire' && (budget.paused||latest.cancel_requested))) throw fault(409,'Execution is paused pending operator review.')
         const quote=(await client.query(`SELECT body FROM ${s}.deployment_quotes WHERE id=$1`,[intent.quote_id])).rows[0]?.body
@@ -174,9 +185,10 @@ export function createExecutionDatabase(db) {
     },
     async expireQueued(){
       const rows=(await query(`SELECT i.id,i.wallet FROM ${s}.deployment_intents i JOIN ${s}.budget_reservations r ON r.intent_id=i.id
-        JOIN ${s}.vault_jobs j ON j.intent_id=i.id WHERE r.expires_at<NOW() AND j.state IN ('queued','waiting','failed')
+        JOIN ${s}.vault_jobs j ON j.intent_id=i.id WHERE r.expires_at<=NOW() AND j.state IN ('queued','running','waiting','failed')
+        AND (j.lease_until IS NULL OR j.lease_until<=NOW())
         AND NOT EXISTS(SELECT 1 FROM ${s}.chain_operations t WHERE t.intent_id=i.id) LIMIT 100`)).rows
-      for(const row of rows)await db.cancelDeployment(row.id,row.wallet)
+      for(const row of rows)await db.cancelDeployment(row.id,row.wallet,{expiredOnly:true})
     },
   }
   return execution

@@ -201,7 +201,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       }
       return client?reconcile(client):transaction(reconcile)
     },
-    async cancelDeployment(id,wallet) {
+    async cancelDeployment(id,wallet,{expiredOnly=false}={}) {
       const current=await getIntent(id)
       if(!current || current.wallet!==wallet.toLowerCase()) throw fault(404,'Deployment not found for this wallet.')
       return transaction(async client=>{
@@ -209,11 +209,15 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         const job=(await client.query(`SELECT * FROM ${schema}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(job.state==='retired') return {retired:true}
         const operations=await client.query(`SELECT 1 FROM ${schema}.chain_operations WHERE intent_id=$1 LIMIT 1`,[id])
-        if(operations.rowCount || (job.lease_until && job.lease_until.getTime()>now())) {
+        const reservation=(await client.query(`SELECT *,expires_at<=NOW() AS expired FROM ${schema}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        const leased=job.lease_until && job.lease_until.getTime()>now()
+        // The expiry sweep may have selected this row before a lease or journal
+        // changed. Recheck while locked without turning expiry into cancellation.
+        if(expiredOnly&&(!reservation.expired||operations.rowCount||leased))return {retired:false}
+        if(operations.rowCount || leased) {
           await client.query(`UPDATE ${schema}.deployment_intents SET cancel_requested=TRUE,updated_at=NOW() WHERE id=$1`,[id])
           return {retired:false,needsReconciliation:true}
         }
-        const reservation=(await client.query(`SELECT * FROM ${schema}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(BigInt(reservation.allocated_raw)!==0n) throw fault(409,'Funded premiums require verified recovery.')
         await client.query(`UPDATE ${schema}.budget_pools SET reserved_raw=reserved_raw-$2 WHERE id=$1`,[current.budget_pool_id,reservation.reserved_raw])
         await entry(client,{key:`retire:${id}`,budgetId:current.budget_pool_id,intentId:id,kind:'release-unused',reserved:-BigInt(reservation.reserved_raw),actor:wallet})
