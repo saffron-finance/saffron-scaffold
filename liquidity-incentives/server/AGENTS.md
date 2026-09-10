@@ -5,15 +5,16 @@ root `AGENTS.md`.
 
 ## Purpose and trust boundary
 
-- `proxy.mjs` is a zero-dependency production server. It serves the compiled
+- `proxy.mjs` is the production server entry point. It serves the compiled
   `dist/` application and relays same-origin `POST /rpc/<chain>` requests to a
   configured upstream RPC endpoint.
 - The relay exists to keep provider credentials out of browser bundles. Read
   RPC URLs from server-side environment variables or the ignored local `.env`;
   never return, log, embed, or commit them.
-- Wallet approvals and transactions belong in the browser's injected wallet.
-  This server must never hold a private key or sign, submit, simulate, trace,
-  or administer transactions.
+- User LP approvals and transactions belong in the browser's injected wallet.
+  The API stores verified deployment intents and separate operator funding/recovery
+  authorizations as durable PostgreSQL jobs. Signer custody belongs to the separate
+  worker. HTTP handlers must never hold a key, sign, broadcast, trace or spawn it.
 
 ## Security invariants
 
@@ -39,7 +40,8 @@ root `AGENTS.md`.
 
 ## Implementation rules
 
-- Keep the server on Node built-ins unless a dependency is clearly justified.
+- Node built-ins handle HTTP/static/proxy boundaries; pg and viem provide real
+  database transactions, signature verification and protocol reads.
 - Separate static serving, RPC validation, and upstream forwarding logic when
   extending the server so each boundary remains reviewable.
 - Timeouts, cancellation, or rate limiting should fail closed and must not
@@ -51,7 +53,8 @@ root `AGENTS.md`.
 
 After server changes:
 
-1. Run `npm ci` and `npm run build` from the repository root.
+1. Build this package and run unit, database/API and affected lifecycle checks.
+   Root-app checks apply when a shared/root surface changes.
 2. Start the server on an unused loopback port with test-safe RPC endpoints.
 3. Confirm a static asset and the SPA fallback return successfully.
 4. Confirm an allowlisted read such as `eth_chainId` is relayed.

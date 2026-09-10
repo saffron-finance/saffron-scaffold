@@ -17,6 +17,9 @@ const asBudget = row => ({ id: row.id, revision: row.revision, name: row.name, c
 export function createIncentivesDatabase({ connection, now = Date.now, maxPendingPerWallet = 3, maxPending = 100,
   reservationMs = 15 * 60_000, quoteMs = 120_000 } = {}) {
   const pool = new pg.Pool({ ...connection, max: 8, options: '-c timezone=UTC' })
+  // pg removes a failed idle client. Subsequent requests reconnect; the HTTP
+  // boundary returns generic failures rather than crashing/logging provider data.
+  pool.on('error',()=>{})
   const ready = readFile(new URL('./incentives.sql', import.meta.url), 'utf8').then(async sql => {
     const client=await pool.connect()
     try{await client.query('BEGIN');await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-incentives-schema',0))");await client.query(sql);await client.query('COMMIT')}

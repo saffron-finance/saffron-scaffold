@@ -12,9 +12,10 @@
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
     "test:database": "node --test tests/incentives-database.test.mjs tests/incentives-api.test.mjs",
-    "test:lifecycle": "node --test tests/incentives-evm.test.mjs",
+    "test:lifecycle": "node --test tests/incentives-evm.test.mjs tests/real-position.test.mjs tests/worker-recovery.test.mjs",
     "worker": "node worker/run.mjs",
-    "worker:inspect": "node worker/inspect.mjs"
+    "worker:inspect": "node worker/inspect.mjs",
+    "demo": "node tests/demo.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3",

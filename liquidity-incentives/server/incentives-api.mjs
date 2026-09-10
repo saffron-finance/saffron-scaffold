@@ -42,11 +42,11 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='GET'&&['/deployments','/positions'].includes(path)){sendJson(res,200,await service.list(session.wallet));return true}
       if(method==='POST'&&path==='/deployment-quotes'){sendJson(res,200,{quote:await service.quote(session.wallet,body.programId,body.amountUsd)});return true}
       if(method==='POST'&&path==='/deployments'){
-        if(typeof body.quoteId!=='string'||!/^[0-9a-f-]{36}$/i.test(body.quoteId)||typeof body.signature!=='string'||body.signature.length>2048)throw fault(400,'Invalid deployment authorization.')
+        if(typeof body.quoteId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.quoteId)||typeof body.signature!=='string'||body.signature.length>2048)throw fault(400,'Invalid deployment authorization.')
         const accepted=await db.acceptDeployment({wallet:session.wallet,quoteId:body.quoteId,signature:body.signature,origin:auth.origin})
         sendJson(res,accepted.replayed?200:201,{...accepted,deployment:await service.detail(accepted.id,session.wallet,false,{fresh:false})});return true
       }
-      const deployment=/^\/deployments\/([0-9a-f-]{36})(?:\/(context|cancel|transactions))?$/.exec(path)
+      const deployment=/^\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/(context|cancel|transactions))?$/.exec(path)
       if(deployment){
         if(method==='POST'&&deployment[2]==='transactions'){sendJson(res,200,await service.recordUserAction(deployment[1],session.wallet,body.hash));return true}
         if(method==='POST'&&deployment[2]==='cancel'){sendJson(res,200,await db.cancelDeployment(deployment[1],session.wallet));return true}
@@ -55,13 +55,14 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
         throw fault(405,'Method not allowed.')
       }
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
+      if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true));return true}
       if(method==='POST'&&path==='/admin/pairs'){const pair=normalizePair(body);await verifyPair(pair,rpc);sendJson(res,200,{pair:await db.savePair(pair,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/programs'){sendJson(res,200,{program:await db.saveProgram(body,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/budgets'){sendJson(res,200,{budget:await db.saveBudget(body,session.wallet)});return true}
       const budgetAction=/^\/admin\/budgets\/([a-z0-9-]+)\/reconcile$/.exec(path)
       if(method==='POST'&&budgetAction){sendJson(res,200,{budget:await service.reconcileBudget(budgetAction[1],session.wallet)});return true}
-      const operation=/^\/admin\/deployments\/([0-9a-f-]{36})\/(fund|resume|retire|collect|reconcile)$/.exec(path)
+      const operation=/^\/admin\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(fund|resume|retire|collect|reconcile)$/.exec(path)
       if(method==='POST'&&operation){
         if(operation[2]==='reconcile')await service.reconcileTransaction(operation[1],session.wallet,body.originalHash,body.hash)
         else if(operation[2]==='fund')await service.fund(operation[1],session.wallet,body.planHash,body.maximumRaw)

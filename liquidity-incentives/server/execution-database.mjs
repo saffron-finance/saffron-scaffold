@@ -57,6 +57,7 @@ export function createExecutionDatabase(db) {
     },
     async lastTransaction(id,step){return (await query(`SELECT * FROM ${s}.chain_operations WHERE intent_id=$1 AND step=$2 ORDER BY id DESC LIMIT 1`,[id,step])).rows[0]??null},
     async transactions(id){return(await query(`SELECT * FROM ${s}.chain_operations WHERE intent_id=$1 ORDER BY id`,[id])).rows},
+    async transactionMetadata(id){return(await query(`SELECT id,intent_id,step,signer,nonce,resume_version,hash,transaction_data,receipt,resolved_hash,resolution_kind,created_at FROM ${s}.chain_operations WHERE intent_id=$1 ORDER BY id`,[id])).rows},
     async saveTransaction({requestId:id,owner,step,resumeVersion,signer,nonce,hash,raw,transaction:tx,maxDailyGasWei}){
       await transaction(async client=>{
         const intent=(await client.query(`SELECT * FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
@@ -110,7 +111,7 @@ export function createExecutionDatabase(db) {
       })
     },
     async observation(id){return(await query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot??null},
-    async tracked(){return(await query(`SELECT intent_id FROM ${s}.vault_jobs WHERE plan ? 'vault' ORDER BY updated_at DESC LIMIT 500`)).rows},
+    async tracked(){return(await query(`SELECT intent_id FROM ${s}.vault_jobs WHERE plan ? 'vault' ORDER BY updated_at`)).rows},
     async approveFunding(id,operator,planHash,maximum){
       const current=await db.getIntent(id);if(!current)throw fault(404,'Deployment not found.')
       await transaction(async client=>{

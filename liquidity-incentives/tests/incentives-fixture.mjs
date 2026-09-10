@@ -18,7 +18,7 @@ export async function incentivesFixture(options={}) {
     password:process.env.SAFFRON_TEST_DB_PASSWORD||process.env.PGPASSWORD}
   const name='saffron_incentives_test_'+randomBytes(8).toString('hex')
   const control=new pg.Pool({...connection,database:'postgres',max:1})
-  await control.query(`CREATE DATABASE "${name}"`)
+  try{await control.query(`CREATE DATABASE "${name}"`)}catch(error){await control.end();throw error}
   const database=createIncentivesDatabase({...options,connection:{...connection,database:name}})
   try{await database.ready}catch(error){await database.close();await control.query(`DROP DATABASE "${name}"`);await control.end();throw error}
   return {database,connection:{...connection,database:name},

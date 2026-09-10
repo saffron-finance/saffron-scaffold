@@ -1,0 +1,70 @@
+name: Independent liquidity incentives
+
+on:
+  push:
+    paths: ['liquidity-incentives/**', '.github/workflows/incentives.yml']
+  pull_request:
+    paths: ['liquidity-incentives/**', '.github/workflows/incentives.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: liquidity-incentives
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: saffron_incentives_test
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U saffron_incentives_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SAFFRON_TEST_DB_HOST: 127.0.0.1
+      SAFFRON_TEST_DB_USER: saffron_incentives_test
+      SAFFRON_TEST_DB_PASSWORD: disposable-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: liquidity-incentives/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:database
+      - run: npm run test:lifecycle
+      - run: npm run test:browser
+      - run: npm run demo -- --smoke
+      - run: npm run build:lab
+      - run: npm run test:browser -- --grep 'approved cards'
+        env:
+          SAFFRON_TEST_LAB: '1'
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: liquidity-incentives
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: liquidity-incentives/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: node --input-type=module -e "import { anvilBinary } from './tests/anvil.mjs'; import { execFileSync } from 'node:child_process'; execFileSync(anvilBinary(), ['--version'], {stdio:'inherit'});"
+      - run: npm run build:lab

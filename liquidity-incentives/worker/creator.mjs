@@ -184,7 +184,7 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         await transact('fund-premium-' + job.funding_round, plan.vault, encodeFunctionData({ abi, functionName:'deposit',args:[remaining,1n,minimum] }))
       }
       const funded = await readVault(job, rpc, { confirmations: config.confirmations })
-      if (BigInt(funded.variableSupply) !== BigInt(funded.variableCapacity) || BigInt(funded.variableBalance) < BigInt(funded.variableCapacity)) throw new ConfirmedFailure('Funding changed; fresh admin review is required.')
+      if (!funded.isStarted && (BigInt(funded.variableSupply) !== BigInt(funded.variableCapacity) || BigInt(funded.variableBalance) < BigInt(funded.variableCapacity))) throw new ConfirmedFailure('Funding changed; fresh admin review is required.')
       await database.execution.saveObservation(job.intent_id, funded)
       await database.execution.setState(job.intent_id, owner, 'created', 'funded')
       return { state: 'funded', requestId: job.intent_id }

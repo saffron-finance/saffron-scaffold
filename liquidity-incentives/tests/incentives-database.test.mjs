@@ -3,8 +3,26 @@ import { it } from 'node:test'
 import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
 import { incentivesFixture,program,ORIGIN } from './incentives-fixture.mjs'
 import { deploymentTypedData } from '../shared/incentives.mjs'
+import pg from 'pg'
+import { once } from 'node:events'
 
 const account=()=>privateKeyToAccount(generatePrivateKey())
+it('a lost idle PostgreSQL connection reconnects without losing accepted intents',async()=>{
+  const fixture=await incentivesFixture(),a=account()
+  const control=new pg.Pool({...fixture.connection,database:'postgres',max:1})
+  try{
+    await fixture.seed(a.address)
+    const accepted=await fixture.accept(a,await fixture.quote(a))
+    const client=await fixture.database.pool.connect(),pid=(await client.query('SELECT pg_backend_pid() AS pid')).rows[0].pid
+    client.release()
+    const disconnected=once(fixture.database.pool,'error')
+    // Terminate only this fixture's verified database connection, never another database.
+    const result=await control.query('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=$1 AND datname=$2',[pid,fixture.connection.database])
+    assert.equal(result.rowCount,1);await disconnected
+    assert.equal((await fixture.database.getIntent(accepted.id)).id,accepted.id)
+    assert.equal((await fixture.database.auditBudget(program.budgetPoolId)).valid,true)
+  }finally{await control.end();await fixture.close()}
+})
 it('concurrent programs share one budget; acceptance commits reservation and worker job atomically',async()=>{
   const fixture=await incentivesFixture(),a=account(),b=account()
   try{

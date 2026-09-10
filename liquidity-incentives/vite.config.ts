@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
     alias: {
       '@fixed': fixed,
       '@lab': here('./src/adapters'),
-      // Resolve imported host source against this prototype's pinned runtime.
+      // Resolve the vendored UI snapshot against this application's pinned runtime.
       react: here('./node_modules/react'),
       'react-dom': here('./node_modules/react-dom'),
       'styled-components': here('./node_modules/styled-components'),

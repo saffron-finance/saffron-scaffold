@@ -68,4 +68,41 @@ Validation: 10 intent/auth/database checks; one real HTTP authorization/privacy 
 - The normal build passes. Twelve unit/relay checks and nine database/API checks pass. Three existing new-flow EVM scenarios pass; an additional real Uniswap position-manager test completes mint, claim conversion, withdrawal and fee collection.
 - Six browser scenarios have passed against the actual production server and disposable PostgreSQL/Anvil: the full lifecycle, mobile/keyboard layout, two wallet-layer cases, interrupted authorization/wallet-response recovery, and exact operator budget/program editing. The maturity test also exercises session expiry and renewal.
 
-Final delivery will add the remaining recovery edge cases and operational/setup documentation, then run the finished suite.
+### Stage 5: recovery verification and independent operation
+
+- Added interruptions before broadcast at each of the three creation stages,
+  canonical same-nonce cancellation/resume, and immutable-plan tampering checks.
+  Added real Uniswap pre-start LP recovery and transferred claim-token ownership.
+- Added worker gas/backlog status, removed the background observer's 500-vault
+  cutoff, and limited API transaction queries to public metadata. The worker
+  no longer requires a price provider after acceptance.
+- Removed unused multi-chain/private browser RPC configuration. The production
+  relay sanitizes provider diagnostics, bounds batches and fails closed during
+  RPC outages. Idle database disconnects reconnect without losing accepted intents.
+- Added a disposable, generated-wallet demo using the actual server, real SQL,
+  Saffron contracts and real Uniswap manager. Its external price/wallet boundaries
+  are local fixtures. Startup failures and normal shutdown clean up owned resources.
+- Replaced obsolete setup/operations documentation and examples with the independent
+  application runbook. Added package-specific CI without publishing.
+
+Validation:
+
+| Check | Result |
+| --- | --- |
+| Install/build | Dependency installation, normal build and lab build pass |
+| Unit/relay/runtime | 13 pass |
+| PostgreSQL/API | 10 pass, including a real idle-connection termination/reconnect |
+| Local EVM | 7 pass, including real Uniswap mint/claim/withdrawal and early recovery |
+| Actual-server browser suite | 6 pass: lifecycle, lost responses, operator edits, layout and wallet layering |
+| Lab browser control | 1 pass; changing Table font changes the actual offers |
+| Disposable demo | Headless startup smoke passes against real API/SQL/local protocol |
+| Root scaffold | Normal and mock builds pass |
+
+Vite reports existing large application/3D-emblem chunks. The added CI definition
+has not been run on GitHub.
+
+Production activation remains operator setup: configure the RPC/USD provider,
+database and exact origin; verify protocol hashes; provision a protected signer,
+gas and reward assets; and allocate campaign budgets. Production activation is a
+separate operator release step. The implemented user and operator flows are covered
+by the checks above.

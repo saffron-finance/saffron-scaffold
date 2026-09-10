@@ -8,7 +8,7 @@ import { createServer } from 'node:http'
 import { readFile, readFileSync } from 'node:fs'
 import { extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { promisify,parseEnv } from 'node:util'
 
 import { createIncentivesDatabase } from './incentives-database.mjs'
 import { createWalletAuth } from './wallet-auth.mjs'
@@ -18,35 +18,18 @@ import { createPriceService } from './price-service.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
-const DIST = resolve(process.env.DIST_DIR || join(ROOT, 'dist'))
-const PORT = Number(process.env.PORT) || 3201
-const HOST = process.env.BIND_HOST || '127.0.0.1'
+let env={}
+try { env=parseEnv(readFileSync(join(ROOT,'.env'),'utf8')) }
+catch(error) { if(error.code!=='ENOENT')throw new Error('Cannot read application environment configuration.') }
+const configured = name => process.env[name] ?? env[name]
+const DIST = resolve(configured('DIST_DIR') || join(ROOT, 'dist'))
+const PORT = Number(configured('PORT')) || 3201
+const HOST = configured('BIND_HOST') || '127.0.0.1'
 // Match the build mount; only an absolute path prefix is accepted.
-const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/$/, '')
+const BASE_PATH = (configured('BASE_PATH') || '').replace(/\/$/, '')
 if (BASE_PATH && !/^\/[a-zA-Z0-9/_-]*$/.test(BASE_PATH)) throw new Error('Invalid BASE_PATH')
 
-// RPC targets: process.env wins (for prod hosting), else the .env used by the frontend in dev.
-const env = {}
-try {
-  for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(\S+)/)
-    if (m && !line.trim().startsWith('#')) env[m[1]] = m[2]
-  }
-} catch { /* no .env — rely on process.env */ }
-
-const RPC = {
-  // Public fallbacks keep Ethereum and Arbitrum useful before private
-  // QuickNode endpoints are supplied. Production secrets still override them.
-  ethereum:
-    process.env.RPC_ETHEREUM ||
-    env.VITE_RPC_ETHEREUM ||
-    'https://ethereum-rpc.publicnode.com',
-  arbitrum:
-    process.env.RPC_ARBITRUM ||
-    env.VITE_RPC_ARBITRUM ||
-    'https://arbitrum-one-rpc.publicnode.com',
-  robinhood: process.env.RPC_ROBINHOOD || env.VITE_RPC_ROBINHOOD,
-}
+const RPC={robinhood:configured('RPC_ROBINHOOD')}
 
 // Read-only protocol calls use application-owned RPC endpoints.
 async function requestRpc(chain, method, params) {
@@ -61,7 +44,6 @@ async function requestRpc(chain, method, params) {
   if (payload.error || payload.result === undefined) throw new Error('RPC unavailable')
   return payload.result
 }
-const configured = name => process.env[name] || env[name]
 const database = configured('SAFFRON_API_DISABLED') === '1' ? null : createIncentivesDatabase({connection:{
   host:configured('PGHOST'),port:Number(configured('PGPORT')||5432),user:configured('PGUSER'),
   password:configured('PGPASSWORD'),database:configured('PGDATABASE'),connectionTimeoutMillis:5000,
@@ -128,7 +110,7 @@ function allMethodsAllowed(raw) {
     return false
   }
   const calls = Array.isArray(parsed) ? parsed : [parsed]
-  return calls.length > 0 && calls.every((c) => c && c.jsonrpc === '2.0'
+  return calls.length > 0 && calls.length <= 50 && calls.every((c) => c && c.jsonrpc === '2.0'
     && (typeof c.id === 'string' || typeof c.id === 'number' || c.id === null)
     && (c.params === undefined || Array.isArray(c.params)) && ALLOWED_METHODS.has(c.method))
 }
@@ -176,9 +158,16 @@ const server = createServer(async (req, res) => {
         body,
         signal: AbortSignal.timeout(20_000),
       })
-      const text = await upstream.text()
-      res.writeHead(upstream.status, { 'content-type': 'application/json' })
-      res.end(text)
+      if(!upstream.ok)throw new Error('Upstream unavailable')
+      const payload=await upstream.json()
+      const safe=reply=>{
+        if(!reply||reply.jsonrpc!=='2.0'||!['string','number'].includes(typeof reply.id)&&reply.id!==null)throw new Error('Malformed upstream response')
+        // Provider diagnostics can contain endpoint credentials or internal paths.
+        if(reply.error)return {jsonrpc:'2.0',id:reply.id,error:{code:-32000,message:'Read failed.'}}
+        if(reply.result===undefined)throw new Error('Missing RPC result')
+        return {jsonrpc:'2.0',id:reply.id,result:reply.result}
+      }
+      endJson(res,200,Array.isArray(payload)?payload.map(safe):safe(payload))
     } catch {
       endJson(res, 502, { error: 'upstream failed' })
     }
@@ -238,5 +227,5 @@ server.listen(PORT, HOST, () => {
     .filter(([, v]) => v)
     .map(([k]) => k)
   console.log(`Saffron dashboard on http://${HOST}:${PORT}`)
-  console.log(`Proxying: ${chains.join(', ') || '(none — set RPC_* env or .env VITE_RPC_*)'}`)
+  console.log(`Proxying: ${chains.join(', ') || '(none — configure RPC_ROBINHOOD)'}`)
 })

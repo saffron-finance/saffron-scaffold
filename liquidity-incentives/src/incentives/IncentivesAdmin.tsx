@@ -12,6 +12,7 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
   return <Stack><Row><StepTitle>Administration</StepTitle><QuietButton onClick={onBack}>Programs</QuietButton></Row>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!data.session?<Action disabled={data.busy} onClick={()=>void data.signIn()}>Sign in as operator</Action>:!data.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
       <FinePrint>Worker {data.online?'online':'offline'} · {data.rows.length} deployments. User authorization queues creation automatically.</FinePrint>
+      {data.operatorStatus&&<FinePrint>Worker gas: {data.operatorStatus.gasBalanceRaw===null?'unavailable':formatUnits(BigInt(data.operatorStatus.gasBalanceRaw),18)+' ETH'} · {data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
       <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
       {data.rows.map(row=><AdminVault key={row.id} account={account} row={row} onUpdate={data.refresh}/>)}

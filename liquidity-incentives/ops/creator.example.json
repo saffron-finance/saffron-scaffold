@@ -4,7 +4,6 @@
   "signerAddress": "SET_PUBLIC_CREATOR_ADDRESS",
   "signerCredentialFile": "/run/credentials/saffron-vault-creator.service/creator-eoa",
   "rpcUrl": "http://127.0.0.1:8545",
-  "priceApi": "http://127.0.0.1:3201/prices",
   "database": {
     "host": "/var/run/postgresql",
     "user": "saffron_creator",

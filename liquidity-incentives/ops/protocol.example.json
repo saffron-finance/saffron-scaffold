@@ -1,11 +1,11 @@
 {
   "chainId": 4663,
-  "signerAddress": "REPLACE_WITH_WORKER_PUBLIC_ADDRESS",
+  "signerAddress": "SET_PUBLIC_CREATOR_ADDRESS",
   "vaultTypeId": 1,
-  "adapterTypeId": 1,
+  "adapterTypeId": 2,
+  "factoryCodeHash": "0x8c2a5305bfe488b0b43e6b9221c36e881883277a6a45392bdd2dd2da08fb71af",
+  "vaultTypeHash": "0x89bfc535d437614afc43c1c334b9cdac8113273cf627f303cfce2b6c3c163683",
+  "adapterTypeHash": "0xd71b7265803869e18564b6f747b15a56a98cf3f62441095d36eeef34cd978383",
   "confirmations": 2,
-  "factoryCodeHash": "REPLACE_WITH_VERIFIED_HASH",
-  "vaultTypeHash": "REPLACE_WITH_VERIFIED_HASH",
-  "adapterTypeHash": "REPLACE_WITH_VERIFIED_HASH",
-  "maxPremiumRaw": "REPLACE_WITH_PER_VAULT_RAW_TOKEN_LIMIT"
+  "maxPremiumRaw": "SET_REVIEWED_RAW_TOKEN_CEILING"
 }

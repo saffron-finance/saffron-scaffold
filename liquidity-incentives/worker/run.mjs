@@ -1,7 +1,6 @@
 import { readFile, stat } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { privateKeyToAccount } from 'viem/accounts'
-import { parseUnits } from 'viem'
 import { createIncentivesDatabase } from '../server/incentives-database.mjs'
 import { createCreator } from './creator.mjs'
 import { CHAIN_ID, sameAddress } from '../shared/vault-lifecycle.mjs'
@@ -32,17 +31,8 @@ async function main() {
     if (!response.ok || body.error) throw new Error('RPC operation unavailable')
     return body.result
   }
-  const priceRoot = new URL(config.priceApi)
-  if (priceRoot.username || priceRoot.password || priceRoot.search || priceRoot.hash) throw new Error('Invalid price service reference')
-  const usdQuote = async address => {
-    const response = await fetch(priceRoot.href.replace(/\/$/,'') + '/' + address,{signal:AbortSignal.timeout(15_000),redirect:'error'})
-    const value = await response.json()
-    if (!response.ok || !value.success || !sameAddress(value.data?.tokenAddress,address) || value.data.chainId !== CHAIN_ID
-      || !Number.isFinite(value.data.price) || value.data.price <= 0) throw new Error('USD quote unavailable')
-    return {priceRaw:parseUnits(value.data.price.toFixed(18),18).toString(),checkedAt:Date.parse(value.data.timestamp)}
-  }
   const database = createIncentivesDatabase({ connection: config.database })
-  const worker = createCreator({database,rpc,account,config,usdQuote})
+  const worker = createCreator({database,rpc,account,config})
   let stopped = false
   process.on('SIGINT',()=>{stopped=true});process.on('SIGTERM',()=>{stopped=true})
   let heartbeat

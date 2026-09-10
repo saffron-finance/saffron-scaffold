@@ -1,7 +1,7 @@
 import { resolvePlan } from '../shared/deployment-plan.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
 import { eligibility,sameAddress } from '../shared/vault-lifecycle.mjs'
-import { cents,snapshotFor,fault,jsonSafe,validAddress } from '../shared/incentives.mjs'
+import { cents,snapshotFor,fault,jsonSafe,validAddress,UINT256_MAX } from '../shared/incentives.mjs'
 import { userActionEvidence } from '../shared/user-evidence.mjs'
 
 /** Read-only sizing/observation service; the separate worker owns all signing. */
@@ -29,21 +29,29 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   function requireConfigured(){
     if(!validAddress(signer)||!config?.factoryCodeHash||!config?.vaultTypeHash||!config?.adapterTypeHash||!config?.maxPremiumRaw||!origin) throw fault(503,'Deployment is not configured yet.')
   }
-  async function size(offer,principalCents,wallet){
+  async function size(offer,principalCents,wallet,probe=false){
     requireConfigured()
     const snapshot=snapshotFor(offer,principalCents,wallet)
-    const plan=await resolvePlan({snapshot},rpc,usdQuote,config)
+    const plan=await resolvePlan({snapshot},rpc,usdQuote,probe?{...config,maxPremiumRaw:UINT256_MAX.toString()}:config)
     return plan
   }
   const service={
     refresh,
+    async operatorStatus(){
+      let gasBalanceRaw=null
+      try{if(validAddress(signer))gasBalanceRaw=BigInt(await rpc('eth_getBalance',[signer,'latest'])).toString()}catch{}
+      const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired') OR funding_state IN ('queued','running','waiting','failed'))::int AS pending,
+        count(*) FILTER(WHERE (state NOT IN ('created','retired') OR funding_state IN ('queued','running','waiting','failed')) AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
+        FROM saffron_incentives.vault_jobs`)).rows[0]
+      return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer)}
+    },
     async auditReleases(budgetId,operator){
       const rows=(await db.query(`SELECT DISTINCT ON(e.intent_id) e.intent_id,e.evidence FROM saffron_incentives.budget_entries e
         JOIN saffron_incentives.budget_reservations r ON r.intent_id=e.intent_id
         WHERE e.budget_pool_id=$1 AND e.kind='release-recovered' AND r.released_raw>0 ORDER BY e.intent_id,e.id DESC`,[budgetId])).rows
       let valid=true
       for(const row of rows){
-        const proofs=(await db.execution.transactions(row.intent_id)).map(tx=>tx.receipt).filter(Boolean)
+        const proofs=(await db.execution.transactionMetadata(row.intent_id)).map(tx=>tx.receipt).filter(Boolean)
         if(row.evidence?.blockHash)proofs.push({blockNumber:'0x'+BigInt(row.evidence.blockNumber).toString(16),blockHash:row.evidence.blockHash})
         let canonical=true
         for(const proof of proofs){
@@ -74,7 +82,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       for(let start=0;start<offers.length;start+=4) rows.push(...await Promise.all(offers.slice(start,start+4).map(async offer=>{
         if(offer.budget.paused||offer.budget.reconciliationRequired||offer.budget.availableRaw==='0')return {...offer,eligibleMaximumCents:'0',availability:'Campaign funding is unavailable'}
         try{
-          const plan=await size(offer,offer.minimumCents,signer)
+          const plan=await size(offer,offer.minimumCents,signer,true)
           const aprRaw=BigInt(snapshotFor(offer,offer.minimumCents,signer).aprRaw)
           const budget=BigInt(offer.budget.availableRaw)<BigInt(config.maxPremiumRaw)?BigInt(offer.budget.availableRaw):BigInt(config.maxPremiumRaw)
           const maximum=budget*10n**18n*31_536_000n*BigInt(plan.variablePrice)/(10n**16n*aprRaw*BigInt(offer.days*86400)*10n**BigInt(plan.variableDecimals))
@@ -96,6 +104,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const observation=await db.execution.observation(job.id)
       const eligible=eligibility(observation,now())
       let state=job.state==='failed'?'needs_attention':job.state==='created'?'checking':job.state==='retired'?'retired':job.state==='queued'?'queued':'deploying'
+      if(!['created','retired'].includes(job.state)&&now()-job.created_at.getTime()>24*60*60_000)state='needs_attention'
       let depositable=false,canClaim=false,canWithdraw=false,canRecover=false
       const fresh=eligible.state!=='checking'
       if(job.state==='created'&&fresh){
@@ -112,7 +121,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         }else{state=eligible.state;depositable=eligible.depositable}
       }
       if(job.cancel_requested&&job.state!=='retired'&&!observation?.isStarted){state='retirement_requested';depositable=false}
-      const transactions=(await db.execution.transactions(job.id)).map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:tx.receipt?.status==='0x1'&&tx.resolution_kind!=='cancelled',reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))
+      const transactions=(await db.execution.transactionMetadata(job.id)).map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:tx.receipt?.status==='0x1'&&tx.resolution_kind!=='cancelled',reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))
       return jsonSafe({id:job.id,wallet:job.wallet,programId:job.snapshot.programId,createdAt:job.created_at,planHash:job.plan_hash,plan:job.plan,
         snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,
         workerState:job.state,fundingState:job.funding_state,cancelRequested:job.cancel_requested,error:job.error,transactions,
@@ -145,7 +154,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     },
     async reconcileTransaction(id,operator,original,hash){
       if(![original,hash].every(value=>/^0x[0-9a-f]{64}$/i.test(value??'')))throw fault(400,'Provide the saved and replacement transaction hashes.')
-      const job=await db.getIntent(id),tx=(await db.execution.transactions(id)).find(row=>row.hash.toLowerCase()===original.toLowerCase())
+      const job=await db.getIntent(id),tx=(await db.execution.transactionMetadata(id)).find(row=>row.hash.toLowerCase()===original.toLowerCase())
       if(!job||!tx)throw fault(404,'Saved transaction not found.')
       const [receipt,mined,head,chain]=await Promise.all([rpc('eth_getTransactionReceipt',[hash]),rpc('eth_getTransactionByHash',[hash]),rpc('eth_blockNumber',[]),rpc('eth_chainId',[])])
       if(BigInt(chain)!==4663n||!receipt||!mined||!sameAddress(mined.from,job.signer)||BigInt(mined.nonce)!==BigInt(tx.nonce)

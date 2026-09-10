@@ -50,6 +50,12 @@ test('approved cards, mobile layout, keyboard focus and local lifecycle navigati
   try{
     await page.goto(f.origin)
     const offers=page.locator('[data-incentive-offer]');await expect(offers).toHaveCount(4)
+    if(process.env.SAFFRON_TEST_LAB==='1'){
+      await page.getByText('Tweak',{exact:true}).click()
+      await page.getByLabel('Table font',{exact:true}).selectOption({index:1})
+      await expect(page.locator('[data-incentive-programs]')).toHaveCSS('font-family',/Saffron tweak/)
+      await page.getByText('Tweak',{exact:true}).click()
+    }else await expect(page.getByText('Tweak',{exact:true})).toHaveCount(0)
     await expect(offers.first()).toHaveCSS('border-top-color','rgb(29, 29, 29)')
     await offers.first().hover();await expect(offers.first()).toHaveCSS('border-top-color','rgb(69, 69, 69)')
     await page.emulateMedia({reducedMotion:'reduce'})
