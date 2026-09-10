@@ -104,6 +104,10 @@ it does not seed programs or accept deployments.
 - The front-page modal and profile share fixed entry and lifecycle actions. Current
   claim/bearer ownership controls actions. Completed requires verified withdrawal,
   rather than merely a zero balance.
+- Confirmed claim and fixed-bearer transfers discover received positions in the
+  holder's profile. Discovery follows bounded block ranges and checks reorganizations;
+  fresh canonical balances authorize actions. Deployment cancellation stays with
+  the original requester. Confirmed user actions preserve position history.
 
 The clean `saffron_incentives` schema contains `pairs`, `budget_pools`, `programs`,
 `deployment_quotes`, `deployment_intents`, `budget_reservations`, `budget_entries`,

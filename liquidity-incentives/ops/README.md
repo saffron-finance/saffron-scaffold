@@ -175,6 +175,13 @@ credentials and raw signed bytes.
   from an unstarted vault. The premium stays reserved until retirement. Transferring
   away claim/bearer tokens removes the sender's action rights; zero balances alone
   never mark the position Completed.
+- **Received positions:** the observer follows claim/fixed-bearer transfers for
+  application vaults, retaining a canonical scan checkpoint. Recipients can claim,
+  recover or withdraw in their own profile; request management remains with the
+  original requester. Discovery scans up to four 2,000-block ranges per vault per
+  poll and shows a checking notice while catching up. Balance reads independently
+  verify ownership before exposing actions. A changed checkpoint hash restarts
+  discovery from the canonical creation receipt, or genesis if it is unavailable.
 - **Retirement:** **Recover unused funding and retire** first resolves every known
   signed outcome. The vault must be unstarted, without a fixed claim, and the worker
   must own all variable bearers before it can recover premium. Only canonical

@@ -1,5 +1,10 @@
 import { test,expect } from '@playwright/test'
 import { setup,connect } from './fixture.mjs'
+import { encodeAbiParameters,encodeFunctionData,parseAbi } from 'viem'
+import { createIncentivesService } from '../../server/incentives-service.mjs'
+import { deploymentTypedData } from '../../shared/incentives.mjs'
+import { abi } from '../../shared/vault-lifecycle.mjs'
+import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
 
 test('production runtime: user deployment, funding gate, shared profile entry, claim, maturity and withdrawal',async({page})=>{
   const f=await setup(page,{wrap:true})
@@ -70,5 +75,35 @@ test('approved cards, mobile layout, keyboard focus and local lifecycle navigati
     await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(offers.first()).toBeFocused()
     await expect(page.locator('a[href*="beta.saffron.finance"]')).toHaveCount(0)
     await expect(page.getByRole('link',{name:'Variable yield',exact:true})).toHaveCount(0)
+  }finally{await f.close()}
+})
+
+test('a received claim appears in the holder profile and uses the native claim modal',async({page})=>{
+  const f=await setup(page)
+  try{
+    const {chain,database}=f
+    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,origin:f.origin})
+    const quote=await service.quote(chain.account.address,'cashcat-3d','100')
+    const {id}=await database.acceptDeployment({wallet:chain.account.address,quoteId:quote.id,signature:await chain.account.signTypedData(deploymentTypedData(quote)),origin:f.origin})
+    await f.worker.tick()
+    const row=await service.detail(id,chain.account.address)
+    await service.fund(id,chain.account.address,row.planHash,row.plan.premium);await f.worker.tick()
+    const s=(await service.context(id,chain.account.address)).snapshot,amounts=amountsForLiquidity(s.liquidity,s.sqrtPrice,s.minTick,s.maxTick)
+    for(const [i,token] of [s.token0,s.token1].entries())await chain.send(token.address,encodeFunctionData({abi,functionName:'approve',args:[s.adapter,[amounts.amount0,amounts.amount1][i]*101n/100n+1n]}))
+    const data=encodeAbiParameters([{type:'uint256'},{type:'uint256'},{type:'uint256'}],[0n,0n,BigInt(s.headTimestamp+300)])
+    await chain.send(s.vault,encodeFunctionData({abi,functionName:'deposit',args:[0n,0n,data]}))
+    await chain.send(s.claimToken,encodeFunctionData({abi:parseAbi(['function transfer(address,uint256) returns(bool)']),functionName:'transfer',args:[f.account.address,1n]}))
+    await page.goto(f.origin);await connect(page)
+    await page.getByRole('button',{name:/^My vaults/}).click()
+    await page.getByRole('button',{name:'Sign in to view your vaults',exact:true}).click()
+    await expect(page.getByRole('button',{name:'Claim premium',exact:true})).toBeVisible({timeout:20000})
+    await page.getByRole('button',{name:'Claim premium',exact:true}).click()
+    const dialog=page.getByRole('dialog')
+    await expect(dialog.getByRole('button',{name:'Request retirement',exact:true})).toHaveCount(0)
+    const claim=dialog.getByRole('button',{name:'Claim premium',exact:true})
+    await expect(claim).toBeEnabled({timeout:20000});await claim.click()
+    await expect(dialog.getByText('Position active',{exact:true})).toBeVisible({timeout:20000})
+    expect(f.state.sends).toBe(1)
+    expect((await database.getIntent(id)).wallet).toBe(chain.account.address.toLowerCase())
   }finally{await f.close()}
 })

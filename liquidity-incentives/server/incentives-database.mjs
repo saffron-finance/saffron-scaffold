@@ -176,9 +176,15 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       })
     },
     async list({wallet,admin=false,limit=100}={}) {
-      const rows=await query(`SELECT id FROM ${schema}.deployment_intents ${admin?'':'WHERE wallet=$1'} ORDER BY created_at DESC LIMIT ${Math.min(200,limit)}`,admin?[]:[wallet?.toLowerCase()])
+      const rows=await query(`SELECT i.id FROM ${schema}.deployment_intents i ${admin?'':`WHERE i.wallet=$1
+        OR EXISTS(SELECT 1 FROM ${schema}.vault_observations o WHERE o.intent_id=i.id AND o.snapshot->'positionOwners' ? $1)
+        OR EXISTS(SELECT 1 FROM ${schema}.user_operations u WHERE u.intent_id=i.id AND u.wallet=$1 AND u.canonical=TRUE)`}
+        ORDER BY i.created_at DESC LIMIT ${Math.min(200,limit)}`,admin?[]:[wallet?.toLowerCase()])
       return Promise.all(rows.rows.map(row=>getIntent(row.id)))
     },
+    async hasPositionHistory(id,wallet){return Boolean((await query(`SELECT 1 FROM ${schema}.user_operations WHERE intent_id=$1 AND wallet=$2 AND canonical=TRUE LIMIT 1`,[id,wallet.toLowerCase()])).rowCount)},
+    async positionsUpdating(){return Boolean((await query(`SELECT 1 FROM ${schema}.vault_jobs j LEFT JOIN ${schema}.vault_observations o ON o.intent_id=j.intent_id
+      WHERE j.plan ? 'vault' AND (o.snapshot->>'positionsComplete' IS DISTINCT FROM 'true' OR o.snapshot->>'verified' IS DISTINCT FROM 'true') LIMIT 1`)).rowCount)},
     async reconcileFunding(id,snapshot,actor='observer',client) {
       if (!snapshot?.verified || !snapshot.canonical || now()-snapshot.checkedAt>15_000) return
       const current=await getIntent(id,client)

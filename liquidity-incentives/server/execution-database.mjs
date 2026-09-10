@@ -117,6 +117,9 @@ export function createExecutionDatabase(db) {
         if(previous?.checkedAt>snapshot.checkedAt)return
         // Publish accounting and its evidence together across API/worker processes.
         if(snapshot.verified&&previous?.verified&&BigInt(snapshot.blockNumber)<BigInt(previous.blockNumber))return
+        if(!Object.hasOwn(snapshot,'positionScan')&&previous?.positionScan){
+          snapshot={positionScan:previous.positionScan,positionOwners:previous.positionOwners,positionsComplete:previous.positionsComplete,...snapshot}
+        }
         await db.reconcileFunding(id,snapshot,'observer',client)
         await client.query(`INSERT INTO ${s}.vault_observations (intent_id,snapshot) VALUES ($1,$2) ON CONFLICT(intent_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,updated_at=NOW()`,[id,snapshot])
       })

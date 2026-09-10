@@ -1,8 +1,11 @@
 import { resolvePlan } from '../shared/deployment-plan.mjs'
-import { readVault } from '../shared/vault-reader.mjs'
+import { readVault,readPosition } from '../shared/vault-reader.mjs'
+import { discoverPositionOwners } from './position-discovery.mjs'
 import { eligibility,sameAddress } from '../shared/vault-lifecycle.mjs'
 import { cents,snapshotFor,fault,jsonSafe,validAddress,UINT256_MAX } from '../shared/incentives.mjs'
 import { userActionEvidence } from '../shared/user-evidence.mjs'
+
+const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
 /** Read-only sizing/observation service; the separate worker owns all signing. */
 export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,now=Date.now}) {
@@ -16,6 +19,11 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       let observation
       try{observation=await readVault(job,rpc,{confirmations:config?.confirmations??2,now})}
       catch{observation={verified:false,canonical:false,checkedAt:now(),reason:'Checking availability'}}
+      if(observation.verified){
+        const previous=await db.execution.observation(id)
+        try{Object.assign(observation,await discoverPositionOwners(observation,previous,await db.execution.transactionMetadata(id),rpc))}
+        catch{Object.assign(observation,{positionScan:previous?.positionScan??null,positionOwners:previous?.positionOwners??[],positionsComplete:false})}
+      }
       await db.execution.saveObservation(id,observation)
       for(const record of (await db.query('SELECT hash,receipt FROM saffron_incentives.user_operations WHERE intent_id=$1',[id])).rows){
         let canonical=false
@@ -100,8 +108,15 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const plan=await size(offer,principalCents,wallet)
       return db.putQuote({offer,principalCents,wallet,origin,plan,signer})
     },
-    async describe(job){
-      const observation=await db.execution.observation(job.id)
+    async describe(job,wallet=job.wallet){
+      let observation=await db.execution.observation(job.id)
+      if(observation&&!sameAddress(observation.positionWallet,wallet)){
+        try{
+          if(eligibility(observation,now()).state==='checking')throw new Error('Position observation unavailable.')
+          observation=await readPosition(observation,wallet,rpc)
+        }catch{observation={verified:false,canonical:false,checkedAt:now(),positionWallet:wallet,reason:'Checking position ownership'}}
+      }
+      const isRequester=sameAddress(job.wallet,wallet)
       const eligible=eligibility(observation,now())
       let state=job.state==='failed'?'needs_attention':job.state==='created'?'checking':job.state==='retired'?'retired':job.state==='queued'?'queued':'deploying'
       if(!['created','retired'].includes(job.state)&&now()-job.created_at.getTime()>24*60*60_000)state='needs_attention'
@@ -116,40 +131,58 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           const matured=BigInt(observation.blockTimestamp)>BigInt(observation.endTime)
           canWithdraw=matured&&BigInt(observation.fixedBalance)>0n
           state=owned?(matured?'matured':canClaim?'claimable':'active'):'no_position'
-          if(!owned&&BigInt(observation.adapterLiquidity??'0')===0n&&(await db.query("SELECT 1 FROM saffron_incentives.user_operations WHERE intent_id=$1 AND wallet=$2 AND action='withdraw' AND canonical=TRUE LIMIT 1",[job.id,job.wallet])).rowCount)state='completed'
+          if(!owned&&BigInt(observation.adapterLiquidity??'0')===0n&&(await db.query("SELECT 1 FROM saffron_incentives.user_operations WHERE intent_id=$1 AND wallet=$2 AND action='withdraw' AND canonical=TRUE LIMIT 1",[job.id,wallet.toLowerCase()])).rowCount)state='completed'
         }else if(BigInt(observation.claimSupply)>0n){
           canRecover=BigInt(observation.claimBalance)>0n
           state=canRecover?'fixed_awaiting_funding':'occupied'
-        }else if(job.state==='created'){state=eligible.state;depositable=eligible.depositable}
+        }else if(job.state==='created'){state=isRequester?eligible.state:'no_position';depositable=isRequester&&eligible.depositable}
       }
       if(job.cancel_requested&&job.state!=='retired'&&!observation?.isStarted){state='retirement_requested';depositable=false}
       const transactions=(await db.execution.transactionMetadata(job.id)).map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:tx.receipt?.status==='0x1'&&tx.resolution_kind!=='cancelled',reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))
-      return jsonSafe({id:job.id,wallet:job.wallet,programId:job.snapshot.programId,createdAt:job.created_at,planHash:job.plan_hash,plan:job.plan,
+      return jsonSafe({id:job.id,wallet:job.wallet,positionWallet:wallet.toLowerCase(),isRequester,programId:job.snapshot.programId,createdAt:job.created_at,planHash:job.plan_hash,plan:job.plan,
         snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,
         workerState:job.state,fundingState:job.funding_state,cancelRequested:job.cancel_requested,error:job.error,transactions,
         nextAttemptAt:job.next_attempt_at,fundingOperator:job.funding_operator})
     },
     async detail(id,wallet,admin=false,{fresh=true}={}){
       let job=await db.getIntent(id)
-      if(!job||(!admin&&job.wallet!==wallet.toLowerCase()))throw fault(404,'Deployment not found for this wallet.')
+      if(!job)throw fault(404,'Deployment not found for this wallet.')
       if(fresh&&job.plan.vault)await refresh(id)
       job=await db.getIntent(id)
-      return service.describe(job)
+      const deployment=await service.describe(job,admin?job.wallet:wallet)
+      if(!admin&&!deployment.isRequester&&!await db.hasPositionHistory(id,wallet)){
+        if(job.plan.vault&&eligibility(deployment.observation,now()).state==='checking')throw fault(503,'Position ownership is unavailable. Retry shortly.')
+        if(!ownsPosition(deployment))throw fault(404,'Deployment not found for this wallet.')
+      }
+      return deployment
     },
-    async list(wallet,admin=false){return {deployments:await Promise.all((await db.list({wallet,admin})).map(job=>service.describe(job))),creatorOnline:await db.execution.workerOnline(signer)}},
+    async list(wallet,admin=false){
+      const jobs=await db.list({wallet,admin}),deployments=[]
+      for(let start=0;start<jobs.length;start+=4){
+        const rows=await Promise.all(jobs.slice(start,start+4).map(async job=>{
+          const row=await service.describe(job,admin?job.wallet:wallet)
+          return admin||row.isRequester||ownsPosition(row)||!row.observation?.verified||await db.hasPositionHistory(job.id,wallet)?row:null
+        }))
+        deployments.push(...rows.filter(Boolean))
+      }
+      return {deployments,creatorOnline:await db.execution.workerOnline(signer),positionsUpdating:await db.positionsUpdating()}
+    },
     async context(id,wallet){
       const deployment=await service.detail(id,wallet)
-      return {deployment,job:{plan:deployment.plan,signer:deployment.signer,snapshot:deployment.snapshot,wallet:deployment.wallet},snapshot:deployment.observation}
+      return {deployment,job:{plan:deployment.plan,signer:deployment.signer,snapshot:deployment.snapshot,wallet:deployment.positionWallet},snapshot:deployment.observation}
     },
     async recordUserAction(id,wallet,hash){
       if(!/^0x[0-9a-f]{64}$/i.test(hash??''))throw fault(400,'Provide a transaction hash.')
-      const deployment=await service.detail(id,wallet)
+      const job=await db.getIntent(id)
+      if(!job?.plan.vault)throw fault(404,'Position not found.')
+      await refresh(id)
+      const deployment=await service.describe(await db.getIntent(id),wallet)
       const [receipt,transaction,head,chain]=await Promise.all([rpc('eth_getTransactionReceipt',[hash]),rpc('eth_getTransactionByHash',[hash]),rpc('eth_blockNumber',[]),rpc('eth_chainId',[])])
       if(BigInt(chain)!==4663n||!receipt||!transaction||receipt.transactionHash?.toLowerCase()!==hash.toLowerCase()
         ||BigInt(head)<BigInt(receipt.blockNumber)+BigInt((config?.confirmations??2)-1)
         ||(await rpc('eth_getBlockByNumber',[receipt.blockNumber,false]))?.hash!==receipt.blockHash)throw fault(409,'Transaction confirmations are not available yet.')
       let action
-      try{action=userActionEvidence({receipt,transaction,job:deployment})}catch(error){throw fault(409,error.message)}
+      try{action=userActionEvidence({receipt,transaction,job:{...deployment,wallet:wallet.toLowerCase()}})}catch(error){throw fault(409,error.message)}
       await db.query(`INSERT INTO saffron_incentives.user_operations(hash,intent_id,wallet,action,receipt) VALUES($1,$2,$3,$4,$5)
         ON CONFLICT(hash) DO UPDATE SET receipt=EXCLUDED.receipt,canonical=TRUE`,[hash.toLowerCase(),id,wallet.toLowerCase(),action,receipt])
       return {action,deployment:await service.detail(id,wallet,false,{fresh:false})}

@@ -52,7 +52,7 @@ export function VaultLifecyclePanel({account,id,onBusy}:{account:Address;id:stri
       <Action disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?'Confirming wallet action…':flow.quote?.action.label??'Checking position…'}</Action>
     </>:null}
     {row?.state==='completed'&&<FinePrint>Your fixed withdrawal is confirmed and your LP assets have been returned.</FinePrint>}
-    {row&&!row.cancelRequested&&['queued','deploying','awaiting_funding','depositable','needs_attention'].includes(row.state)&&<Disclosure><summary>Deployment options</summary><FinePrint>Retirement releases unused capacity only after pending transactions and any funded premium have been reconciled.</FinePrint><QuietButton disabled={flow.busy||cancelling} onClick={()=>void cancel()}>Request retirement</QuietButton></Disclosure>}
+    {row?.isRequester&&!row.cancelRequested&&['queued','deploying','awaiting_funding','depositable','needs_attention'].includes(row.state)&&<Disclosure><summary>Deployment options</summary><FinePrint>Retirement releases unused capacity only after pending transactions and any funded premium have been reconciled.</FinePrint><QuietButton disabled={flow.busy||cancelling} onClick={()=>void cancel()}>Request retirement</QuietButton></Disclosure>}
     {row?.transactions.length?<Disclosure><summary>Deployment transactions</summary>{row.transactions.map(tx=><p key={tx.hash}><a target='_blank' rel='noreferrer' href={'https://robinhoodchain.blockscout.com/tx/'+tx.hash}>{tx.step.replaceAll('-',' ')} · {tx.confirmed?'confirmed':tx.reverted?'failed':'pending'} ↗</a></p>)}</Disclosure>:null}
   </Stack>
 }

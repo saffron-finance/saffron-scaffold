@@ -72,3 +72,13 @@ export async function readVault(job, rpc, { confirmations = 2, now = Date.now } 
     checkedAt: now(),
   }
 }
+
+/** Read a viewer's balances at the same canonical block as the vault terms. */
+export async function readPosition(snapshot,wallet,rpc){
+  if(!snapshot?.verified||!snapshot.canonical)throw new Error('Position observation unavailable.')
+  const block='0x'+BigInt(snapshot.blockNumber).toString(16)
+  const balances=await Promise.all([snapshot.claimToken,snapshot.fixedBearerToken].map(async address=>
+    decodeFunctionResult({abi,functionName:'balanceOf',data:await rpc('eth_call',[{to:address,data:encodeFunctionData({abi,functionName:'balanceOf',args:[wallet]})},block])})))
+  if((await rpc('eth_getBlockByNumber',[block,false]))?.hash!==snapshot.blockHash)throw new Error('Position observation block changed.')
+  return {...snapshot,positionWallet:wallet.toLowerCase(),claimBalance:balances[0].toString(),fixedBalance:balances[1].toString()}
+}

@@ -9,6 +9,7 @@ export function useDeployments(account:Address|null,admin=false){
   const [error,setError]=useState<string>(),[busy,setBusy]=useState(false),[online,setOnline]=useState(false)
   const [revision,setRevision]=useState(0),[loading,setLoading]=useState(true)
   const [operatorStatus,setOperatorStatus]=useState<OperatorStatus|null>(null)
+  const [positionsUpdating,setPositionsUpdating]=useState(false)
   const refresh=()=>setRevision(value=>value+1)
   useEffect(()=>{
     let alive=true,pending=false
@@ -21,7 +22,7 @@ export function useDeployments(account:Address|null,admin=false){
         setSession(current)
         if(!current){setRows([]);setOperatorStatus(null);return}
         const [data,status]=await Promise.all([requestJson(admin?'/admin/deployments':'/deployments'),admin&&current.operator?requestJson('/admin/status'):null])
-        if(alive){setRows(data.deployments);setOnline(data.creatorOnline);setOperatorStatus(status);setError(undefined)}
+        if(alive){setRows(data.deployments);setOnline(data.creatorOnline);setPositionsUpdating(data.positionsUpdating);setOperatorStatus(status);setError(undefined)}
       }catch(cause){if(alive){setError((cause as Error).message);setRows([]);setOperatorStatus(null)}}
       finally{pending=false;if(alive)setLoading(false)}
     }
@@ -30,5 +31,5 @@ export function useDeployments(account:Address|null,admin=false){
     return ()=>{alive=false;clearInterval(timer);window.removeEventListener('saffron:vault-updated',refresh);window.removeEventListener('saffron:session',refresh)}
   },[account,admin,revision])
   async function signIn(){if(!account)return;setBusy(true);setError(undefined);try{await ensureSession(account);refresh()}catch(cause){setError((cause as Error).message)}finally{setBusy(false)}}
-  return {rows,session,error,busy,online,operatorStatus,loading,refresh,signIn}
+  return {rows,session,error,busy,online,operatorStatus,positionsUpdating,loading,refresh,signIn}
 }
