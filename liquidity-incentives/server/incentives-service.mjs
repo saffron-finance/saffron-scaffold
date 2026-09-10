@@ -1,3 +1,6 @@
+import { verifyPayment, paymentData } from './payment-proof.mjs'
+import { ceilDiv } from '../shared/liquidity-math.mjs'
+import { WETH } from '../shared/vault-lifecycle.mjs'
 import { resolvePlan } from '../shared/deployment-plan.mjs'
 import { readVault,readPosition } from '../shared/vault-reader.mjs'
 import { discoverPositionOwners } from './position-discovery.mjs'
@@ -8,7 +11,7 @@ import { userActionEvidence } from '../shared/user-evidence.mjs'
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
 /** Read-only sizing/observation service; the separate worker owns all signing. */
-export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,now=Date.now}) {
+export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,feeRecipient,now=Date.now}) {
   const pending=new Map()
   let polling=false
   async function refresh(id){
@@ -89,6 +92,13 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       // Small bounded batches; a failed price read leaves an explicit unavailable size.
       for(let start=0;start<offers.length;start+=4) rows.push(...await Promise.all(offers.slice(start,start+4).map(async offer=>{
         if(offer.budget.paused||offer.budget.reconciliationRequired||offer.budget.availableRaw==='0')return {...offer,eligibleMaximumCents:'0',availability:'Campaign funding is unavailable'}
+        if(offer.budget.campaign){
+          const a=offer.budget.accounting
+          const byBudget=BigInt(a.availableBudgetCents)*BigInt(offer.budget.campaign.capacityCents)/BigInt(offer.budget.campaign.budgetCents)
+          const capacity=BigInt(a.availableCapacityCents)<byBudget?BigInt(a.availableCapacityCents):byBudget
+          const limit=capacity<BigInt(offer.maximumCents)?capacity:BigInt(offer.maximumCents)
+          return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),availability:null}
+        }
         try{
           const plan=await size(offer,offer.minimumCents,signer,true)
           const aprRaw=BigInt(snapshotFor(offer,offer.minimumCents,signer).aprRaw)
@@ -100,13 +110,38 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       })))
       return {offers:rows,creatorOnline:await db.execution.workerOnline(signer)}
     },
-    async quote(wallet,programId,amount){
+    async quote(wallet,programId,amount,recoveryHash){
       requireConfigured()
       if(!await db.execution.workerOnline(signer))throw fault(503,'The deployment worker is offline. Retry shortly.')
       const principalCents=cents(amount),offer=await db.offer(programId)
       if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents))throw fault(400,'Choose an amount within the program\'s vault size limits.')
       const plan=await size(offer,principalCents,wallet)
-      return db.putQuote({offer,principalCents,wallet,origin,plan,signer})
+      if(!validAddress(feeRecipient))throw fault(503,'The ETH creation-fee recipient is not configured.')
+      if(typeof recoveryHash!=='string'||!/^0x[0-9a-f]{64}$/i.test(recoveryHash))throw fault(400,'A request recovery commitment is required.')
+      const eth=await usdQuote(WETH)
+      if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
+      const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
+        amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
+      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash})
+      return {...quote,paymentData:paymentData(quote)}
+    },
+    /** Verify the payment chain evidence before admitting exactly one creation.
+     * Keep confirmed but blocked payments for operator resolution; never prompt
+     * the user to pay again because a response or later capacity check failed.
+     */
+    async paymentProof(quoteId,paymentHash,recoverySecret){
+      const quote=await db.quote(quoteId)
+      if(!quote)throw fault(404,'Payment quote not found.')
+      return verifyPayment(quote,paymentHash,recoverySecret,rpc,{confirmations:config?.confirmations??2})
+    },
+    async acceptPayment(quoteId,paymentHash,recoverySecret){
+      const payment=await service.paymentProof(quoteId,paymentHash,recoverySecret)
+      try{return {...await db.acceptDeployment({wallet:payment.wallet,quoteId,payment,origin}),wallet:payment.wallet}}
+      catch(error){
+        await db.query('UPDATE saffron_incentives.payment_proofs SET state=$2,error=$3 WHERE hash=$1',
+          [payment.hash,'needs_attention','Confirmed payment is awaiting capacity/policy resolution.'])
+        throw fault(409,'Payment confirmed, but creation needs operator resolution. Your payment is saved; do not pay again.')
+      }
     },
     async describe(job,wallet=job.wallet){
       let observation=await db.execution.observation(job.id)
@@ -199,11 +234,6 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const cancellation=sameAddress(mined.to,job.signer)&&mined.input==='0x'&&BigInt(mined.value)===0n&&receipt.status==='0x1'
       if(!action&&!cancellation)throw fault(409,'Replacement does not match the saved action or a zero-value self cancellation.')
       await db.execution.resolveTransaction(id,tx.hash,hash.toLowerCase(),receipt,action?'repriced':'cancelled',operator)
-    },
-    async fund(id,operator,planHash,maximum){
-      const deployment=await service.detail(id,operator,true)
-      if(!deployment.observation?.verified||deployment.observation.isStarted||deployment.cancelRequested)throw fault(409,'Vault funding is not currently available.')
-      await db.execution.approveFunding(id,operator,planHash,maximum)
     },
     async poll(){
       if(polling)return;polling=true

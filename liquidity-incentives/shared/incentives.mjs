@@ -1,4 +1,5 @@
 import { keccak256, stringToHex } from 'viem'
+import { campaignTerms } from './campaign.mjs'
 
 export const CHAIN_ID = 4663
 export const FACTORY = '0xce97ee64ad415976c465a783725014e67832be1a'
@@ -44,7 +45,9 @@ export function normalizeProgram(value) {
 export function normalizeBudget(value) {
   if (!value || value.chainId !== CHAIN_ID || !Number.isInteger(value.decimals) || value.decimals < 0 || value.decimals > 18
     || typeof value.name !== 'string' || value.name.trim().length < 1 || value.name.length > 100 || /[\r\n]/.test(value.name)) throw fault(400, 'Check the campaign budget fields.')
-  return { id: id(value.id), revision: revision(value.revision), name: value.name.trim(), chainId: CHAIN_ID,
+  let campaign=null
+  if(value.campaign){try{campaign=campaignTerms({...value.campaign.inputs,days:value.campaign.days})}catch(error){throw fault(400,error.message)}}
+  return { campaign, id: id(value.id), revision: revision(value.revision), name: value.name.trim(), chainId: CHAIN_ID,
     rewardAsset: address(value.rewardAsset), decimals: value.decimals, limitRaw: integer(value.limitRaw), paused: flag(value.paused) }
 }
 // Stable canonical hashing is shared by the API, wallet review, and execution journal.
@@ -54,21 +57,6 @@ export function digest(value) {
     : typeof value === 'bigint' ? value.toString() : value
   return keccak256(stringToHex(JSON.stringify(canonical(value))))
 }
-export function deploymentTypedData(quote) {
-  return {
-    domain: { name: 'Saffron Liquidity Incentives', version: '1', chainId: CHAIN_ID, salt: digest(quote.origin) },
-    primaryType: 'Deployment',
-    types: { Deployment: [
-      { name: 'origin', type: 'string' }, { name: 'wallet', type: 'address' }, { name: 'factory', type: 'address' },
-      { name: 'program', type: 'string' }, { name: 'quoteId', type: 'string' }, { name: 'planHash', type: 'bytes32' },
-      { name: 'principalCents', type: 'uint256' }, { name: 'premiumToken', type: 'address' },
-      { name: 'premiumRaw', type: 'uint256' }, { name: 'expiresAt', type: 'uint256' },
-    ] },
-    message: { origin: quote.origin, wallet: quote.wallet, factory: FACTORY, program: quote.programId, quoteId: quote.id, planHash: quote.planHash,
-      principalCents: BigInt(quote.principalCents), premiumToken: quote.snapshot.variableAssetAddress,
-      premiumRaw: BigInt(quote.plan.premium), expiresAt: BigInt(Math.floor(Date.parse(quote.expiresAt) / 1000)) },
-  }
-}
 export function walletSessionMessage(proof) {
   return ['Saffron Liquidity Incentives: sign in', 'This session does not authorize deployment or token transfers.',
     `Origin: ${proof.origin}`, `Wallet: ${proof.wallet}`, `Chain: ${CHAIN_ID}`, `Nonce: ${proof.nonce}`, `Expires: ${proof.expiresAt}`].join('\n')
@@ -76,7 +64,7 @@ export function walletSessionMessage(proof) {
 export function snapshotFor(offer, principalCents, wallet) {
   return { chainId: CHAIN_ID, submitterAddress: address(wallet), poolAddress: offer.pool, feeTier: offer.feeTier,
     token0: offer.token0, token1: offer.token1, token0Address: offer.token0.address, token1Address: offer.token1.address,
-    fixedCapacityAmount: principalCents, durationSeconds: offer.days * 86400, targetApr: offer.apr / 100,
-    aprRaw: (BigInt(Math.round(offer.apr * 100)) * 10n ** 14n).toString(), variableAssetAddress: offer.token0.address,
-    adapterType: 'fullRange', programId: offer.id, pairId: offer.pairId, display: { pair: `${offer.token0.symbol} / ${offer.token1.symbol}` } }
+    fixedCapacityAmount: principalCents, durationSeconds: (offer.budget?.campaign?.days??offer.days) * 86400, targetApr: offer.apr / 100,
+    aprRaw: offer.budget?.campaign?.aprRaw??(BigInt(Math.round(offer.apr * 100)) * 10n ** 14n).toString(), variableAssetAddress: offer.token0.address,
+    campaign:offer.budget?.campaign??null, adapterType: 'fullRange', programId: offer.id, pairId: offer.pairId, display: { pair: `${offer.token0.symbol} / ${offer.token1.symbol}` } }
 }

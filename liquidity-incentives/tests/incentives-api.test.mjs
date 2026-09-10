@@ -1,3 +1,5 @@
+import { proofHash,paymentData } from '../shared/payment.mjs'
+import { randomBytes } from 'node:crypto'
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
@@ -10,14 +12,19 @@ import { createWalletAuth } from '../server/wallet-auth.mjs'
 import { createIncentivesHandler } from '../server/incentives-api.mjs'
 import { createIncentivesService } from '../server/incentives-service.mjs'
 import { createIncentivesDatabase } from '../server/incentives-database.mjs'
-import { walletSessionMessage,deploymentTypedData } from '../shared/incentives.mjs'
+import { walletSessionMessage } from '../shared/incentives.mjs'
 
 it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operator permissions',async()=>{
   const store=await incentivesFixture(),db=store.database
   const user=privateKeyToAccount(generatePrivateKey()),admin=privateKeyToAccount(generatePrivateKey()),stranger=privateKeyToAccount(generatePrivateKey())
   await store.seed(admin.address)
   const auth=createWalletAuth({origin:ORIGIN,basePath:'/app',operators:[admin.address]})
-  const service=createIncentivesService({database:db,signer:admin.address,rpc:async()=>{throw new Error('Not used')}})
+  const proofs=new Map()
+  // Canonical RPC fixture exercises the verifier through the real HTTP boundary.
+  const rpc=async(method,params)=>({eth_chainId:'0x1237',eth_blockNumber:'0x11',
+    eth_getTransactionByHash:proofs.get(params[0])?.tx,eth_getTransactionReceipt:proofs.get(params[0])?.receipt,
+    eth_getBlockByNumber:{hash:'0x'+'1'.repeat(64),timestamp:'0x'+Math.floor(Date.now()/1000).toString(16)}}[method])
+  const service=createIncentivesService({database:db,signer:admin.address,origin:ORIGIN,rpc})
   const handler=createIncentivesHandler({database:db,auth,service,basePath:'/app'})
   const server=createServer(async(req,res)=>{if(!await handler(req,res,new URL(req.url,ORIGIN).pathname)){res.statusCode=404;res.end()}})
   server.listen(0,'127.0.0.1');await once(server,'listening')
@@ -30,13 +37,19 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     const result=await call('/session/login',{wallet:account.address,nonce:challenge.nonce,signature:await account.signMessage({message:walletSessionMessage(challenge)})})
     assert.equal(result.status,200);return {cookie:result.cookie,csrf:result.body.session.csrf}}
   try{
-    const u=await login(user),a=await login(admin),other=await login(stranger)
-    const quote=await store.quote(user,{signer:admin.address}),signature=await user.signTypedData(deploymentTypedData(quote))
-    const accepted=await call('/deployments',{quoteId:quote.id,signature},u)
+    assert.equal((await call('/session/challenge',{wallet:user.address})).status,403)
+    const a=await login(admin),secret='0x'+randomBytes(32).toString('hex'),hash='0x'+'2'.repeat(64)
+    const quote=await store.quote(user,{signer:admin.address,fee:{recipient:admin.address.toLowerCase(),amountWei:'1000000000000000'},recoveryHash:proofHash(secret)})
+    proofs.set(hash,{tx:{from:user.address,to:admin.address,value:'0x38d7ea4c68000',input:paymentData(quote)},
+      receipt:{status:'0x1',transactionHash:hash,blockNumber:'0x10',blockHash:'0x'+'1'.repeat(64)}})
+    const payment={quoteId:quote.id,paymentHash:hash,recoverySecret:secret}
+    assert.equal((await call('/deployments',{...payment,recoverySecret:'0x'+'9'.repeat(64)})).status,403)
+    const accepted=await call('/deployments',payment)
+    const u={cookie:accepted.cookie,csrf:accepted.body.session?.csrf}
     assert.equal(accepted.status,201);assert.equal(accepted.body.deployment.state,'queued')
     const id=accepted.body.id
-    assert.equal((await call('/deployments',{quoteId:quote.id,signature},u)).body.id,id)
-    assert.equal((await call('/deployments/'+id,undefined,other)).status,404)
+    assert.equal((await call('/deployments',payment,u)).body.id,id)
+    assert.equal((await call('/deployments/'+id+'?wallet='+stranger.address)).status,404)
     assert.equal((await call('/admin/deployments',undefined,u)).status,403)
     assert.equal((await call('/admin/status',undefined,u)).status,403)
     const status=await call('/admin/status',undefined,a)
@@ -72,7 +85,7 @@ it('HTTP requests recover after an initial database outage without restarting th
   let available=false,database,server
   const proxy=net.createServer(client=>{
     if(!available){client.destroy();return}
-    const target=net.createConnection({host:store.connection.host,port:store.connection.port})
+    const target=net.createConnection(store.connection.host.startsWith('/')?{path:store.connection.host+'/.s.PGSQL.'+store.connection.port}:{host:store.connection.host,port:store.connection.port})
     for(const socket of [client,target]){sockets.add(socket);socket.on('close',()=>sockets.delete(socket))}
     client.on('error',()=>target.destroy());target.on('error',()=>client.destroy())
     client.pipe(target);target.pipe(client)

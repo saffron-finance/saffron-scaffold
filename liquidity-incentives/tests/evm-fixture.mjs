@@ -8,6 +8,8 @@ import solc from 'solc'
 import { createPublicClient, createWalletClient, http, encodeFunctionData, parseAbi, keccak256, toHex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { CHAIN_ID, FACTORY, WETH, abi } from '../shared/vault-lifecycle.mjs'
+import { randomBytes } from 'node:crypto'
+import { proofHash,paymentData } from '../shared/payment.mjs'
 import { anvilBinary } from './anvil.mjs'
 
 export const CASHCAT='0x020bfc650a365f8bb26819deaabf3e21291018b4'
@@ -85,7 +87,24 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
       await beforeBroadcast?.(params[0]);broadcasts++;const hash=await raw(method,params);await raw('evm_mine')
       if(loseBroadcast){loseBroadcast=false;throw new Error('Simulated lost broadcast response')}return hash
     }
-    return {account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
+    const recoverySecret='0x'+randomBytes(32).toString('hex')
+    /** Pay the real native fee in the isolated chain; no message signatures. */
+    async function accept(service,programId='cashcat-3d',amount='100'){
+      const quote=await service.quote(account.address,programId,amount,proofHash(recoverySecret))
+      const receipt=await send(quote.fee.recipient,paymentData(quote),BigInt(quote.fee.amountWei))
+      return service.acceptPayment(quote.id,receipt.transactionHash,recoverySecret)
+    }
+    /** Test treasury call, deliberately outside the creator worker. */
+    async function fund(row){
+      const vault=row.plan.vault,premium=BigInt(row.plan.premium)
+      const bearer=await client.readContract({address:vault,abi,functionName:'variableBearerToken'})
+      const supplied=await client.readContract({address:bearer,abi,functionName:'totalSupply'})
+      if(supplied<premium){
+        await send(CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[vault,premium-supplied]}))
+        await send(vault,encodeFunctionData({abi,functionName:'deposit',args:[premium-supplied,1n,'0x']}))
+      }
+    }
+    return {accept,fund,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
       get broadcasts(){return broadcasts},set loseBroadcast(value){loseBroadcast=value},set beforeBroadcast(value){beforeBroadcast=value},
       usdQuote:async()=>({priceRaw:(2000n*10n**18n).toString(),checkedAt:Date.now()}),
       close:async()=>{child.kill('SIGTERM');if(child.exitCode===null)await once(child,'exit')},

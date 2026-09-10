@@ -7,10 +7,12 @@ these components as application-owned build, test and runtime infrastructure.
 
 Read README.md and server/AGENTS.md before backend edits. Public protocol and
 upstream Saffron API URLs are intentional; private deployments, credentials and
-operator records must never be committed. Follow exact signed deployment quotes,
-atomic cumulative reservations, automatic worker creation, separate operator
-funding, fixed-only entry, claim and withdrawal. Do not add paid requests,
-legacy receipts, compatibility schemas or an admin creation form.
+operator records must never be committed. Follow the current campaign/payment specification in CAMPAIGNS.md: a $2 native
+ETH payment binds the exact deployment quote, without user message signatures.
+Keep atomic USD budget/capacity accounting and automatic worker creation; treasury
+funding is external. Do not reintroduce worker funding, a USDC fee choice, legacy
+receipt imports or an admin per-vault creation form. Campaign creation belongs in
+the operator interface. These rules supersede the former fee-free authorization design.
 
 Production catalog/budgets start empty; only disposable fixtures may seed funded
 rows. Preserve new intent idempotency, pending transaction recovery and canonical

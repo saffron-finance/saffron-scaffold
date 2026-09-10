@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
-import { incentivesFixture,program,ORIGIN } from './incentives-fixture.mjs'
-import { deploymentTypedData } from '../shared/incentives.mjs'
+import { incentivesFixture,program,ORIGIN,mockPayment } from './incentives-fixture.mjs'
 import { keccak256 } from 'viem'
 import pg from 'pg'
 import { once } from 'node:events'
@@ -39,16 +38,15 @@ it('concurrent programs share one budget; acceptance commits reservation and wor
     assert.equal((await db.query("SELECT count(*)::int AS n FROM information_schema.schemata WHERE schema_name IN ('liqifi','uniswap_v3_fiv')")).rows[0].n,0)
   }finally{await fixture.close()}
 })
-it('lost-response retries retain one commitment even after quote expiry; altered authorization fails',async()=>{
+it('lost-response retries retain one commitment even after quote expiry; altered payment evidence fails',async()=>{
   let time=Date.now();const fixture=await incentivesFixture({now:()=>time}),a=account(),b=account()
   try{
     await fixture.seed(a.address);const q=await fixture.quote(a),first=await fixture.accept(a,q)
     time+=180_000
     const retries=await Promise.all(Array.from({length:6},()=>fixture.accept(a,q)))
     assert(retries.every(r=>r.id===first.id && r.replayed))
-    const altered={...q,principalCents:'20000'}
-    const signature=await a.signTypedData(deploymentTypedData(altered))
-    await assert.rejects(fixture.database.acceptDeployment({wallet:a.address,quoteId:q.id,signature,origin:ORIGIN}),e=>e.status===401)
+    const payment={...mockPayment(q),planHash:'0x'+'0'.repeat(64)}
+    await assert.rejects(fixture.database.acceptDeployment({wallet:a.address,quoteId:q.id,payment,origin:ORIGIN}),e=>e.status===401)
     await assert.rejects(fixture.accept(b,q),e=>e.status===404)
     assert.equal((await fixture.database.auditBudget(program.budgetPoolId)).budget.reservedRaw,'60000')
   }finally{await fixture.close()}
@@ -131,50 +129,28 @@ it('a failure to persist the worker job rolls back the entire acceptance',async(
     assert.equal((await fixture.accept(a,q)).replayed,false)
   }finally{await fixture.close()}
 })
-it('expired quotes and per-wallet queue limits cannot create additional commitments',async()=>{
+it('paid-before-deadline requests survive response delay; wallet queue limits still apply',async()=>{
   let time=Date.now();const fixture=await incentivesFixture({now:()=>time,maxPendingPerWallet:1}),a=account()
   try{
     const db=fixture.database;await fixture.seed(a.address);const q=await fixture.quote(a,{premium:'1000'})
-    time+=61_000;await assert.rejects(fixture.accept(a,q),e=>e.status===409)
-    const fresh=await fixture.quote(a,{premium:'1000'});await fixture.accept(a,fresh)
+    time+=61_000;await fixture.accept(a,q)
     const extra=await fixture.quote(a,{premium:'1000'});await assert.rejects(fixture.accept(a,extra),e=>e.status===429)
     assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'1000')
   }finally{await fixture.close()}
 })
 
-it('reservation expiry releases abandoned unsigned jobs but preserves active leases and durable transactions',async()=>{
+it('paid commitments do not expire while a worker is interrupted',async()=>{
   const fixture=await incentivesFixture(),a=account()
   try{
     const db=fixture.database;await fixture.seed(a.address)
     const quote=await fixture.quote(a,{premium:'1000'}),{id}=await fixture.accept(a,quote)
     await db.execution.claim(a.address,'interrupted')
-    await db.query("UPDATE saffron_incentives.budget_reservations SET expires_at=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[id])
-    await db.execution.expireQueued()
-    assert.equal((await db.getIntent(id)).state,'running')
-    assert.equal((await db.getIntent(id)).cancel_requested,false,'an active lease is not cancelled by expiry')
-    await assert.rejects(db.execution.authorizeStep(id,'interrupted'),/reservation expired/)
-    const transaction={chainId:4663,type:'legacy',nonce:0,to:a.address,value:0n,gas:21000n,gasPrice:1n}
-    const raw=await a.signTransaction(transaction),saved={requestId:id,owner:'interrupted',step:'create-adapter',resumeVersion:0,signer:a.address,nonce:0,hash:keccak256(raw),raw,
-      transaction:JSON.parse(JSON.stringify(transaction,(_,value)=>typeof value==='bigint'?value.toString():value))}
-    await assert.rejects(db.execution.saveTransaction(saved),/reservation expired/)
+    await db.query("UPDATE saffron_incentives.budget_reservations SET expires_at=NOW()-INTERVAL '1 day' WHERE intent_id=$1",[id])
+    await db.execution.expireQueued();await db.execution.authorizeStep(id,'interrupted')
     await db.query("UPDATE saffron_incentives.vault_jobs SET lease_until=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[id])
-    assert.equal(await db.execution.claim(a.address,'restarted'),null,'expired unsigned work cannot be reclaimed before cleanup')
-    await Promise.all([db.execution.expireQueued(),db.execution.expireQueued()])
-    assert.equal((await db.getIntent(id)).state,'retired')
-    assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'0')
-    assert.equal((await fixture.accept(a,quote)).id,id,'replay cannot revive the expired commitment')
-
-    const signed=(await fixture.accept(a,await fixture.quote(a,{premium:'1000'}))).id
-    await db.execution.claim(a.address,'signed')
-    await db.execution.saveTransaction({...saved,requestId:signed,owner:'signed'})
-    await db.query("UPDATE saffron_incentives.budget_reservations SET expires_at=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[signed])
-    await db.query("UPDATE saffron_incentives.vault_jobs SET lease_until=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[signed])
-    await db.execution.expireQueued()
-    assert.equal((await db.getIntent(signed)).state,'running')
-    assert.equal((await db.execution.claim(a.address,'reconcile')).id,signed)
-    await db.execution.authorizeStep(signed,'reconcile')
-    const audit=await db.auditBudget(program.budgetPoolId)
-    assert.equal(audit.valid,true);assert.equal(audit.budget.reservedRaw,'1000')
+    assert.equal((await db.execution.claim(a.address,'restarted')).id,id)
+    assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'1000')
+    assert.equal((await fixture.accept(a,quote)).id,id)
   }finally{await fixture.close()}
 })
 

@@ -12,9 +12,10 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
   const data=useDeployments(account,true)
   return <Stack><Row><StepTitle>Administration</StepTitle><QuietButton onClick={onBack}>Programs</QuietButton></Row>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!data.session?<Action disabled={data.busy} onClick={()=>void data.signIn()}>Sign in as operator</Action>:!data.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
-      <FinePrint>Worker {data.online?'online':'offline'} · {data.rows.length} deployments on this page. User authorization queues creation automatically.</FinePrint>
+      <FinePrint>Worker {data.online?'online':'offline'} · {data.rows.length} deployments on this page. Confirmed $2 ETH payments queue creation automatically. Premium funding is managed externally.</FinePrint>
       {data.operatorStatus&&<FinePrint>Worker gas: {data.operatorStatus.gasBalanceRaw===null?'unavailable':formatUnits(BigInt(data.operatorStatus.gasBalanceRaw),18)+' ETH'} · {data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
+      <PaymentAttention account={account}/>
       <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
       {data.rows.map(row=><AdminVault key={row.id} account={account} row={row} onUpdate={data.refresh}/>)}
       <DeploymentPagination data={data}/>
@@ -34,11 +35,10 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
     <FinePrint>Premium commitment: {formatUnits(BigInt(row.plan.premium),row.plan.variableDecimals)} {row.plan.variableSymbol}. Funding: {row.fundingState}.</FinePrint>
     {s?.verified&&<FinePrint>Variable funded: {formatUnits(BigInt(s.variableSupply),s.variableDecimals)} / {formatUnits(BigInt(s.variableCapacity),s.variableDecimals)} {s.variableSymbol}.</FinePrint>}
     {row.error&&<FinePrint>{row.error} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
+    {row.plan.vault&&<FinePrint>Fund externally using variable-side deposit into {row.plan.vault}. Token: {row.snapshot.variableAssetAddress}. Required total: {row.plan.premium} raw units. Plain token transfers do not count.</FinePrint>}
     <Row style={{flexWrap:'wrap'}}>
-      {row.workerState==='created'&&s?.verified&&!s.isStarted&&!row.cancelRequested&&BigInt(s.variableSupply)<BigInt(s.variableCapacity)&&<QuietButton disabled={busy||['queued','running','waiting'].includes(row.fundingState)} onClick={()=>void run('fund')}>Approve premium funding</QuietButton>}
       {(row.workerState==='failed'||['failed','waiting'].includes(row.fundingState)||row.error)&&row.workerState!=='retired'&&<QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton>}
-      {row.workerState!=='retired'&&(!row.plan.vault||(s?.verified&&!s.isStarted&&BigInt(s.claimSupply)===0n))&&<QuietButton disabled={busy} onClick={()=>void run('retire')}>Recover unused funding and retire</QuietButton>}
-      {s?.isStarted&&Number(s.blockTimestamp)>Number(s.endTime)&&BigInt(s.fundingBearerBalance)>0n&&<QuietButton disabled={busy} onClick={()=>void run('collect')}>Collect variable-side fees</QuietButton>}
+      {row.workerState!=='retired'&&(!row.plan.vault||(s?.verified&&!s.isStarted&&BigInt(s.claimSupply)===0n))&&<QuietButton disabled={busy} onClick={()=>void run('retire')}>Verify external recovery and retire</QuietButton>}
     </Row>
     {s?.verified&&!s.isStarted&&BigInt(s.claimSupply)>0n&&<FinePrint>The fixed-position owner must recover their LP assets before this vault can be retired.</FinePrint>}
     <Disclosure><summary>Transaction journal and recovery</summary>
@@ -50,4 +50,18 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
     </Disclosure>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
   </Stack>
+}
+
+/** Confirmed fees needing external resolution stay visible, with no funding or
+ * automatic-refund authority exposed by this application. */
+function PaymentAttention({account}:{account:Address}){
+  const [rows,setRows]=useState<any[]|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
+  async function load(){setBusy(true);try{setRows((await authedJson(account,'/admin/payments')).payments);setError('')}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  return <Disclosure><summary>Creation payments requiring attention</summary>
+    <FinePrint>Confirmed payments blocked by late mining, changed policy or admission limits are retained. Resolve externally; do not ask the user to pay again.</FinePrint>
+    <QuietButton disabled={busy} onClick={()=>void load()}>Check payment exceptions</QuietButton>
+    {rows?.length===0&&<FinePrint>No recorded payment exceptions.</FinePrint>}
+    {rows?.map(row=><FinePrint key={row.hash} style={{overflowWrap:'anywhere'}}>Quote {row.quote_id} · wallet {row.wallet}. {row.error} <a href={'https://robinhoodchain.blockscout.com/tx/'+row.hash} target='_blank' rel='noreferrer'>Payment transaction ↗</a></FinePrint>)}
+    {error&&<ErrorText role='alert'>{error}</ErrorText>}
+  </Disclosure>
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { decodeEventLog, decodeFunctionResult, encodeAbiParameters, encodeFunctionData, keccak256 } from 'viem'
+import { decodeEventLog, decodeFunctionResult, encodeFunctionData, keccak256 } from 'viem'
 import { abi, CHAIN_ID, FACTORY, sameAddress } from '../shared/vault-lifecycle.mjs'
+import { verifyPayment } from '../server/payment-proof.mjs'
 import { digest } from '../shared/incentives.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
 export { resolvePlan } from '../shared/deployment-plan.mjs'
@@ -60,6 +61,13 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
           }
         }
         if (!tx) {
+          // Revalidate the payer's canonical receipt before each new gas spend.
+          // Existing signed transactions still reconcile even if the fee reorgs.
+          const quote=await database.quote(job.quote_id)
+          const proof=(await database.query('SELECT hash FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[job.quote_id])).rows[0]
+          if(!proof)throw new ConfirmedFailure('Creation payment is missing.')
+          const payment=await verifyPayment(quote,proof.hash,null,rpc,{confirmations:config.confirmations,checkCapability:false})
+          if(payment.late)throw new ConfirmedFailure('Creation payment was late; operator resolution is required.')
           await database.execution.authorizeStep(job.intent_id,owner,{allowRetirement:job.operation==='retire'})
           // Verify current factory/type identity again before signing a new step.
           const code = await rpc('eth_getCode',[FACTORY,'latest'])
@@ -115,13 +123,7 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         if(plan.vault && await read(rpc,plan.vault,'initialized')) {
           let snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
           if(snapshot.isStarted||BigInt(snapshot.claimSupply)>0n)throw new ConfirmedFailure('The fixed position must be empty and the vault unstarted before retirement.')
-          if(BigInt(snapshot.variableSupply)>0n){
-            const bearer=await read(rpc,plan.vault,'variableBearerToken')
-            const owned=await read(rpc,bearer,'balanceOf',[account.address])
-            if(owned!==BigInt(snapshot.variableSupply))throw new ConfirmedFailure('The funding wallet must recover all variable bearer tokens before retirement.')
-            await transact('retire-premium',plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
-            snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
-          }
+          if(BigInt(snapshot.variableSupply)>0n)throw new ConfirmedFailure('External funding must be recovered by its owner before retiring this vault.')
           if(snapshot.isStarted||BigInt(snapshot.claimSupply)!==0n||BigInt(snapshot.variableSupply)!==0n)throw new Waiting('Recovery is not yet confirmed.')
           evidence={...evidence,blockNumber:snapshot.blockNumber,blockHash:snapshot.blockHash,vault:plan.vault}
         }
@@ -131,15 +133,6 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         evidence.transactionHashes=(await database.execution.transactions(job.intent_id)).map(tx=>tx.hash)
         await database.execution.retire(job.intent_id,owner,evidence)
         return {state:'retired',deploymentId:job.intent_id}
-      }
-      if(job.operation==='collect'){
-        const snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
-        const end=await read(rpc,plan.vault,'endTime')
-        if(!snapshot.isStarted||BigInt(snapshot.blockTimestamp)<=end)throw new ConfirmedFailure('Variable fees are available only after maturity.')
-        await transact('collect-variable',plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
-        await database.execution.saveObservation(job.intent_id,await readVault(job,rpc,{confirmations:config.confirmations}))
-        await database.execution.setState(job.intent_id,owner,'created','collected')
-        return {state:'collected',deploymentId:job.intent_id}
       }
       if (job.operation === 'create') {
         const adapterReceipt = await transact('create-adapter', FACTORY, encodeFunctionData({ abi, functionName: 'createAdapter', args: [BigInt(plan.adapterTypeId), job.snapshot.poolAddress, '0x'] }))
@@ -158,36 +151,7 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         await database.execution.markCreated(job.intent_id, owner, snapshot)
         return { state: 'created', requestId: job.intent_id }
       }
-      // Finish reconciling earlier funding broadcasts even if somebody else
-      // filled capacity meanwhile. Never abandon an unresolved signed spend.
-      for (const previous of (await database.execution.transactions(job.intent_id)).filter(tx=>/^(reset|approve|fund)-premium-/.test(tx.step))) {
-        if(await receiptFor(previous))continue
-        await guard()
-        const used=BigInt(await rpc('eth_getTransactionCount',[account.address,'latest']))
-        if(used>BigInt(previous.nonce))throw new Waiting('Saved funding transaction outcome is unknown.')
-        try{await rpc('eth_sendRawTransaction',[previous.raw_tx])}catch{}
-        if(!await receiptFor(previous))throw new Waiting('Waiting for the saved funding transaction.')
-      }
-      // Premium funding is a distinct, separately approved job stage.
-      const snapshot = await readVault(job, rpc, { confirmations: config.confirmations })
-      if (BigInt(plan.premium) > BigInt(job.funding_max_raw ?? 0) || BigInt(plan.premium) > BigInt(config.maxPremiumRaw)) throw new ConfirmedFailure('Premium funding is not approved within budget.')
-      const remaining = BigInt(snapshot.variableCapacity) - BigInt(snapshot.variableSupply)
-      if (remaining > 0n && !snapshot.isStarted) {
-        const asset = job.snapshot.variableAssetAddress
-        const allowance = await read(rpc, asset, 'allowance', [account.address, plan.vault])
-        if (allowance < remaining) {
-          // Reset nonzero allowance for ERC-20s that require zero-before-change.
-          if (allowance > 0n) await transact('reset-premium-' + job.funding_round, asset, encodeFunctionData({ abi, functionName: 'approve', args: [plan.vault,0n] }))
-          await transact('approve-premium-' + job.funding_round, asset, encodeFunctionData({ abi, functionName: 'approve', args: [plan.vault,remaining] }))
-        }
-        const minimum = encodeAbiParameters([{type:'uint256'}],[remaining])
-        await transact('fund-premium-' + job.funding_round, plan.vault, encodeFunctionData({ abi, functionName:'deposit',args:[remaining,1n,minimum] }))
-      }
-      const funded = await readVault(job, rpc, { confirmations: config.confirmations })
-      if (!funded.isStarted && (BigInt(funded.variableSupply) !== BigInt(funded.variableCapacity) || BigInt(funded.variableBalance) < BigInt(funded.variableCapacity))) throw new ConfirmedFailure('Funding changed; fresh admin review is required.')
-      await database.execution.saveObservation(job.intent_id, funded)
-      await database.execution.setState(job.intent_id, owner, 'created', 'funded')
-      return { state: 'funded', requestId: job.intent_id }
+      throw new ConfirmedFailure('This worker only creates and retires vaults. Premium custody is external.')
     } catch (error) {
       if (job) {
         const waiting = error instanceof Waiting || !(error instanceof ConfirmedFailure)

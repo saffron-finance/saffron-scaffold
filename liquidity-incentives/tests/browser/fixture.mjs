@@ -43,7 +43,7 @@ export async function setup(page,{admin=false,wrap=false}={}){
   const conn=store.connection
   const child=spawn(process.execPath,['--import','./tests/clock-env.mjs','server/proxy.mjs'],{windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...process.env,NODE_ENV:'test',SAFFRON_TEST_CLOCK_FILE:clockFile,
     SAFFRON_API_DISABLED:'',PORT:String(port),BASE_PATH:'',RPC_ROBINHOOD:chain.url,SAFFRON_APP_ORIGIN:origin,SAFFRON_PROTOCOL_CONFIG:protocolFile,
-    PRICE_API_ROOT:'http://127.0.0.1:'+price.address().port,SAFFRON_ADMIN_WALLETS:admin?account.address:chain.account.address,
+    SAFFRON_CREATION_FEE_RECIPIENT:chain.account.address,PRICE_API_ROOT:'http://127.0.0.1:'+price.address().port,SAFFRON_ADMIN_WALLETS:admin?account.address:chain.account.address,
     PGHOST:conn.host,PGPORT:String(conn.port),PGUSER:conn.user,PGPASSWORD:conn.password,PGDATABASE:conn.database}})
   cleanup.push(async()=>{if(child.exitCode===null){child.kill();await once(child,'exit')}})
   let output='';child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})

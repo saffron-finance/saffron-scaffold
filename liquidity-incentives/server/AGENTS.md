@@ -12,7 +12,7 @@ root `AGENTS.md`.
   RPC URLs from server-side environment variables or the ignored local `.env`;
   never return, log, embed, or commit them.
 - User LP approvals and transactions belong in the browser's injected wallet.
-  The API stores verified deployment intents and separate operator funding/recovery
+  The API stores verified ETH-payment-backed deployment intents and operator recovery
   authorizations as durable PostgreSQL jobs. Signer custody belongs to the separate
   worker. HTTP handlers must never hold a key, sign, broadcast, trace or spawn it.
 
@@ -41,7 +41,7 @@ root `AGENTS.md`.
 ## Implementation rules
 
 - Node built-ins handle HTTP/static/proxy boundaries; pg and viem provide real
-  database transactions, signature verification and protocol reads.
+  database transactions, payment verification, operator-only signature authentication and protocol reads.
 - Separate static serving, RPC validation, and upstream forwarding logic when
   extending the server so each boundary remains reviewable.
 - Timeouts, cancellation, or rate limiting should fail closed and must not

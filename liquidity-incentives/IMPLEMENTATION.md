@@ -1,3 +1,8 @@
+> **Current specification (2026-09-10):** [CAMPAIGNS.md](CAMPAIGNS.md) supersedes
+> the historical fee-free/signature and worker-funding design below. Current code
+> uses a $2 native ETH payment, USD campaign accounting and external premium funding.
+> The stage results below describe their original commits, not later validation.
+
 # Independent incentives application: implementation record
 
 This document records the application scope, implementation stages and validation.
@@ -106,3 +111,25 @@ database and exact origin; verify protocol hashes; provision a protected signer,
 gas and reward assets; and allocate campaign budgets. Production activation is a
 separate operator release step. The implemented user and operator flows are covered
 by the checks above.
+
+## 2026-09-10: externally funded USD campaigns and native ETH-paid creation
+
+- Campaign form resolves budget, target fixed capacity or APR from the other two
+  plus duration; exact integer-cent accounting locks and consumes both limits.
+- Canonical $2 native ETH payment replaces public-user message/EIP-712 signatures.
+  Exact quote binding, private-capability recovery, receipt replay protection and
+  per-step worker fee revalidation are covered. Operator login stays separate.
+- Removed worker premium funding/collection and their UI/API approval controls.
+  External variable deposits update funded budget/capacity; actual LP entry is
+  tracked separately. Paid reservations never auto-expire; claim/maturity do not
+  replenish spending.
+- Normal build/typecheck and lab build pass. 16 unit, 15 database/API, 10 local-EVM
+  lifecycle and 11 normal browser tests pass; lab layout test and disposable
+  full-stack demo smoke also pass. Tests include a separate treasury wallet,
+  orphaned creation payment, response loss and exact half-campaign accounting.
+- The first browser run exposed an outdated Back-button selector; updated it and
+  reran the complete normal browser suite successfully. No runtime failure remains
+  from that run. Normal production assets are restored after lab validation.
+- The existing large-bundle Vite advisory remains; no dependencies were added.
+  No live deployment, treasury transaction, shared-database migration or fixed-income
+  integration was performed. Fee recipient is a required public deployment setting.

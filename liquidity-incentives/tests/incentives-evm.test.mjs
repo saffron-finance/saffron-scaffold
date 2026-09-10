@@ -12,13 +12,13 @@ async function fixture(){
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
   await store.seed(chain.account.address,10n**30n+'')
   await db.execution.heartbeat(chain.account.address)
-  const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,origin:ORIGIN})
-  async function accept(){return store.accept(chain.account,await service.quote(chain.account.address,'cashcat-3d','100'))}
+  const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:ORIGIN})
+  async function accept(){return chain.accept(service)}
   const options={database:db,rpc:chain.rpc,account:chain.account,config:chain.config}
   return {chain,store,db,service,accept,options,close:async()=>{await store.close();await chain.close()}}
 }
 
-it('signed intent creates once, separately funds, gates fixed entry, and retains cumulative premium after claim', {timeout:120000},async()=>{
+it('ETH-paid request creates once, externally funds, gates fixed entry, and retains cumulative premium after claim', {timeout:120000},async()=>{
   const f=await fixture(),{db,chain,service}=f
   try{
     const accepted=await f.accept(),id=accepted.id
@@ -38,8 +38,8 @@ it('signed intent creates once, separately funds, gates fixed entry, and retains
     await chain.send(vault,encodeFunctionData({abi,functionName:'deposit',args:[premium-1n,1n,'0x']}))
     row=await service.detail(id,chain.account.address)
     assert.equal(row.depositable,false,'one raw unit short cannot enter')
-    await service.fund(id,chain.account.address,row.planHash,row.plan.premium)
-    assert.equal((await worker.tick()).state,'funded')
+    await chain.fund(row)
+    assert.equal((await worker.tick()).state,'idle')
     row=await service.detail(id,chain.account.address)
     assert.equal(row.depositable,true)
     const funded=chain.broadcasts
@@ -49,8 +49,8 @@ it('signed intent creates once, separately funds, gates fixed entry, and retains
     // Pre-start withdrawal reverses readiness without releasing the obligation.
     await chain.send(vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
     row=await service.detail(id,chain.account.address);assert.equal(row.depositable,false)
-    await service.fund(id,chain.account.address,row.planHash,row.plan.premium)
-    assert.equal((await worker.tick()).state,'funded')
+    await chain.fund(row)
+    assert.equal((await worker.tick()).state,'idle')
     const ctx=await service.context(id,chain.account.address),s=ctx.snapshot
     assert.equal(eligibility(s).depositable,true)
     const amounts=amountsForLiquidity(s.liquidity,s.sqrtPrice,s.minTick,s.maxTick)
@@ -73,7 +73,7 @@ it('unknown receipt survives restart; retry delay permits unrelated work without
   try{
     const id=(await f.accept()).id
     let hide=true
-    const rpc=(method,params)=>method==='eth_getTransactionReceipt'&&hide?Promise.resolve(null):chain.rpc(method,params)
+    const rpc=async(method,params)=>method==='eth_getTransactionReceipt'&&hide&&(await db.query('SELECT 1 FROM saffron_incentives.chain_operations WHERE hash=$1',[params[0]])).rowCount?Promise.resolve(null):chain.rpc(method,params)
     assert.equal((await createCreator({...f.options,rpc}).tick()).state,'waiting')
     const tx=await db.execution.lastTransaction(id,'create-adapter')
     assert.equal(chain.broadcasts,1)
@@ -101,12 +101,14 @@ it('pause prevents new signing; retirement reconciles and recovers unused fundin
     await db.query('UPDATE saffron_incentives.vault_jobs SET next_attempt_at=NOW()')
     assert.equal((await worker.tick()).state,'created')
     let row=await service.detail(id,chain.account.address)
-    await service.fund(id,chain.account.address,row.planHash,row.plan.premium)
-    assert.equal((await worker.tick()).state,'funded')
+    await chain.fund(row)
+    assert.equal((await worker.tick()).state,'idle')
+    row=await service.detail(id,chain.account.address)
     const checkpoint=await chain.raw('evm_snapshot')
     await db.cancelDeployment(id,chain.account.address)
     assert.notEqual((await db.catalog(true)).budgets[0].allocatedRaw,'0')
     await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
+    await chain.send(row.plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
     assert.equal((await worker.tick()).state,'retired')
     row=await service.detail(id,chain.account.address);assert.equal(row.state,'retired')
     assert.equal(row.observation.variableSupply,'0')
@@ -120,8 +122,48 @@ it('pause prevents new signing; retirement reconciles and recovers unused fundin
     assert.equal((await db.catalog(true)).budgets[0].reconciliationRequired,true)
     await service.reconcileBudget(budget.id,chain.account.address)
     assert.equal((await db.catalog(true)).budgets[0].reservedRaw,row.plan.premium)
+    await chain.send(row.plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
     assert.equal((await worker.tick()).state,'retired')
     assert.equal((await db.auditBudget(budget.id)).valid,true)
     assert.equal((await db.catalog(true)).budgets[0].reservedRaw,'0')
+  }finally{await f.close()}
+})
+
+it('a distinct external treasury funds a USD campaign without worker custody and consumes matching capacity',{timeout:120000},async()=>{
+  const f=await fixture(),{chain,db,service}=f
+  try{
+    await db.saveCampaign({id:'usd-campaign',name:'USD campaign',pairId:'cashcat-eth',days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},chain.account.address)
+    const {id}=await chain.accept(service,'usd-campaign','500000')
+    assert.equal((await createCreator(f.options).tick()).state,'created')
+    const row=await service.detail(id,chain.account.address),amount=BigInt(row.plan.premium)
+    const {generatePrivateKey,privateKeyToAccount}=await import('viem/accounts')
+    const {createWalletClient,http,toHex}=await import('viem')
+    const treasury=privateKeyToAccount(generatePrivateKey()),wallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
+    await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**19n)])
+    await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,amount]}))
+    for(const [to,data]of [[CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[row.plan.vault,amount]})],
+      [row.plan.vault,encodeFunctionData({abi,functionName:'deposit',args:[amount,1n,'0x']})]]){
+      const hash=await wallet.sendTransaction({to,data});await chain.client.waitForTransactionReceipt({hash});await chain.raw('evm_mine')
+    }
+    const ready=await service.detail(id,chain.account.address),a=(await db.catalog(true)).budgets.find(b=>b.id==='usd-campaign').accounting
+    assert.equal(ready.depositable,true);assert.equal(ready.observation.fundingBearerBalance,'0','the creator holds no treasury bearer rights')
+    assert.equal(a.fundedBudgetCents,'500000');assert.equal(a.availableBudgetCents,'500000')
+    assert.equal(a.fundedCapacityCents,'50000000');assert.equal(a.availableCapacityCents,'50000000');assert.equal(a.fixedDepositedCents,'0')
+    assert.equal(chain.broadcasts,3,'only adapter, vault and initialization use worker signing')
+    await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
+    assert.equal((await createCreator(f.options).tick()).state,'failed','the creator cannot withdraw the external treasury deposit')
+    assert.equal((await db.catalog(true)).budgets.find(b=>b.id==='usd-campaign').accounting.fundedBudgetCents,'500000')
+  }finally{await f.close()}
+})
+
+it('an orphaned creation payment cannot authorize a new worker transaction or release its reservation',{timeout:120000},async()=>{
+  const f=await fixture()
+  try{
+    const before=await f.chain.raw('evm_snapshot'),{id}=await f.accept()
+    await f.chain.raw('evm_revert',[before])
+    assert.equal((await createCreator(f.options).tick()).state,'waiting')
+    assert.equal(f.chain.broadcasts,0)
+    assert.notEqual((await f.db.catalog(true)).budgets[0].reservedRaw,'0')
+    assert.equal((await f.db.execution.transactions(id)).length,0)
   }finally{await f.close()}
 })

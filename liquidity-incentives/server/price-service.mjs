@@ -1,11 +1,11 @@
 import { parseUnits } from 'viem'
-import { sameAddress,CHAIN_ID } from '../shared/vault-lifecycle.mjs'
+import { WETH,sameAddress,CHAIN_ID } from '../shared/vault-lifecycle.mjs'
 
 /** Explicit external USD provider. Only catalog quote assets may be queried. */
 export function createPriceService({database,root,now=Date.now}){
   const cache=new Map(),pending=new Map()
   async function payload(address){
-    const token=await database?.quoteToken(address)
+    const token=address.toLowerCase()===WETH.toLowerCase()?{address:WETH.toLowerCase(),symbol:'ETH',decimals:18}:await database?.quoteToken(address)
     if(!token||!root)throw new Error('Pricing is not configured for this token.')
     const cached=cache.get(token.address)
     if(cached&&now()-cached.at<5000)return cached.value

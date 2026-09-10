@@ -3,13 +3,14 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
-import { verifyTypedData } from 'viem'
+import { proofHash } from './payment-proof.mjs'
+import { campaignTerms,campaignPremiumCents } from '../shared/campaign.mjs'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
-  digest, deploymentTypedData, snapshotFor, jsonSafe, fault } from '../shared/incentives.mjs'
+  digest, snapshotFor, jsonSafe, fault, UINT256_MAX, cents } from '../shared/incentives.mjs'
 
 const schema = 'saffron_incentives'
 const conflict = () => fault(409, 'This row changed. Refresh before saving.')
-const asBudget = row => ({ id: row.id, revision: row.revision, name: row.name, chainId: row.chain_id, rewardAsset: row.reward_asset,
+const asBudget = row => ({ campaign:row.campaign??null, id: row.id, revision: row.revision, name: row.name, chainId: row.chain_id, rewardAsset: row.reward_asset,
   decimals: row.decimals, limitRaw: row.limit_raw, reservedRaw: row.reserved_raw, allocatedRaw: row.allocated_raw,
   availableRaw: (BigInt(row.limit_raw) - BigInt(row.reserved_raw) - BigInt(row.allocated_raw)).toString(),
   paused: row.paused, reconciliationRequired: row.reconciliation_required })
@@ -63,8 +64,47 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       j.resume_version,j.funding_round,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id
       FROM ${schema}.deployment_intents i JOIN ${schema}.vault_jobs j ON j.intent_id=i.id WHERE i.id=$1`, [id])).rows[0] ?? null
   }
+  /** Derive USD and fixed-side accounting from immutable accepted terms.
+   * Reservations and funded capacity are separate; actual LP entry is not inferred
+   * from a premium payment. Quote holds protect a wallet while it pays the fee.
+   */
+  async function campaignAccounting(client,budget,excludeQuote=null){
+    if(!budget.campaign)return null
+    const terms=budget.campaign
+    const rows=(await client.query(`SELECT i.snapshot,i.accepted_plan,r.*,
+      o.snapshot AS observation FROM ${schema}.budget_reservations r
+      JOIN ${schema}.deployment_intents i ON i.id=r.intent_id
+      LEFT JOIN ${schema}.vault_observations o ON o.intent_id=i.id
+      WHERE r.budget_pool_id=$1 AND r.released_raw<r.premium_raw`,[budget.id])).rows
+    let committed=0n,funded=0n,spent=0n,fundedBudget=0n,deposited=0n
+    for(const row of rows){
+      const principal=BigInt(row.snapshot.fixedCapacityAmount)
+      const premium=BigInt(row.accepted_plan.premiumCents??campaignPremiumCents(terms,principal))
+      committed+=principal;spent+=premium
+      funded+=principal*BigInt(row.allocated_raw)/BigInt(row.premium_raw)
+      fundedBudget+=premium*BigInt(row.allocated_raw)/BigInt(row.premium_raw)
+      if(row.observation?.verified&&(row.observation.isStarted||BigInt(row.observation.claimSupply??0)>0n))deposited+=principal
+    }
+    const holds=(await client.query(`SELECT q.body FROM ${schema}.deployment_quotes q
+      WHERE q.budget_pool_id=$1 AND ($2::uuid IS NULL OR q.id<>$2)
+      AND COALESCE((q.body->>'withdrawn')::boolean,FALSE)=FALSE
+      AND (q.expires_at>$3 OR EXISTS(SELECT 1 FROM ${schema}.payment_proofs p WHERE p.quote_id=q.id AND p.state<>'refunded'))
+      AND NOT EXISTS(SELECT 1 FROM ${schema}.deployment_intents i WHERE i.quote_id=q.id)`,[budget.id,excludeQuote,new Date(now())])).rows
+    let held=0n,heldBudget=0n
+    for(const {body} of holds){held+=BigInt(body.principalCents);heldBudget+=BigInt(body.plan.premiumCents??campaignPremiumCents(terms,body.principalCents))}
+    return {budgetCents:terms.budgetCents,targetCapacityCents:terms.capacityCents,
+      fundedBudgetCents:fundedBudget.toString(),reservedBudgetCents:(spent-fundedBudget).toString(),heldBudgetCents:heldBudget.toString(),
+      fundedCapacityCents:funded.toString(),reservedCapacityCents:(committed-funded).toString(),heldCapacityCents:held.toString(),
+      availableBudgetCents:(BigInt(terms.budgetCents)-spent-heldBudget).toString(),
+      availableCapacityCents:(BigInt(terms.capacityCents)-committed-held).toString(),fixedDepositedCents:deposited.toString()}
+  }
+  async function requireCapacity(client,budget,principal,premium,excludeQuote=null){
+    const accounting=await campaignAccounting(client,budget,excludeQuote)
+    if(accounting&&(BigInt(principal)>BigInt(accounting.availableCapacityCents)||BigInt(premium)>BigInt(accounting.availableBudgetCents)))
+      throw fault(409,'Campaign budget or fixed-side capacity is exhausted. Existing payment records are retained.')
+  }
   const db = {
-    pool, get ready(){return ready()}, query, transaction, lockBudget, entry, getIntent, now,
+    pool, get ready(){return ready()}, query, transaction, lockBudget, entry, getIntent, now, campaignAccounting,
     close: () => {
       closing=true
       return closed??=(async()=>{try{await initializing}catch{}await pool.end()})()
@@ -74,11 +114,11 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
         const pairs = (await client.query(`SELECT body FROM ${schema}.pairs ORDER BY id`)).rows.map(row => row.body)
         const programs = (await client.query(`SELECT body FROM ${schema}.programs ORDER BY (body->>'sortOrder')::int,id`)).rows.map(row => row.body)
-        const budgets = (await client.query(`SELECT * FROM ${schema}.budget_pools ORDER BY id`)).rows.map(asBudget)
+        const budgets = await Promise.all((await client.query(`SELECT * FROM ${schema}.budget_pools ORDER BY id`)).rows.map(async row=>({...asBudget(row),accounting:await campaignAccounting(client,row)})))
         if (admin) return { pairs, programs, budgets }
         const offers = programs.filter(p => p.active).flatMap(p => {
           const pair = pairs.find(row => row.id === p.pairId && row.active), budget = budgets.find(row => row.id === p.budgetPoolId)
-          return pair && budget ? [{ ...pair, ...p, pairId: pair.id, pairRevision: pair.revision, capacityUsd: Number(p.maximumCents) / 100, budget }] : []
+          return pair && budget ? [{ ...pair, ...p, pairId: pair.id, pairRevision: pair.revision, days:budget.campaign?.days??p.days,apr:budget.campaign?Number(budget.campaign.aprPercent):p.apr,capacityUsd: Number(p.maximumCents) / 100, budget }] : []
         })
         return { offers }
       })
@@ -113,15 +153,39 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         const previous = value.revision ? await lockBudget(client,value.id) : null
         if (previous && (previous.revision !== value.revision || previous.reward_asset !== value.rewardAsset || previous.decimals !== value.decimals)) throw conflict()
         if (previous && BigInt(value.limitRaw) < BigInt(previous.reserved_raw) + BigInt(previous.allocated_raw)) throw fault(409, 'The limit cannot be lower than committed premiums.')
-        const values = [value.id,value.name,value.rewardAsset,value.decimals,value.limitRaw,value.paused,actor]
+        if(previous&&digest(previous.campaign??null)!==digest(value.campaign)){
+          const committed=await client.query(`SELECT 1 FROM ${schema}.deployment_quotes WHERE budget_pool_id=$1 LIMIT 1`,[value.id])
+          if(committed.rowCount)throw fault(409,'Campaign economics are frozen after the first quote. Create a new campaign to change budget, capacity or APR.')
+        }
+        const values = [value.id,value.name,value.rewardAsset,value.decimals,value.limitRaw,value.paused,actor,value.campaign]
         const result = previous
-          ? await client.query(`UPDATE ${schema}.budget_pools SET name=$2,reward_asset=$3,decimals=$4,limit_raw=$5,paused=$6,revision=revision+1,updated_by=$7,updated_at=NOW() WHERE id=$1 RETURNING *`, values)
-          : await client.query(`INSERT INTO ${schema}.budget_pools (id,revision,name,chain_id,reward_asset,decimals,limit_raw,paused,updated_by)
-              VALUES ($1,1,$2,4663,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING *`, values)
+          ? await client.query(`UPDATE ${schema}.budget_pools SET name=$2,reward_asset=$3,decimals=$4,limit_raw=$5,paused=$6,campaign=$8,revision=revision+1,updated_by=$7,updated_at=NOW() WHERE id=$1 RETURNING *`, values)
+          : await client.query(`INSERT INTO ${schema}.budget_pools (id,revision,name,chain_id,reward_asset,decimals,limit_raw,paused,updated_by,campaign)
+              VALUES ($1,1,$2,4663,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING *`, values)
         if (!result.rowCount) throw conflict()
         await entry(client,{ key: `budget:${value.id}:${result.rows[0].revision}`, budgetId: value.id, kind: 'adjust-limit',
-          limit: BigInt(value.limitRaw) - BigInt(previous?.limit_raw ?? '0'), actor, evidence: { name:value.name,paused:value.paused,revision:result.rows[0].revision } })
+          limit: BigInt(value.limitRaw) - BigInt(previous?.limit_raw ?? '0'), actor, evidence: { name:value.name,paused:value.paused,revision:result.rows[0].revision,campaign:value.campaign } })
         return asBudget(result.rows[0])
+      })
+    },
+    /** Create campaign economics and its offer together, before admitting payments. */
+    async saveCampaign(input,actor){
+      let campaign
+      try{campaign=campaignTerms(input)}catch(error){throw fault(400,error.message)}
+      return transaction(async client=>{
+        const pair=(await client.query(`SELECT body FROM ${schema}.pairs WHERE id=$1 FOR SHARE`,[input.pairId])).rows[0]?.body
+        if(!pair)throw fault(400,'Choose a configured pair.')
+        const budget=normalizeBudget({id:input.id,revision:0,name:input.name,chainId:4663,rewardAsset:pair.token0.address,decimals:pair.token0.decimals,
+          limitRaw:UINT256_MAX.toString(),paused:!input.active,campaign})
+        const program=normalizeProgram({id:input.id,revision:0,pairId:pair.id,budgetPoolId:budget.id,apr:Number(Number(campaign.aprPercent).toFixed(2)),days:campaign.days,
+          minimumCents:cents(input.minimumUsd??'1'),maximumCents:campaign.capacityCents,sortOrder:0,isNew:true,active:true})
+        const inserted=await client.query(`INSERT INTO ${schema}.budget_pools(id,revision,name,chain_id,reward_asset,decimals,limit_raw,paused,updated_by,campaign)
+          VALUES($1,1,$2,4663,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING id`,[budget.id,budget.name,budget.rewardAsset,budget.decimals,budget.limitRaw,budget.paused,actor,campaign])
+        if(!inserted.rowCount)throw fault(409,'Campaign ID already exists. Choose a new ID.')
+        await entry(client,{key:'budget:'+budget.id+':1',budgetId:budget.id,kind:'create-campaign',limit:budget.limitRaw,actor,evidence:{campaign}})
+        const body={...program,revision:1}
+        await client.query(`INSERT INTO ${schema}.programs(id,revision,pair_id,budget_pool_id,body,updated_by) VALUES($1,1,$2,$3,$4,$5)`,[program.id,pair.id,budget.id,body,actor])
+        return {campaign,budgetId:budget.id,program:body}
       })
     },
     async saveProgram(input, actor) {
@@ -139,57 +203,85 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         return result.rows[0].body
       })
     },
-    async putQuote({ offer, principalCents, wallet, origin, plan, signer }) {
+    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash }) {
       integer(principalCents,{positive:true}); integer(plan.premium,{positive:true}); integer(plan.liquidity,{positive:true})
       if (!validAddress(wallet) || !validAddress(signer) || new URL(origin).origin !== origin) throw fault(400,'Invalid deployment identity.')
       if (BigInt(principalCents)<BigInt(offer.minimumCents) || BigInt(principalCents)>BigInt(offer.maximumCents)) throw fault(400,'The amount is outside this program\'s vault size limits.')
       if (offer.budget.paused || offer.budget.reconciliationRequired || BigInt(plan.premium)>BigInt(offer.budget.availableRaw)) throw fault(409,'This program has insufficient available funding. Refresh offers.')
-      const expiresAt = new Date(Math.min(now()+quoteMs,plan.usdCheckedAt+60_000)).toISOString()
+      const expiresAt = new Date(Math.min(now()+quoteMs,plan.usdCheckedAt+60_000,fee?.checkedAt?fee.checkedAt+60_000:Infinity)).toISOString()
       if (Date.parse(expiresAt)<=now()) throw fault(409,'Prices expired. Request a fresh quote.')
       const snapshot = snapshotFor(offer,principalCents,wallet)
-      const body = jsonSafe({ id:randomUUID(),wallet:wallet.toLowerCase(),origin,programId:offer.id,programRevision:offer.revision,pairId:offer.pairId,
+      const body = jsonSafe({ fee,recoveryHash,paymentDeadline:expiresAt, id:randomUUID(),wallet:wallet.toLowerCase(),origin,programId:offer.id,programRevision:offer.revision,pairId:offer.pairId,
         pairRevision:offer.pairRevision,budgetPoolId:offer.budgetPoolId,budgetRevision:offer.budget.revision,principalCents,signer:signer.toLowerCase(),snapshot,plan,expiresAt })
       body.planHash = digest({snapshot,plan:body.plan,signer:body.signer,programRevision:body.programRevision,pairRevision:body.pairRevision,budgetRevision:body.budgetRevision})
       await transaction(async client => {
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-quote:'||$1,0))",[body.wallet])
+        const locked=await lockBudget(client,body.budgetPoolId)
+        if(locked.paused||locked.reconciliation_required||locked.revision!==body.budgetRevision)throw fault(409,'Campaign changed. Refresh before paying.')
+        await requireCapacity(client,locked,principalCents,plan.premiumCents??(locked.campaign?campaignPremiumCents(locked.campaign,principalCents):'0'))
         const recent = (await client.query(`SELECT count(*)::int AS count FROM ${schema}.deployment_quotes WHERE wallet=$1 AND created_at>$2`,[body.wallet,new Date(now()-300_000)])).rows[0].count
         if (recent>=30) throw fault(429,'Too many quotes. Retry in a few minutes.')
         await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [body.id,body.wallet,body.programId,body.budgetPoolId,body,body.expiresAt])
+          [body.id,body.wallet,body.programId,body.budgetPoolId,body,new Date(Date.parse(body.expiresAt)+(fee?15*60_000:0))])
       })
       return body
     },
     async quote(id) { return (await query(`SELECT body FROM ${schema}.deployment_quotes WHERE id=$1`,[id])).rows[0]?.body ?? null },
-    async acceptDeployment({ wallet, quoteId, signature, origin }) {
+    /** Release an abandoned unpaid hold using its private browser capability.
+     * A payment racing cancellation is retained for operator resolution, never
+     * silently admitted after its capacity was given to another request.
+     */
+    async withdrawQuote(id,secret){
+      const quote=await db.quote(id)
+      if(!quote||typeof secret!=='string'||proofHash(secret)!==quote.recoveryHash)throw fault(403,'Request recovery record is required.')
+      return transaction(async client=>{
+        await lockBudget(client,quote.budgetPoolId)
+        const paid=await client.query(`SELECT 1 FROM ${schema}.payment_proofs WHERE quote_id=$1`,[id])
+        if(paid.rowCount)throw fault(409,'This request has a payment. Recover it instead of discarding it.')
+        await client.query(`UPDATE ${schema}.deployment_quotes SET expires_at=$2,body=body||'{"withdrawn":true}'::jsonb WHERE id=$1`,[id,new Date(now())])
+        return {withdrawn:true}
+      })
+    },
+    /** Called only with canonical evidence from the payment verifier. */
+    async recordPayment(payment){
+      if(!payment?.verified)throw fault(400,'Verified payment evidence is required.')
+      const result=await query(`INSERT INTO ${schema}.payment_proofs(hash,quote_id,wallet,evidence)
+        VALUES($1,$2,$3,$4) ON CONFLICT(hash) DO UPDATE SET evidence=EXCLUDED.evidence
+        WHERE ${schema}.payment_proofs.quote_id=EXCLUDED.quote_id RETURNING hash`,[payment.hash,payment.quoteId,payment.wallet,payment])
+      if(!result.rowCount)throw fault(409,'That payment was already used for another request.')
+    },
+    async acceptDeployment({ wallet, quoteId, payment, origin }) {
       const quote = await db.quote(quoteId)
       if (!quote || quote.wallet!==wallet.toLowerCase() || quote.origin!==origin) throw fault(404,'Quote not found for this wallet.')
-      let verified=false
-      try { verified=await verifyTypedData({...deploymentTypedData(quote),address:quote.wallet,signature}) } catch {}
-      if (!verified) throw fault(401,'Invalid deployment authorization.')
+      if(!payment?.verified||payment.quoteId!==quoteId||payment.wallet!==quote.wallet||payment.planHash!==quote.planHash)throw fault(401,'A matching verified ETH payment is required.')
+      await db.recordPayment(payment)
       return transaction(async client => {
         // Serializes queue limits across wallets/pools, then locks exact budget accounting.
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-admission',0))")
         const budget = await lockBudget(client,quote.budgetPoolId)
         const accepted = (await client.query(`SELECT id FROM ${schema}.deployment_intents WHERE quote_id=$1`,[quoteId])).rows[0]
         if (accepted) return {id:accepted.id,replayed:true}
+        if(quote.withdrawn||payment.late)throw fault(409,'Payment requires operator resolution because the quote was withdrawn or paid late.')
         const program = (await client.query(`SELECT body FROM ${schema}.programs WHERE id=$1 FOR SHARE`,[quote.programId])).rows[0]?.body
         const pair = (await client.query(`SELECT body FROM ${schema}.pairs WHERE id=$1 FOR SHARE`,[quote.pairId])).rows[0]?.body
-        if (Date.parse(quote.expiresAt)<=now()) throw fault(409,'Quote expired. Review a fresh quote.')
+        // Payment was mined before its deadline; response delay cannot require another fee.
         if (!program?.active || !pair?.active || program.revision!==quote.programRevision || pair.revision!==quote.pairRevision
           || budget.revision!==quote.budgetRevision || budget.paused || budget.reconciliation_required) throw fault(409,'Program or funding policy changed. Review a fresh quote.')
         const counts=(await client.query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE wallet=$1)::int AS wallet
           FROM ${schema}.deployment_intents WHERE status NOT IN ('active','completed','retired')`,[quote.wallet])).rows[0]
         if(counts.total>=maxPending || counts.wallet>=maxPendingPerWallet) throw fault(429,'Deployment queue limit reached. Complete or cancel pending work first.')
+        await requireCapacity(client,budget,quote.principalCents,quote.plan.premiumCents??(budget.campaign?campaignPremiumCents(budget.campaign,quote.principalCents):'0'),quoteId)
         const premium=BigInt(quote.plan.premium)
         if (premium>BigInt(budget.limit_raw)-BigInt(budget.reserved_raw)-BigInt(budget.allocated_raw)) throw fault(409,'Funding capacity was taken by another deployment. Request a fresh quote.')
         const id=randomUUID()
         await client.query(`INSERT INTO ${schema}.deployment_intents (id,quote_id,wallet,budget_pool_id,signature,plan_hash,snapshot,accepted_plan)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,[id,quoteId,quote.wallet,quote.budgetPoolId,signature,quote.planHash,quote.snapshot,quote.plan])
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,[id,quoteId,quote.wallet,quote.budgetPoolId,null,quote.planHash,quote.snapshot,quote.plan])
         await client.query(`INSERT INTO ${schema}.budget_reservations (intent_id,budget_pool_id,premium_raw,reserved_raw,expires_at) VALUES ($1,$2,$3,$3,$4)`,
           [id,quote.budgetPoolId,premium.toString(),new Date(now()+reservationMs)])
         await client.query(`UPDATE ${schema}.budget_pools SET reserved_raw=reserved_raw+$2 WHERE id=$1`,[quote.budgetPoolId,premium.toString()])
         await entry(client,{key:`accept:${id}`,budgetId:quote.budgetPoolId,intentId:id,kind:'reserve',reserved:premium,actor:quote.wallet})
         await client.query(`INSERT INTO ${schema}.vault_jobs (intent_id,signer,factory,chain_id,plan) VALUES ($1,$2,$3,$4,$5)`,[id,quote.signer,FACTORY,CHAIN_ID,quote.plan])
+        await client.query(`UPDATE ${schema}.payment_proofs SET state='fulfilled',error=NULL WHERE quote_id=$1`,[quoteId])
         return {id,replayed:false}
       })
     },

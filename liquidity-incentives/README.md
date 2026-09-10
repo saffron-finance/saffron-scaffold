@@ -1,9 +1,9 @@
 # Saffron Scaffold — liquidity incentives
 
-An independent application for user-authorized Saffron LP vault deployment on
-Robinhood Chain (4663). Users select a program and exact USD size, authorize
-creation without a request fee, and enter the fixed side after an operator funds
-the premium. Deposit, claim, maturity and withdrawal stay in this interface.
+An independent application for campaign-budgeted Saffron LP vault deployment on
+Robinhood Chain (4663). Users select a campaign and USD size, pay $2 in native ETH
+for creation, and enter the fixed side after external operations funds the premium.
+There is no user sign-in message, EIP-712 authorization, or USDC payment option. Deposit, claim, maturity and withdrawal stay in this interface.
 The package owns its UI, API, sessions and database. The root scaffold application
 and its static Pages build remain separate.
 
@@ -46,13 +46,14 @@ boundary are substituted. No live wallet or RPC is used.
 
 1. Connect **Uniswap Extension** in the demo. This generated wallet is also the
    demo operator; the worker uses a separate generated EOA.
-2. Select a program and USD size, then authorize deployment. The worker creates
+2. Select a program and USD size, then pay the quoted $2 in test ETH. The worker creates
    the adapter and vault and initializes it automatically.
-3. In **My vaults → Administration**, approve the vault's premium funding.
+3. Type `fund` in the demo terminal to simulate external treasury variable-side
+   deposits. This test-only helper is not part of the production creator.
 4. Return to **My vaults → Deposit**. Wrap ETH if needed, approve LP assets,
    deposit and claim using the shared modal.
-5. Type `mature` in the demo terminal to advance the disposable chain. Renew the
-   session when prompted and withdraw the matured position.
+5. Type `mature` in the demo terminal to advance the disposable chain, then
+   withdraw the matured position. No message sign-in is required.
 6. Type `quit` or close Chromium to stop and remove the fixture database.
 
 `npm run demo -- --smoke` checks the same stack headlessly and exits. Demo keys
@@ -62,8 +63,9 @@ exist only in memory. Production entry points never load demo seeds/configuratio
 
 Copy `.env.example` to the ignored `.env`. Configure PostgreSQL, server-side
 Robinhood RPC, the explicit USD provider, public protocol config, operator wallets
-and the exact browser origin. New production databases start with an empty catalog
-and no campaign allocation. Configure pairs, budgets and programs at `/admin`.
+the public `SAFFRON_CREATION_FEE_RECIPIENT`, and the exact browser origin. New production databases start with an empty catalog
+and no campaign allocation. Configure pairs and create campaigns at `/admin`. Enter duration and any two of
+USD budget, fixed-side target capacity, and APR; the third is calculated.
 See [the operator runbook](ops/README.md) for service and worker provisioning.
 
 For hot reload set `SAFFRON_APP_ORIGIN=http://127.0.0.1:5187`, run these in separate
@@ -97,16 +99,27 @@ and closing returns focus to the control that opened the modal.
 
 ## Domain and accounting
 
-- An origin-bound wallet session and separate EIP-712 signature authorize one
-  exact quote. Acceptance atomically saves intent, reservation, ledger and job.
-  Replaying the authorization returns the same intent.
-- The existing scaffold worker EOA creates vaults, pays creation gas and supplies
-  separately approved premiums. The HTTP process has no key and cannot broadcast.
-- Programs share campaign budgets in raw reward-token units. Available premium is
-  `limit − reserved − allocated`. Funding moves reserved to allocated; claims and
-  maturity never replenish cumulative spending.
-- Only verified unused-funding recovery/retirement releases a commitment. Timeouts
-  never release unresolved signed transactions.
+- The exact native ETH payment binds payer, quote, chain, recipient and plan. A
+  canonical confirmed payment atomically admits one intent, reservation and job.
+  Replaying it returns the same intent. Public receipt hashes alone cannot restore
+  a browser session; the browser retains a private payment-bound recovery record.
+- The worker EOA only creates/initializes and retires vaults. It pays creation gas;
+  the API cannot sign or broadcast. External operations owns premium funds and
+  calls the vault's variable-side deposit itself.
+- Campaign creation fixes duration and any two of USD budget, target fixed-side
+  capacity and simple APR. $10,000 / $1,000,000 / 3 days gives **121.6667% APR**.
+- Quotes temporarily hold capacity; paid requests reserve it; confirmed external
+  variable deposits move the corresponding budget and capacity to funded.
+  Reservations also reduce availability, preventing concurrent over-creation.
+- $5,000 of premium funding for a $500,000 request consumes half that example's
+  budget/capacity. Actual LP entry is reported separately, never inferred from
+  premium funding. Claim and maturity do not replenish cumulative allocation.
+- Paid commitments do not automatically expire. Only verified unused-vault
+  retirement releases them. An external funder must recover unused funds itself.
+
+See **[CAMPAIGNS.md](CAMPAIGNS.md)** for formulas, rounding, USD valuation, lifecycle
+accounting, payment recovery and the external-operations contract.
+
 - **Depositable** requires fresh canonical evidence, exact full variable bearer
   supply, enough premium-token balance and no fixed occupant. A token transfer
   without bearer supply cannot enable entry.
@@ -125,8 +138,10 @@ and closing returns focus to the control that opened the modal.
 The clean `saffron_incentives` schema contains `pairs`, `budget_pools`, `programs`,
 `deployment_quotes`, `deployment_intents`, `budget_reservations`, `budget_entries`,
 `vault_jobs`, `chain_operations`, `vault_observations`, `worker_heartbeats`, and
-`user_operations`. There are no paid-request, receipt-import/export or compatibility
-tables in the application.
+`user_operations` and `payment_proofs`. The additive schema change preserves
+existing journals and commitments; it does not import retired paid-request schemas.
+Existing token-only budgets remain readable. Create new USD campaigns for the
+calculator flow; do not relabel historical token allocations as USD.
 
 ## Validation and release
 
@@ -151,7 +166,7 @@ npm run test:browser -- --grep 'approved cards'
 Unset `SAFFRON_TEST_LAB` before the normal suite and run `npm run build` to restore
 the production build.
 
-Tests cover real SQL concurrency/rollback, signature replay, cumulative budgets,
+Tests cover real SQL concurrency/rollback, payment replay, campaign math/capacity holds, cumulative budgets,
 creation-stage recovery, cancellation, reorganization accounting, funding gates,
 real Uniswap mint/claim/withdrawal, early LP recovery and transferred ownership.
 Browser tests use the actual Node server/database/chain and cover lost responses,

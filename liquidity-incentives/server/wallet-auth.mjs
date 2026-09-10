@@ -24,10 +24,22 @@ export function createWalletAuth({ origin, basePath = '', operators = [], now = 
     return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=${cookiePath}; Max-Age=${maxAge}${sessionOrigin?.startsWith('https:')?'; Secure':''}`
   }
   const auth = {
-    origin: sessionOrigin, permitted,
+    origin: sessionOrigin, permitted, checkOrigin,
+    /** A canonical fee payment plus its private recovery capability replaces
+     * public-user message signing. A transaction hash by itself is not a login.
+     */
+    grantPayment(req,res,wallet){
+      checkOrigin(req);prune()
+      if(sessions.size>=5000)throw fault(429,'Sessions are busy. Retry shortly without paying again.')
+      if(!validAddress(wallet))throw fault(401,'Verified payer is required.')
+      const token=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex')
+      const session={wallet:wallet.toLowerCase(),csrf,expires:now()+30*60_000}
+      sessions.set(hash(token),session);res.setHeader('Set-Cookie',cookie(token,1800))
+      return {...session,operator:permitted(wallet)}
+    },
     challenge(req,wallet) {
       checkOrigin(req); prune()
-      if(!validAddress(wallet)) throw fault(400,'Connect a valid wallet.')
+      if(!permitted(wallet)) throw fault(403,'Message sign-in is only for configured operators. Users pay the ETH creation fee.')
       if(challenges.size>=200) throw fault(429,'Too many sign-in requests. Retry shortly.')
       const proof={origin:sessionOrigin,wallet:wallet.toLowerCase(),chainId:CHAIN_ID,nonce:randomUUID(),expiresAt:new Date(now()+300_000).toISOString()}
       challenges.set(proof.nonce,{proof,expires:now()+300_000})

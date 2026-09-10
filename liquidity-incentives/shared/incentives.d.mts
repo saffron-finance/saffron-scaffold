@@ -1,6 +1,5 @@
 export const CHAIN_ID:4663
 export const FACTORY:import('viem').Address
-export function deploymentTypedData(quote:any):any
 export function walletSessionMessage(proof:any):string
 export function digest(value:any):import('viem').Hex
 export function cents(value:string):string

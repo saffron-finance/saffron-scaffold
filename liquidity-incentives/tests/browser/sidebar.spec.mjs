@@ -72,7 +72,7 @@ test('deposit field is focused on open and Back, with no refresh focus steal', a
       await expect(input).toHaveValue('$125')
       await page.getByRole('button', { name: 'Continue', exact: true }).click()
       await expect(page.getByRole('dialog').getByRole('heading')).toBeFocused()
-      await page.getByRole('button', { name: 'Change amount / refresh quote', exact: true }).click()
+      await page.getByRole('button', { name: 'Change amount / refresh payment quote', exact: true }).click()
       await expect(input).toBeFocused()
       await expect(input).toHaveValue('$125')
       await page.keyboard.press('Escape')

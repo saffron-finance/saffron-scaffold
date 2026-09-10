@@ -5,7 +5,7 @@ import { robinhoodChain } from '@lab/chain/chains'
 import { abi, WETH, eligibility, sameAddress } from '../../shared/vault-lifecycle.mjs'
 import { readVault } from '../../shared/vault-reader.mjs'
 import { amountsForLiquidity, ceilDiv } from '../../shared/liquidity-math.mjs'
-import { robinhoodClient, authedJson, requestJson, ensureSession } from './transport'
+import { robinhoodClient, requestJson } from './transport'
 import { positionAction } from '../../shared/position-actions.mjs'
 
 type Intent = { stage: string; account: Address; deploymentId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex }
@@ -110,7 +110,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       })
       if (!deposited) throw new Error('Expected fixed-deposit event not found. Recovery retained.')
     }
-    if(['deposit','claim','withdraw','recover'].includes(intent.stage))await authedJson(account,'/deployments/'+deploymentId+'/transactions',{hash})
+    if(['deposit','claim','withdraw','recover'].includes(intent.stage))await requestJson('/deployments/'+deploymentId+'/transactions',{hash,wallet:account})
     persist(null)
     if(['deposit','claim','withdraw','recover'].includes(intent.stage)){setCompleted(true);setQuote(null);window.dispatchEvent(new Event('saffron:vault-updated'))}
     else await refresh()
@@ -128,7 +128,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     if(stored){setPending(JSON.parse(stored));return}
     setBusy(true);setError(null)
     try {
-      await ensureSession(account);await assertWalletAccount(account);await ensureChain(robinhoodChain)
+      await assertWalletAccount(account);await ensureChain(robinhoodChain)
       const fresh=await load()
       if(!fresh?.action)throw new Error('This position has no available wallet action.')
       if(fresh.blocked) throw new Error(fresh.blocked)

@@ -8,9 +8,9 @@ import { createIncentivesService } from '../server/incentives-service.mjs'
 async function setup(){
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
   await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
-  const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,origin:ORIGIN})
+  const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.account.address,origin:ORIGIN})
   return {chain,store,db,service,options:{database:db,rpc:chain.rpc,account:chain.account,config:chain.config},
-    accept:async()=>store.accept(chain.account,await service.quote(chain.account.address,'cashcat-3d','100')),
+    accept:async()=>chain.accept(service),
     close:async()=>{await store.close();await chain.close()}}
 }
 it('every creation step resumes the same durable transaction after failure before broadcast', {timeout:120000},async()=>{

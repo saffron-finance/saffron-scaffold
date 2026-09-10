@@ -41,15 +41,34 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       const body=method==='POST'?await readBody(req):null
       if(method==='POST'&&path==='/session/challenge'){sendJson(res,200,auth.challenge(req,body.wallet));return true}
       if(method==='POST'&&path==='/session/login'){sendJson(res,200,{session:await auth.login(req,res,body)});return true}
-      const session=auth.session(req,{mutation:method==='POST',operator:path.startsWith('/admin/')})
+      if(method==='POST'&&path==='/deployment-quotes/withdraw'){
+        auth.checkOrigin(req);sendJson(res,200,await db.withdrawQuote(body.quoteId,body.recoverySecret));return true
+      }
+      // Public-user consent is the quoted ETH transaction; no message login.
+      if(method==='POST'&&['/deployment-quotes','/deployments','/session/payment'].includes(path)){
+        auth.checkOrigin(req)
+        if(path==='/deployment-quotes'){
+          if(!validAddress(body.wallet))throw fault(400,'Connect a valid wallet.')
+          sendJson(res,200,{quote:await service.quote(body.wallet,body.programId,body.amountUsd,body.recoveryHash)});return true
+        }
+        if(path==='/session/payment'){
+          const proof=await service.paymentProof(body.quoteId,body.paymentHash,body.recoverySecret)
+          sendJson(res,200,{session:auth.grantPayment(req,res,proof.wallet)});return true
+        }
+        const accepted=await service.acceptPayment(body.quoteId,body.paymentHash,body.recoverySecret)
+        const session=auth.grantPayment(req,res,accepted.wallet)
+        sendJson(res,accepted.replayed?200:201,{...accepted,session,deployment:await service.detail(accepted.id,accepted.wallet,false,{fresh:false})});return true
+      }
+      // Public position reads do not authenticate mutations. The connected wallet
+      // proves action ownership when it sends deposit/claim/withdraw on chain.
+      const viewer=new URL(req.url,'http://localhost').searchParams.get('wallet')
+      let session
+      if(method==='GET'&&(path==='/deployments'||path==='/positions'||path.startsWith('/deployments/'))&&validAddress(viewer))session={wallet:viewer.toLowerCase(),operator:false}
+      else if(method==='POST'&&/^\/deployments\/[^/]+\/transactions$/.test(path)&&validAddress(body.wallet)){
+        auth.checkOrigin(req);session={wallet:body.wallet.toLowerCase(),operator:false}
+      }else session=auth.session(req,{mutation:method==='POST',operator:path.startsWith('/admin/')})
       if(method==='POST'&&path==='/session/logout'){auth.logout(req,res);sendJson(res,200,{success:true});return true}
       if(method==='GET'&&['/deployments','/positions'].includes(path)){sendJson(res,200,await service.list(session.wallet,false,page()));return true}
-      if(method==='POST'&&path==='/deployment-quotes'){sendJson(res,200,{quote:await service.quote(session.wallet,body.programId,body.amountUsd)});return true}
-      if(method==='POST'&&path==='/deployments'){
-        if(typeof body.quoteId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.quoteId)||typeof body.signature!=='string'||body.signature.length>2048)throw fault(400,'Invalid deployment authorization.')
-        const accepted=await db.acceptDeployment({wallet:session.wallet,quoteId:body.quoteId,signature:body.signature,origin:auth.origin})
-        sendJson(res,accepted.replayed?200:201,{...accepted,deployment:await service.detail(accepted.id,session.wallet,false,{fresh:false})});return true
-      }
       const deployment=/^\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/(context|cancel|transactions))?$/.exec(path)
       if(deployment){
         if(method==='POST'&&deployment[2]==='transactions'){sendJson(res,200,await service.recordUserAction(deployment[1],session.wallet,body.hash));return true}
@@ -61,15 +80,16 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
+      if(method==='POST'&&path==='/admin/campaigns'){sendJson(res,201,await db.saveCampaign(body,session.wallet));return true}
+      if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,{payments:(await db.query("SELECT hash,quote_id,wallet,state,error,created_at FROM saffron_incentives.payment_proofs WHERE state='needs_attention' ORDER BY created_at DESC LIMIT 100")).rows});return true}
       if(method==='POST'&&path==='/admin/pairs'){const pair=normalizePair(body);await verifyPair(pair,rpc);sendJson(res,200,{pair:await db.savePair(pair,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/programs'){sendJson(res,200,{program:await db.saveProgram(body,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/budgets'){sendJson(res,200,{budget:await db.saveBudget(body,session.wallet)});return true}
       const budgetAction=/^\/admin\/budgets\/([a-z0-9-]+)\/reconcile$/.exec(path)
       if(method==='POST'&&budgetAction){sendJson(res,200,{budget:await service.reconcileBudget(budgetAction[1],session.wallet)});return true}
-      const operation=/^\/admin\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(fund|resume|retire|collect|reconcile)$/.exec(path)
+      const operation=/^\/admin\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(resume|retire|reconcile)$/.exec(path)
       if(method==='POST'&&operation){
         if(operation[2]==='reconcile')await service.reconcileTransaction(operation[1],session.wallet,body.originalHash,body.hash)
-        else if(operation[2]==='fund')await service.fund(operation[1],session.wallet,body.planHash,body.maximumRaw)
         else await db.execution.approveOperation(operation[1],session.wallet,body.planHash,operation[2])
         sendJson(res,200,{deployment:await service.detail(operation[1],session.wallet,true,{fresh:false})});return true
       }

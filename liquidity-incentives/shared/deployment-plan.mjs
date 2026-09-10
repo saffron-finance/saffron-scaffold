@@ -1,5 +1,7 @@
 import { decodeFunctionResult, encodeFunctionData, keccak256 } from 'viem'
 import { abi, CHAIN_ID, FACTORY, sameAddress } from './vault-lifecycle.mjs'
+import { campaignPremiumCents } from './campaign.mjs'
+import { ceilDiv } from './liquidity-math.mjs'
 import { resolveCapacities } from './liquidity-math.mjs'
 class Waiting extends Error {}
 class ConfirmedFailure extends Error {}
@@ -46,6 +48,10 @@ export async function resolvePlan(job, rpc, usdQuote, config) {
     aprRaw: BigInt(t.aprRaw), duration: t.durationSeconds,
     price0, price1, variablePrice, decimals0: sorted0.decimals, decimals1: sorted1.decimals,
     variableDecimals: t.token0.decimals, sqrtPrice: p, minTick, maxTick })
+  if(t.campaign){
+    capacities.premiumCents=campaignPremiumCents(t.campaign,t.fixedCapacityAmount)
+    capacities.premium=ceilDiv(BigInt(capacities.premiumCents)*10n**16n*10n**BigInt(t.token0.decimals),variablePrice).toString()
+  }
   if (BigInt(capacities.premium) > BigInt(config.maxPremiumRaw)) throw new ConfirmedFailure('Premium exceeds the configured operator budget.')
   if ((await rpc('eth_getBlockByNumber',[tag,false]))?.hash !== head.hash) throw new Waiting('Sizing block changed.')
   return { ...capacities, token0: { ...sorted0, address: token0.toLowerCase() }, token1: { ...sorted1, address: token1.toLowerCase() },

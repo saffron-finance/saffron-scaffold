@@ -2,7 +2,8 @@ import { test,expect } from '@playwright/test'
 import { setup,connect } from './fixture.mjs'
 import { encodeAbiParameters,encodeFunctionData,parseAbi } from 'viem'
 import { createIncentivesService } from '../../server/incentives-service.mjs'
-import { deploymentTypedData } from '../../shared/incentives.mjs'
+import { mockPayment } from '../incentives-fixture.mjs'
+import { proofHash } from '../../shared/payment.mjs'
 import { abi } from '../../shared/vault-lifecycle.mjs'
 import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
 
@@ -16,15 +17,15 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
     await expect(page.getByRole('heading',{name:'Review deployment'})).toBeVisible()
     expect(f.state.sends).toBe(0)
     await expect(page.getByText('Pay request fee with',{exact:true})).toHaveCount(0)
-    await page.getByRole('button',{name:'Authorize deployment',exact:true}).click()
+    await page.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toBeVisible()
     const id=await page.locator('[data-vault-lifecycle]').getAttribute('data-vault-lifecycle')
     expect((await f.worker.tick()).state).toBe('created')
-    await expect(page.getByRole('status',{name:''}).filter({hasText:'Awaiting admin funding'})).toBeVisible({timeout:20000})
+    await expect(page.getByRole('status',{name:''}).filter({hasText:'Awaiting campaign funding'})).toBeVisible({timeout:20000})
     await expect(page.getByRole('button',{name:'Deposit',exact:true})).toHaveCount(0)
     const row=await f.database.getIntent(id)
-    await f.database.execution.approveFunding(id,f.chain.account.address,row.plan_hash,row.plan.premium)
-    expect((await f.worker.tick()).state).toBe('funded')
+    await f.chain.fund(row)
+    expect((await f.worker.tick()).state).toBe('idle')
     await expect(page.getByRole('button',{name:'Wrap ETH',exact:true})).toBeEnabled({timeout:20000})
     await page.getByRole('button',{name:'Close incentive vault'}).click()
     await page.getByRole('button',{name:/^My vaults/}).click()
@@ -39,13 +40,13 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
     await expect(page.getByRole('dialog').getByText('Position active',{exact:true})).toBeVisible({timeout:20000})
     const snapshot=await f.database.execution.observation(id)
     await f.advanceTo(Number(snapshot.endTime)+2)
-    await page.getByRole('button',{name:'Sign in to continue',exact:true}).click()
     await expect(page.getByRole('dialog').getByRole('button',{name:'Withdraw LP assets',exact:true})).toBeEnabled({timeout:20000})
     await page.getByRole('dialog').getByRole('button',{name:'Withdraw LP assets',exact:true}).click()
     await expect(page.getByRole('dialog').getByText('Completed',{exact:true})).toBeVisible({timeout:20000})
     expect((await f.database.catalog(true)).budgets[0].allocatedRaw).toBe(row.plan.premium)
     expect(f.state.calls).not.toContain('eth_sendRawTransaction')
-    expect(f.state.sends).toBe(6)
+    expect(f.state.sends).toBe(7)
+    expect(f.state.signs).toBe(0)
     await page.screenshot({path:'validation/completed-lifecycle.png',fullPage:true})
   }finally{await f.close()}
 })
@@ -82,12 +83,11 @@ test('a received claim appears in the holder profile and uses the native claim m
   const f=await setup(page)
   try{
     const {chain,database}=f
-    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,origin:f.origin})
-    const quote=await service.quote(chain.account.address,'cashcat-3d','100')
-    const {id}=await database.acceptDeployment({wallet:chain.account.address,quoteId:quote.id,signature:await chain.account.signTypedData(deploymentTypedData(quote)),origin:f.origin})
+    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:f.origin})
+    const {id}=await chain.accept(service)
     await f.worker.tick()
     const row=await service.detail(id,chain.account.address)
-    await service.fund(id,chain.account.address,row.planHash,row.plan.premium);await f.worker.tick()
+    await chain.fund(row)
     const s=(await service.context(id,chain.account.address)).snapshot,amounts=amountsForLiquidity(s.liquidity,s.sqrtPrice,s.minTick,s.maxTick)
     for(const [i,token] of [s.token0,s.token1].entries())await chain.send(token.address,encodeFunctionData({abi,functionName:'approve',args:[s.adapter,[amounts.amount0,amounts.amount1][i]*101n/100n+1n]}))
     const data=encodeAbiParameters([{type:'uint256'},{type:'uint256'},{type:'uint256'}],[0n,0n,BigInt(s.headTimestamp+300)])
@@ -95,7 +95,6 @@ test('a received claim appears in the holder profile and uses the native claim m
     await chain.send(s.claimToken,encodeFunctionData({abi:parseAbi(['function transfer(address,uint256) returns(bool)']),functionName:'transfer',args:[f.account.address,1n]}))
     await page.goto(f.origin);await connect(page)
     await page.getByRole('button',{name:/^My vaults/}).click()
-    await page.getByRole('button',{name:'Sign in to view your vaults',exact:true}).click()
     await expect(page.getByRole('button',{name:'Claim premium',exact:true})).toBeVisible({timeout:20000})
     await page.getByRole('button',{name:'Claim premium',exact:true}).click()
     const dialog=page.getByRole('dialog')
@@ -112,17 +111,16 @@ test('profile and administration can page to older vaults and retain that page o
   const f=await setup(page,{admin:true})
   try{
     const {chain,database,account}=f
-    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,origin:f.origin})
-    const template=await service.quote(account.address,'cashcat-3d','100'),offer=await database.offer('cashcat-3d')
+    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:f.origin})
+    const template=await service.quote(account.address,'cashcat-3d','100',proofHash(chain.recoverySecret)),offer=await database.offer('cashcat-3d')
     let oldest
     for(let i=0;i<26;i++){
       const quote=i===0?template:await database.putQuote({offer,principalCents:'10000',wallet:account.address,origin:f.origin,plan:{...template.plan,usdCheckedAt:Date.now()},signer:chain.account.address})
-      const {id}=await database.acceptDeployment({wallet:account.address,quoteId:quote.id,signature:await account.signTypedData(deploymentTypedData(quote)),origin:f.origin})
+      const {id}=await database.acceptDeployment({wallet:account.address,quoteId:quote.id,payment:mockPayment(quote),origin:f.origin})
       oldest??=id;await database.cancelDeployment(id,account.address)
     }
     await page.goto(f.origin);await connect(page)
     await page.getByRole('button',{name:'My vaults',exact:true}).click()
-    await page.getByRole('button',{name:'Sign in to view your vaults',exact:true}).click()
     await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
     await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toHaveCount(0)
     await page.getByRole('button',{name:'Older vaults',exact:true}).click()
@@ -134,7 +132,8 @@ test('profile and administration can page to older vaults and retain that page o
     await page.getByRole('button',{name:'View vault',exact:true}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toHaveAttribute('data-vault-lifecycle',oldest)
     await page.getByRole('button',{name:'Close incentive vault'}).click()
-    await page.getByRole('button',{name:'Administration',exact:true}).click()
+    await page.goto(f.origin+'/admin')
+    await page.getByRole('button',{name:'Sign in as operator',exact:true}).click()
     await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
     await page.getByRole('button',{name:'Older vaults',exact:true}).click()
     await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toBeVisible()

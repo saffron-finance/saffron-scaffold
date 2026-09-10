@@ -1,7 +1,7 @@
 import pg from 'pg'
 import { randomBytes } from 'node:crypto'
 import { createIncentivesDatabase } from '../server/incentives-database.mjs'
-import { deploymentTypedData, snapshotFor } from '../shared/incentives.mjs'
+import { digest, snapshotFor } from '../shared/incentives.mjs'
 
 export const TOKEN='0x020bfc650a365f8bb26819deaabf3e21291018b4'
 export const QUOTE_TOKEN='0x0bd7d308f8e1639fab988df18a8011f41eacad73'
@@ -27,16 +27,20 @@ export async function incentivesFixture(options={}) {
       await database.saveBudget({id:program.budgetPoolId,revision:0,name:'Test campaign',chainId:4663,rewardAsset:TOKEN,decimals:18,limitRaw,paused:false},actor)
       await database.saveProgram(program,actor)
     },
-    async quote(account,{premium='60000',programId=program.id,plan:actualPlan,signer=account.address,principalCents='10000'}={}) {
+    async quote(account,{premium='60000',programId=program.id,plan:actualPlan,signer=account.address,principalCents='10000',fee,recoveryHash}={}) {
       const offer=await database.offer(programId)
       const plan=actualPlan??{premium,liquidity:'123456',usdCheckedAt:database.now(),token0:pair.token0,token1:pair.token1,
         sizingBlock:'0x10',sizingBlockHash:'0x'+'1'.repeat(64)}
-      return database.putQuote({offer,principalCents,wallet:account.address,origin:ORIGIN,plan,signer})
+      return database.putQuote({offer,principalCents,wallet:account.address,origin:ORIGIN,plan,signer,fee,recoveryHash})
     },
     async accept(account,quote) {
-      const signature=await account.signTypedData(deploymentTypedData(quote))
-      return database.acceptDeployment({wallet:account.address,quoteId:quote.id,signature,origin:ORIGIN})
+      // Database-only tests inject already verified evidence at the service seam.
+      // HTTP, EVM and browser tests separately prove actual native ETH payments.
+      const payment=mockPayment(quote)
+      return database.acceptDeployment({wallet:account.address,quoteId:quote.id,payment,origin:ORIGIN})
     },
     async close(){await database.close();await control.query(`DROP DATABASE "${name}"`);await control.end()},
   }
 }
+
+export const mockPayment=quote=>({hash:digest({quoteId:quote.id}),quoteId:quote.id,wallet:quote.wallet,planHash:quote.planHash,verified:true})

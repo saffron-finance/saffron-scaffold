@@ -71,3 +71,13 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.user_operations (
   action TEXT NOT NULL,receipt JSONB NOT NULL,canonical BOOLEAN NOT NULL DEFAULT TRUE,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS user_operations_wallet_intent ON saffron_incentives.user_operations(wallet,intent_id) WHERE canonical=TRUE;
+
+-- Additive migration for externally funded USD campaigns and ETH payment proofs.
+-- Existing journals/commitments are retained; no legacy tables are dropped.
+ALTER TABLE saffron_incentives.budget_pools ADD COLUMN IF NOT EXISTS campaign JSONB;
+ALTER TABLE saffron_incentives.deployment_intents ALTER COLUMN signature DROP NOT NULL;
+CREATE TABLE IF NOT EXISTS saffron_incentives.payment_proofs (
+  hash TEXT PRIMARY KEY, quote_id UUID NOT NULL UNIQUE REFERENCES saffron_incentives.deployment_quotes(id),
+  wallet TEXT NOT NULL, evidence JSONB NOT NULL, state TEXT NOT NULL DEFAULT 'verified',
+  error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

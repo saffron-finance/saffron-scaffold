@@ -34,7 +34,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
     {route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>
       <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My vaults</QuietButton></TitleRow>
       <Introduction aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit.</StepSubtitle><StepSubtitle>We fund the premium. Once your vault is ready, deposit your LP assets and claim the incentive here.</StepSubtitle></Introduction>
-      {flow.saved&&<Recovery><FinePrint>A signed deployment authorization is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
+      {flow.saved&&<Recovery><FinePrint>A creation payment request is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
       {catalog.loading&&<FinePrint role='status'>Loading incentive programs…</FinePrint>}
       {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
@@ -44,7 +44,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
           <Metric><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
           <Metric><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString()}%</OfferApr></Metric>
           <Metric><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
-          <CapacityCell><MobileLabel>Capacity</MobileLabel><CapacityMeter title={offer.availability??'Available size under the shared campaign budget'}><Value>{offer.eligibleMaximumCents===null?'Unavailable':compactUsd(Number(offer.eligibleMaximumCents)/100)}</Value><Muted>{offer.budget.paused?'Paused':offer.eligibleMaximumCents==='0'?'Exhausted':'up to per vault'}</Muted></CapacityMeter></CapacityCell>
+          <CapacityCell><MobileLabel>Capacity</MobileLabel><CapacityMeter title={offer.availability??'Available size under the shared campaign budget'}><Value>{offer.eligibleMaximumCents===null?'Unavailable':compactUsd(Number(offer.budget.accounting?.availableCapacityCents??offer.eligibleMaximumCents)/100)}</Value><Muted>{offer.budget.paused?'Paused':offer.eligibleMaximumCents==='0'?'Exhausted':offer.budget.accounting?'campaign capacity remaining':'up to per vault'}</Muted></CapacityMeter></CapacityCell>
           {offer.isNew&&<NewTag>NEW</NewTag>}
         </ProgramRow>)}
       </Programs></ProgramGroup>)}

@@ -25,11 +25,11 @@ export function VaultLifecyclePanel({account,id,onBusy}:{account:Address;id:stri
   return <Stack data-vault-lifecycle={id}>
     <b role='status'>{row?statusLabel(row.state):'Loading your vault…'}</b>
     {row&&<VaultReview label='Vault terms' bullets={<>
-      <li>LP value at authorization: <b>${(Number(row.snapshot.fixedCapacityAmount)/100).toFixed(2)}</b> · full range.</li>
+      <li>LP value at request: <b>${(Number(row.snapshot.fixedCapacityAmount)/100).toFixed(2)}</b> · full range.</li>
       <li>Lock after start: <b>{row.snapshot.durationSeconds/86400} days</b>.</li>
       <li>Committed premium: <b>{formatUnits(BigInt(row.plan.premium),row.plan.variableDecimals)} {row.plan.variableSymbol}</b>.</li>
     </>} details={<><p>Vault {row.plan.vault??'Creation pending'}</p><p>Deployment {row.id}</p><p>Network: Robinhood Chain. Wallet transactions require network gas. Creation gas is paid by the service.</p></>}/>}
-    {row?.state==='awaiting_funding'&&<FinePrint>Your vault is created. Deposit becomes available after the admin fills the entire premium commitment.</FinePrint>}
+    {row?.state==='awaiting_funding'&&<FinePrint>Your vault is created. Deposit becomes available after the campaign operator funds the entire premium externally.</FinePrint>}
     {row?.canClaim&&<FinePrint>Claiming transfers your premium and converts your claim token into the fixed bearer token used for withdrawal.</FinePrint>}
     {row?.state==='active'&&s&&<FinePrint>Premium claimed. Your LP assets unlock after {new Date(Number(s.endTime)*1000).toLocaleString()}.</FinePrint>}
     {row?.state==='matured'&&row.canClaim&&<FinePrint>Your position has matured. Claim the premium first, then withdraw the LP assets.</FinePrint>}
@@ -41,7 +41,7 @@ export function VaultLifecyclePanel({account,id,onBusy}:{account:Address;id:stri
       <FinePrint>Slippage: 0.5% · deadline: 5 minutes. The token mix can change with pool price; LP positions are subject to impermanent loss.</FinePrint>
     </>}
     {(error||flow.error)&&<ErrorText role='alert'>{error??flow.error}</ErrorText>}
-    {/Sign in|wallet session/.test(error??flow.error??'')&&<Action disabled={flow.busy||cancelling} onClick={async()=>{setCancelling(true);try{await ensureSession(account);setError(undefined);window.dispatchEvent(new Event('saffron:vault-updated'));await flow.refresh()}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}}>Sign in to continue</Action>}
+    {/Sign in|wallet session/.test(error??flow.error??'')&&<Action disabled={flow.busy||cancelling} onClick={async()=>{setCancelling(true);try{await ensureSession(account);setError(undefined);window.dispatchEvent(new Event('saffron:vault-updated'));await flow.refresh()}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}}>Restore payment session</Action>}
     {flow.pending?<Stack>
       <FinePrint>A wallet action needs confirmation. Check it before submitting another.</FinePrint>
       {flow.pending.hash&&<a href={'https://robinhoodchain.blockscout.com/tx/'+flow.pending.hash} target='_blank' rel='noreferrer'>View submitted transaction ↗</a>}
