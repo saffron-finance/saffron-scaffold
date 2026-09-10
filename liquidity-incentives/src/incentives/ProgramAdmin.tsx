@@ -1,4 +1,4 @@
-import { useState,type FormEvent } from 'react'
+import { useEffect,useState,type FormEvent } from 'react'
 import { formatUnits,type Address } from 'viem'
 import styled from 'styled-components'
 import { campaignTerms } from '../../shared/campaign.mjs'
@@ -11,10 +11,12 @@ type Catalog={pairs:Pair[];budgets:Budget[];programs:Program[]}
 /** Campaign configuration owns accounting limits, never the external treasury.
  * A single API transaction creates the budget and its matching offer together.
  */
-export function ProgramAdmin({account,onConnect}:{account:Address|null;onConnect:()=>void}){
+export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address|null;onConnect:()=>void;autoLoad?:boolean}){
   const [catalog,setCatalog]=useState<Catalog|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
   const [showPair,setShowPair]=useState(false),[saved,setSaved]=useState('')
   async function load(){if(!account){onConnect();return}setBusy(true);setError('');try{setCatalog(await authedJson(account,'/admin/catalog'))}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  // Dedicated campaign pages can load immediately; the operator disclosure keeps its manual default.
+  useEffect(()=>{if(autoLoad&&account)void load()},[autoLoad,account])
   async function changed(){await load();setSaved('Campaign configuration saved.');window.dispatchEvent(new Event('saffron:catalog-updated'))}
   async function pause(budget:Budget){if(!account)return;setBusy(true);try{await authedJson(account,'/admin/budgets',{...budget,paused:!budget.paused});await changed()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Stack>

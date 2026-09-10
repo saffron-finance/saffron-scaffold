@@ -23,11 +23,11 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   const flow=useDeploymentFlow(account),positions=useDeployments(account),catalog=useIncentivePrograms()
   const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false)
   const base=import.meta.env.BASE_URL.replace(/\/$/,'')
-  const [route,setRoute]=useState(()=>location.pathname.slice(base.length))
+  const [route,setRoute]=useState(()=>(location.pathname.slice(base.length).replace(/\/+$/,'')||'/'))
   const price=useOfferPrice(flow.quote?null:selected)
   const groups=Array.from(new Set(catalog.offers.map(o=>o.pairId))).map(id=>catalog.offers.filter(o=>o.pairId===id))
   function navigate(path:string){history.pushState(null,'',base+path);setRoute(path);window.dispatchEvent(new Event('saffron:navigation'))}
-  useEffect(()=>{const update=()=>setRoute(location.pathname.slice(base.length));window.addEventListener('popstate',update);return()=>window.removeEventListener('popstate',update)},[base])
+  useEffect(()=>{const update=()=>setRoute((location.pathname.slice(base.length).replace(/\/+$/,'')||'/'));window.addEventListener('popstate',update);return()=>window.removeEventListener('popstate',update)},[base])
   function openOffer(offer:Offer){if(flow.saved){setResume(true);return}flow.reset();setSelected(offer);setVaultId(null)}
   function close(){setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page>

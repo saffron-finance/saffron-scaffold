@@ -7,3 +7,6 @@ export function normalizePair(value:any):any
 export function normalizeProgram(value:any):any
 export function normalizeBudget(value:any):any
 export function validAddress(value:unknown):boolean
+
+export const UINT256_MAX:bigint
+export function snapshotFor(offer:any,principalCents:string,wallet:any):any

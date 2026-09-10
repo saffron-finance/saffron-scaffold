@@ -178,3 +178,18 @@ The independent CI workflow runs database/EVM/browser checks and portable-build
 checks. Publishing/worker activation remain separate operator actions.
 [IMPLEMENTATION.md](IMPLEMENTATION.md) records the modular stages and validation.
 Local tests do not establish a live deployment or live funding.
+
+## Browser-only UI review
+
+`npm run build:preview` builds the actual campaign form and user modals with an
+explicit preview-only transport in `dist-preview/`. Set `VITE_BASE_PATH` for the
+host mount. The preview starts with the $10,000/$1,000,000, three-day example at
+50% premium-funded; `?view=campaigns` opens the calculator immediately. Campaign
+edits and simulated requests stay in a separate browser-local storage namespace.
+
+The UI always labels sample data. It imports no wallet provider, sends no API/RPC
+or price requests, and cannot make payments, deploy vaults or fund them. This is
+not the production application or a substitute for backend integration. Normal
+and lab builds exclude the preview entry/runtime. `node tests/preview-ui.mjs`
+checks static-only interactions, math, local persistence and mobile layout; set
+`PREVIEW_WEBROOT` to verify the published files through a loopback-only mirror.
