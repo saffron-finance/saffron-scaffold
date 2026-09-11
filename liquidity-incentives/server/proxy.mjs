@@ -44,7 +44,7 @@ async function requestRpc(chain, method, params) {
   if (payload.error || payload.result === undefined) throw new Error('RPC unavailable')
   return payload.result
 }
-const database = configured('SAFFRON_API_DISABLED') === '1' ? null : createIncentivesDatabase({connection:{
+const database = configured('SAFFRON_API_DISABLED') === '1' ? null : createIncentivesDatabase({checkoutPolicy:configured('SAFFRON_CHECKOUT_POLICY')?JSON.parse(configured('SAFFRON_CHECKOUT_POLICY')):undefined,connection:{
   host:configured('PGHOST'),port:Number(configured('PGPORT')||5432),user:configured('PGUSER'),
   password:configured('PGPASSWORD'),database:configured('PGDATABASE'),connectionTimeoutMillis:5000,
 }})

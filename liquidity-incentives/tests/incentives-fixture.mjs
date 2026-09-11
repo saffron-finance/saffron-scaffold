@@ -27,11 +27,11 @@ export async function incentivesFixture(options={}) {
       await database.saveBudget({id:program.budgetPoolId,revision:0,name:'Test campaign',chainId:4663,rewardAsset:TOKEN,decimals:18,limitRaw,paused:false},actor)
       await database.saveProgram(program,actor)
     },
-    async quote(account,{premium='60000',programId=program.id,plan:actualPlan,signer=account.address,principalCents='10000',fee,recoveryHash}={}) {
+    async quote(account,{premium='60000',programId=program.id,plan:actualPlan,signer=account.address,principalCents='10000',fee,recoveryHash,clientHash,requestKey}={}) {
       const offer=await database.offer(programId)
       const plan=actualPlan??{premium,liquidity:'123456',usdCheckedAt:database.now(),token0:pair.token0,token1:pair.token1,
         sizingBlock:'0x10',sizingBlockHash:'0x'+'1'.repeat(64)}
-      return database.putQuote({offer,principalCents,wallet:account.address,origin:ORIGIN,plan,signer,fee,recoveryHash})
+      return database.putQuote({offer,principalCents,wallet:account.address,origin:ORIGIN,plan,signer,fee,recoveryHash,clientHash,requestKey})
     },
     async accept(account,quote) {
       // Database-only tests inject already verified evidence at the service seam.

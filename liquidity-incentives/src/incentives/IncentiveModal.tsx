@@ -13,7 +13,7 @@ import { VaultReview } from './VaultReview'
 import { VaultLifecyclePanel } from './VaultLifecyclePanel'
 
 export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,onConnect,preview}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;onClose:()=>void;onConnect:()=>void;preview?:boolean}){
-  const [deposit,setDeposit]=useState('100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[now,setNow]=useState(Date.now)
+  const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[now,setNow]=useState(Date.now)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
   const second=Boolean(id||reviewed),busy=flow.busy||nativeBusy
   const titleId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
@@ -75,6 +75,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
         {price.error&&<Row><ErrorText role='alert'>{price.error}</ErrorText><QuietButton onClick={price.refresh}>Refresh price</QuietButton></Row>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
         <Action disabled={busy||!valid} onClick={()=>account?void flow.review(offer,deposit):onConnect()}>{busy?'Preparing deployment…':!account?'Connect wallet':'Continue'}</Action>
+        {flow.draft&&<QuietButton disabled={busy} onClick={()=>void flow.reset()}>Discard unpaid checkout</QuietButton>}
       </>:null}
     </ModalContent>
   </Modal>

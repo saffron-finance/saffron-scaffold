@@ -1,6 +1,25 @@
 import { test,expect } from '@playwright/test'
 import { setup,connect } from './fixture.mjs'
 
+test('an interrupted quote review resumes its durable checkout after reload without another hold',async({page})=>{
+  const f=await setup(page)
+  try{
+    await page.goto(f.origin);await connect(page)
+    let lose=true
+    await page.route('**/api/incentives/deployment-quotes',async route=>{
+      if(lose){lose=false;const response=await route.fetch();expect(response.status()).toBe(200);await route.fulfill({status:503,json:{error:'Quote response lost'}})}else await route.continue()
+    })
+    await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
+    await page.getByRole('button',{name:'Continue',exact:true}).click()
+    await expect(page.getByText('Quote response lost',{exact:true})).toBeVisible()
+    await page.reload();await page.getByRole('button',{name:'Resume checkout',exact:true}).click()
+    await page.getByRole('button',{name:'Continue',exact:true}).click()
+    await expect(page.getByRole('button',{name:'Pay $2 in ETH',exact:true})).toBeEnabled()
+    expect((await f.database.query('SELECT count(*)::int n FROM saffron_incentives.deployment_quotes')).rows[0].n).toBe(1)
+    expect(f.state.sends).toBe(0)
+  }finally{await f.close()}
+})
+
 test('a stale tab opening another offer preserves and recovers the already paid request',async({page,context})=>{
   const f=await setup(page)
   try{

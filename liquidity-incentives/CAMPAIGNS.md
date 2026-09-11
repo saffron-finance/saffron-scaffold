@@ -71,6 +71,15 @@ mark-to-market return.
 
 ## Accounting and admission
 
+Public checkout defaults to at most 10% of a campaign per quote and 25% held by
+all unpaid quotes together, with at most 32 open checkouts globally. The catalog
+reflects the public per-vault limit. `SAFFRON_CHECKOUT_POLICY` can tune these bounds.
+Browser admission uses an HttpOnly capability with one unpaid quote per browser,
+bounded issuance and durable idempotency keys. It is not proof of wallet ownership;
+the native payment still establishes the payer. Trusted direct-peer limits ignore
+forwarded client headers. Public deployment must also configure per-client edge
+rate limits/challenges; rotating wallets is not an effective quota identity.
+
 For new USD campaigns, the raw-token ledger remains exact chain-unit telemetry;
 the campaign USD budget and fixed-side target are the authoritative aggregate
 limits. The worker's per-vault raw premium/gas ceilings remain independent bounds.

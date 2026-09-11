@@ -17,11 +17,17 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.programs (
   budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
   updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_clients (
+  id TEXT PRIMARY KEY,peer_hash TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS checkout_clients_issued ON saffron_incentives.checkout_clients(created_at);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
   id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),
   budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  client_hash TEXT REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS quotes_client_request ON saffron_incentives.deployment_quotes(client_hash,request_key) WHERE client_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS quotes_wallet_time ON saffron_incentives.deployment_quotes(wallet,created_at);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_intents (
   id UUID PRIMARY KEY, quote_id UUID NOT NULL UNIQUE REFERENCES saffron_incentives.deployment_quotes(id), wallet TEXT NOT NULL,

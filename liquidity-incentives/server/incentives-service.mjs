@@ -96,7 +96,11 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           const a=offer.budget.accounting
           const byBudget=BigInt(a.availableBudgetCents)*BigInt(offer.budget.campaign.capacityCents)/BigInt(offer.budget.campaign.budgetCents)
           const capacity=BigInt(a.availableCapacityCents)<byBudget?BigInt(a.availableCapacityCents):byBudget
-          const limit=capacity<BigInt(offer.maximumCents)?capacity:BigInt(offer.maximumCents)
+          let limit=capacity<BigInt(offer.maximumCents)?capacity:BigInt(offer.maximumCents)
+          const perQuote=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxQuoteBps)/10000n
+          const unpaidRoom=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.heldCapacityCents)
+          if(limit>perQuote)limit=perQuote
+          if(limit>unpaidRoom)limit=unpaidRoom>0n?unpaidRoom:0n
           return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),availability:null}
         }
         try{
@@ -110,7 +114,12 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       })))
       return {offers:rows,creatorOnline:await db.execution.workerOnline(signer)}
     },
-    async quote(wallet,programId,amount,recoveryHash){
+    async quote(wallet,programId,amount,recoveryHash,{clientHash=null,requestKey=null}={}){
+      const existing=await db.checkoutQuote(clientHash,requestKey)
+      if(existing){
+        if(existing.wallet!==wallet.toLowerCase()||existing.programId!==programId||existing.principalCents!==cents(amount)||existing.recoveryHash!==recoveryHash)throw fault(409,'Checkout request terms changed.')
+        return {...existing,paymentData:paymentData(existing)}
+      }
       requireConfigured()
       if(!await db.execution.workerOnline(signer))throw fault(503,'The deployment worker is offline. Retry shortly.')
       const principalCents=cents(amount),offer=await db.offer(programId)
@@ -123,7 +132,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
       const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
         amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
-      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash})
+      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey})
       return {...quote,paymentData:paymentData(quote)}
     },
     /** Verify the payment chain evidence before admitting exactly one creation.

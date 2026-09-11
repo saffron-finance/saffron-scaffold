@@ -17,7 +17,10 @@ const asBudget = row => ({ campaign:row.campaign??null, id: row.id, revision: ro
 
 /** All acceptance/accounting mutations use real SQL transactions. No RPC occurs under a row lock. */
 export function createIncentivesDatabase({ connection, now = Date.now, maxPendingPerWallet = 3, maxPending = 100,
-  reservationMs = 15 * 60_000, quoteMs = 120_000, initializationRetryMs = 5_000 } = {}) {
+  reservationMs = 15 * 60_000, quoteMs = 120_000, initializationRetryMs = 5_000,checkoutPolicy={} } = {}) {
+  const checkout={maxQuoteBps:1000,maxHeldBps:2500,maxUnpaid:32,...checkoutPolicy}
+  if(!Number.isInteger(checkout.maxQuoteBps)||checkout.maxQuoteBps<1||checkout.maxQuoteBps>5000||!Number.isInteger(checkout.maxHeldBps)||checkout.maxHeldBps<checkout.maxQuoteBps||checkout.maxHeldBps>10000
+    ||!Number.isInteger(checkout.maxUnpaid)||checkout.maxUnpaid<1||checkout.maxUnpaid>1000)throw new Error('Invalid checkout admission policy.')
   const pool = new pg.Pool({ connectionTimeoutMillis:5_000, ...connection, max: 8, options: '-c timezone=UTC' })
   // pg removes a failed idle client. Subsequent requests reconnect; the HTTP
   // boundary returns generic failures rather than crashing/logging provider data.
@@ -104,7 +107,11 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       throw fault(409,'Campaign budget or fixed-side capacity is exhausted. Existing payment records are retained.')
   }
   const db = {
-    pool, get ready(){return ready()}, query, transaction, lockBudget, entry, getIntent, now, campaignAccounting,
+    pool, get ready(){return ready()}, query, transaction, lockBudget, entry, getIntent, now, campaignAccounting,checkout,
+    async checkoutQuote(clientHash,requestKey){
+      if(!clientHash||!requestKey)return null
+      return (await query(`SELECT body FROM ${schema}.deployment_quotes WHERE client_hash=$1 AND request_key=$2`,[clientHash,requestKey])).rows[0]?.body??null
+    },
     close: () => {
       closing=true
       return closed??=(async()=>{try{await initializing}catch{}await pool.end()})()
@@ -203,7 +210,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         return result.rows[0].body
       })
     },
-    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash }) {
+    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null }) {
       integer(principalCents,{positive:true}); integer(plan.premium,{positive:true}); integer(plan.liquidity,{positive:true})
       if (!validAddress(wallet) || !validAddress(signer) || new URL(origin).origin !== origin) throw fault(400,'Invalid deployment identity.')
       if (BigInt(principalCents)<BigInt(offer.minimumCents) || BigInt(principalCents)>BigInt(offer.maximumCents)) throw fault(400,'The amount is outside this program\'s vault size limits.')
@@ -214,17 +221,40 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       const body = jsonSafe({ fee,recoveryHash,paymentDeadline:expiresAt, id:randomUUID(),wallet:wallet.toLowerCase(),origin,programId:offer.id,programRevision:offer.revision,pairId:offer.pairId,
         pairRevision:offer.pairRevision,budgetPoolId:offer.budgetPoolId,budgetRevision:offer.budget.revision,principalCents,signer:signer.toLowerCase(),snapshot,plan,expiresAt })
       body.planHash = digest({snapshot,plan:body.plan,signer:body.signer,programRevision:body.programRevision,pairRevision:body.pairRevision,budgetRevision:body.budgetRevision})
+      let resultBody=body
       await transaction(async client => {
-        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-quote:'||$1,0))",[body.wallet])
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-admission',0))")
+        if(clientHash){
+          if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestKey??''))throw fault(400,'A checkout request key is required.')
+          const existing=(await client.query(`SELECT body FROM ${schema}.deployment_quotes WHERE client_hash=$1 AND request_key=$2`,[clientHash,requestKey])).rows[0]?.body
+          if(existing){
+            if(existing.wallet!==body.wallet||existing.programId!==body.programId||existing.principalCents!==body.principalCents||existing.recoveryHash!==body.recoveryHash)throw conflict()
+            resultBody=existing;return
+          }
+        }
         const locked=await lockBudget(client,body.budgetPoolId)
         if(locked.paused||locked.reconciliation_required||locked.revision!==body.budgetRevision)throw fault(409,'Campaign changed. Refresh before paying.')
         await requireCapacity(client,locked,principalCents,plan.premiumCents??(locked.campaign?campaignPremiumCents(locked.campaign,principalCents):'0'))
+        if(locked.campaign){
+          const accounting=await campaignAccounting(client,locked),premium=BigInt(plan.premiumCents??campaignPremiumCents(locked.campaign,principalCents))
+          if(BigInt(principalCents)*10000n>BigInt(locked.campaign.capacityCents)*BigInt(checkout.maxQuoteBps)
+            ||premium*10000n>BigInt(locked.campaign.budgetCents)*BigInt(checkout.maxQuoteBps))throw fault(409,'Choose a smaller amount within this campaign\'s public checkout limit.')
+          if((BigInt(accounting.heldCapacityCents)+BigInt(principalCents))*10000n>BigInt(locked.campaign.capacityCents)*BigInt(checkout.maxHeldBps)
+            ||(BigInt(accounting.heldBudgetCents)+premium)*10000n>BigInt(locked.campaign.budgetCents)*BigInt(checkout.maxHeldBps))throw fault(429,'The campaign checkout slots are currently occupied. Retry after pending payments settle.')
+        }
+        const holds=(await client.query(`SELECT count(*)::int total,count(*) FILTER(WHERE client_hash=$1)::int browser
+          FROM ${schema}.deployment_quotes q WHERE q.expires_at>$2 AND COALESCE((q.body->>'withdrawn')::boolean,FALSE)=FALSE
+          AND NOT EXISTS(SELECT 1 FROM ${schema}.deployment_intents i WHERE i.quote_id=q.id)`,[clientHash,new Date(now())])).rows[0]
+        if(holds.total>=checkout.maxUnpaid||clientHash&&holds.browser>=1)throw fault(429,'Finish the open checkout or wait for a free checkout slot.')
+        const issuance=(await client.query(`SELECT count(*)::int total,count(*) FILTER(WHERE client_hash=$1)::int browser
+          FROM ${schema}.deployment_quotes WHERE created_at>$2`,[clientHash,new Date(now()-300_000)])).rows[0]
+        if(issuance.total>=300||clientHash&&issuance.browser>=10)throw fault(429,'Too many checkout requests. Retry in a few minutes.')
         const recent = (await client.query(`SELECT count(*)::int AS count FROM ${schema}.deployment_quotes WHERE wallet=$1 AND created_at>$2`,[body.wallet,new Date(now()-300_000)])).rows[0].count
         if (recent>=30) throw fault(429,'Too many quotes. Retry in a few minutes.')
-        await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at,payment_commitment) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [body.id,body.wallet,body.programId,body.budgetPoolId,body,new Date(Date.parse(body.expiresAt)+(fee?15*60_000:0)),fee?paymentData(body):null])
+        await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at,payment_commitment,client_hash,request_key) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [body.id,body.wallet,body.programId,body.budgetPoolId,body,new Date(Date.parse(body.expiresAt)+(fee?15*60_000:0)),fee?paymentData(body):null,clientHash,requestKey])
       })
-      return body
+      return resultBody
     },
     async quote(id) { return (await query(`SELECT body FROM ${schema}.deployment_quotes WHERE id=$1`,[id])).rows[0]?.body ?? null },
     /** Release an abandoned unpaid hold using its private browser capability.

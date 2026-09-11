@@ -5,7 +5,7 @@ import { incentivesFixture,pair } from './incentives-fixture.mjs'
 import { proofHash } from '../shared/payment.mjs'
 
 it('campaign holds and accepted requests share atomic USD/capacity limits; external funding consumes half and never refills on claim',async()=>{
-  const f=await incentivesFixture(),db=f.database,a=privateKeyToAccount(generatePrivateKey()),b=privateKeyToAccount(generatePrivateKey())
+  const f=await incentivesFixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),db=f.database,a=privateKeyToAccount(generatePrivateKey()),b=privateKeyToAccount(generatePrivateKey())
   try{
     await db.savePair(pair,a.address)
     await db.saveCampaign({id:'three-day',name:'Three days',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},a.address)
@@ -34,14 +34,14 @@ it('campaign holds and accepted requests share atomic USD/capacity limits; exter
 })
 
 it('an unpaid hold can be released only by its private capability; pausing and resuming a new campaign works',async()=>{
-  const f=await incentivesFixture(),db=f.database,a=privateKeyToAccount(generatePrivateKey())
+  const f=await incentivesFixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),db=f.database,a=privateKeyToAccount(generatePrivateKey())
   try{
     await db.savePair(pair,a.address)
     await db.saveCampaign({id:'paused',name:'Paused',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:false},a.address)
     let budget=(await db.catalog(true)).budgets[0]
     assert.equal((await db.offer('paused')).budget.paused,true)
     await db.saveBudget({...budget,paused:false},a.address)
-    const secret='0x'+'4'.repeat(64),q=await f.quote(a,{programId:'paused',principalCents:'100000000',premium:'1000000',recoveryHash:proofHash(secret)})
+    const secret='0x'+'4'.repeat(64),q=await f.quote(a,{programId:'paused',principalCents:'50000000',premium:'500000',recoveryHash:proofHash(secret)})
     await assert.rejects(db.withdrawQuote(q.id,'0x'+'5'.repeat(64)),e=>e.status===403)
     await db.withdrawQuote(q.id,secret)
     assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'100000000')

@@ -1,5 +1,7 @@
 import { decodeFunctionResult,encodeFunctionData,parseAbi } from 'viem'
 import { fault,normalizePair,validAddress } from '../shared/incentives.mjs'
+import { proofHash,paymentData } from '../shared/payment.mjs'
+import { createCheckoutAdmission } from './checkout-admission.mjs'
 
 export function sendJson(res,status,value){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(value))}
 async function readBody(req){
@@ -19,6 +21,7 @@ export async function verifyPair(pair,rpc){
 }
 export function createIncentivesHandler({database:db,auth,service,rpc,basePath='',now=Date.now}){
   const root=basePath+'/api/incentives',windows=new Map()
+  const checkout=createCheckoutAdmission({database:db,origin:auth.origin,basePath,now})
   return async(req,res,pathname)=>{
     if(pathname!==root&&!pathname.startsWith(root+'/'))return false
     try{
@@ -39,6 +42,13 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       }
       if(!['GET','POST'].includes(method))throw fault(405,'Method not allowed.')
       const body=method==='POST'?await readBody(req):null
+      if(method==='POST'&&path==='/checkout/session'){auth.checkOrigin(req);sendJson(res,200,await checkout.issue(req,res));return true}
+      if(method==='POST'&&path==='/checkout/recover'){
+        auth.checkOrigin(req)
+        const quote=await db.checkoutQuote(await checkout.require(req),body.requestKey)
+        if(quote&&(typeof body.recoverySecret!=='string'||proofHash(body.recoverySecret)!==quote.recoveryHash))throw fault(403,'Request recovery record is required.')
+        sendJson(res,200,{quote:quote?{...quote,paymentData:paymentData(quote)}:null});return true
+      }
       if(method==='POST'&&path==='/session/challenge'){sendJson(res,200,auth.challenge(req,body.wallet));return true}
       if(method==='POST'&&path==='/session/login'){sendJson(res,200,{session:await auth.login(req,res,body)});return true}
       if(method==='POST'&&path==='/deployment-quotes/withdraw'){
@@ -54,7 +64,7 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
         auth.checkOrigin(req)
         if(path==='/deployment-quotes'){
           if(!validAddress(body.wallet))throw fault(400,'Connect a valid wallet.')
-          sendJson(res,200,{quote:await service.quote(body.wallet,body.programId,body.amountUsd,body.recoveryHash)});return true
+          sendJson(res,200,{quote:await service.quote(body.wallet,body.programId,body.amountUsd,body.recoveryHash,{clientHash:await checkout.require(req),requestKey:body.requestKey})});return true
         }
         if(path==='/session/payment'){
           const proof=await service.paymentProof(body.quoteId,body.paymentHash,body.recoverySecret)

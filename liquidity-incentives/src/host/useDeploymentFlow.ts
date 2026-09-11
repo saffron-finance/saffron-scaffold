@@ -5,14 +5,15 @@ import { robinhoodChain } from '@lab/chain/chains'
 import { digest,cents } from '../../shared/incentives.mjs'
 import { proofHash,paymentData } from '../../shared/payment.mjs'
 import { requestJson,rememberPayment,robinhoodClient } from './transport'
-import { readPayments,savePayment,type Payment,type Payments } from './payment-records.mjs'
+import { readPayments,savePayment,saveCheckoutDraft,type Payment,type Payments,type CheckoutDraft } from './payment-records.mjs'
 import type { Deployment,Offer } from '../incentives/model'
 
 export function useDeploymentFlow(account:Address|null){
   const [saved,setSaved]=useState<Payment|null>(null),[deployment,setDeployment]=useState<Deployment|null>(null)
+  const [draft,setDraft]=useState<CheckoutDraft|null>(null)
   const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[recoveryHash,setRecoveryHash]=useState('')
   const alive=useRef(true)
-  const update=(ledger:Payments)=>{if(alive.current)setSaved(ledger.activeId?ledger.records[ledger.activeId]:null)}
+  const update=(ledger:Payments)=>{if(alive.current){setSaved(ledger.activeId?ledger.records[ledger.activeId]:null);setDraft(ledger.draft??null)}}
   function restore(){
     if(!account)return
     try{update(readPayments(localStorage,account));setDeployment(null)}catch(cause){setError((cause as Error).message)}
@@ -23,7 +24,7 @@ export function useDeploymentFlow(account:Address|null){
     window.addEventListener('storage',changed);window.addEventListener('saffron:payment-record',changed)
     return()=>{alive.current=false;window.removeEventListener('storage',changed);window.removeEventListener('saffron:payment-record',changed)}
   },[account])
-  async function coordinated(operation:(ledger:Payments,persist:(payment:Payment,active?:boolean)=>void)=>Promise<void>){
+  async function coordinated(operation:(ledger:Payments,persist:(payment:Payment,active?:boolean)=>void,prepare:(draft:CheckoutDraft|null)=>void)=>Promise<void>){
     if(!account)return
     if(!navigator.locks){setError('Use a browser with Web Locks support to coordinate wallet payments.');return}
     setBusy(true);setError(undefined)
@@ -33,14 +34,18 @@ export function useDeploymentFlow(account:Address|null){
       await operation(ledger,(payment,active=true)=>{
         ledger=savePayment(localStorage,account,ledger,payment,{active});update(ledger)
         window.dispatchEvent(new Event('saffron:payment-record'))
-      })
+      },draft=>{ledger=saveCheckoutDraft(localStorage,account,ledger,draft);update(ledger);window.dispatchEvent(new Event('saffron:payment-record'))})
     })}catch(cause){if(alive.current)setError((cause as Error).message)}finally{if(alive.current)setBusy(false)}
   }
-  const review=(offer:Offer,amount:string)=>coordinated(async(ledger,persist)=>{
+  const review=(offer:Offer,amount:string)=>coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
     if(ledger.activeId)throw new Error('Resume or close the saved payment review before starting another request.')
-    const recoverySecret=toHex(crypto.getRandomValues(new Uint8Array(32)))
-    const {quote:q}=await requestJson('/deployment-quotes',{wallet:account,programId:offer.id,amountUsd:amount,recoveryHash:proofHash(recoverySecret)})
+    const draft=ledger.draft??{requestKey:crypto.randomUUID(),wallet:account.toLowerCase(),programId:offer.id,amountUsd:amount,recoverySecret:toHex(crypto.getRandomValues(new Uint8Array(32)))}
+    if(draft.programId!==offer.id||cents(draft.amountUsd)!==cents(amount))throw new Error('Resume the saved checkout amount or discard its unpaid review before changing terms.')
+    prepare(draft)
+    const {recoverySecret,requestKey}=draft
+    await requestJson('/checkout/session',{})
+    const {quote:q}=await requestJson('/deployment-quotes',{wallet:account,programId:offer.id,amountUsd:amount,recoveryHash:proofHash(recoverySecret),requestKey})
     const expected=digest({snapshot:q.snapshot,plan:q.plan,signer:q.signer,programRevision:q.programRevision,pairRevision:q.pairRevision,budgetRevision:q.budgetRevision})
     if(q.origin!==location.origin||q.wallet!==account.toLowerCase()||q.programId!==offer.id||q.principalCents!==cents(amount)||expected!==q.planHash
       ||q.snapshot.poolAddress!==offer.pool||q.snapshot.variableAssetAddress!==offer.token0.address||q.snapshot.durationSeconds!==offer.days*86400
@@ -92,11 +97,17 @@ export function useDeploymentFlow(account:Address|null){
     }
     finish(await requestJson('/deployments',{quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret}))
   })
-  const reset=()=>coordinated(async(ledger,persist)=>{
+  const reset=()=>coordinated(async(ledger,persist,prepare)=>{
     const current=ledger.activeId?ledger.records[ledger.activeId]:null
     if(current?.sent)throw new Error('Recover the existing payment before starting another request.')
+    if(ledger.draft){
+      await requestJson('/checkout/session',{})
+      const {quote}=await requestJson('/checkout/recover',{requestKey:ledger.draft.requestKey,recoverySecret:ledger.draft.recoverySecret})
+      if(quote)await requestJson('/deployment-quotes/withdraw',{quoteId:quote.id,recoverySecret:ledger.draft.recoverySecret})
+      prepare(null)
+    }
     if(current){await requestJson('/deployment-quotes/withdraw',{quoteId:current.quote.id,recoverySecret:current.recoverySecret});persist({...current,status:'abandoned'},false)}
     if(alive.current){setDeployment(null);setRecoveryHash('')}
   })
-  return {quote:saved?.quote??null,deployment,saved,busy,error,review,pay,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
+  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,review,pay,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
 }
