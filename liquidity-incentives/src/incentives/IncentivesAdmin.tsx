@@ -5,6 +5,7 @@ import { authedJson } from '../host/transport'
 import { useDeployments } from '../host/useDeployments'
 import { ProgramAdmin } from './ProgramAdmin'
 import { TreasuryInventory,FundingBrief } from './TreasuryInventory'
+import { AmountReviews } from './AmountReviews'
 import { DeploymentPagination } from './DeploymentPagination'
 import { statusLabel,type Deployment } from './model'
 import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
@@ -18,6 +19,7 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
       {data.operatorStatus&&<IntakePolicy account={account} status={data.operatorStatus} onUpdate={data.refresh}/>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
       <TreasuryInventory account={account} onUpdate={data.refresh}/>
+      <AmountReviews account={account}/>
       <PaymentAttention account={account}/>
       <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
       {data.rows.map(row=><AdminVault key={row.id} account={account} row={row} onUpdate={data.refresh}/>)}

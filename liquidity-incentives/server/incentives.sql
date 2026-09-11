@@ -31,6 +31,16 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.treasury_allocation_audit (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
 );
 CREATE INDEX IF NOT EXISTS checkout_clients_issued ON saffron_incentives.checkout_clients(created_at);
+CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_reviews (
+  id UUID PRIMARY KEY,client_hash TEXT NOT NULL REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT NOT NULL,recovery_hash TEXT NOT NULL,
+  wallet TEXT NOT NULL,program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),principal_cents NUMERIC(78,0) NOT NULL CHECK(principal_cents>0),
+  state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','approved','declined','expired','used')),revision INTEGER NOT NULL DEFAULT 1,
+  expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(client_hash,request_key)
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_review_audit (
+  id BIGSERIAL PRIMARY KEY,review_id UUID NOT NULL REFERENCES saffron_incentives.checkout_reviews(id),actor TEXT NOT NULL,request_key TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,reason TEXT NOT NULL,result JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
+);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
   id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),
   budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,

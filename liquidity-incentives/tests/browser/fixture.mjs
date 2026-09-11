@@ -7,14 +7,16 @@ import { join,resolve,sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createWalletClient,http,hexToString,encodeFunctionData,toHex } from 'viem'
 import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
-import { incentivesFixture,program } from '../incentives-fixture.mjs'
+import { incentivesFixture,program,pair } from '../incentives-fixture.mjs'
 import { evmFixture,CASHCAT } from '../evm-fixture.mjs'
 import { createCreator } from '../../worker/creator.mjs'
-import { WETH } from '../../shared/vault-lifecycle.mjs'
+import { WETH,abi } from '../../shared/vault-lifecycle.mjs'
+import { walletSessionMessage } from '../../shared/incentives.mjs'
+import { randomUUID } from 'node:crypto'
 
 /** Actual production server, real PostgreSQL, and real local protocol/Uniswap.
  * Only the injected test wallet and external USD provider are substituted. */
-export async function setup(page,{admin=false,wrap=false}={}){
+export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
   const cleanup=[];let closing
   const close=()=>closing??=(async()=>{let failure;for(const release of cleanup.reverse()){try{await release()}catch(error){failure??=error}}if(failure)throw failure})()
   try{
@@ -25,15 +27,15 @@ export async function setup(page,{admin=false,wrap=false}={}){
   const dir=await mkdtemp(join(tmpdir(),'saffron-incentives-test-')),clockFile=join(dir,'clock.txt')
   cleanup.push(async()=>{const resolved=resolve(dir);if(!resolved.startsWith(resolve(tmpdir())+sep+'saffron-incentives-test-'))throw new Error('Unsafe fixture cleanup path');await rm(resolved,{recursive:true,force:true})})
   await writeFile(clockFile,'0')
-  await store.seed(chain.account.address,10n**30n+'',{pool:chain.pool})
-  for(const days of [7,14,30])await database.saveProgram({...program,id:'cashcat-'+days+'d',days},chain.account.address)
+  if(!campaign){await store.seed(chain.account.address,10n**30n+'',{pool:chain.pool})
+    for(const days of [7,14,30])await database.saveProgram({...program,id:'cashcat-'+days+'d',days},chain.account.address)}
   await chain.raw('anvil_setBalance',[account.address,toHex(100n*10n**18n)])
   for(const token of [CASHCAT,...(wrap?[]:[WETH])])await chain.send(token,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[account.address,10n**26n]}))
   const worker=createCreator({database,rpc:chain.rpc,account:chain.account,config:chain.config})
-  await database.execution.heartbeat(chain.account.address)
-  await chain.prepareIntake(database,{continuous:true})
-  const heart=setInterval(()=>void database.execution.heartbeat(chain.account.address).catch(()=>{}),5000)
-  cleanup.push(()=>clearInterval(heart))
+  if(!campaign){await database.execution.heartbeat(chain.account.address)
+    await chain.prepareIntake(database,{continuous:true})
+    const heart=setInterval(()=>void database.execution.heartbeat(chain.account.address).catch(()=>{}),5000)
+    cleanup.push(()=>clearInterval(heart))}
   let clockOffset=0
   const price=createServer((req,res)=>{const address=new URL(req.url,'http://localhost').pathname.split('/')[1];res.setHeader('content-type','application/json');res.end(JSON.stringify({success:true,data:{chainId:4663,tokenAddress:address,currency:'usd',price:2000,timestamp:new Date(Date.now()+clockOffset).toISOString()}}))})
   price.listen(0,'127.0.0.1');await once(price,'listening')
@@ -49,6 +51,34 @@ export async function setup(page,{admin=false,wrap=false}={}){
   cleanup.push(async()=>{if(child.exitCode===null){child.kill();await once(child,'exit')}})
   let output='';child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
   for(let i=0;i<100;i++){try{if((await fetch(origin+'/')).ok)break}catch{}if(i===99)throw new Error('Application startup failed: '+output);await delay(100)}
+  let operatorSession
+  const operatorAccount=admin?account:chain.account
+  async function operatorCall(path,body){
+    const call=async(path,body)=>{const response=await fetch(origin+'/api/incentives'+path,{method:body?'POST':'GET',headers:{origin,'content-type':'application/json',...(operatorSession?{cookie:operatorSession.cookie,'x-saffron-csrf':operatorSession.csrf}:{})},...(body?{body:JSON.stringify(body)}:{})});return {response,data:await response.json()}}
+    if(!operatorSession){const challenge=(await call('/session/challenge',{wallet:operatorAccount.address})).data
+      const result=await call('/session/login',{wallet:operatorAccount.address,nonce:challenge.nonce,signature:await operatorAccount.signMessage({message:walletSessionMessage(challenge)})})
+      if(!result.response.ok)throw new Error('Fixture operator login failed')
+      operatorSession={cookie:result.response.headers.get('set-cookie').split(';')[0],csrf:result.data.session.csrf}}
+    const result=await call(path,body);if(!result.response.ok)throw new Error(result.data.error);return result.data
+  }
+  let treasury,treasuryWallet
+  if(campaign){
+    if((await operatorCall('/admin/catalog')).programs.length)throw new Error('Production bootstrap must start empty')
+    await operatorCall('/admin/pairs',{...pair,pool:chain.pool})
+    await operatorCall('/admin/campaigns',{id:'cashcat-3d',name:'Complete-cycle campaign',pairId:pair.id,days:3,budgetUsd:'1000',capacityUsd:'100000',active:true})
+    treasury=privateKeyToAccount(generatePrivateKey());treasuryWallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
+    await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**20n)])
+    await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,10n**30n]}))
+    await operatorCall('/admin/treasury',{budgetId:'cashcat-3d',wallet:treasury.address,limitRaw:(10n**29n).toString(),revision:0,reason:'Assign complete-cycle test inventory',requestKey:randomUUID()})
+    await chain.prepareIntake(database,{continuous:true})
+  }
+  async function fund(row,rawAmount){
+    if(!treasuryWallet)return chain.fund(row)
+    const bearer=await chain.client.readContract({address:row.plan.vault,abi,functionName:'variableBearerToken'})
+    const supplied=await chain.client.readContract({address:bearer,abi,functionName:'totalSupply'}),amount=rawAmount??BigInt(row.plan.premium)-supplied
+    for(const [to,data]of [[CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[row.plan.vault,amount]})],[row.plan.vault,encodeFunctionData({abi,functionName:'deposit',args:[amount,1n,'0x']})]]){
+      const hash=await treasuryWallet.sendTransaction({to,data});await chain.client.waitForTransactionReceipt({hash});await chain.raw('evm_mine')}
+  }
   const wallet=createWalletClient({account,chain:chain.client.chain,transport:http(chain.url)})
   const state={chain:'0x1237',sends:0,signs:0,calls:[],messages:[],lostSend:false,lastHash:null,connected:false,holdSend:false}
   await page.context().exposeFunction('fixtureWalletRequest',async(name,{method,params=[]})=>{
@@ -99,7 +129,7 @@ export async function setup(page,{admin=false,wrap=false}={}){
   })
 
   await page.context().addInitScript(()=>{const actual=Date.now;window.testClockOffset=Number(localStorage.getItem('saffron.fixture.clock-offset')||0);Date.now=()=>actual()+window.testClockOffset})
-  return {account,chain,database,worker,state,origin,
+  return {account,chain,database,worker,state,origin,operatorCall,fund,treasuryAddress:treasury?.address,
     async advanceTo(timestamp){clockOffset=timestamp*1000-Date.now();await writeFile(clockFile,String(clockOffset));await page.evaluate(value=>{window.testClockOffset=value;localStorage.setItem('saffron.fixture.clock-offset',String(value))},clockOffset);await chain.raw('evm_setNextBlockTimestamp',[timestamp]);await chain.raw('evm_mine');await chain.raw('evm_mine')},
     close,
   }

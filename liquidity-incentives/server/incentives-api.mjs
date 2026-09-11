@@ -48,6 +48,9 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(!['GET','POST'].includes(method))throw fault(405,'Method not allowed.')
       const body=method==='POST'?await readBody(req):null
       if(method==='POST'&&path==='/checkout/session'){auth.checkOrigin(req);sendJson(res,200,await checkout.issue(req,res));return true}
+      if(method==='POST'&&path==='/checkout/amount-review'){
+        auth.checkOrigin(req);sendJson(res,200,{admission:await service.requestAmountReview(body.wallet,body.programId,body.amountUsd,body.recoveryHash,{clientHash:await checkout.require(req),requestKey:body.requestKey})});return true
+      }
       if(method==='POST'&&path==='/checkout/recover'){
         auth.checkOrigin(req)
         const quote=await db.checkoutQuote(await checkout.require(req),body.requestKey)
@@ -100,6 +103,9 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
       if(method==='GET'&&path==='/admin/treasury'){sendJson(res,200,await service.treasuryStatus());return true}
+      if(method==='GET'&&path==='/admin/amount-reviews'){sendJson(res,200,await db.listCheckoutReviews(page()));return true}
+      const amountReview=/^\/admin\/amount-reviews\/([0-9a-f-]{36})$/.exec(path)
+      if(method==='POST'&&amountReview){sendJson(res,200,{admission:await db.decideCheckoutReview(amountReview[1],body,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/treasury'){sendJson(res,200,{allocation:await service.assignTreasury(body,session.wallet)});return true}
       const fundingBrief=/^\/admin\/deployments\/([0-9a-f-]{36})\/funding-brief$/.exec(path)
       if(method==='GET'&&fundingBrief){sendJson(res,200,{brief:await service.fundingBrief(fundingBrief[1],session.wallet)});return true}

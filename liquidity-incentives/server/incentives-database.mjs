@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { createTreasuryInventory } from './treasury-inventory.mjs'
+import { createCheckoutReviews } from './checkout-reviews.mjs'
 import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
 import { createCheckoutReservations } from './checkout-reservations.mjs'
@@ -97,12 +98,12 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
     const holds=(await client.query(`SELECT q.body FROM ${schema}.deployment_quotes q
       WHERE q.budget_pool_id=$1 AND ($2::uuid IS NULL OR q.id<>$2)
       AND q.hold_state IN ('held','closing')`,[budget.id,excludeQuote])).rows
-    let held=0n,heldBudget=0n
-    for(const {body} of holds){held+=BigInt(body.principalCents);heldBudget+=BigInt(body.plan.premiumCents??campaignPremiumCents(terms,body.principalCents))}
+    let held=0n,heldBudget=0n,anonymousHeld=0n,anonymousBudget=0n
+    for(const {body} of holds){const premium=BigInt(body.plan.premiumCents??campaignPremiumCents(terms,body.principalCents));held+=BigInt(body.principalCents);heldBudget+=premium;if(!body.admissionId){anonymousHeld+=BigInt(body.principalCents);anonymousBudget+=premium}}
     return {budgetCents:terms.budgetCents,targetCapacityCents:terms.capacityCents,
       fundedBudgetCents:fundedBudget.toString(),reservedBudgetCents:(spent-fundedBudget).toString(),heldBudgetCents:heldBudget.toString(),
       fundedCapacityCents:funded.toString(),reservedCapacityCents:(committed-funded).toString(),heldCapacityCents:held.toString(),
-      availableBudgetCents:(BigInt(terms.budgetCents)-spent-heldBudget).toString(),
+      anonymousHeldCapacityCents:anonymousHeld.toString(),anonymousHeldBudgetCents:anonymousBudget.toString(),availableBudgetCents:(BigInt(terms.budgetCents)-spent-heldBudget).toString(),
       availableCapacityCents:(BigInt(terms.capacityCents)-committed-held).toString(),fixedDepositedCents:deposited.toString()}
   }
   async function requireCapacity(client,budget,principal,premium,excludeQuote=null){
@@ -241,17 +242,18 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         if(intakeRevision!==null)await db.requireIntake(client,body.signer,intakeRevision)
         const locked=await lockBudget(client,body.budgetPoolId)
         if(locked.paused||locked.reconciliation_required||locked.revision!==body.budgetRevision)throw fault(409,'Campaign changed. Refresh before paying.')
+        body.admissionId=await db.useCheckoutReview(client,{clientHash,requestKey,recoveryHash,wallet:body.wallet,programId:body.programId,principalCents})
         if(treasury)await db.requireTreasury(client,locked.id,plan.premium,treasury)
         const slots=await db.pendingSlots(client,body.wallet)
         if(slots.total>=maxPending||slots.wallet>=maxPendingPerWallet)throw fault(429,'Deployment queue limit reached before payment. Complete or cancel pending work first.')
         if(BigInt(plan.premium)+await db.rawHolds(client,body.budgetPoolId)>BigInt(locked.limit_raw)-BigInt(locked.reserved_raw)-BigInt(locked.allocated_raw))throw fault(409,'Raw premium capacity is already reserved by another checkout.')
         await requireCapacity(client,locked,principalCents,plan.premiumCents??(locked.campaign?campaignPremiumCents(locked.campaign,principalCents):'0'))
-        if(locked.campaign){
+        if(locked.campaign&&!body.admissionId){
           const accounting=await campaignAccounting(client,locked),premium=BigInt(plan.premiumCents??campaignPremiumCents(locked.campaign,principalCents))
           if(BigInt(principalCents)*10000n>BigInt(locked.campaign.capacityCents)*BigInt(checkout.maxQuoteBps)
             ||premium*10000n>BigInt(locked.campaign.budgetCents)*BigInt(checkout.maxQuoteBps))throw fault(409,'Choose a smaller amount within this campaign\'s public checkout limit.')
-          if((BigInt(accounting.heldCapacityCents)+BigInt(principalCents))*10000n>BigInt(locked.campaign.capacityCents)*BigInt(checkout.maxHeldBps)
-            ||(BigInt(accounting.heldBudgetCents)+premium)*10000n>BigInt(locked.campaign.budgetCents)*BigInt(checkout.maxHeldBps))throw fault(429,'The campaign checkout slots are currently occupied. Retry after pending payments settle.')
+          if((BigInt(accounting.anonymousHeldCapacityCents)+BigInt(principalCents))*10000n>BigInt(locked.campaign.capacityCents)*BigInt(checkout.maxHeldBps)
+            ||(BigInt(accounting.anonymousHeldBudgetCents)+premium)*10000n>BigInt(locked.campaign.budgetCents)*BigInt(checkout.maxHeldBps))throw fault(429,'The campaign checkout slots are currently occupied. Retry after pending payments settle.')
         }
         const holds=(await client.query(`SELECT count(*)::int total,count(*) FILTER(WHERE client_hash=$1)::int browser
           FROM ${schema}.deployment_quotes q WHERE q.hold_state IN ('held','closing')`,[clientHash])).rows[0]
@@ -442,6 +444,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   Object.assign(db,createIntakePolicy(db))
   Object.assign(db,createGasReservations(db))
   Object.assign(db,createTreasuryInventory(db))
+  Object.assign(db,createCheckoutReviews(db))
   db.execution=createExecutionDatabase(db)
   return db
 }

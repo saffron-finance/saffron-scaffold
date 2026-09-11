@@ -217,12 +217,13 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           const capacity=BigInt(a.availableCapacityCents)<byBudget?BigInt(a.availableCapacityCents):byBudget
           let limit=capacity<BigInt(offer.maximumCents)?capacity:BigInt(offer.maximumCents)
           const perQuote=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxQuoteBps)/10000n
-          const unpaidRoom=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.heldCapacityCents)
+          const unpaidRoom=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.anonymousHeldCapacityCents)
           const campaign=offer.budget.campaign,budget=BigInt(campaign.budgetCents),totalCapacity=BigInt(campaign.capacityCents)
           const quoteBudget=budget*BigInt(db.checkout.maxQuoteBps)/10000n
-          const unpaidBudget=budget*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.heldBudgetCents)
+          const unpaidBudget=budget*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.anonymousHeldBudgetCents)
           const premiumRoom=quoteBudget<unpaidBudget?quoteBudget:unpaidBudget
           const premiumCapacity=(premiumRoom>0n?premiumRoom:0n)*totalCapacity/budget
+          let reviewedLimit=limit
           if(limit>perQuote)limit=perQuote
           if(limit>unpaidRoom)limit=unpaidRoom>0n?unpaidRoom:0n
           if(limit>premiumCapacity)limit=premiumCapacity
@@ -230,8 +231,9 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
             const plan=await size(offer,offer.minimumCents,signer,true)
             const rawCapacity=rawRoom*BigInt(plan.variablePrice)/(10n**16n*10n**BigInt(plan.variableDecimals))*totalCapacity/budget
             if(limit>rawCapacity)limit=rawCapacity
+            if(reviewedLimit>rawCapacity)reviewedLimit=rawCapacity
           }catch{return {...offer,eligibleMaximumCents:null,availability:'Live treasury sizing is unavailable'}}
-          return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),availability:null}
+          return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),reviewMaximumCents:reviewedLimit.toString(),availability:null}
         }
         try{
           const plan=await size(offer,offer.minimumCents,signer,true)
@@ -243,6 +245,12 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         }catch{return {...offer,eligibleMaximumCents:null,availability:'Live sizing is unavailable'}}
       })))
       return {offers:rows.map(row=>readiness.canQuote?row:{...row,eligibleMaximumCents:'0',availability:'New requests are paused: '+readiness.reasons.join(', ').replaceAll('_',' ')}),creatorOnline:readiness.workerOnline,readiness}
+    },
+    async requestAmountReview(wallet,programId,amount,recoveryHash,checkout){
+      if(!validAddress(wallet))throw fault(400,'Connect a valid wallet.')
+      const principalCents=cents(amount),offer=await db.offer(programId)
+      if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents)||!offer.budget.campaign)throw fault(400,'Choose an amount within the campaign limits.')
+      return db.requestCheckoutReview({wallet:wallet.toLowerCase(),programId,principalCents,recoveryHash,...checkout})
     },
     async quote(wallet,programId,amount,recoveryHash,{clientHash=null,requestKey=null}={}){
       const existing=await db.checkoutQuote(clientHash,requestKey)

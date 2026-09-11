@@ -54,6 +54,14 @@ export function useDeploymentFlow(account:Address|null){
     const status=result.state==='refunded'?'refunded':['needs_attention','refund_due','confirming','reconciliation_required'].includes(result.state)?'needs_attention':payment.status
     if(payment.resolutionState!==result.state||next.hash!==payment.hash)persist({...next,status,resolutionState:result.state})
   })
+  const requestAdmission=(offer:Offer,amount:string)=>coordinated(async(ledger,_persist,prepare)=>{
+    if(!account||ledger.activeId)throw new Error('Resume the saved payment first.')
+    const draft=ledger.draft??{requestKey:crypto.randomUUID(),wallet:account.toLowerCase(),programId:offer.id,amountUsd:amount,recoverySecret:toHex(crypto.getRandomValues(new Uint8Array(32)))}
+    if(draft.programId!==offer.id||cents(draft.amountUsd)!==cents(amount))throw new Error('Resume or discard the original unpaid amount review before changing terms.')
+    prepare(draft);await requestJson('/checkout/session',{})
+    const {admission}=await requestJson('/checkout/amount-review',{wallet:account,programId:offer.id,amountUsd:amount,recoveryHash:proofHash(draft.recoverySecret),requestKey:draft.requestKey})
+    prepare({...draft,admission})
+  })
   const review=(offer:Offer,amount:string)=>coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
     if(ledger.activeId)throw new Error('Resume or close the saved payment review before starting another request.')
@@ -125,5 +133,5 @@ export function useDeploymentFlow(account:Address|null){
     if(current){await requestJson('/deployment-quotes/withdraw',{quoteId:current.quote.id,recoverySecret:current.recoverySecret});persist({...current,status:'abandoned'},false)}
     if(alive.current){setDeployment(null);setRecoveryHash('')}
   })
-  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,review,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
+  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,review,requestAdmission,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
 }

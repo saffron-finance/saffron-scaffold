@@ -27,6 +27,15 @@ Pause intake before treasury reallocations or unrelated outgoing transfers.
 
 ## Fund a reviewed vault
 
+For an amount above the public checkout size/share limit, users can choose
+**Request amount review** before paying. The request reserves no inventory and
+expires after 24 hours. **Unpaid amount reviews** in Administration supports an
+audited approval or decline. Approval lasts 15 minutes and applies to one exact
+wallet, campaign, amount and private browser request. Users resume the unpaid
+checkout, check the review, and continue into the ordinary 120-second payment
+quote. All economic, treasury, gas and queue limits still apply. Failed admission
+does not consume the approval or ask for a fee. This is not a vault creation form.
+
 1. In the vault's Administration row, open **External funding and recovery brief**.
    Refresh it, check the request/plan identifiers and the three creation receipts.
 2. Use **Refresh and copy funding brief** immediately before preparing an external

@@ -6,6 +6,41 @@ import { incentivesFixture,pair,ORIGIN } from './incentives-fixture.mjs'
 import { createCheckoutAdmission } from '../server/checkout-admission.mjs'
 const account=()=>privateKeyToAccount(generatePrivateKey())
 
+it('an unpaid operator amount review authorizes one exact checkout without bypassing shared economic limits',async()=>{
+  const f=await incentivesFixture(),db=f.database,a=account(),admission=createCheckoutAdmission({database:db,origin:ORIGIN})
+  const req={socket:{remoteAddress:'127.0.0.1'},headers:{}},res={setHeader:(_name,value)=>{req.headers.cookie=value.split(';')[0]}}
+  try{
+    await db.savePair(pair,a.address)
+    await db.saveCampaign({id:'reviewed',name:'Reviewed',pairId:pair.id,days:3,budgetUsd:'1000',capacityUsd:'100000',active:true},a.address)
+    await admission.issue(req,res)
+    const options={clientHash:await admission.require(req),requestKey:randomUUID(),recoveryHash:'0x'+'4'.repeat(64),programId:'reviewed',principalCents:'5000000',premium:'1000'}
+    const request={...options,wallet:a.address.toLowerCase()}
+    const review=await db.requestCheckoutReview(request)
+    assert.equal((await db.requestCheckoutReview(request)).id,review.id)
+    assert.equal((await db.catalog(true)).budgets[0].heldRaw,'0','review collects no payment and reserves no tokens')
+    await assert.rejects(f.quote(a,options),/pending, closed or expired/)
+    await assert.rejects(db.requestCheckoutReview({...request,recoveryHash:'0x'+'3'.repeat(64)}),/private checkout/)
+    await assert.rejects(db.requestCheckoutReview({...request,requestKey:randomUUID()}),/slots are occupied/)
+    const decision={action:'approve',revision:review.revision,reason:'Reviewed larger campaign position',requestKey:randomUUID()}
+    const approved=await db.decideCheckoutReview(review.id,decision,a.address)
+    assert.deepEqual(await db.decideCheckoutReview(review.id,decision,a.address),approved)
+    await assert.rejects(f.quote(a,{...options,principalCents:'6000000'}),/amount review/)
+    const budget=(await db.catalog(true)).budgets[0]
+    await db.saveBudget({...budget,limitRaw:'999'},a.address)
+    await assert.rejects(f.quote(a,options),/insufficient available funding/)
+    assert.equal((await db.checkoutReview(options.clientHash,options.requestKey,options.recoveryHash)).state,'approved')
+    await db.saveBudget({...budget,revision:2,limitRaw:'100000'},a.address)
+    const [q,replay]=await Promise.all([f.quote(a,options),f.quote(a,options)])
+    assert.equal(q.id,replay.id);assert.equal(q.admissionId,review.id)
+    assert.equal((await db.checkoutReview(options.clientHash,options.requestKey,options.recoveryHash)).state,'used')
+    for(let i=0;i<2;i++)await f.quote(account(),{programId:'reviewed',principalCents:'1000000',premium:'1000'})
+    await assert.rejects(f.quote(account(),{programId:'reviewed',principalCents:'1000000',premium:'1000'}),/checkout slots/)
+    const accounting=(await db.catalog(true)).budgets[0].accounting
+    assert.equal(accounting.heldCapacityCents,'7000000');assert.equal(accounting.anonymousHeldCapacityCents,'2000000')
+    assert.doesNotMatch(JSON.stringify(await db.listCheckoutReviews()),/client_hash|recovery_hash/)
+  }finally{await f.close()}
+})
+
 it('public unpaid quotes have individual and aggregate campaign caps across arbitrary wallets',async()=>{
   const f=await incentivesFixture(),db=f.database,a=account()
   try{
