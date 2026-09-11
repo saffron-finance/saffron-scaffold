@@ -20,6 +20,16 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.programs (
 CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_clients (
   id TEXT PRIMARY KEY,peer_hash TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),expires_at TIMESTAMPTZ NOT NULL
 );
+CREATE TABLE IF NOT EXISTS saffron_incentives.treasury_allocations (
+  budget_pool_id TEXT PRIMARY KEY REFERENCES saffron_incentives.budget_pools(id),wallet TEXT NOT NULL,
+  limit_raw NUMERIC(78,0) NOT NULL CHECK(limit_raw>0),revision INTEGER NOT NULL CHECK(revision>0),
+  updated_by TEXT NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.treasury_allocation_audit (
+  id BIGSERIAL PRIMARY KEY,budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
+  actor TEXT NOT NULL,request_key TEXT NOT NULL,fingerprint TEXT NOT NULL,reason TEXT NOT NULL,evidence JSONB NOT NULL,result JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
+);
 CREATE INDEX IF NOT EXISTS checkout_clients_issued ON saffron_incentives.checkout_clients(created_at);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
   id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),

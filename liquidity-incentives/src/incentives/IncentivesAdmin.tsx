@@ -4,6 +4,7 @@ import { StepTitle } from '../host/ui'
 import { authedJson } from '../host/transport'
 import { useDeployments } from '../host/useDeployments'
 import { ProgramAdmin } from './ProgramAdmin'
+import { TreasuryInventory,FundingBrief } from './TreasuryInventory'
 import { DeploymentPagination } from './DeploymentPagination'
 import { statusLabel,type Deployment } from './model'
 import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
@@ -16,6 +17,7 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
       {data.operatorStatus&&<FinePrint>Worker gas: {data.operatorStatus.gasBalanceRaw===null?'unavailable':formatUnits(BigInt(data.operatorStatus.gasBalanceRaw),18)+' ETH'} · {data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
       {data.operatorStatus&&<IntakePolicy account={account} status={data.operatorStatus} onUpdate={data.refresh}/>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
+      <TreasuryInventory account={account} onUpdate={data.refresh}/>
       <PaymentAttention account={account}/>
       <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
       {data.rows.map(row=><AdminVault key={row.id} account={account} row={row} onUpdate={data.refresh}/>)}
@@ -36,7 +38,7 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
     <FinePrint>Premium commitment: {formatUnits(BigInt(row.plan.premium),row.plan.variableDecimals)} {row.plan.variableSymbol}. Funding: {row.fundingState}.</FinePrint>
     {s?.verified&&<FinePrint>Variable funded: {formatUnits(BigInt(s.variableSupply),s.variableDecimals)} / {formatUnits(BigInt(s.variableCapacity),s.variableDecimals)} {s.variableSymbol}.</FinePrint>}
     {row.error&&<FinePrint>{row.error} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
-    {row.plan.vault&&<FinePrint>Fund externally using variable-side deposit into {row.plan.vault}. Token: {row.snapshot.variableAssetAddress}. Required total: {row.plan.premium} raw units. Plain token transfers do not count.</FinePrint>}
+    {row.plan.vault&&<FundingBrief account={account} id={row.id}/>}
     <Row style={{flexWrap:'wrap'}}>
       {(row.workerState==='failed'||['failed','waiting'].includes(row.fundingState)||row.error)&&row.workerState!=='retired'&&<QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton>}
       {row.workerState!=='retired'&&(!row.plan.vault||(s?.verified&&!s.isStarted&&BigInt(s.claimSupply)===0n))&&<QuietButton disabled={busy} onClick={()=>void run('retire')}>Verify external recovery and retire</QuietButton>}

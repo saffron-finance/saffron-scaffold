@@ -99,9 +99,14 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       }
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
+      if(method==='GET'&&path==='/admin/treasury'){sendJson(res,200,await service.treasuryStatus());return true}
+      if(method==='POST'&&path==='/admin/treasury'){sendJson(res,200,{allocation:await service.assignTreasury(body,session.wallet)});return true}
+      const fundingBrief=/^\/admin\/deployments\/([0-9a-f-]{36})\/funding-brief$/.exec(path)
+      if(method==='GET'&&fundingBrief){sendJson(res,200,{brief:await service.fundingBrief(fundingBrief[1],session.wallet)});return true}
       if(method==='POST'&&path==='/admin/intake'){
         const status=await service.operatorStatus()
         if(body.signer?.toLowerCase()!==status.signer?.toLowerCase())throw fault(400,'Intake must use the configured creation signer.')
+        if(body.enabled&&!status.readiness.treasury?.available)throw fault(409,'Verify assigned treasury inventory before opening intake.')
         sendJson(res,200,{policy:await db.saveIntake(body,session.wallet),readiness:await service.readiness()});return true
       }
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}

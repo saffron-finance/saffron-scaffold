@@ -8,7 +8,8 @@ import solc from 'solc'
 import { createPublicClient, createWalletClient, http, encodeFunctionData, parseAbi, keccak256, toHex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { CHAIN_ID, FACTORY, WETH, abi } from '../shared/vault-lifecycle.mjs'
-import { randomBytes } from 'node:crypto'
+import { randomBytes,randomUUID } from 'node:crypto'
+import { treasuryCoverage } from '../server/treasury-inventory.mjs'
 import { proofHash,paymentData } from '../shared/payment.mjs'
 import { anvilBinary } from './anvil.mjs'
 import { createPaymentWatcher } from '../worker/payments.mjs'
@@ -89,7 +90,20 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
       if(loseBroadcast){loseBroadcast=false;throw new Error('Simulated lost broadcast response')}return hash
     }
     const recoverySecret='0x'+randomBytes(32).toString('hex'),watchers=[]
+    async function allocateTreasury(database,wallet=account.address){
+      const budgets=(await database.catalog(true)).budgets
+      for(const budget of budgets){
+        const book=await database.treasuryBook()
+        if(book.some(a=>a.budget_pool_id===budget.id))continue
+        const evidence=await treasuryCoverage({db:database,rpc,extra:[{wallet:wallet.toLowerCase(),reward_asset:budget.rewardAsset}]})
+        const balance=BigInt(evidence.balances[wallet.toLowerCase()+':'+budget.rewardAsset])
+        const assigned=book.filter(a=>a.wallet===wallet.toLowerCase()&&a.reward_asset===budget.rewardAsset).reduce((sum,a)=>sum+BigInt(a.limit_raw)-BigInt(a.allocated_raw),0n)
+        const room=balance-assigned,limit=BigInt(budget.limitRaw)<room?BigInt(budget.limitRaw):room
+        await database.assignTreasury({budgetId:budget.id,wallet,limitRaw:limit.toString(),revision:0,reason:'Assign disposable fixture inventory',requestKey:randomUUID()},account.address,evidence)
+      }
+    }
     async function prepareIntake(database,{mode='reviewed',continuous=false}={}){
+      await allocateTreasury(database)
       const previous=await database.intakePolicy(account.address)
       await database.saveIntake({signer:account.address,revision:previous?.revision??0,mode,enabled:true,expiresAt:new Date(Date.now()+86400_000-1000).toISOString(),serviceMinutes:1440,maxPending:100,watcherId:'intake-fixture'},account.address)
       const watcher=createPaymentWatcher({database,rpc,startBlock:'0',maxBlocks:500,id:'intake-fixture'})
@@ -115,7 +129,7 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
     }
     // A fee must leave the payer. Using a distinct receiver prevents self-
     // transfers from making local payment tests pass without a real transfer.
-    return {feeRecipient:'0x2222222222222222222222222222222222222222',accept,fund,prepareIntake,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
+    return {feeRecipient:'0x2222222222222222222222222222222222222222',accept,fund,prepareIntake,allocateTreasury,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
       get broadcasts(){return broadcasts},set loseBroadcast(value){loseBroadcast=value},set beforeBroadcast(value){beforeBroadcast=value},
       usdQuote:async()=>({priceRaw:(2000n*10n**18n).toString(),checkedAt:Date.now()}),
       close:async()=>{for(const timer of watchers)clearInterval(timer);child.kill('SIGTERM');if(child.exitCode===null)await once(child,'exit')},

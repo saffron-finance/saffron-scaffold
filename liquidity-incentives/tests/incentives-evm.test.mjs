@@ -168,14 +168,15 @@ it('a distinct external treasury funds a USD campaign without worker custody and
   const f=await fixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),{chain,db,service}=f
   try{
     await db.saveCampaign({id:'usd-campaign',name:'USD campaign',pairId:'cashcat-eth',days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},chain.account.address)
-    const {id}=await chain.accept(service,'usd-campaign','500000')
-    assert.equal((await createCreator(f.options).tick()).state,'created')
-    const row=await service.detail(id,chain.account.address),amount=BigInt(row.plan.premium)
     const {generatePrivateKey,privateKeyToAccount}=await import('viem/accounts')
     const {createWalletClient,http,toHex}=await import('viem')
     const treasury=privateKeyToAccount(generatePrivateKey()),wallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
     await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**19n)])
-    await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,amount]}))
+    await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,10n**26n]}))
+    await chain.allocateTreasury(db,treasury.address)
+    const {id}=await chain.accept(service,'usd-campaign','500000')
+    assert.equal((await createCreator(f.options).tick()).state,'created')
+    const row=await service.detail(id,chain.account.address),amount=BigInt(row.plan.premium)
     for(const [to,data]of [[CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[row.plan.vault,amount]})],
       [row.plan.vault,encodeFunctionData({abi,functionName:'deposit',args:[amount,1n,'0x']})]]){
       const hash=await wallet.sendTransaction({to,data});await chain.client.waitForTransactionReceipt({hash});await chain.raw('evm_mine')

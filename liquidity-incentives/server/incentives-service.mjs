@@ -13,6 +13,7 @@ import { abi } from '../shared/vault-lifecycle.mjs'
 import { intakeReadiness } from './intake-policy.mjs'
 import { gasCoverage } from './gas-reservations.mjs'
 import { deploymentProgress } from './deployment-progress.mjs'
+import { treasuryCoverage } from './treasury-inventory.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -54,6 +55,24 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   }
   const service={
     refresh,
+    treasuryStatus:()=>treasuryCoverage({db,rpc,confirmations:config?.confirmations??2,now}),
+    async assignTreasury(input,actor){
+      const budget=(await db.catalog(true)).budgets.find(b=>b.id===input.budgetId)
+      if(!budget||!validAddress(input.wallet))throw fault(400,'Select a campaign and treasury wallet.')
+      const evidence=await treasuryCoverage({db,rpc,confirmations:config?.confirmations??2,now,extra:[{wallet:input.wallet.toLowerCase(),reward_asset:budget.rewardAsset}]})
+      return db.assignTreasury(input,actor,evidence)
+    },
+    async fundingBrief(id,actor){
+      const row=await service.detail(id,actor,true),s=row.observation,job=await db.getIntent(id)
+      if(!s?.verified||eligibility(s,now()).state==='checking'||row.progress?.verificationAvailable!==true||!row.progress.stages.slice(0,3).every(s=>s.state==='complete'))throw fault(503,'Fresh verified vault evidence is required for the funding brief.')
+      const outstanding=BigInt(s.variableCapacity)-BigInt(s.variableSupply),canFund=!row.cancelRequested&&row.workerState!=='retired'&&!s.isStarted&&outstanding>0n&&BigInt(s.claimSupply)===0n
+      return {requestId:row.id,planHash:row.planHash,chainId:4663,vault:s.vault,token:s.variableAsset,decimals:s.variableDecimals,symbol:s.variableSymbol,
+        totalRaw:s.variableCapacity,observedSupplyRaw:s.variableSupply,vaultBalanceRaw:s.variableBalance,outstandingRaw:(outstanding>0n?outstanding:0n).toString(),
+        treasuryWallet:(await db.treasuryBook()).find(a=>a.budget_pool_id===job.budget_pool_id)?.wallet??null,
+        state:row.state,canFund,checkedAt:s.checkedAt,blockNumber:s.blockNumber,blockHash:s.blockHash,
+        action:canFund?'Approve the vault for the outstanding token amount, then call vault.deposit(outstandingRaw, 1, "0x") externally.':'Review current ownership and recovery; no funding action is proposed.',
+        recovery:s.isStarted?'The vault has started; use protocol maturity rights.':BigInt(s.claimSupply)>0n?'The fixed claim owner must recover the unstarted LP assets before retirement.':BigInt(s.variableSupply)>0n?'The variable bearer owner must recover the premium externally before retirement.':'Settle all creator transactions, then verify retirement.'}
+    },
     async readiness(){
       const result=await intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now})
       try{
@@ -64,6 +83,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         if(BigInt(gas.book.exposureWei)+maximum>BigInt(gas.balanceWei)||BigInt(gas.book.exposureWei)+BigInt(gas.book.spentWei)+maximum>BigInt(gas.maxDailyGasWei)
           ||BigInt(gas.book.subsidyWei)+subsidy>BigInt(gas.maxSubsidyWei))result.reasons.push('gas_capacity_exhausted')
       }catch{result.reasons.push('gas_unavailable')}
+      try{result.treasury=await service.treasuryStatus();if(!result.treasury.available)result.reasons.push('treasury_inventory_unavailable')}
+      catch{result.reasons.push('treasury_verification_unavailable')}
       result.canQuote=result.reasons.length===0
       return result
     },
@@ -188,6 +209,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       // Small bounded batches; a failed price read leaves an explicit unavailable size.
       for(let start=0;start<offers.length;start+=4) rows.push(...await Promise.all(offers.slice(start,start+4).map(async offer=>{
         if(offer.budget.paused||offer.budget.reconciliationRequired||offer.budget.availableRaw==='0')return {...offer,eligibleMaximumCents:'0',availability:'Campaign funding is unavailable'}
+        const inventory=readiness.treasury?.allocations.find(a=>a.budget_pool_id===offer.budgetPoolId)
+        const rawRoom=[BigInt(offer.budget.availableRaw),BigInt(inventory?.availableRaw??0),BigInt(config?.maxPremiumRaw??0)].reduce((a,b)=>a<b?a:b)
         if(offer.budget.campaign){
           const a=offer.budget.accounting
           const byBudget=BigInt(a.availableBudgetCents)*BigInt(offer.budget.campaign.capacityCents)/BigInt(offer.budget.campaign.budgetCents)
@@ -203,12 +226,17 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           if(limit>perQuote)limit=perQuote
           if(limit>unpaidRoom)limit=unpaidRoom>0n?unpaidRoom:0n
           if(limit>premiumCapacity)limit=premiumCapacity
+          try{
+            const plan=await size(offer,offer.minimumCents,signer,true)
+            const rawCapacity=rawRoom*BigInt(plan.variablePrice)/(10n**16n*10n**BigInt(plan.variableDecimals))*totalCapacity/budget
+            if(limit>rawCapacity)limit=rawCapacity
+          }catch{return {...offer,eligibleMaximumCents:null,availability:'Live treasury sizing is unavailable'}}
           return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),availability:null}
         }
         try{
           const plan=await size(offer,offer.minimumCents,signer,true)
           const aprRaw=BigInt(snapshotFor(offer,offer.minimumCents,signer).aprRaw)
-          const budget=BigInt(offer.budget.availableRaw)<BigInt(config.maxPremiumRaw)?BigInt(offer.budget.availableRaw):BigInt(config.maxPremiumRaw)
+          const budget=rawRoom
           const maximum=budget*10n**18n*31_536_000n*BigInt(plan.variablePrice)/(10n**16n*aprRaw*BigInt(offer.days*86400)*10n**BigInt(plan.variableDecimals))
           const eligible=maximum<BigInt(offer.maximumCents)?maximum:BigInt(offer.maximumCents)
           return {...offer,eligibleMaximumCents:eligible<BigInt(offer.minimumCents)?'0':eligible.toString(),availability:null}
@@ -236,7 +264,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
       const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
         amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
-      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision,gas:readiness.gas})
+      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision,gas:readiness.gas,treasury:readiness.treasury})
       return {...quote,paymentData:paymentData(quote)}
     },
     /** Verify the payment chain evidence before admitting exactly one creation.
@@ -281,7 +309,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(quote.plan.factoryCodeHash!==config.factoryCodeHash||quote.plan.vaultTypeHash!==config.vaultTypeHash||quote.plan.adapterTypeHash!==config.adapterTypeHash||quote.signer!==signer.toLowerCase())throw fault(409,'The original plan is outside current execution policy.')
       const payment=await verifyPayment(quote,hash,null,rpc,{confirmations:config?.confirmations??2,checkCapability:false})
       const gas=await gasCoverage({db,rpc,config,signer,now})
-      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution,gas})
+      const treasury=await service.treasuryStatus()
+      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution,gas,treasury})
     },
     async describe(job,wallet=job.wallet){
       let observation=await db.execution.observation(job.id)

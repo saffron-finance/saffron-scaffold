@@ -12,7 +12,7 @@
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
     "test:database": "node --test tests/incentives-database.test.mjs tests/incentives-api.test.mjs tests/campaign-database.test.mjs tests/checkout-admission.test.mjs tests/payment-resolutions.test.mjs",
-    "test:lifecycle": "node --test tests/incentives-evm.test.mjs tests/real-position.test.mjs tests/worker-recovery.test.mjs",
+    "test:lifecycle": "node --test tests/incentives-evm.test.mjs tests/real-position.test.mjs tests/worker-recovery.test.mjs tests/treasury-inventory.test.mjs",
     "worker": "node worker/run.mjs",
     "worker:inspect": "node worker/inspect.mjs",
     "worker:one": "node worker/run-one.mjs",

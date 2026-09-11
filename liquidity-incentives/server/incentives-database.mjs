@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
+import { createTreasuryInventory } from './treasury-inventory.mjs'
 import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
 import { createCheckoutReservations } from './checkout-reservations.mjs'
@@ -213,7 +214,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         return result.rows[0].body
       })
     },
-    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null,intakeRevision=null,gas=null }) {
+    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null,intakeRevision=null,gas=null,treasury=null }) {
       integer(principalCents,{positive:true}); integer(plan.premium,{positive:true}); integer(plan.liquidity,{positive:true})
       if (!validAddress(wallet) || !validAddress(signer) || new URL(origin).origin !== origin) throw fault(400,'Invalid deployment identity.')
       if (BigInt(principalCents)<BigInt(offer.minimumCents) || BigInt(principalCents)>BigInt(offer.maximumCents)) throw fault(400,'The amount is outside this program\'s vault size limits.')
@@ -240,6 +241,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         if(intakeRevision!==null)await db.requireIntake(client,body.signer,intakeRevision)
         const locked=await lockBudget(client,body.budgetPoolId)
         if(locked.paused||locked.reconciliation_required||locked.revision!==body.budgetRevision)throw fault(409,'Campaign changed. Refresh before paying.')
+        if(treasury)await db.requireTreasury(client,locked.id,plan.premium,treasury)
         const slots=await db.pendingSlots(client,body.wallet)
         if(slots.total>=maxPending||slots.wallet>=maxPendingPerWallet)throw fault(429,'Deployment queue limit reached before payment. Complete or cancel pending work first.')
         if(BigInt(plan.premium)+await db.rawHolds(client,body.budgetPoolId)>BigInt(locked.limit_raw)-BigInt(locked.reserved_raw)-BigInt(locked.allocated_raw))throw fault(409,'Raw premium capacity is already reserved by another checkout.')
@@ -307,7 +309,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       await db.paymentAttention(payment.hash,'duplicate-fee')
       throw fault(409,'A payment was already bound to this request or another request; duplicate evidence is retained.')
     },
-    async acceptDeployment({ wallet, quoteId, payment, origin,resolution=null,gas=null }) {
+    async acceptDeployment({ wallet, quoteId, payment, origin,resolution=null,gas=null,treasury=null }) {
       const quote = await db.quote(quoteId)
       if (!quote || quote.wallet!==wallet.toLowerCase() || quote.origin!==origin) throw fault(404,'Quote not found for this wallet.')
       if(!payment?.verified||payment.quoteId!==quoteId||payment.wallet!==quote.wallet||payment.planHash!==quote.planHash)throw fault(401,'A matching verified ETH payment is required.')
@@ -330,6 +332,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         if((!['held','closing'].includes(checkoutRow.hold_state)||payment.late)&&!resolution)throw fault(409,'Payment requires operator resolution because its checkout was settled or paid late.')
         if(resolution&&!['held','closing'].includes(checkoutRow.hold_state)){
           await db.reacquireGas(client,quote,gas)
+          if(treasury)await db.requireTreasury(client,quote.budgetPoolId,quote.plan.premium,treasury)
           const slots=await db.pendingSlots(client,quote.wallet)
           if(slots.total>=maxPending||slots.wallet>=maxPendingPerWallet)throw fault(429,'No admission slot is available for this original request yet.')
         }
@@ -438,6 +441,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   Object.assign(db,createRefundResolutions(db))
   Object.assign(db,createIntakePolicy(db))
   Object.assign(db,createGasReservations(db))
+  Object.assign(db,createTreasuryInventory(db))
   db.execution=createExecutionDatabase(db)
   return db
 }
