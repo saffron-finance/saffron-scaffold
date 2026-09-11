@@ -65,7 +65,7 @@ export async function readVault(job, rpc, { confirmations = 2, now = Date.now } 
     verified: true, canonical: true, chainId: CHAIN_ID, factory: FACTORY, vault: plan.vault, adapter: plan.adapter,
     initialized: Boolean(initialized), isStarted: Boolean(started), claimSupply: claimSupply.toString(),
     positionWallet:wallet,claimBalance:claimBalance.toString(),fixedBalance:fixedBalance.toString(),fundingBearerBalance:fundingBearerBalance.toString(),
-    claimToken:claim,fixedBearerToken:fixedBearer,variableBearerToken:bearer,endTime:endTime.toString(),pool,adapterLiquidity:adapterLiquidity.toString(),
+    claimToken:claim,fixedBearerToken:fixedBearer,variableBearerToken:bearer,startTime:started?(endTime-duration).toString():null,endTime:endTime.toString(),pool,adapterLiquidity:adapterLiquidity.toString(),
     variableCapacity: capacity.toString(), variableSupply: supply.toString(), variableBalance: balance.toString(),
     variableAsset: asset, variableDecimals: Number(decimals), variableSymbol: plan.variableSymbol,
     token0: plan.token0, token1: plan.token1, liquidity: fixed.toString(), minTick: Number(minTick), maxTick: Number(maxTick),

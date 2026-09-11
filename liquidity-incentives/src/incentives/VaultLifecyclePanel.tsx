@@ -24,6 +24,7 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
     </>} details={<><p>Vault {row.plan.vault??'Creation pending'}</p><p>Deployment {row.id}</p><p>Network: Robinhood Chain. Wallet transactions require network gas. Creation gas is paid by the service.</p></>}/>}
     {row?.state==='awaiting_funding'&&<FinePrint>Your vault is created. Deposit becomes available after the campaign operator funds the entire premium externally.</FinePrint>}
     {row?.canClaim&&<FinePrint>Claiming transfers your premium and converts your claim token into the fixed bearer token used for withdrawal.</FinePrint>}
+    {row?.observation?.verified&&row.observation.isStarted&&<FinePrint>Vault started <time aria-label='Vault start time' dateTime={new Date(Number(row.observation.startTime)*1000).toISOString()}>{new Date(Number(row.observation.startTime)*1000).toLocaleString()}</time> · matures <time aria-label='Vault maturity time' dateTime={new Date(Number(row.observation.endTime)*1000).toISOString()}>{new Date(Number(row.observation.endTime)*1000).toLocaleString()}</time>.</FinePrint>}
     {row?.state==='active'&&s&&<FinePrint>Premium claimed. Your LP assets unlock after {new Date(Number(s.endTime)*1000).toLocaleString()}.</FinePrint>}
     {row?.state==='matured'&&row.canClaim&&<FinePrint>Your position has matured. Claim the premium first, then withdraw the LP assets.</FinePrint>}
     {row?.canRecover&&<FinePrint>Your fixed deposit was confirmed, but the vault has not started. You can recover the LP assets while it remains unstarted.</FinePrint>}
