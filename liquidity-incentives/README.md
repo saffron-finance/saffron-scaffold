@@ -199,6 +199,9 @@ map. The joined browser test writes public transaction and final ledger evidence
 to ignored `validation/complete-cycle.json`. Disposable tests do not establish a
 live full-cycle acceptance; live activation and treasury execution are separate.
 
+The [complete-cycle acceptance record](ops/acceptance/2026-09-11-complete-cycle.md)
+contains the executed checks, public transaction evidence and final ledger totals.
+
 For keyless native-payment discovery and a strictly request-pinned, one-vault
 operator test, use [the watcher and one-request runbook](ops/ONE-REQUEST.md).
 This includes protected signer/RPC references and a real-factory Anvil fork.

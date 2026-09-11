@@ -1,0 +1,151 @@
+{
+  "recordedDate": "2026-09-11",
+  "codeCommit": "261d5b1ef182c4b8c09f0c12918f51a3c0398d84",
+  "fixture": "evmFixture with real Uniswap position manager and generated accounts",
+  "chainId": 4663,
+  "live": false,
+  "requester": "0xdD63e9352538081cBf4FdD040aC15ab604cd318d",
+  "creator": "0xD59cD34530D0Dfc4b748d1bf35742Bd91f62A899",
+  "treasury": "0x38977Ae225E93B687a0c55c44db8c7fAE75710Ee",
+  "requestId": "956a9530-aed1-49b7-b533-0e8c4409484e",
+  "planHash": "0x99a3e0cd394976ccedf1c385605da7f7cad4239fbc1d1b43b0ca21c9fc8e0e6f",
+  "paymentHash": "0x09131669229f04dcb4edc51e02ad7301cf8bc043a6ebf960b385661fe54e496e",
+  "protocol": {
+    "factoryCodeHash": "0x71a00a964fdb6343624c5e5c169b1012b27eb8d27de46712c281abfa168153f3",
+    "vaultTypeHash": "0xe3412b9fa2adf9e6af1ac4ddfe274faafa439607e0827c64467a408c496000a2",
+    "adapterTypeHash": "0x58a1032341aa4ebe9b1bb6d96e8a7c6ccebe1bed7fc64c8415503cd3b449b5f9"
+  },
+  "simulation": {
+    "ok": true,
+    "upstreamBroadcasts": 0
+  },
+  "creation": [
+    {
+      "step": "create-adapter",
+      "hash": "0xba02aad1cebd78634b309c5890a18055857da080c42f5c00793fe0960e33cc93",
+      "blockNumber": "0x17",
+      "blockHash": "0xedc684f12ce013aec15e8fc7732228f6ee86bcb6599a03a17b8c7f70bf87ba66"
+    },
+    {
+      "step": "create-vault",
+      "hash": "0x7116d2651fd3e8eae0e1ccc9130eddd870ff0c6b664846576048c5e3348498a3",
+      "blockNumber": "0x19",
+      "blockHash": "0xf142bc01cd905ddc69a171ede9f4773f9ff768902efb2d6b31232791d661755e"
+    },
+    {
+      "step": "initialize-vault",
+      "hash": "0xee121423358a77f604c80f92a6428230bb4ec447d57d5f5f71a69a95ac633f36",
+      "blockNumber": "0x1b",
+      "blockHash": "0x60127e0e84e16c10e2c3da0e84c02505fa3c6b74dc7dc3952d3f1dd938d886a3"
+    }
+  ],
+  "funding": [
+    {
+      "hash": "0x6e3c4fff3329b428bac039e1335433a38d057f6d2559be7947eb9ba63d073be3",
+      "blockNumber": "29",
+      "blockHash": "0x5e3584316b5d0a62be0872fa3dbab3eb7b5961acc78b35d37a57bed57c8a289e"
+    },
+    {
+      "hash": "0xb729ab1084e57411cb746539541595f14a33de897e9e902640c67732c30c77b1",
+      "blockNumber": "31",
+      "blockHash": "0x013b31183ff93e72a38a2cde515eb4e164801545d0c03c23f43e4f5cbdf29b8e"
+    },
+    {
+      "hash": "0x287a0ee8e5fe0594fcd881fd48b5c9bca1c804fc47b72aaacf93e8ee28f679bf",
+      "blockNumber": "33",
+      "blockHash": "0x09718e01604e80ad1ef93e1944535fe79338a36ba78f76130ecbe40e1eafdd4e"
+    },
+    {
+      "hash": "0x376b43387c4c8605d0b5e5702b84b64d2852d166c656e8fec52bd24e412dd44f",
+      "blockNumber": "35",
+      "blockHash": "0xa37d259da995a30f290e3825406566bd9e0544701039e649dcbbfe40af1039a3"
+    }
+  ],
+  "userTransactions": [
+    {
+      "hash": "0xd6114d87393cf65c7b743c65afc821c0234b00721f31abc755278089d752c202",
+      "action": "deposit",
+      "canonical": true
+    },
+    {
+      "hash": "0xe5d1d7eb9cf293a46633e66b66dc89d70120c2dd55c50af8c0a05053b78ca8bd",
+      "action": "claim",
+      "canonical": true
+    },
+    {
+      "hash": "0x3ea9211f4ab47706ec029512a2cd9a6284c2ea8c6851b80bf79fba00f042479d",
+      "action": "withdraw",
+      "canonical": true
+    }
+  ],
+  "final": {
+    "positionState": "completed",
+    "requestState": "active",
+    "blockNumber": "49",
+    "blockHash": "0x5489c9e2e97a4f54802a05c3ba8cded5bf73286b4913cff52142d2ff92b0b254",
+    "startTime": "1789117923",
+    "endTime": "1789377123",
+    "claimBalance": "0",
+    "fixedBalance": "0",
+    "treasuryBearerRaw": "500000000000000250001",
+    "tokenBalances": [
+      "100000500000000000000250000",
+      "25125000000000005"
+    ]
+  },
+  "ledger": {
+    "premiumRaw": "500000000000000250001",
+    "reservedRaw": "0",
+    "heldRaw": "0",
+    "allocatedRaw": "500000000000000250001",
+    "budgetCents": "100000",
+    "targetCapacityCents": "10000000",
+    "fundedBudgetCents": "100",
+    "reservedBudgetCents": "0",
+    "heldBudgetCents": "0",
+    "fundedCapacityCents": "10000",
+    "reservedCapacityCents": "0",
+    "heldCapacityCents": "0",
+    "anonymousHeldCapacityCents": "0",
+    "anonymousHeldBudgetCents": "0",
+    "availableBudgetCents": "99900",
+    "availableCapacityCents": "9990000",
+    "fixedDepositedCents": "10000"
+  },
+  "userMessageSignatures": 0,
+  "userTransactionsSent": 7,
+  "fixtureVersions": {
+    "anvil": "1.7.1",
+    "postgresql": "16",
+    "solidityOptimizerRuns": 200,
+    "viem": "2.56.3",
+    "solc": "0.8.18",
+    "@uniswap/v3-core": "1.0.1",
+    "@uniswap/v3-periphery": "1.4.4",
+    "@playwright/test": "1.63.0"
+  },
+  "fixturePolicy": {
+    "mode": "reviewed",
+    "confirmations": 2,
+    "vaultTypeId": 1,
+    "adapterTypeId": 1,
+    "serviceWindowMinutes": 1440,
+    "maxPending": 100,
+    "paymentWindowSeconds": 120
+  },
+  "verification": {
+    "unit": 36,
+    "databaseApi": 25,
+    "lifecycle": 15,
+    "watcher": 21,
+    "restore": 1,
+    "browser": 15,
+    "labBrowser": 1,
+    "productionBuild": "passed",
+    "labBuild": "passed",
+    "previewBuild": "passed",
+    "previewStaticBrowser": "passed",
+    "demoSmoke": "passed"
+  },
+  "scope": "Disposable production-runtime acceptance only. No live payment, signing, treasury funding or withdrawal was performed."
+}
