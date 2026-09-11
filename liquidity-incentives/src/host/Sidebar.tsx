@@ -7,10 +7,7 @@ import { sidebarCollapsedWidth, sidebarDefaults, sidebarMobileWidth, sidebarVari
 // Small inline line icons keep this shell independent of an icon dependency.
 const icons: Record<SidebarIcon, string> = {
   vaults: 'M4 5h16v15H4z M8 5V3h8v2 M8 10h8 M12 8v4 M8 16h8',
-  tokens: 'M15 9a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M15 9a6 6 0 1 1-6 6 M9 6v6 M6 9h6',
-  fixed: 'M4 18V6h16v12H4z M8 12h8 M12 8v8',
-  variable: 'M3 18l5-6 4 3 7-10 M14 5h5v5',
-  stats: 'M4 20V10 M10 20V4 M16 20v-7 M2 20h20',
+  positions: 'M4 18V6h16v12H4z M8 12h8 M12 8v8',
   audits: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3 M8 12l3 3 5-6',
   community: 'M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M5 21v-3a7 7 0 0 1 14 0v3 M19 5a3 3 0 0 1 0 6 M21 21v-4a5 5 0 0 0-2-4 M5 5a3 3 0 0 0 0 6 M3 21v-4a5 5 0 0 1 2-4',
 }

@@ -144,8 +144,8 @@ test('approved cards, mobile layout, keyboard focus and local lifecycle navigati
     expect(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
     await page.screenshot({path:'validation/mobile-create.png',fullPage:true})
     await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(offers.first()).toBeFocused()
-    await expect(page.locator('a[href*="beta.saffron.finance"]')).toHaveCount(4)
-    await expect(page.getByRole('link',{name:'Variable yield',exact:true})).toHaveAttribute('href',/view=variable$/)
+    await expect(page.locator('a[href*="beta.saffron.finance"]')).toHaveCount(0)
+    await expect(page.getByRole('link',{name:'My requests',exact:true})).toHaveAttribute('href','/portfolio/vaults')
   }finally{await f.close()}
 })
 
