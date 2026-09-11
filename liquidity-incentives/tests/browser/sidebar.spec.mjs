@@ -49,7 +49,7 @@ test('compact rail reopens from its blank area and keyboard without remounting',
 
 // The initial field accepts typing immediately; data updates must not steal
 // focus, while Continue/Back and Escape keep focus within the modal workflow.
-test('deposit field is focused on open and Back, with no refresh focus steal', async ({ page }) => {
+for (const width of [1401, 390]) test(`deposit field is focused on open and Back, with no refresh focus steal at ${width}px`, async ({ page }) => {
   const fixture = await setup(page)
   // Delay a quote itself; a synthetic window-focus event would also reload the
   // separate catalog and replace the original offer button being tested.
@@ -60,25 +60,25 @@ test('deposit field is focused on open and Back, with no refresh focus steal', a
     await page.goto(fixture.origin);await connect(page)
     const offer = page.getByRole('button', { name: 'Create CASHCAT / ETH, 3 days', exact: true })
     const input = page.getByLabel('Deposit value in US dollars')
-    for (const width of [1401, 390]) {
-      await page.setViewportSize({ width, height: 831 })
-      await offer.click()
-      await expect(input).toBeFocused()
-      await input.fill('125')
-      await page.getByRole('button', { name: 'Invert price pair' }).click()
-      releasePrice()
-      await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled()
-      await expect(page.getByRole('button', { name: 'Invert price pair' })).toBeFocused()
-      await expect(input).toHaveValue('$125')
-      await page.getByRole('button', { name: 'Continue', exact: true }).click()
-      await expect(page.getByRole('dialog').getByRole('heading')).toBeFocused()
-      await page.getByRole('button', { name: 'Change amount / refresh payment quote', exact: true }).click()
-      await expect(input).toBeFocused()
-      await expect(input).toHaveValue('$125')
-      await page.keyboard.press('Escape')
-      await expect(page.getByRole('dialog')).toBeHidden()
-      await expect(offer).toBeFocused()
-    }
+    // Each viewport gets a fresh checkout. Closing an unpaid quote intentionally
+    // retains its hold until the watcher proves the mining deadline has passed.
+    await page.setViewportSize({ width, height: 831 })
+    await offer.click()
+    await expect(input).toBeFocused()
+    await input.fill('125')
+    await page.getByRole('button', { name: 'Invert price pair' }).click()
+    releasePrice()
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Invert price pair' })).toBeFocused()
+    await expect(input).toHaveValue('$125')
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(page.getByRole('dialog').getByRole('heading')).toBeFocused()
+    await page.getByRole('button', { name: 'Change amount / refresh payment quote', exact: true }).click()
+    await expect(input).toBeFocused()
+    await expect(input).toHaveValue('$125')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toBeHidden()
+    await expect(offer).toBeFocused()
     expect(fixture.state.sends).toBe(0)
   } finally { releasePrice(); await fixture.close() }
 })
