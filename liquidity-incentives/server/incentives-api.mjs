@@ -99,6 +99,11 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       }
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
+      if(method==='POST'&&path==='/admin/intake'){
+        const status=await service.operatorStatus()
+        if(body.signer?.toLowerCase()!==status.signer?.toLowerCase())throw fault(400,'Intake must use the configured creation signer.')
+        sendJson(res,200,{policy:await db.saveIntake(body,session.wallet),readiness:await service.readiness()});return true
+      }
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
       if(method==='POST'&&path==='/admin/campaigns'){sendJson(res,201,await db.saveCampaign(body,session.wallet));return true}
       if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,await db.listPayments(page()));return true}

@@ -3,7 +3,7 @@ import type { Address } from 'viem'
 import type { Deployment } from '../incentives/model'
 import { readSession,ensureOperatorSession,requestJson,type WalletSession } from './transport'
 
-type OperatorStatus={signer:string;gasBalanceRaw:string|null;pending:number;stalled:number;workerOnline:boolean}
+type OperatorStatus={signer:string;gasBalanceRaw:string|null;pending:number;stalled:number;workerOnline:boolean;readiness:any}
 export function useDeployments(account:Address|null,admin=false){
   const [rows,setRows]=useState<Deployment[]>([]),[session,setSession]=useState<WalletSession|null>(null)
   const [error,setError]=useState<string>(),[busy,setBusy]=useState(false),[online,setOnline]=useState(false)

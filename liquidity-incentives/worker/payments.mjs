@@ -71,6 +71,7 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
         await db.settleCheckouts(id,block)
         previousHash=block.hash;scanned++;next++
       }
+      await db.query('UPDATE saffron_incentives.payment_scan_cursors SET checked_at=NOW(),safe_head=$2 WHERE id=$1',[id,safeHead.toString()])
       return {state:'scanned',scanned,accepted,attention,rejected,nextBlock:next.toString(),safeHead:safeHead.toString()}
     }finally{try{if(locked)await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key])}finally{client.release()}}
   }}

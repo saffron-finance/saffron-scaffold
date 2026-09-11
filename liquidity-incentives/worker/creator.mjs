@@ -17,11 +17,12 @@ const read = async (rpc, address, functionName, args = [], block = 'latest') =>
 /** Execute at most one leased job; durable signed bytes precede every broadcast.
  * The injected account lives only in this worker, never the HTTP process.
  */
-export function createCreator({ database, rpc, account, config, usdQuote, requestId=null, beforeSign }) {
+export function createCreator({ database, rpc, account, config, usdQuote, requestId=null,retirementOnly=false,beforeSign }) {
+  if(retirementOnly&&!requestId)throw new Error('Retirement requires one pinned request.')
   const owner = randomUUID()
   async function tick() {
     await database.execution.expireQueued()
-    await database.execution.heartbeat(account.address)
+    if(!requestId)await database.execution.heartbeat(account.address)
     const lock = await database.execution.signerLock(account.address)
     if (!lock) return { state: 'locked' }
     let job
@@ -29,7 +30,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
       job = await database.execution.claim(account.address, owner, requestId)
       if (!job) return { state: 'idle' }
       if (!sameAddress(job.signer, account.address) || !sameAddress(job.factory, FACTORY) || job.chain_id !== CHAIN_ID) throw new ConfirmedFailure('Job signer, factory or chain mismatch.')
-      if(requestId&&(job.intent_id!==requestId||job.operation!=='create'||job.resume_version!==0)) throw new ConfirmedFailure('One-shot execution forbids another request, retirement or a new attempt.')
+      if(requestId&&(job.intent_id!==requestId||(retirementOnly?job.operation!=='retire':job.operation!=='create'||job.resume_version!==0))) throw new ConfirmedFailure('Pinned execution scope does not match this operation.')
       if (BigInt(await rpc('eth_chainId', [])) !== BigInt(CHAIN_ID)) throw new ConfirmedFailure('Wrong deployer chain.')
       if (!job.plan || digest(job.accepted_plan) !== digest(Object.fromEntries(Object.keys(job.accepted_plan).map(key => [key,job.plan[key]])))) throw new ConfirmedFailure('Accepted deployment plan changed.')
       const plan = job.plan
@@ -70,6 +71,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           }
         }
         if (!tx) {
+          if(retirementOnly)throw new ConfirmedFailure('Retirement cannot authorize a new signature.')
           // Revalidate the payer's canonical receipt before each new gas spend.
           // Existing signed transactions still reconcile even if the fee reorgs.
           const quote=await database.quote(job.quote_id)

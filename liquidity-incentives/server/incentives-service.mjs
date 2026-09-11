@@ -10,6 +10,7 @@ import { userActionEvidence } from '../shared/user-evidence.mjs'
 import { verifyRefund,verifyRefundReplacement } from './refund-proof.mjs'
 import { encodeFunctionData,decodeFunctionResult } from 'viem'
 import { abi } from '../shared/vault-lifecycle.mjs'
+import { intakeReadiness } from './intake-policy.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -51,6 +52,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   }
   const service={
     refresh,
+    readiness:()=>intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now}),
     async auditCheckoutSettlements(){
       await service.auditRefundSettlements()
       for(const cursor of await db.checkoutWatermarks()){
@@ -133,7 +135,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired') OR funding_state IN ('queued','running','waiting','failed'))::int AS pending,
         count(*) FILTER(WHERE (state NOT IN ('created','retired') OR funding_state IN ('queued','running','waiting','failed')) AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
         FROM saffron_incentives.vault_jobs`)).rows[0]
-      return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer)}
+      return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness:await service.readiness()}
     },
     async auditReleases(budgetId,operator){
       const rows=(await db.query(`SELECT DISTINCT ON(e.intent_id) e.intent_id,e.evidence FROM saffron_incentives.budget_entries e
@@ -167,6 +169,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     },
     async programs(){
       const {offers}=await db.catalog()
+      const readiness=await service.readiness()
       const rows=[]
       // Small bounded batches; a failed price read leaves an explicit unavailable size.
       for(let start=0;start<offers.length;start+=4) rows.push(...await Promise.all(offers.slice(start,start+4).map(async offer=>{
@@ -197,7 +200,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           return {...offer,eligibleMaximumCents:eligible<BigInt(offer.minimumCents)?'0':eligible.toString(),availability:null}
         }catch{return {...offer,eligibleMaximumCents:null,availability:'Live sizing is unavailable'}}
       })))
-      return {offers:rows,creatorOnline:await db.execution.workerOnline(signer)}
+      return {offers:rows.map(row=>readiness.canQuote?row:{...row,eligibleMaximumCents:'0',availability:'New requests are paused: '+readiness.reasons.join(', ').replaceAll('_',' ')}),creatorOnline:readiness.workerOnline,readiness}
     },
     async quote(wallet,programId,amount,recoveryHash,{clientHash=null,requestKey=null}={}){
       const existing=await db.checkoutQuote(clientHash,requestKey)
@@ -207,7 +210,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       }
       requireConfigured()
       await service.auditCheckoutSettlements()
-      if(!await db.execution.workerOnline(signer))throw fault(503,'The deployment worker is offline. Retry shortly.')
+      const readiness=await service.readiness()
+      if(!readiness.canQuote)throw fault(503,'New requests are paused: '+readiness.reasons.join(', ').replaceAll('_',' ')+'. Your saved payments remain available.')
       const principalCents=cents(amount),offer=await db.offer(programId)
       if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents))throw fault(400,'Choose an amount within the program\'s vault size limits.')
       const plan=await size(offer,principalCents,wallet)
@@ -218,7 +222,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
       const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
         amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
-      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey})
+      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision})
       return {...quote,paymentData:paymentData(quote)}
     },
     /** Verify the payment chain evidence before admitting exactly one creation.

@@ -11,7 +11,7 @@ import { amountsForLiquidity } from '../shared/liquidity-math.mjs'
 async function fixture(){
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
   await store.seed(chain.account.address,10n**30n+'')
-  await db.execution.heartbeat(chain.account.address)
+  await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
   const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
   async function accept(){return chain.accept(service)}
   const options={database:db,rpc:chain.rpc,account:chain.account,config:chain.config}

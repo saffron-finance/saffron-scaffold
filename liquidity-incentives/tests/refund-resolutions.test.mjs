@@ -18,7 +18,7 @@ it('external native refunds settle partial amounts, reject reused/wrong evidence
     await chain.client.waitForTransactionReceipt({hash});await chain.raw('evm_mine');return hash
   }
   try{
-    await f.seed(chain.account.address,(10n**30n).toString());await db.execution.heartbeat(chain.account.address)
+    await f.seed(chain.account.address,(10n**30n).toString());await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
     await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**18n)])
     const q=await service.quote(chain.account.address,'cashcat-3d','100',proofHash(chain.recoverySecret))
     const fee=await chain.send(q.fee.recipient,paymentData(q),BigInt(q.fee.amountWei)),hash=fee.transactionHash
@@ -68,7 +68,7 @@ it('one refund hash cannot settle two payment obligations even when both belong 
   const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN,refundSenders:[treasury.address]})
   const resolution=async hash=>({operator:chain.account.address.toLowerCase(),revision:(await db.paymentObligation(hash)).revision,requestKey:randomUUID(),reason:'Return each independently received duplicate fee.'})
   try{
-    await f.seed(chain.account.address,(10n**30n).toString());await db.execution.heartbeat(chain.account.address)
+    await f.seed(chain.account.address,(10n**30n).toString());await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
     await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**18n)])
     const q=await service.quote(chain.account.address,'cashcat-3d','100',proofHash(chain.recoverySecret))
     const original=await chain.send(q.fee.recipient,paymentData(q),BigInt(q.fee.amountWei))

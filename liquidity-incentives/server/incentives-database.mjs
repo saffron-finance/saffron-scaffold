@@ -6,6 +6,7 @@ import { createExecutionDatabase } from './execution-database.mjs'
 import { createCheckoutReservations } from './checkout-reservations.mjs'
 import { createPaymentResolutions } from './payment-resolutions.mjs'
 import { createRefundResolutions } from './refund-resolutions.mjs'
+import { createIntakePolicy } from './intake-policy.mjs'
 import { proofHash,paymentData } from './payment-proof.mjs'
 import { campaignTerms,campaignPremiumCents } from '../shared/campaign.mjs'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
@@ -211,7 +212,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         return result.rows[0].body
       })
     },
-    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null }) {
+    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null,intakeRevision=null }) {
       integer(principalCents,{positive:true}); integer(plan.premium,{positive:true}); integer(plan.liquidity,{positive:true})
       if (!validAddress(wallet) || !validAddress(signer) || new URL(origin).origin !== origin) throw fault(400,'Invalid deployment identity.')
       if (BigInt(principalCents)<BigInt(offer.minimumCents) || BigInt(principalCents)>BigInt(offer.maximumCents)) throw fault(400,'The amount is outside this program\'s vault size limits.')
@@ -235,6 +236,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
             resultBody=existing;return
           }
         }
+        if(intakeRevision!==null)await db.requireIntake(client,body.signer,intakeRevision)
         const locked=await lockBudget(client,body.budgetPoolId)
         if(locked.paused||locked.reconciliation_required||locked.revision!==body.budgetRevision)throw fault(409,'Campaign changed. Refresh before paying.')
         const slots=await db.pendingSlots(client,body.wallet)
@@ -431,6 +433,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   Object.assign(db,createCheckoutReservations(db))
   Object.assign(db,createPaymentResolutions(db))
   Object.assign(db,createRefundResolutions(db))
+  Object.assign(db,createIntakePolicy(db))
   db.execution=createExecutionDatabase(db)
   return db
 }

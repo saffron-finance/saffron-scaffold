@@ -50,7 +50,7 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
           {offer.isNew&&<NewTag data-incentive-new>NEW</NewTag>}
         </ProgramRow>)}
       </Programs></ProgramGroup>)}
-      <Row><FinePrint>Available size depends on the shared campaign budget and current prices.{!catalog.creatorOnline&&catalog.offers.length?' The deployment worker is currently offline.':''}</FinePrint><QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
+      <Row><FinePrint>Available size depends on the shared campaign budget and current prices.{catalog.readiness&&!catalog.readiness.canQuote?' New requests are temporarily paused.':''}</FinePrint><QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     </>}
     {(selected||vaultId||resume)&&<IncentiveModal preview={preview} offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} onClose={close} onConnect={onConnect}/>}
   </Page>

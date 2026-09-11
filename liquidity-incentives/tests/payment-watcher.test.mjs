@@ -15,7 +15,7 @@ import { setTimeout as delay } from 'node:timers/promises'
  * mocked verified flag. The actual database and creator then finish the vault. */
 async function fixture(options={}){
   const chain=await evmFixture(),store=await incentivesFixture(options),db=store.database
-  await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
+  await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
   const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
   return {chain,store,db,service,
     quote:()=>service.quote(chain.account.address,'cashcat-3d','100',proofHash(chain.recoverySecret)),
@@ -83,7 +83,7 @@ it('watcher survives RPC interruption, serializes replicas, pins start, and rese
     await assert.rejects(createPaymentWatcher({...options,startBlock:'0'}).tick(),/pinned start/)
     await f.chain.raw('evm_revert',[snapshot])
     assert.equal((await interrupted.tick()).state,'reorg-reset')
-    assert.equal((await f.db.query('SELECT block_number FROM saffron_incentives.payment_scan_cursors')).rows[0].block_number,null)
+    assert.equal((await f.db.query("SELECT block_number FROM saffron_incentives.payment_scan_cursors WHERE id='native-eth-v1'")).rows[0].block_number,null)
     assert.equal(f.chain.broadcasts,0)
   }finally{await f.close()}
 })

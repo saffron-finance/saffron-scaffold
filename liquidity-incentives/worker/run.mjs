@@ -12,7 +12,7 @@ async function main() {
   if (!configPath||process.argv.length>4||(process.argv[3]&&process.argv[3]!=='--once')||process.argv.some(value => /^0x[0-9a-f]{64}$/i.test(value))) throw new Error('Use a local config path and optional --once, never credentials in arguments.')
   const config = await readOperatorConfig(configPath)
   // A one-vault permit can never be fed to the unconstrained queue loop.
-  if(config.mode==='one-request'||config.maxVaults)throw new Error('Use worker:one for a one-request permit.')
+  if(['one-request','retire-request'].includes(config.mode)||config.maxVaults)throw new Error('Use the bounded runner for this request configuration.')
   const account=await loadSigner(config)
   const rpc=await protectedRpc({...config,readOnly:false})
   const database = createIncentivesDatabase({ connection: config.database })

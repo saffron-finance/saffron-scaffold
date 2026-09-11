@@ -1,0 +1,21 @@
+[Unit]
+Description=Saffron keyless payment watcher
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=saffron-payments
+WorkingDirectory=/srv/saffron-incentives
+ExecStart=/usr/bin/node worker/run-payments.mjs /etc/saffron-incentives/payments.json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

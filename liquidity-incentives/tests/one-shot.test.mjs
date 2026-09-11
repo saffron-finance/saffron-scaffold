@@ -48,7 +48,7 @@ it('read-only fork RPC rejects every signing/admin method before touching the ne
 it('one-shot runner follows exactly the pinned paid request, journals three real calls, and permanently refuses a second vault',{timeout:120000},async()=>{
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,files=await privateFilesFixture('saffron-one-shot-'),{directory}=files
   try{
-    await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
+    await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
     const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
     const first=(await chain.accept(service)).id,second=(await chain.accept(service)).id
     const selected=await db.getIntent(second),simulation=await simulateFactory({upstream:chain.raw,config:chain.config,job:selected})
@@ -89,7 +89,7 @@ it('one-shot runner follows exactly the pinned paid request, journals three real
 it('one-shot restart reconciles a lost broadcast without signing or creating twice',{timeout:120000},async()=>{
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,files=await privateFilesFixture('saffron-one-shot-recover-'),{directory}=files
   try{
-    await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
+    await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
     const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
     const requestId=(await chain.accept(service)).id,job=await db.getIntent(requestId)
     const simulation=await simulateFactory({upstream:chain.raw,config:chain.config,job})
@@ -114,7 +114,7 @@ it('one-shot restart reconciles a lost broadcast without signing or creating twi
 it('a proven revert exhausts the one-shot attempt and rerun cannot spend another nonce',{timeout:120000},async()=>{
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,files=await privateFilesFixture('saffron-one-shot-revert-'),{directory}=files
   try{
-    await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
+    await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
     const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
     const requestId=(await chain.accept(service)).id,job=await db.getIntent(requestId)
     const simulation=await simulateFactory({upstream:chain.raw,config:chain.config,job})

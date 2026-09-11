@@ -8,7 +8,7 @@ import { toHex } from 'viem'
 
 async function setup(){
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
-  await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
+  await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
   const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
   return {chain,store,db,service,options:{database:db,rpc:chain.rpc,account:chain.account,config:chain.config},
     accept:async()=>chain.accept(service),

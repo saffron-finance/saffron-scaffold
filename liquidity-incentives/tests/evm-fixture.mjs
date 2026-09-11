@@ -11,6 +11,7 @@ import { CHAIN_ID, FACTORY, WETH, abi } from '../shared/vault-lifecycle.mjs'
 import { randomBytes } from 'node:crypto'
 import { proofHash,paymentData } from '../shared/payment.mjs'
 import { anvilBinary } from './anvil.mjs'
+import { createPaymentWatcher } from '../worker/payments.mjs'
 
 export const CASHCAT='0x020bfc650a365f8bb26819deaabf3e21291018b4'
 export const POOL='0xa70fc67c9f69da90b63a0e4c05d229954574e313'
@@ -87,7 +88,15 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
       await beforeBroadcast?.(params[0]);broadcasts++;const hash=await raw(method,params);await raw('evm_mine')
       if(loseBroadcast){loseBroadcast=false;throw new Error('Simulated lost broadcast response')}return hash
     }
-    const recoverySecret='0x'+randomBytes(32).toString('hex')
+    const recoverySecret='0x'+randomBytes(32).toString('hex'),watchers=[]
+    async function prepareIntake(database,{mode='reviewed',continuous=false}={}){
+      const previous=await database.intakePolicy(account.address)
+      await database.saveIntake({signer:account.address,revision:previous?.revision??0,mode,enabled:true,expiresAt:new Date(Date.now()+86400_000-1000).toISOString(),serviceMinutes:1440,maxPending:100,watcherId:'intake-fixture'},account.address)
+      const watcher=createPaymentWatcher({database,rpc,startBlock:'0',maxBlocks:500,id:'intake-fixture'})
+      await watcher.tick()
+      if(continuous){let pending=false;const timer=setInterval(async()=>{if(pending)return;pending=true;try{await watcher.tick()}catch{}finally{pending=false}},2000);watchers.push(timer)}
+      return watcher
+    }
     /** Pay the real native fee in the isolated chain; no message signatures. */
     async function accept(service,programId='cashcat-3d',amount='100'){
       const quote=await service.quote(account.address,programId,amount,proofHash(recoverySecret))
@@ -106,10 +115,10 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
     }
     // A fee must leave the payer. Using a distinct receiver prevents self-
     // transfers from making local payment tests pass without a real transfer.
-    return {feeRecipient:'0x2222222222222222222222222222222222222222',accept,fund,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
+    return {feeRecipient:'0x2222222222222222222222222222222222222222',accept,fund,prepareIntake,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
       get broadcasts(){return broadcasts},set loseBroadcast(value){loseBroadcast=value},set beforeBroadcast(value){beforeBroadcast=value},
       usdQuote:async()=>({priceRaw:(2000n*10n**18n).toString(),checkedAt:Date.now()}),
-      close:async()=>{child.kill('SIGTERM');if(child.exitCode===null)await once(child,'exit')},
+      close:async()=>{for(const timer of watchers)clearInterval(timer);child.kill('SIGTERM');if(child.exitCode===null)await once(child,'exit')},
     }
   } catch(error){child.kill('SIGTERM');throw error}
 }

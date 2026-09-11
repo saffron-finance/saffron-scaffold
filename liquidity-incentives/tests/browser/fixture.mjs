@@ -31,6 +31,7 @@ export async function setup(page,{admin=false,wrap=false}={}){
   for(const token of [CASHCAT,...(wrap?[]:[WETH])])await chain.send(token,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[account.address,10n**26n]}))
   const worker=createCreator({database,rpc:chain.rpc,account:chain.account,config:chain.config})
   await database.execution.heartbeat(chain.account.address)
+  await chain.prepareIntake(database,{continuous:true})
   const heart=setInterval(()=>void database.execution.heartbeat(chain.account.address).catch(()=>{}),5000)
   cleanup.push(()=>clearInterval(heart))
   let clockOffset=0

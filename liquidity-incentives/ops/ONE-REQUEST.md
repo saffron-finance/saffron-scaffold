@@ -229,3 +229,28 @@ RPC reference from the existing operator examples. The test generates an
 ephemeral local account, never loads the live signer, rejects upstream signing
 and broadcast methods, and writes its new evidence into a private temporary
 directory. It does not overwrite the historical live-test evidence.
+
+## Intake and bounded execution
+
+Intake starts closed. In Administration, choose reviewed one-request or automatic
+queue execution, a window of at most 24 hours, a declared service window and a
+pending-work ceiling. Pausing or expiry stops new quotes and preserves paid work.
+A keyless watcher must report a canonical checkpoint within 32 confirmed blocks,
+checked within 15 seconds, with a current chain head. Queued work older than the
+service window closes intake. Automatic mode additionally needs the ordinary
+signing worker's heartbeat; reviewed mode does not. Running a one-request or
+retirement command does not advertise a continuously available signing worker.
+
+Supervise payment ingestion independently using `saffron-payment-watcher.service`.
+Pin its chain, watcher ID and start block. Restart after an outage using the same
+cursor identity; never advance its start to skip unprocessed payments.
+
+For a failed one-request permit, inspect/reconcile saved transaction hashes and
+approve retirement of that exact request in Administration. Use `worker:retire`
+with an operator configuration whose mode is `retire-request`, plus the exact
+`requestId` and `planHash`. Retain the original public protocol/database/RPC fields;
+no signer credential or simulation is read by this command. It can rebroadcast
+only saved bytes for the pinned request and cannot sign a new vault. Finish any
+external variable/fixed recovery first. Once retirement is proven, resolve the
+original fee through the payment queue. An exhausted creation permit remains
+terminal; the broad queue runner rejects both kinds of one-request configuration.

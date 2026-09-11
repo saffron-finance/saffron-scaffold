@@ -99,7 +99,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS quotes_payment_commitment ON saffron_incentive
 CREATE TABLE IF NOT EXISTS saffron_incentives.payment_scan_cursors (
   id TEXT PRIMARY KEY,chain_id INTEGER NOT NULL CHECK(chain_id=4663),
   start_block BIGINT NOT NULL CHECK(start_block>=0),block_number BIGINT,block_hash TEXT,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),checked_at TIMESTAMPTZ,safe_head BIGINT
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.intake_policies (
+  signer TEXT PRIMARY KEY,revision INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('automatic','reviewed')),
+  enabled BOOLEAN NOT NULL,expires_at TIMESTAMPTZ NOT NULL,service_minutes INTEGER NOT NULL CHECK(service_minutes BETWEEN 1 AND 1440),
+  max_pending INTEGER NOT NULL CHECK(max_pending BETWEEN 1 AND 100),watcher_id TEXT NOT NULL,
+  actor TEXT NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.intake_audit (
+  id BIGSERIAL PRIMARY KEY,signer TEXT NOT NULL,actor TEXT NOT NULL,policy JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.payment_exceptions (
   hash TEXT PRIMARY KEY,quote_id UUID NOT NULL REFERENCES saffron_incentives.deployment_quotes(id),

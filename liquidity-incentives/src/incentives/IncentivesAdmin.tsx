@@ -14,6 +14,7 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!data.session?<Action disabled={data.busy} onClick={()=>void data.signIn()}>Sign in as operator</Action>:!data.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
       <FinePrint>Worker {data.online?'online':'offline'} · {data.rows.length} deployments on this page. Confirmed $2 ETH payments queue creation automatically. Premium funding is managed externally.</FinePrint>
       {data.operatorStatus&&<FinePrint>Worker gas: {data.operatorStatus.gasBalanceRaw===null?'unavailable':formatUnits(BigInt(data.operatorStatus.gasBalanceRaw),18)+' ETH'} · {data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
+      {data.operatorStatus&&<IntakePolicy account={account} status={data.operatorStatus} onUpdate={data.refresh}/>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
       <PaymentAttention account={account}/>
       <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
@@ -63,6 +64,26 @@ function PaymentAttention({account}:{account:Address}){
     {rows?.length===0&&<FinePrint>No recorded payment exceptions.</FinePrint>}
     {rows?.map(row=><PaymentResolution key={row.hash} account={account} row={row} onUpdate={()=>void load()}/>)}
     {cursor&&<QuietButton disabled={busy} onClick={()=>void load(cursor)}>More payments</QuietButton>}
+    {error&&<ErrorText role='alert'>{error}</ErrorText>}
+  </Disclosure>
+}
+function IntakePolicy({account,status,onUpdate}:{account:Address;status:any;onUpdate:()=>void}){
+  const [mode,setMode]=useState('reviewed'),[minutes,setMinutes]=useState('60'),[serviceMinutes,setServiceMinutes]=useState('240'),[limit,setLimit]=useState('10'),[watcher,setWatcher]=useState('native-eth-v1'),[error,setError]=useState(''),[busy,setBusy]=useState(false)
+  const readiness=status.readiness,policy=readiness?.policy
+  async function save(enabled:boolean){setBusy(true);setError('');try{
+    await authedJson(account,'/admin/intake',{signer:status.signer,revision:policy?.revision??0,mode:enabled?mode:policy?.mode??mode,enabled,
+      expiresAt:new Date(Date.now()+Number(minutes)*60000).toISOString(),serviceMinutes:enabled?Number(serviceMinutes):policy?.service_minutes??240,maxPending:enabled?Number(limit):policy?.max_pending??10,watcherId:enabled?watcher:policy?.watcher_id??watcher});onUpdate()
+  }catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  return <Disclosure><summary>Request intake · {readiness?.canQuote?'open':'paused'}</summary>
+    <FinePrint>{readiness?.mode==='reviewed'?'Reviewed one-request execution':'Automatic queue execution'}. {readiness?.reasons.map(statusLabel).join(' · ')}. Signer process: {readiness?.workerOnline?'online':'offline'}. Watcher lag: {readiness?.watcher?.lagBlocks??'unavailable'} blocks.</FinePrint>
+    {policy&&<FinePrint>Intake expires {new Date(policy.expires_at).toLocaleString()}. Declared service window: {policy.service_minutes} minutes. Queue limit: {policy.max_pending}.</FinePrint>}
+    <label>Execution mode<select value={mode} onChange={e=>setMode(e.target.value)}><option value='reviewed'>Reviewed one-request</option><option value='automatic'>Automatic queue</option></select></label>
+    <label>Intake window (minutes, at most 1440)<input type='number' min='1' max='1440' value={minutes} onChange={e=>setMinutes(e.target.value)}/></label>
+    <label>Declared service window (minutes)<input type='number' min='1' max='1440' value={serviceMinutes} onChange={e=>setServiceMinutes(e.target.value)}/></label>
+    <label>Pending request limit<input type='number' min='1' max='100' value={limit} onChange={e=>setLimit(e.target.value)}/></label>
+    <label>Payment watcher ID<input value={watcher} onChange={e=>setWatcher(e.target.value)}/></label>
+    <Row><QuietButton disabled={busy} onClick={()=>void save(true)}>Open reviewed intake window</QuietButton><QuietButton disabled={busy||!policy?.enabled} onClick={()=>void save(false)}>Pause new requests</QuietButton></Row>
+    <FinePrint>This enables quotes only when the watcher and admission checks pass. It does not start the signer.</FinePrint>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
   </Disclosure>
 }
