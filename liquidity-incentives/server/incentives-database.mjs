@@ -7,6 +7,7 @@ import { createCheckoutReservations } from './checkout-reservations.mjs'
 import { createPaymentResolutions } from './payment-resolutions.mjs'
 import { createRefundResolutions } from './refund-resolutions.mjs'
 import { createIntakePolicy } from './intake-policy.mjs'
+import { createGasReservations } from './gas-reservations.mjs'
 import { proofHash,paymentData } from './payment-proof.mjs'
 import { campaignTerms,campaignPremiumCents } from '../shared/campaign.mjs'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
@@ -212,7 +213,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         return result.rows[0].body
       })
     },
-    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null,intakeRevision=null }) {
+    async putQuote({ offer, principalCents, wallet, origin, plan, signer, fee, recoveryHash,clientHash=null,requestKey=null,intakeRevision=null,gas=null }) {
       integer(principalCents,{positive:true}); integer(plan.premium,{positive:true}); integer(plan.liquidity,{positive:true})
       if (!validAddress(wallet) || !validAddress(signer) || new URL(origin).origin !== origin) throw fault(400,'Invalid deployment identity.')
       if (BigInt(principalCents)<BigInt(offer.minimumCents) || BigInt(principalCents)>BigInt(offer.maximumCents)) throw fault(400,'The amount is outside this program\'s vault size limits.')
@@ -260,6 +261,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         if (recent>=30) throw fault(429,'Too many quotes. Retry in a few minutes.')
         await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at,payment_commitment,client_hash,request_key,hold_raw,sizing_block) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
           [body.id,body.wallet,body.programId,body.budgetPoolId,body,new Date(body.paymentDeadline),fee?paymentData(body):null,clientHash,requestKey,plan.premium,BigInt(plan.sizingBlock).toString()])
+        if(gas)await db.reserveGas(client,body,gas)
       })
       return resultBody
     },
@@ -305,7 +307,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       await db.paymentAttention(payment.hash,'duplicate-fee')
       throw fault(409,'A payment was already bound to this request or another request; duplicate evidence is retained.')
     },
-    async acceptDeployment({ wallet, quoteId, payment, origin,resolution=null }) {
+    async acceptDeployment({ wallet, quoteId, payment, origin,resolution=null,gas=null }) {
       const quote = await db.quote(quoteId)
       if (!quote || quote.wallet!==wallet.toLowerCase() || quote.origin!==origin) throw fault(404,'Quote not found for this wallet.')
       if(!payment?.verified||payment.quoteId!==quoteId||payment.wallet!==quote.wallet||payment.planHash!==quote.planHash)throw fault(401,'A matching verified ETH payment is required.')
@@ -327,6 +329,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         const checkoutRow=(await client.query(`SELECT hold_state FROM ${schema}.deployment_quotes WHERE id=$1 FOR UPDATE`,[quoteId])).rows[0]
         if((!['held','closing'].includes(checkoutRow.hold_state)||payment.late)&&!resolution)throw fault(409,'Payment requires operator resolution because its checkout was settled or paid late.')
         if(resolution&&!['held','closing'].includes(checkoutRow.hold_state)){
+          await db.reacquireGas(client,quote,gas)
           const slots=await db.pendingSlots(client,quote.wallet)
           if(slots.total>=maxPending||slots.wallet>=maxPendingPerWallet)throw fault(429,'No admission slot is available for this original request yet.')
         }
@@ -434,6 +437,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   Object.assign(db,createPaymentResolutions(db))
   Object.assign(db,createRefundResolutions(db))
   Object.assign(db,createIntakePolicy(db))
+  Object.assign(db,createGasReservations(db))
   db.execution=createExecutionDatabase(db)
   return db
 }

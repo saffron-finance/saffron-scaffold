@@ -73,6 +73,7 @@ export function createExecutionDatabase(db) {
     async transactionMetadata(id){return(await query(`SELECT id,intent_id,step,signer,nonce,resume_version,hash,transaction_data,receipt,resolved_hash,resolution_kind,created_at FROM ${s}.chain_operations WHERE intent_id=$1 ORDER BY id`,[id])).rows},
     async saveTransaction({requestId:id,owner,step,resumeVersion,signer,nonce,hash,raw,transaction:tx,maxDailyGasWei}){
       await transaction(async client=>{
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-admission',0))")
         const intent=(await client.query(`SELECT * FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
         const budget=await db.lockBudget(client,intent.budget_pool_id)
         const job=await lockedJob(client,id,owner)
@@ -86,21 +87,23 @@ export function createExecutionDatabase(db) {
         if(!quote||digest(intent.snapshot)!==digest(quote.snapshot)||digest(intent.accepted_plan)!==digest(quote.plan)
           ||digest(intent.accepted_plan)!==digest(Object.fromEntries(Object.keys(intent.accepted_plan).map(key=>[key,job.plan[key]])))) throw fault(409,'The accepted deployment plan changed.')
         const amount=BigInt(tx.gas)*BigInt(tx.gasPrice)
+        await db.checkJobGas(client,id,amount)
         if(maxDailyGasWei){
-          const spent=(await client.query(`SELECT COALESCE(sum((transaction_data->>'gas')::numeric*(transaction_data->>'gasPrice')::numeric),0)::text AS value
-            FROM ${s}.chain_operations WHERE signer=$1 AND (created_at>NOW()-INTERVAL '24 hours' OR receipt IS NULL)`,[signer.toLowerCase()])).rows[0].value
+          const costs=(await client.query(`SELECT receipt,receipt_canonical,transaction_data FROM ${s}.chain_operations WHERE signer=$1
+            AND (receipt_time>NOW()-INTERVAL '24 hours' OR receipt IS NULL OR NOT receipt_canonical OR receipt_time IS NULL)`,[signer.toLowerCase()])).rows
+          const spent=costs.reduce((sum,t)=>sum+(t.receipt&&t.receipt_canonical?BigInt(t.receipt.gasUsed)*BigInt(t.receipt.effectiveGasPrice??t.transaction_data.gasPrice):BigInt(t.transaction_data.gas)*BigInt(t.transaction_data.gasPrice)),0n)
           if(BigInt(spent)+amount>BigInt(maxDailyGasWei)) throw fault(409,'The worker gas budget is exhausted.')
         }
         await client.query(`INSERT INTO ${s}.chain_operations (intent_id,step,resume_version,signer,nonce,hash,raw_tx,transaction_data) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
           [id,step,resumeVersion,signer.toLowerCase(),String(nonce),hash,raw,tx])
       })
     },
-    async saveReceipt(hash,receipt){await query(`UPDATE ${s}.chain_operations SET receipt=$2 WHERE hash=$1`,[hash,receipt])},
+    async saveReceipt(hash,receipt,timestamp){await query(`UPDATE ${s}.chain_operations SET receipt=$2,receipt_canonical=TRUE,receipt_time=$3 WHERE hash=$1`,[hash,receipt,new Date(timestamp?Number(BigInt(timestamp))*1000:db.now())])},
     async resolveTransaction(id,original,hash,receipt,kind,actor){
       await transaction(async client=>{
         const job=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(!job||job.lease_until>new Date(db.now()))throw fault(409,'Wait for the current worker lease to finish.')
-        const saved=(await client.query(`UPDATE ${s}.chain_operations SET resolved_hash=$3,receipt=$4,resolution_kind=$5 WHERE intent_id=$1 AND hash=$2 RETURNING id`,[id,original,hash,receipt,kind])).rows[0]
+        const saved=(await client.query(`UPDATE ${s}.chain_operations SET resolved_hash=$3,receipt=$4,resolution_kind=$5,receipt_canonical=TRUE,receipt_time=NOW() WHERE intent_id=$1 AND hash=$2 RETURNING id`,[id,original,hash,receipt,kind])).rows[0]
         if(!saved)throw fault(404,'Saved transaction not found.')
         const intent=await db.getIntent(id,client)
         await db.entry(client,{budgetId:intent.budget_pool_id,intentId:id,kind:'transaction-reconciled',actor,evidence:{originalHash:original,hash,kind,blockHash:receipt.blockHash}})

@@ -55,6 +55,18 @@ it('a gas-quote RPC outage remains retryable and cannot sign or terminally fail 
     assert.equal(signatures,3);assert.equal(f.chain.broadcasts,3)
   }finally{await f.close()}
 })
+it('a post-payment gas ceiling breach retains the original fee and request without signing a top-up', {timeout:120000},async()=>{
+  const f=await setup()
+  try{
+    const id=(await f.accept()).id,before=await f.db.getIntent(id),fee=(await f.db.query('SELECT hash FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[before.quote_id])).rows[0].hash
+    const result=await createCreator({...f.options,config:{...f.chain.config,maxGasPriceWei:'1'}}).tick()
+    assert.equal(result.state,'failed');assert.equal(f.chain.broadcasts,0)
+    assert.equal((await f.db.execution.transactions(id)).length,0)
+    assert.equal((await f.db.getIntent(id)).plan_hash,before.plan_hash)
+    assert.equal((await f.db.paymentObligation(fee)).kind,'creation-failure')
+    assert.equal((await f.db.query('SELECT count(*)::int n FROM saffron_incentives.payment_proofs')).rows[0].n,1)
+  }finally{await f.close()}
+})
 it('every creation step resumes the same durable transaction after failure before broadcast', {timeout:120000},async()=>{
   const f=await setup()
   try{

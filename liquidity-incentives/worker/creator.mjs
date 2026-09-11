@@ -56,7 +56,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
         const block = await rpc('eth_getBlockByNumber', [receipt.blockNumber, false])
         const head = BigInt(await rpc('eth_blockNumber', []))
         if (block?.hash !== receipt.blockHash || head < BigInt(receipt.blockNumber) + BigInt(config.confirmations - 1)) throw new Waiting('Waiting for canonical transaction confirmations.')
-        await database.execution.saveReceipt(tx.hash, receipt)
+        await database.execution.saveReceipt(tx.hash, receipt,block.timestamp)
         return tx.resolution_kind==='cancelled'?{...receipt,status:'0x0',cancelled:true}:receipt
       }
       async function transact(step, to, data) {
@@ -109,6 +109,8 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           const gas = (BigInt(await rpc('eth_estimateGas', [{ from, to, data, value: '0x0' }])) * 120n + 99n) / 100n
           if (gas > BigInt(config.maxGasPerTx) || gasPrice > BigInt(config.maxGasPriceWei)) throw new ConfirmedFailure('Gas exceeds the configured operator budget.')
           const transaction = { chainId: CHAIN_ID, type: 'legacy', nonce, to, data, value: 0n, gas, gasPrice }
+          await database.checkJobGas(database,job.intent_id,gas*gasPrice)
+          if(BigInt(await rpc('eth_getBalance',[account.address,'latest']))<gas*gasPrice)throw new Waiting('Creation signer needs gas funding before this saved request can continue.')
           // An operator-scoped one-shot guard can narrow the ordinary worker to
           // one request and one attempt per factory step before any key use.
           try{await beforeSign?.({job,step,transaction})}

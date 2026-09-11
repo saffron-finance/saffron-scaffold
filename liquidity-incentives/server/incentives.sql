@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.vault_jobs (
 CREATE TABLE IF NOT EXISTS saffron_incentives.chain_operations (
   id BIGSERIAL PRIMARY KEY, intent_id UUID NOT NULL REFERENCES saffron_incentives.deployment_intents(id), step TEXT NOT NULL,
   signer TEXT NOT NULL, nonce BIGINT NOT NULL CHECK (nonce>=0), resume_version INTEGER NOT NULL, hash TEXT NOT NULL UNIQUE,
-  raw_tx TEXT NOT NULL, transaction_data JSONB NOT NULL, receipt JSONB, resolved_hash TEXT, resolution_kind TEXT,
+  raw_tx TEXT NOT NULL, transaction_data JSONB NOT NULL, receipt JSONB, receipt_canonical BOOLEAN NOT NULL DEFAULT FALSE,receipt_time TIMESTAMPTZ,resolved_hash TEXT, resolution_kind TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (signer,nonce), UNIQUE(intent_id,step,resume_version)
 );
@@ -100,6 +100,11 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_scan_cursors (
   id TEXT PRIMARY KEY,chain_id INTEGER NOT NULL CHECK(chain_id=4663),
   start_block BIGINT NOT NULL CHECK(start_block>=0),block_number BIGINT,block_hash TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),checked_at TIMESTAMPTZ,safe_head BIGINT
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.gas_reservations (
+  quote_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_quotes(id),signer TEXT NOT NULL,
+  maximum_wei NUMERIC(78,0) NOT NULL CHECK(maximum_wei>0),fee_wei NUMERIC(78,0) NOT NULL CHECK(fee_wei>0),
+  evidence JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.intake_policies (
   signer TEXT PRIMARY KEY,revision INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('automatic','reviewed')),

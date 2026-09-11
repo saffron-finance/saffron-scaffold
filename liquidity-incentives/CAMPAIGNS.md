@@ -217,3 +217,29 @@ external transfer. This never initiates a new payment or refund automatically.
 The operator audit endpoint retains reasons, actors and public evidence. Original
 request retirement and external position recovery must be verified before its
 refund is recorded; duplicate-fee refunds leave the original commitment intact.
+
+## Creation gas and subsidy
+
+The creation price remains $2 in native ETH. Public protocol configuration must
+include `maxGasPerTx`, `maxGasPriceWei`, `maxDailyGasWei` and `maxSubsidyWei`.
+Checkout reserves three times the per-transaction gas and price ceilings: the
+hard upper bound for the supported three-call factory flow, not an average-cost
+forecast. Tighten ceilings only using verified factory/type simulations. Exact
+one-request fork simulation remains mandatory before the protected signer runs.
+
+Gas holds share the global admission transaction with premium and queue holds.
+Before a quote, canonical signer balance, fee price, gas headroom and receipt
+history must be available. The fee recipient is separate; fee income does not
+increase the signer's ETH balance. Creation signatures cannot exceed the original
+job gas reservation. A later gas spike pauses the same paid request; it never
+changes the committed user fee or requests an automatic top-up.
+
+Daily gas uses a rolling 24-hour window based on canonical receipt time. Pending
+signed commitments and remaining creation ceilings survive the window boundary.
+At canonical completion or retirement, unused gas exposure is released and actual
+receipt gas remains spent. Orphaned receipts return to outstanding exposure.
+Subsidy is the positive difference between the job's actual plus outstanding gas
+and its retained creation fee. The full job subsidy remains booked while work is
+pending and for 24 hours after its last gas receipt. Refund-due fees provide no
+projected subsidy credit. Administration displays fee receipts, actual gas,
+outstanding exposure, signer balance and remaining subsidy allowance separately.

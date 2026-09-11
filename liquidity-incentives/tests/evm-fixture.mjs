@@ -82,7 +82,7 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
     const tokenAbi=artifacts['Fixture.sol'].FixtureToken.abi
     for(const t of [CASHCAT,WETH])await send(t,encodeFunctionData({abi:tokenAbi,functionName:'mint',args:[account.address,10n**30n]}))
     const config={chainId:CHAIN_ID,vaultTypeId:1,adapterTypeId:1,confirmations:2,factoryCodeHash:keccak256(await client.getCode({address:FACTORY})),
-      vaultTypeHash:keccak256(vaultType),adapterTypeHash:keccak256(adapterType),maxGasPerTx:'15000000',maxGasPriceWei:'100000000000',maxPremiumRaw:(10n**28n).toString()}
+      vaultTypeHash:keccak256(vaultType),adapterTypeHash:keccak256(adapterType),maxGasPerTx:'15000000',maxGasPriceWei:'100000000000',maxDailyGasWei:'100000000000000000000',maxSubsidyWei:'100000000000000000000',maxPremiumRaw:(10n**28n).toString()}
     let broadcasts=0,loseBroadcast=false,beforeBroadcast
     const rpc=async(method,params=[])=>{if(method!=='eth_sendRawTransaction')return raw(method,params)
       await beforeBroadcast?.(params[0]);broadcasts++;const hash=await raw(method,params);await raw('evm_mine')

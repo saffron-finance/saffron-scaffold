@@ -7,5 +7,9 @@
   "vaultTypeHash": "0x89bfc535d437614afc43c1c334b9cdac8113273cf627f303cfce2b6c3c163683",
   "adapterTypeHash": "0xd71b7265803869e18564b6f747b15a56a98cf3f62441095d36eeef34cd978383",
   "confirmations": 2,
+  "maxGasPerTx": "15000000",
+  "maxGasPriceWei": "10000000000",
+  "maxDailyGasWei": "SET_REVIEWED_ROLLING_24_HOUR_GAS_LIMIT",
+  "maxSubsidyWei": "SET_REVIEWED_ROLLING_24_HOUR_SUBSIDY_LIMIT",
   "maxPremiumRaw": "SET_REVIEWED_RAW_TOKEN_CEILING"
 }

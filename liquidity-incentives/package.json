@@ -19,7 +19,7 @@
     "worker:payments": "node worker/run-payments.mjs",
     "worker:retire": "node worker/run-retirement.mjs",
     "worker:simulate": "node worker/simulate.mjs",
-    "test:watcher": "node --test tests/payment-watcher.test.mjs tests/refund-resolutions.test.mjs tests/intake-policy.test.mjs tests/one-shot.test.mjs tests/protected-worker.test.mjs",
+    "test:watcher": "node --test tests/payment-watcher.test.mjs tests/refund-resolutions.test.mjs tests/intake-policy.test.mjs tests/gas-reservations.test.mjs tests/one-shot.test.mjs tests/protected-worker.test.mjs",
     "demo": "node tests/demo.mjs",
     "build:preview": "node scripts/build-preview.mjs",
     "test:operator-fork": "node ops/live-tests/2026-09-11-vault-2/recovery-fork.mjs"

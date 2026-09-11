@@ -11,6 +11,7 @@ import { verifyRefund,verifyRefundReplacement } from './refund-proof.mjs'
 import { encodeFunctionData,decodeFunctionResult } from 'viem'
 import { abi } from '../shared/vault-lifecycle.mjs'
 import { intakeReadiness } from './intake-policy.mjs'
+import { gasCoverage } from './gas-reservations.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -52,7 +53,19 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   }
   const service={
     refresh,
-    readiness:()=>intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now}),
+    async readiness(){
+      const result=await intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now})
+      try{
+        const gas=await gasCoverage({db,rpc,config,signer,now}),eth=await usdQuote(WETH)
+        if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60000||eth.checkedAt>now()+5000)throw new Error('Fee price unavailable.')
+        const feeWei=ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)),maximum=BigInt(gas.maximumWei),subsidy=maximum>feeWei?maximum-feeWei:0n
+        result.gas={...gas,feeWei:feeWei.toString(),ethPriceRaw:eth.priceRaw,remainingSubsidyWei:(BigInt(gas.maxSubsidyWei)-BigInt(gas.book.subsidyWei)).toString()}
+        if(BigInt(gas.book.exposureWei)+maximum>BigInt(gas.balanceWei)||BigInt(gas.book.exposureWei)+BigInt(gas.book.spentWei)+maximum>BigInt(gas.maxDailyGasWei)
+          ||BigInt(gas.book.subsidyWei)+subsidy>BigInt(gas.maxSubsidyWei))result.reasons.push('gas_capacity_exhausted')
+      }catch{result.reasons.push('gas_unavailable')}
+      result.canQuote=result.reasons.length===0
+      return result
+    },
     async auditCheckoutSettlements(){
       await service.auditRefundSettlements()
       for(const cursor of await db.checkoutWatermarks()){
@@ -222,7 +235,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
       const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
         amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
-      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision})
+      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision,gas:readiness.gas})
       return {...quote,paymentData:paymentData(quote)}
     },
     /** Verify the payment chain evidence before admitting exactly one creation.
@@ -265,7 +278,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       await service.auditCheckoutSettlements()
       if(quote.plan.factoryCodeHash!==config.factoryCodeHash||quote.plan.vaultTypeHash!==config.vaultTypeHash||quote.plan.adapterTypeHash!==config.adapterTypeHash||quote.signer!==signer.toLowerCase())throw fault(409,'The original plan is outside current execution policy.')
       const payment=await verifyPayment(quote,hash,null,rpc,{confirmations:config?.confirmations??2,checkCapability:false})
-      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution})
+      const gas=await gasCoverage({db,rpc,config,signer,now})
+      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution,gas})
     },
     async describe(job,wallet=job.wallet){
       let observation=await db.execution.observation(job.id)
