@@ -1,0 +1,86 @@
+{
+  "checkedAt": "2026-09-11T02:08:32.735Z",
+  "job": {
+    "intent_id": "79229eb4-970a-4248-ba37-307bcd5eb174",
+    "chain_id": 4663,
+    "factory": "0xce97ee64ad415976c465a783725014e67832be1a",
+    "signer": "0xf70ce2bd96c83c8c9e0cb0ff7376f2d93e016612",
+    "wallet": "0x0000000000000000000000000000000000000000",
+    "walletPurpose": "Read-only zero-address viewer; no user reservation or ownership assigned.",
+    "operation": "create",
+    "resume_version": 0,
+    "authorization": {
+      "kind": "explicit-operator-one-off",
+      "operatorApproved": true,
+      "nativeFeeVerified": false,
+      "scope": "One adapter, one vault, initialize only; no premium funding or LP deposit.",
+      "userWalletRequired": false
+    },
+    "snapshot": {
+      "chainId": 4663,
+      "poolAddress": "0xa70fc67c9f69da90b63a0e4c05d229954574e313",
+      "feeTier": 10000,
+      "token0": {
+        "address": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+        "decimals": 18,
+        "symbol": "CASHCAT"
+      },
+      "token1": {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "decimals": 18,
+        "symbol": "ETH"
+      },
+      "fixedCapacityAmount": "10000",
+      "durationSeconds": 259200,
+      "variableAssetAddress": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+      "adapterType": "fullRange"
+    },
+    "plan": {
+      "liquidity": "2449866550870314843",
+      "premium": "499999999999999999727",
+      "token0": {
+        "address": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+        "decimals": 18,
+        "symbol": "CASHCAT"
+      },
+      "token1": {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "decimals": 18,
+        "symbol": "ETH"
+      },
+      "minTick": -887200,
+      "maxTick": 887200,
+      "variableDecimals": 18,
+      "variableSymbol": "CASHCAT",
+      "vaultTypeId": "1",
+      "adapterTypeId": "2",
+      "feeBps": "1250",
+      "factoryCodeHash": "0x8c2a5305bfe488b0b43e6b9221c36e881883277a6a45392bdd2dd2da08fb71af",
+      "vaultTypeHash": "0x89bfc535d437614afc43c1c334b9cdac8113273cf627f303cfce2b6c3c163683",
+      "adapterTypeHash": "0xd71b7265803869e18564b6f747b15a56a98cf3f62441095d36eeef34cd978383",
+      "price0": "169884333596083340",
+      "price1": "2451894737489603357972",
+      "variablePrice": "169884333596083340",
+      "sqrtPrice": "659485632447039814562019523",
+      "sizingBlock": "0x391dd53",
+      "sizingBlockHash": "0xe7c1d77a78fa5374270e4ef409fd5bffdda85d81bbee486bf77b618f370c2321",
+      "usdCheckedAt": 1789092512648
+    },
+    "plan_hash": "0x47d5f239b4d14ad826fb8217d402307cce6e75236726e93384df10684f13b8cf"
+  },
+  "price": {
+    "success": true,
+    "data": {
+      "chainId": 4663,
+      "tokenAddress": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+      "currency": "usd",
+      "price": 2451.8947374896034,
+      "timestamp": "2026-09-11T02:08:32.648Z"
+    }
+  },
+  "estimatedLpAmounts": {
+    "amount0": "294317898193484411980",
+    "amount1": "20392392558904463"
+  },
+  "sizingNote": "Fresh $100 LP capacity; unlike the browser preview, uses the live pool and ETH/USD quote. Token amounts fluctuate before deposit."
+}

@@ -1,0 +1,10 @@
+{
+  "baseCommit": "4dd914de0c2b148e7c297e7fc5c5bb900b0d8a8c",
+  "originalOperatorSourceSha256": "76a4a20f6632facde371d7a509017a8a2ccd7d9021ceb55822b921173692f683",
+  "portableChanges": [
+    "module import paths",
+    "private actor identifiers replaced with explicit public approval marker"
+  ],
+  "sourceMode": "import-only; not integrated into paid watcher",
+  "liveSigningDuringThisDocumentationTask": false
+}

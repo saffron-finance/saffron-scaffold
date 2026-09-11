@@ -3,6 +3,8 @@ import { abi, CHAIN_ID, FACTORY, sameAddress, MAX_HEAD_AGE } from './vault-lifec
 
 /** Read adapter/vault/funding state at one block; recheck its hash after calls.
  * This module has no signing or sending methods and is shared with browser reads.
+ * Requester identity is not a factory deployment prerequisite. Without a viewer,
+ * balance queries use the zero address only; this does not assign LP ownership.
  */
 export async function readVault(job, rpc, { confirmations = 2, now = Date.now } = {}) {
   const plan = job.plan
@@ -52,7 +54,7 @@ export async function readVault(job, rpc, { confirmations = 2, now = Date.now } 
     && factoryCode !== '0x' && keccak256(factoryCode) === plan.factoryCodeHash
     && vaultCode !== '0x' && keccak256(vaultCode) === plan.vaultCodeHash
   if (!valid) throw new Error('Vault does not match approved terms')
-  const wallet=job.wallet??job.snapshot.submitterAddress
+  const wallet=job.wallet??job.snapshot.submitterAddress??'0x0000000000000000000000000000000000000000'
   const [claimBalance,fixedBalance,fundingBearerBalance,adapterLiquidity]=await Promise.all([
     read(claim,'balanceOf',[wallet]),read(fixedBearer,'balanceOf',[wallet]),read(bearer,'balanceOf',[job.signer]),
     read(plan.adapter,'liquidity'),

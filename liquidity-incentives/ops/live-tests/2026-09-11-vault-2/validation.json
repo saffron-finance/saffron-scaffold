@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-09-11T02:41:35.255049+00:00",
+  "scope": "Documentation, regression tests and worker hardening; no additional live signatures or broadcasts.",
+  "nodeTests": {
+    "unitAndPublicEvidence": 30,
+    "database": 15,
+    "lifecycle": 12,
+    "watcher": 11,
+    "totalUnique": 68,
+    "newRegressionCases": 15,
+    "expandedExistingCase": "No requester wallet needed for same-block vault verification"
+  },
+  "browserScenarios": 11,
+  "labBrowserScenarios": 1,
+  "normalBuild": "passed",
+  "labBuild": "passed",
+  "demoSmoke": "passed",
+  "actualFactoryForkReproduction": {
+    "cases": 9,
+    "passed": true,
+    "upstreamBroadcasts": 0,
+    "liveSignerLoaded": false
+  },
+  "newCoverage": [
+    "Base-fee-only quotes and rising pre-broadcast base fee",
+    "Stale quotes below the latest base fee",
+    "Priority margin and non-EIP-1559 chains",
+    "Hard gas ceiling and malformed policy inputs",
+    "RPC fee outage is retryable and cannot sign",
+    "Confirmation delay versus unknown consumed nonce",
+    "Canonical revert persistence",
+    "Receipt reorgs and mismatched chain, nonce, sender or calldata",
+    "Lost response and mismatched returned hash",
+    "Public receipt/event/gas consistency",
+    "Credential and signed-journal exclusion"
+  ],
+  "forkBeforeLiveDeployment": {
+    "performed": true,
+    "evidence": "simulation.json",
+    "firstLiveSignatureAfterSimulation": true
+  },
+  "knownBuildWarnings": [
+    "Existing large-chunk advisory; builds succeeded."
+  ]
+}

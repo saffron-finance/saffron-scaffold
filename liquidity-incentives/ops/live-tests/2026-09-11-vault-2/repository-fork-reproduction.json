@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "checkedAt": "2026-09-11T02:36:37.961Z",
+  "localOnly": true,
+  "upstreamBroadcasts": 0,
+  "liveSignerLoaded": false,
+  "cases": [
+    "real factory creation with zero-address observer",
+    "fsynced bytes before send",
+    "resume after confirmed-adapter interruption",
+    "lost vault-send response reconciles same hash",
+    "exact premium and duration",
+    "unfunded and unstarted final state",
+    "completed replay signs and sends nothing",
+    "changed immutable terms rejected",
+    "unknown consumed nonce stops without send"
+  ],
+  "localSignatures": 3,
+  "localSends": 3,
+  "blockedUpstreamMethods": {
+    "eth_getAccountInfo": 10
+  },
+  "forkBlockNumber": "59891027",
+  "fixtureVault": "0x563008f7a958042429df7649f77a0c142fc36736"
+}

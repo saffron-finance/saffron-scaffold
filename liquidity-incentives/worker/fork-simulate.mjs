@@ -7,6 +7,7 @@ import { anvilBinary } from '../tests/anvil.mjs'
 import { READ_METHODS } from './protected-config.mjs'
 import { abi,CHAIN_ID,FACTORY,sameAddress } from '../shared/vault-lifecycle.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
+import { legacyGasPrice } from './gas-policy.mjs'
 
 /** Fork only through a loopback read-only bridge. Provider credentials never
  * enter Anvil arguments, stdout, cache, or the returned evidence. The authorized
@@ -65,7 +66,10 @@ export async function simulateFactory({upstream,config,job}){
       let estimate
       try{estimate=BigInt(await rpc('eth_estimateGas',[base]))}catch(error){throw new Error(step+': '+error.message)}
       const gas=(estimate*120n+99n)/100n
-      const gasPrice=BigInt(await rpc('eth_gasPrice'))
+      // Simulate the same new-signature gas policy as the live creator, so the
+      // reported conservative budget includes base-fee headroom too.
+      const feeHead=await rpc('eth_getBlockByNumber',['latest',false])
+      const gasPrice=legacyGasPrice({suggested:await rpc('eth_gasPrice'),baseFee:feeHead.baseFeePerGas??'0x0',maximum:config.maxGasPriceWei})
       if(gas>BigInt(config.maxGasPerTx)||gasPrice>BigInt(config.maxGasPriceWei))throw new Error('Fork exceeds operator gas limit.')
       const hash=await rpc('eth_sendTransaction',[{...base,gas:'0x'+gas.toString(16),gasPrice:'0x'+gasPrice.toString(16)}])
       let receipt

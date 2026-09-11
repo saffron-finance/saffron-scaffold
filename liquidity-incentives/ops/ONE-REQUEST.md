@@ -173,3 +173,39 @@ before/after, the three live transaction hashes and canonical receipts, actual g
 fees, and final vault/adapter/state. Keep the raw signed journal protected and out
 of shared report bundles. Clearly distinguish tests, fork simulation and live
 deployment; an initialized but unfunded vault is not a completed user LP deposit.
+
+## Completed live test and mandatory pre-deployment forks
+
+The [11 September vault #2 log](live-tests/2026-09-11-vault-2/README.md) records a
+successful, separately operator-authorized deployment: three canonical factory
+transactions, exact premium/duration, and independently verified initialized but
+unfunded state. The exact funded-EOA deployment was fork-simulated **before** any
+live signature. A separate ephemeral-account fork tested execution and recovery.
+This did not exercise real native-payment detection and did not fund/deposit LP.
+
+For every new live deployment, simulate the exact immutable terms against the
+actual factory/type bytecode and canonical sizing block first. The ordinary
+one-request runner requires a passing simulation less than ten minutes old
+before its first signature. A different request or changed terms need a new
+simulation; recovering already-signed bytes does not authorize a new deployment.
+
+A real requester wallet is needed for application identity and later user actions,
+**not** for factory creation or initialization. The state reader uses a zero-address
+observer when no viewer exists; this neither reserves the vault nor assigns LP
+ownership. A preview ID is not a verified payment or a real requester identity.
+
+New legacy transactions include one current base fee of gas-price headroom. The
+simulator uses the same policy. Configured per-transaction and aggregate budgets
+remain hard limits. Already-journaled bytes/hash/nonce never change during recovery.
+
+Additional read-only actual-factory recovery reproduction is opt-in:
+
+```sh
+npm run test:operator-fork -- /protected/read-only-fork.json
+```
+
+The config supplies the reviewed chain/type hashes, public limits and protected
+RPC reference from the existing operator examples. The test generates an
+ephemeral local account, never loads the live signer, rejects upstream signing
+and broadcast methods, and writes its new evidence into a private temporary
+directory. It does not overwrite the historical live-test evidence.

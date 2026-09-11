@@ -4,6 +4,7 @@ import { abi, CHAIN_ID, FACTORY, sameAddress } from '../shared/vault-lifecycle.m
 import { verifyPayment } from '../server/payment-proof.mjs'
 import { digest } from '../shared/incentives.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
+import { legacyGasPrice } from './gas-policy.mjs'
 export { resolvePlan } from '../shared/deployment-plan.mjs'
 
 const jsonSafe = value => JSON.parse(JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item))
@@ -95,7 +96,12 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           const from = account.address
           const nonce = Number(BigInt(await rpc('eth_getTransactionCount', [from, 'pending'])))
           if (!Number.isSafeInteger(nonce)) throw new ConfirmedFailure('Invalid signer nonce.')
-          const gasPrice = BigInt(await rpc('eth_gasPrice', []))
+          // Leave fee headroom only when signing a new transaction. Recovery
+          // continues to use the exact journaled bytes, hash and nonce.
+          const suggestedGasPrice = await rpc('eth_gasPrice', [])
+          let gasPrice
+          try { gasPrice = legacyGasPrice({ suggested: suggestedGasPrice, baseFee: head.baseFeePerGas ?? '0x0', maximum: config.maxGasPriceWei }) }
+          catch { throw new ConfirmedFailure('Gas price headroom exceeds the configured operator budget.') }
           const gas = (BigInt(await rpc('eth_estimateGas', [{ from, to, data, value: '0x0' }])) * 120n + 99n) / 100n
           if (gas > BigInt(config.maxGasPerTx) || gasPrice > BigInt(config.maxGasPriceWei)) throw new ConfirmedFailure('Gas exceeds the configured operator budget.')
           const transaction = { chainId: CHAIN_ID, type: 'legacy', nonce, to, data, value: 0n, gas, gasPrice }

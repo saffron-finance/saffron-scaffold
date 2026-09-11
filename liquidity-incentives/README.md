@@ -205,3 +205,7 @@ not the production application or a substitute for backend integration. Normal
 and lab builds exclude the preview entry/runtime. `node tests/preview-ui.mjs`
 checks static-only interactions, math, local persistence and mobile layout; set
 `PREVIEW_WEBROOT` to verify the published files through a loopback-only mirror.
+
+## Verified operator deployment
+
+[Vault #2 live test, 11 September 2026](ops/live-tests/2026-09-11-vault-2/README.md): exact pre-signing factory fork, three successful live receipts, canonical state verification and recovery regressions. Creation/initialization succeeded; premium funding and LP entry were not performed. The normal payment watcher remains a separate path.

@@ -8,6 +8,7 @@ import { abi,FACTORY,CHAIN_ID } from '../shared/vault-lifecycle.mjs'
 import { assertOneShotTransaction,runOneRequest } from '../worker/one-shot.mjs'
 import { protectedRpc } from '../worker/protected-config.mjs'
 import { simulateFactory } from '../worker/fork-simulate.mjs'
+import { readVault } from '../shared/vault-reader.mjs'
 import { createIncentivesService } from '../server/incentives-service.mjs'
 import { evmFixture } from './evm-fixture.mjs'
 import { incentivesFixture,ORIGIN } from './incentives-fixture.mjs'
@@ -62,6 +63,16 @@ it('one-shot runner follows exactly the pinned paid request, journals three real
     assert.equal(result.state,'created');assert.equal(result.requestId,second);assert.equal(result.observation.initialized,true)
     assert.equal(result.observation.variableSupply,'0','creator cannot fund premiums')
     assert.equal(result.observation.claimSupply,'0','creator cannot deposit a user LP')
+    // Deployment verification is independent of user linkage. No requester
+    // wallet is required in factory calldata or for the vault-state inspector.
+    const anonymous=await db.getIntent(second)
+    delete anonymous.wallet;delete anonymous.snapshot.submitterAddress
+    const anonymousObservation=await readVault(anonymous,chain.rpc)
+    assert.equal(anonymousObservation.positionWallet,'0x'+'0'.repeat(40))
+    assert.equal(anonymousObservation.vault,result.vault)
+    assert.equal(anonymousObservation.liquidity,result.observation.liquidity)
+    assert.equal(anonymousObservation.variableCapacity,result.observation.variableCapacity)
+    assert.equal(anonymousObservation.claimBalance,'0')
     assert.equal(chain.broadcasts,3);assert.equal((await db.getIntent(first)).state,'queued')
     assert.equal((await db.execution.transactions(first)).length,0)
     assert.deepEqual((await db.execution.transactions(second)).map(tx=>tx.step),['create-adapter','create-vault','initialize-vault'])
