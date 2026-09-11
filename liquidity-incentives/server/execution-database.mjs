@@ -125,7 +125,10 @@ export function createExecutionDatabase(db) {
         const previous=(await client.query(`SELECT snapshot FROM ${s}.vault_observations WHERE intent_id=$1`,[id])).rows[0]?.snapshot
         if(previous?.checkedAt>snapshot.checkedAt)return
         // Publish accounting and its evidence together across API/worker processes.
-        if(snapshot.verified&&previous?.verified&&BigInt(snapshot.blockNumber)<BigInt(previous.blockNumber))return
+        // A newer verified observation may have a lower height after a reorg.
+        // Keeping the previous height would leave orphaned funding depositable.
+        if(snapshot.verified&&(!previous?.verified||snapshot.variableSupply!==previous.variableSupply||snapshot.isStarted!==previous.isStarted))
+          await client.query(`UPDATE ${s}.vault_jobs SET funding_observed_at=$2 WHERE intent_id=$1`,[id,new Date(snapshot.checkedAt)])
         if(!Object.hasOwn(snapshot,'positionScan')&&previous?.positionScan){
           snapshot={positionScan:previous.positionScan,positionOwners:previous.positionOwners,positionsComplete:previous.positionsComplete,...snapshot}
         }

@@ -69,7 +69,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   }
   async function getIntent(id, client = { query }) {
     return (await client.query(`SELECT i.*,j.signer,j.factory,j.chain_id,j.state,j.funding_state,j.plan,j.operation,j.funding_max_raw,j.funding_operator,
-      j.resume_version,j.funding_round,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id
+      j.resume_version,j.funding_round,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id,j.funding_observed_at
       FROM ${schema}.deployment_intents i JOIN ${schema}.vault_jobs j ON j.intent_id=i.id WHERE i.id=$1`, [id])).rows[0] ?? null
   }
   /** Derive USD and fixed-side accounting from immutable accepted terms.

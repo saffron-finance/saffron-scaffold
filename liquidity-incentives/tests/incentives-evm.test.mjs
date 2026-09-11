@@ -8,8 +8,8 @@ import { createIncentivesService } from '../server/incentives-service.mjs'
 import { abi,eligibility } from '../shared/vault-lifecycle.mjs'
 import { amountsForLiquidity } from '../shared/liquidity-math.mjs'
 
-async function fixture(){
-  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
+async function fixture(databaseOptions={}){
+  const chain=await evmFixture(),store=await incentivesFixture(databaseOptions),db=store.database
   await store.seed(chain.account.address,10n**30n+'')
   await db.execution.heartbeat(chain.account.address);await chain.prepareIntake(db)
   const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
@@ -17,6 +17,41 @@ async function fixture(){
   const options={database:db,rpc:chain.rpc,account:chain.account,config:chain.config}
   return {chain,store,db,service,accept,options,close:async()=>{await store.close();await chain.close()}}
 }
+
+it('progress follows three separate receipts and external funding, and a lower canonical height revokes readiness',{timeout:120000},async()=>{
+  const f=await fixture(),{db,chain,service}=f
+  try{
+    const {id}=await f.accept();let permitted=1
+    const rpc=async(method,params)=>{
+      if(method==='eth_sendRawTransaction'&&(await db.execution.transactions(id)).length>permitted)throw new Error('Pause before the next factory stage')
+      return chain.rpc(method,params)
+    }
+    const worker=createCreator({...f.options,rpc})
+    for(let count=1;count<=3;count++){
+      permitted=count;await db.query('UPDATE saffron_incentives.vault_jobs SET next_attempt_at=NOW() WHERE intent_id=$1',[id])
+      await worker.tick()
+      const row=await service.detail(id,chain.account.address)
+      assert.equal(row.progress.stages.filter(s=>s.state==='complete').length,count)
+      assert.equal(row.depositable,false)
+      assert.equal(new Set(row.progress.stages.filter(s=>s.state==='complete').map(s=>s.hash)).size,count)
+    }
+    const job=await db.getIntent(id),snapshot=await chain.raw('evm_snapshot'),premium=BigInt(job.plan.premium)
+    await chain.send(CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[job.plan.vault,premium]}))
+    await chain.send(job.plan.vault,encodeFunctionData({abi,functionName:'deposit',args:[premium-1n,1n,'0x']}))
+    assert.equal((await service.detail(id,chain.account.address)).progress.stages[3].state,'active')
+    await chain.send(job.plan.vault,encodeFunctionData({abi,functionName:'deposit',args:[1n,1n,'0x']}))
+    const funded=await service.detail(id,chain.account.address)
+    assert.equal(funded.depositable,true);assert.equal(funded.progress.stages[3].state,'complete')
+    await chain.raw('evm_revert',[snapshot])
+    const restored=await service.detail(id,chain.account.address)
+    assert.equal(restored.depositable,false);assert.equal(restored.state,'awaiting_funding')
+    assert.equal(restored.observation.variableSupply,'0')
+    const unavailable=createIncentivesService({database:db,rpc:async()=>{throw new Error('Read outage')},config:chain.config,signer:chain.account.address})
+    const checking=await unavailable.describe(await db.getIntent(id))
+    assert.equal(checking.progress.verificationAvailable,false);assert.equal(checking.depositable,false)
+    assert.doesNotMatch(JSON.stringify(checking.progress),/raw_tx|recoverySecret|transaction_data/)
+  }finally{await f.close()}
+})
 
 it('ETH-paid request creates once, externally funds, gates fixed entry, and retains cumulative premium after claim', {timeout:120000},async()=>{
   const f=await fixture(),{db,chain,service}=f
@@ -130,7 +165,7 @@ it('pause prevents new signing; retirement reconciles and recovers unused fundin
 })
 
 it('a distinct external treasury funds a USD campaign without worker custody and consumes matching capacity',{timeout:120000},async()=>{
-  const f=await fixture(),{chain,db,service}=f
+  const f=await fixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),{chain,db,service}=f
   try{
     await db.saveCampaign({id:'usd-campaign',name:'USD campaign',pairId:'cashcat-eth',days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},chain.account.address)
     const {id}=await chain.accept(service,'usd-campaign','500000')

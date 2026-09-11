@@ -12,6 +12,7 @@ import { encodeFunctionData,decodeFunctionResult } from 'viem'
 import { abi } from '../shared/vault-lifecycle.mjs'
 import { intakeReadiness } from './intake-policy.mjs'
 import { gasCoverage } from './gas-reservations.mjs'
+import { deploymentProgress } from './deployment-progress.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -311,9 +312,13 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         }else if(job.state==='created'){state=isRequester?eligible.state:'no_position';depositable=isRequester&&eligible.depositable}
       }
       if(job.cancel_requested&&job.state!=='retired'&&!observation?.isStarted){state='retirement_requested';depositable=false}
-      const transactions=(await db.execution.transactionMetadata(job.id)).map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:tx.receipt?.status==='0x1'&&tx.resolution_kind!=='cancelled',reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))
+      const journal=await db.execution.transactionMetadata(job.id)
+      const payment=(await db.query('SELECT o.state FROM saffron_incentives.payment_obligations o JOIN saffron_incentives.payment_proofs p ON p.hash=o.hash WHERE p.quote_id=$1',[job.quote_id])).rows[0]
+      const progress=await deploymentProgress({job,observation,journal,payment,policy:await db.intakePolicy(job.signer),rpc,confirmations:config?.confirmations??2,now})
+      const transactions=journal.map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:progress.stages.some(s=>s.hash===(tx.resolved_hash??tx.hash)&&s.state==='complete'),reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))
+      if(depositable&&(!progress.verificationAvailable||progress.stages.some(s=>s.state!=='complete'))){depositable=false;state='checking'}
       return jsonSafe({id:job.id,wallet:job.wallet,positionWallet:wallet.toLowerCase(),isRequester,programId:job.snapshot.programId,createdAt:job.created_at,planHash:job.plan_hash,plan:job.plan,
-        snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,
+        snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,progress,
         workerState:job.state,fundingState:job.funding_state,cancelRequested:job.cancel_requested,error:job.error,transactions,
         nextAttemptAt:job.next_attempt_at,fundingOperator:job.funding_operator})
     },
