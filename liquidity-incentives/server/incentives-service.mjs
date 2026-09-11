@@ -66,10 +66,13 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async fundingBrief(id,actor){
       const row=await service.detail(id,actor,true),s=row.observation,job=await db.getIntent(id)
       if(!s?.verified||eligibility(s,now()).state==='checking'||row.progress?.verificationAvailable!==true||!row.progress.stages.slice(0,3).every(s=>s.state==='complete'))throw fault(503,'Fresh verified vault evidence is required for the funding brief.')
-      const outstanding=BigInt(s.variableCapacity)-BigInt(s.variableSupply),canFund=!row.cancelRequested&&row.workerState!=='retired'&&!s.isStarted&&outstanding>0n&&BigInt(s.claimSupply)===0n
+      const budget=(await db.catalog(true)).budgets.find(b=>b.id===job.budget_pool_id)
+      const allocation=(await db.treasuryBook()).find(a=>a.budget_pool_id===job.budget_pool_id)
+      const outstanding=BigInt(s.variableCapacity)-BigInt(s.variableSupply),canFund=Boolean(budget&&!budget.paused&&!budget.reconciliationRequired&&allocation)
+        &&row.progress.paymentState==='admitted'&&!row.cancelRequested&&row.workerState!=='retired'&&!s.isStarted&&outstanding>0n&&BigInt(s.claimSupply)===0n
       return {requestId:row.id,planHash:row.planHash,chainId:4663,vault:s.vault,token:s.variableAsset,decimals:s.variableDecimals,symbol:s.variableSymbol,
         totalRaw:s.variableCapacity,observedSupplyRaw:s.variableSupply,vaultBalanceRaw:s.variableBalance,outstandingRaw:(outstanding>0n?outstanding:0n).toString(),
-        treasuryWallet:(await db.treasuryBook()).find(a=>a.budget_pool_id===job.budget_pool_id)?.wallet??null,
+        treasuryWallet:allocation?.wallet??null,
         state:row.state,canFund,checkedAt:s.checkedAt,blockNumber:s.blockNumber,blockHash:s.blockHash,
         action:canFund?'Approve the vault for the outstanding token amount, then call vault.deposit(outstandingRaw, 1, "0x") externally.':'Review current ownership and recovery; no funding action is proposed.',
         recovery:s.isStarted?'The vault has started; use protocol maturity rights.':BigInt(s.claimSupply)>0n?'The fixed claim owner must recover the unstarted LP assets before retirement.':BigInt(s.variableSupply)>0n?'The variable bearer owner must recover the premium externally before retirement.':'Settle all creator transactions, then verify retirement.'}

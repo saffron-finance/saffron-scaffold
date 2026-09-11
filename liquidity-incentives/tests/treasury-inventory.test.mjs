@@ -35,6 +35,11 @@ it('treasury holdings cannot be assigned twice; externally funded premiums produ
     assert.equal((await createCreator({database:db,rpc:chain.rpc,account:chain.account,config:chain.config}).tick()).state,'created')
     let brief=await service.fundingBrief(id,chain.account.address)
     assert.equal(brief.canFund,true);assert.equal(brief.observedSupplyRaw,'0');assert.equal(brief.outstandingRaw,brief.totalRaw);assert.equal(brief.treasuryWallet,treasury.address.toLowerCase())
+    const budget=(await db.catalog(true)).budgets.find(b=>b.id===program.budgetPoolId)
+    await db.saveBudget({...budget,paused:true},chain.account.address)
+    assert.equal((await service.fundingBrief(id,chain.account.address)).canFund,false,'an emergency campaign pause must not recommend external funding')
+    await db.saveBudget({...budget,revision:budget.revision+1,paused:false},chain.account.address)
+    assert.equal((await service.fundingBrief(id,chain.account.address)).canFund,true)
     const beforeFunding=await chain.raw('evm_snapshot'),amount=BigInt(brief.totalRaw),part=amount/2n
     await send(CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[brief.vault,amount]}))
     await send(brief.vault,encodeFunctionData({abi,functionName:'deposit',args:[part,1n,'0x']}))
