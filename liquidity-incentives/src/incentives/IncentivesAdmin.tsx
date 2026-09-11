@@ -55,13 +55,26 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
 /** Confirmed fees needing external resolution stay visible, with no funding or
  * automatic-refund authority exposed by this application. */
 function PaymentAttention({account}:{account:Address}){
-  const [rows,setRows]=useState<any[]|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
-  async function load(){setBusy(true);try{setRows((await authedJson(account,'/admin/payments')).payments);setError('')}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  const [rows,setRows]=useState<any[]|null>(null),[cursor,setCursor]=useState<string|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
+  async function load(after?:string){setBusy(true);try{const result=await authedJson(account,'/admin/payments'+(after?'?cursor='+after:''));setRows(previous=>after?[...previous??[],...result.payments]:result.payments);setCursor(result.nextCursor);setError('')}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Disclosure><summary>Creation payments requiring attention</summary>
     <FinePrint>Confirmed payments blocked by late mining, changed policy or admission limits are retained. Resolve externally; do not ask the user to pay again.</FinePrint>
     <QuietButton disabled={busy} onClick={()=>void load()}>Check payment exceptions</QuietButton>
     {rows?.length===0&&<FinePrint>No recorded payment exceptions.</FinePrint>}
-    {rows?.map(row=><FinePrint key={row.hash} style={{overflowWrap:'anywhere'}}>Quote {row.quote_id} · wallet {row.wallet}. {row.error} <a href={'https://robinhoodchain.blockscout.com/tx/'+row.hash} target='_blank' rel='noreferrer'>Payment transaction ↗</a></FinePrint>)}
+    {rows?.map(row=><PaymentResolution key={row.hash} account={account} row={row} onUpdate={()=>void load()}/>)}
+    {cursor&&<QuietButton disabled={busy} onClick={()=>void load(cursor)}>More payments</QuietButton>}
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
   </Disclosure>
+}
+function PaymentResolution({account,row,onUpdate}:{account:Address;row:any;onUpdate:()=>void}){
+  const [reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('')
+  async function resolve(action:string){setBusy(true);setError('');try{
+    await authedJson(account,'/admin/payments/'+row.hash+'/'+action,{revision:row.revision,requestKey:crypto.randomUUID(),reason});onUpdate()
+  }catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  return <Stack style={{overflowWrap:'anywhere'}}><FinePrint>Quote {row.quote_id} · wallet {row.wallet}. Received {formatUnits(BigInt(row.amount_wei),18)} ETH · {statusLabel(row.kind)} · {statusLabel(row.state)}. <a href={'https://robinhoodchain.blockscout.com/tx/'+row.hash} target='_blank' rel='noreferrer'>Payment transaction ↗</a></FinePrint>
+    <label>Resolution reason<input value={reason} onChange={e=>setReason(e.target.value)} maxLength={500}/></label>
+    <Row>{!row.deployment_id&&!['duplicate-fee','underpayment','overpayment'].includes(row.kind)&&['received','needs_attention'].includes(row.state)&&<QuietButton disabled={busy||reason.trim().length<3} onClick={()=>void resolve('admit')}>Admit original request</QuietButton>}
+    {['received','needs_attention','admitted'].includes(row.state)&&<QuietButton disabled={busy||reason.trim().length<3} onClick={()=>void resolve('refund-due')}>Freeze creation and mark refund due</QuietButton>}</Row>
+    {row.state==='refund_due'&&<FinePrint>Resolve saved transactions and retire the original request before sending a refund externally. A duplicate fee does not require retiring the original request.</FinePrint>}
+    {error&&<ErrorText role='alert'>{error}</ErrorText>}</Stack>
 }

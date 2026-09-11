@@ -105,3 +105,17 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_exceptions (
   hash TEXT PRIMARY KEY,quote_id UUID NOT NULL REFERENCES saffron_incentives.deployment_quotes(id),
   kind TEXT NOT NULL,evidence JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS saffron_incentives.payment_obligations (
+  hash TEXT PRIMARY KEY,quote_id UUID NOT NULL REFERENCES saffron_incentives.deployment_quotes(id),
+  wallet TEXT NOT NULL,amount_wei NUMERIC(78,0) NOT NULL CHECK(amount_wei>0),kind TEXT NOT NULL,
+  evidence JSONB NOT NULL,state TEXT NOT NULL DEFAULT 'received',revision INTEGER NOT NULL DEFAULT 1,
+  execution_allowed BOOLEAN NOT NULL DEFAULT FALSE,admission_override JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS obligations_quote ON saffron_incentives.payment_obligations(quote_id);
+CREATE TABLE IF NOT EXISTS saffron_incentives.payment_resolution_audit (
+  id BIGSERIAL PRIMARY KEY,payment_hash TEXT NOT NULL REFERENCES saffron_incentives.payment_obligations(hash),
+  actor TEXT NOT NULL,request_key UUID NOT NULL,action TEXT NOT NULL,reason TEXT NOT NULL,
+  expected_revision INTEGER NOT NULL,fingerprint TEXT NOT NULL,evidence JSONB,result JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
+);

@@ -50,4 +50,4 @@ export async function incentivesFixture(options={}) {
   }
 }
 
-export const mockPayment=quote=>({hash:digest({quoteId:quote.id}),quoteId:quote.id,wallet:quote.wallet,planHash:quote.planHash,verified:true})
+export const mockPayment=quote=>({hash:digest({quoteId:quote.id}),quoteId:quote.id,wallet:quote.wallet,planHash:quote.planHash,amountWei:quote.fee?.amountWei??'1000',exactAmount:true,verified:true})

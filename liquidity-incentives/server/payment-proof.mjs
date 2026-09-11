@@ -6,7 +6,7 @@ import { fault, validAddress } from '../shared/incentives.mjs'
  * The private browser recovery capability is committed in payment calldata: a
  * public explorer receipt alone can never authenticate another browser session.
  */
-export async function verifyPayment(quote,hash,secret,rpc,{confirmations=2,checkCapability=true}={}){
+export async function verifyPayment(quote,hash,secret,rpc,{confirmations=2,checkCapability=true,allowAmountMismatch=false}={}){
   if(!Number.isInteger(confirmations)||confirmations<2)throw fault(503,'Payment confirmation policy is invalid.')
   if(!quote?.fee)throw fault(400,'This quote has no ETH creation payment.')
   if(!validAddress(quote.wallet)||!validAddress(quote.fee.recipient)||quote.wallet.toLowerCase()===quote.fee.recipient.toLowerCase()
@@ -26,7 +26,7 @@ export async function verifyPayment(quote,hash,secret,rpc,{confirmations=2,check
   if(receipt.status!=='0x1'||receipt.transactionHash?.toLowerCase()!==hash.toLowerCase()||block?.hash!==receipt.blockHash
     ||BigInt(head)<BigInt(receipt.blockNumber)+BigInt(confirmations-1))throw fault(409,'Payment needs successful canonical confirmations. Do not pay again.')
   if(!validAddress(tx.from)||tx.from.toLowerCase()!==quote.wallet||tx.to?.toLowerCase()!==quote.fee.recipient
-    ||BigInt(tx.value)!==BigInt(quote.fee.amountWei)||tx.input!==paymentData(quote))throw fault(400,'Payment does not match this wallet, exact ETH amount, recipient and vault quote.')
-  return {hash:hash.toLowerCase(),wallet:quote.wallet,recipient:quote.fee.recipient,amountWei:quote.fee.amountWei,
+    ||BigInt(tx.value)<=0n||!allowAmountMismatch&&BigInt(tx.value)!==BigInt(quote.fee.amountWei)||tx.input!==paymentData(quote))throw fault(400,'Payment does not match this wallet, exact ETH amount, recipient and vault quote.')
+  return {hash:hash.toLowerCase(),wallet:quote.wallet,recipient:quote.fee.recipient,amountWei:BigInt(tx.value).toString(),exactAmount:BigInt(tx.value)===BigInt(quote.fee.amountWei),
     late:Number(BigInt(block.timestamp))*1000>Date.parse(quote.paymentDeadline),quoteId:quote.id,planHash:quote.planHash,blockNumber:receipt.blockNumber,blockHash:receipt.blockHash,verified:true}
 }

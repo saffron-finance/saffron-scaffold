@@ -8,11 +8,13 @@ import { runOneRequest } from '../worker/one-shot.mjs'
 import { simulateFactory } from '../worker/fork-simulate.mjs'
 import { proofHash,paymentData } from '../shared/payment.mjs'
 import { privateFilesFixture } from './private-files-fixture.mjs'
+import { randomUUID } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 
 /** A real local ETH payment is discovered from blocks, not an API callback or a
  * mocked verified flag. The actual database and creator then finish the vault. */
-async function fixture(){
-  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
+async function fixture(options={}){
+  const chain=await evmFixture(),store=await incentivesFixture(options),db=store.database
   await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
   const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
   return {chain,store,db,service,
@@ -36,7 +38,8 @@ it('keyless watcher finds a lost callback, rejects incorrect fees, and feeds exa
     const watcher=createPaymentWatcher({database:f.db,rpc:f.chain.rpc,startBlock,maxBlocks:2})
     let accepted=0,rejected=0
     for(let i=0;i<20;i++){const result=await watcher.tick();accepted+=result.accepted;rejected+=result.rejected;if(result.scanned===0)break}
-    assert.equal(accepted,1);assert.equal(rejected,3)
+    assert.equal(accepted,1);assert.equal(rejected,1)
+    assert.deepEqual((await f.db.listPayments()).payments.map(row=>row.kind).sort(),['duplicate-fee','overpayment','underpayment'])
     const row=(await f.db.query('SELECT id FROM saffron_incentives.deployment_intents WHERE quote_id=$1',[q.id])).rows[0]
     const proof=(await f.db.query('SELECT * FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[q.id])).rows[0]
     assert.equal(proof.hash,receipt.transactionHash);assert.equal(proof.state,'fulfilled')
@@ -96,6 +99,26 @@ it('late mined payments are retained for attention and cannot enter the creation
     assert.equal((await f.db.query('SELECT state FROM saffron_incentives.payment_proofs WHERE hash=$1',[receipt.transactionHash])).rows[0].state,'needs_attention')
     assert.equal((await f.db.query('SELECT count(*)::int n FROM saffron_incentives.vault_jobs')).rows[0].n,0)
   }finally{await f.close()}
+})
+
+it('explicit late-payment admission preserves the deadline and reaches the real creator once',{timeout:120000},async()=>{
+  const f=await fixture({quoteMs:1000}),files=await privateFilesFixture('saffron-late-resolution-')
+  try{
+    const q=await f.quote(),startBlock=BigInt(q.plan.sizingBlock).toString()
+    await delay(2100)
+    const receipt=await f.chain.send(q.fee.recipient,paymentData(q),BigInt(q.fee.amountWei))
+    await createPaymentWatcher({database:f.db,rpc:f.chain.rpc,startBlock}).tick()
+    const obligation=await f.db.paymentObligation(receipt.transactionHash)
+    assert.equal(obligation.kind,'late-fee')
+    const resolution={operator:f.chain.account.address.toLowerCase(),revision:obligation.revision,requestKey:randomUUID(),reason:'Honor the reserved original request after reviewing the late fee.'}
+    const result=await f.service.admitOriginalPayment(receipt.transactionHash,resolution)
+    assert.deepEqual(await f.service.admitOriginalPayment(receipt.transactionHash,resolution),result)
+    assert.equal((await f.db.quote(q.id)).paymentDeadline,q.paymentDeadline)
+    const simulation=await simulateFactory({upstream:f.chain.raw,config:f.chain.config,job:await f.db.getIntent(result.id)})
+    await runOneRequest({database:f.db,rpc:f.chain.rpc,account:f.chain.account,config:{...f.chain.config,maxDailyGasWei:'1000000000000000000'},requestId:result.id,simulation,directory:files.directory,pollMs:5})
+    assert.equal(f.chain.broadcasts,3)
+    assert.equal((await f.db.query('SELECT count(*)::int n FROM saffron_incentives.payment_resolution_audit')).rows[0].n,1)
+  }finally{await f.close();await files.close()}
 })
 
 it('canonical watcher settlement releases unpaid holds and reopens them after a reorg',{timeout:120000},async()=>{

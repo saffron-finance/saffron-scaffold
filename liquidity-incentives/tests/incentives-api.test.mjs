@@ -1,5 +1,5 @@
 import { proofHash,paymentData } from '../shared/payment.mjs'
-import { randomBytes } from 'node:crypto'
+import { randomBytes,randomUUID } from 'node:crypto'
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
@@ -61,6 +61,14 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     assert.equal(rows.body.deployments.length,1)
     assert.doesNotMatch(JSON.stringify(rows.body),/raw_tx|transaction_data|privateKey|signature/)
     assert.equal((await call('/deployments/'+id+'/cancel',{},u)).body.retired,true)
+    const obligation=await db.paymentObligation(hash)
+    const resolution={revision:obligation.revision,requestKey:randomUUID(),reason:'User requested cancellation before creation.'}
+    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,u)).status,403)
+    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,a,{'x-saffron-csrf':'wrong'})).status,403)
+    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,a)).body.state,'refund_due')
+    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,a)).body.state,'refund_due')
+    assert.equal((await call('/admin/payments?limit=1',undefined,a)).body.payments[0].hash,hash)
+    assert.equal((await call('/payments?wallet='+user.address)).body.payments[0].state,'refund_due')
     for(let i=0;i<2;i++)await store.accept(user,await store.quote(user,{premium:'1000',signer:admin.address}))
     const foreign=(await store.accept(admin,await store.quote(admin,{premium:'1000'}))).id
     let cursor=null;const paged=[]

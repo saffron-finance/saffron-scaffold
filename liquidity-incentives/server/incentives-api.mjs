@@ -36,6 +36,11 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(!current||current.until<=now()){for(const [id,w]of windows)if(w.until<=now())windows.delete(id);windows.set(key,{count:1,until:now()+60_000})}
       else if(++current.count>600)throw fault(429,'Too many requests. Retry shortly.')
       if(method==='GET'&&path==='/programs'){sendJson(res,200,await service.programs());return true}
+      if(method==='GET'&&path==='/payments'){
+        const wallet=new URL(req.url,'http://localhost').searchParams.get('wallet')
+        if(!validAddress(wallet))throw fault(400,'Provide a valid wallet.')
+        sendJson(res,200,await db.listPayments({...page(),wallet:wallet.toLowerCase(),all:true}));return true
+      }
       if(method==='GET'&&path==='/session'){
         let session=null;try{session=auth.session(req)}catch(error){if(error.status!==401)throw error}
         sendJson(res,200,{session});return true
@@ -96,7 +101,12 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
       if(method==='POST'&&path==='/admin/campaigns'){sendJson(res,201,await db.saveCampaign(body,session.wallet));return true}
-      if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,{payments:(await db.query("SELECT hash,quote_id,wallet,state,error,created_at FROM saffron_incentives.payment_proofs WHERE state='needs_attention' ORDER BY created_at DESC LIMIT 100")).rows});return true}
+      if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,await db.listPayments(page()));return true}
+      const paymentAction=/^\/admin\/payments\/(0x[0-9a-f]{64})\/(admit|refund-due)$/.exec(path)
+      if(method==='POST'&&paymentAction){
+        const resolution={operator:session.wallet,revision:body.revision,requestKey:body.requestKey,reason:body.reason}
+        sendJson(res,200,paymentAction[2]==='admit'?await service.admitOriginalPayment(paymentAction[1],resolution):await db.markRefundDue(paymentAction[1],resolution));return true
+      }
       if(method==='POST'&&path==='/admin/pairs'){const pair=normalizePair(body);await verifyPair(pair,rpc);sendJson(res,200,{pair:await db.savePair(pair,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/programs'){sendJson(res,200,{program:await db.saveProgram(body,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/budgets'){sendJson(res,200,{budget:await db.saveBudget(body,session.wallet)});return true}

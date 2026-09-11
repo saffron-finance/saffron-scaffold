@@ -186,3 +186,18 @@ This is not yet a fixed-income migration or deployment. That integration still
 needs versioned shared migrations, API/auth adaptation and links to canonical
 indexer vault/position records. External treasury custody remains outside this
 package in either hosting arrangement.
+
+## Creation payment resolution
+
+Every recognized successful ETH transfer to the quoted recipient has an obligation
+record with its actual received amount. The operator payment queue includes late,
+duplicate, underpaid, overpaid, policy-blocked and failed-creation cases. Public
+wallet status and private checkout recovery preserve visibility without turning a
+public transaction hash into session authentication.
+
+Operator actions require the current row revision, a unique request key and a
+reason. Admission retains the original quote and deadline, reserves any released
+resources again and records a payment/plan-bound authorization checked by the
+worker. A refund-due decision freezes new creation; saved transactions must still
+be reconciled and any original partially created vault safely retired. Resolving
+a duplicate fee never releases the original request's premium commitment.

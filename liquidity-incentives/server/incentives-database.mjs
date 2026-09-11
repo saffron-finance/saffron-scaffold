@@ -4,6 +4,7 @@ import pg from 'pg'
 import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
 import { createCheckoutReservations } from './checkout-reservations.mjs'
+import { createPaymentResolutions } from './payment-resolutions.mjs'
 import { proofHash,paymentData } from './payment-proof.mjs'
 import { campaignTerms,campaignPremiumCents } from '../shared/campaign.mjs'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
@@ -279,6 +280,13 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
     /** Called only with canonical evidence from the payment verifier. */
     async recordPayment(payment){
       if(!payment?.verified)throw fault(400,'Verified payment evidence is required.')
+      await db.retainPayment(payment)
+      if(payment.exactAmount===false){
+        const quote=await db.quote(payment.quoteId),kind=BigInt(payment.amountWei)<BigInt(quote.fee.amountWei)?'underpayment':'overpayment'
+        await query(`INSERT INTO ${schema}.payment_exceptions(hash,quote_id,kind,evidence) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`,[payment.hash,payment.quoteId,kind,payment])
+        await db.paymentAttention(payment.hash,kind)
+        throw fault(409,'Received ETH differs from the creation fee. Operator resolution is required; do not pay again.')
+      }
       const result=await query(`INSERT INTO ${schema}.payment_proofs(hash,quote_id,wallet,evidence)
         VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING hash`,[payment.hash,payment.quoteId,payment.wallet,payment])
       if(result.rowCount)return
@@ -291,9 +299,10 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       // operator resolution; this code never initiates a refund transaction.
       if(existing.some(row=>row.quote_id===payment.quoteId))await query(`INSERT INTO ${schema}.payment_exceptions(hash,quote_id,kind,evidence)
         VALUES($1,$2,'duplicate-fee',$3) ON CONFLICT DO NOTHING`,[payment.hash,payment.quoteId,payment])
+      await db.paymentAttention(payment.hash,'duplicate-fee')
       throw fault(409,'A payment was already bound to this request or another request; duplicate evidence is retained.')
     },
-    async acceptDeployment({ wallet, quoteId, payment, origin }) {
+    async acceptDeployment({ wallet, quoteId, payment, origin,resolution=null }) {
       const quote = await db.quote(quoteId)
       if (!quote || quote.wallet!==wallet.toLowerCase() || quote.origin!==origin) throw fault(404,'Quote not found for this wallet.')
       if(!payment?.verified||payment.quoteId!==quoteId||payment.wallet!==quote.wallet||payment.planHash!==quote.planHash)throw fault(401,'A matching verified ETH payment is required.')
@@ -302,10 +311,22 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         // Serializes queue limits across wallets/pools, then locks exact budget accounting.
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-admission',0))")
         const budget = await lockBudget(client,quote.budgetPoolId)
+        const replay=resolution?await db.resolutionReplay(client,payment.hash,'admit',resolution):null
+        if(replay?.replayed)return replay.replayed
+        const obligation=(await client.query(`SELECT * FROM ${schema}.payment_obligations WHERE hash=$1 FOR UPDATE`,[payment.hash])).rows[0]
+        if(!['received','needs_attention','admitted'].includes(obligation.state))throw fault(409,'This payment is being resolved and cannot authorize creation.')
+        if(resolution&&obligation.revision!==resolution.revision)throw fault(409,'Payment resolution changed. Refresh before continuing.')
         const accepted = (await client.query(`SELECT id FROM ${schema}.deployment_intents WHERE quote_id=$1`,[quoteId])).rows[0]
-        if (accepted) return {id:accepted.id,replayed:true}
+        if (accepted){
+          if(resolution)throw fault(409,'The original request is already admitted. Resolve its saved worker operation.')
+          return {id:accepted.id,replayed:true}
+        }
         const checkoutRow=(await client.query(`SELECT hold_state FROM ${schema}.deployment_quotes WHERE id=$1 FOR UPDATE`,[quoteId])).rows[0]
-        if(!['held','closing'].includes(checkoutRow.hold_state)||payment.late)throw fault(409,'Payment requires operator resolution because its checkout was settled or paid late.')
+        if((!['held','closing'].includes(checkoutRow.hold_state)||payment.late)&&!resolution)throw fault(409,'Payment requires operator resolution because its checkout was settled or paid late.')
+        if(resolution&&!['held','closing'].includes(checkoutRow.hold_state)){
+          const slots=await db.pendingSlots(client,quote.wallet)
+          if(slots.total>=maxPending||slots.wallet>=maxPendingPerWallet)throw fault(429,'No admission slot is available for this original request yet.')
+        }
         const program = (await client.query(`SELECT body FROM ${schema}.programs WHERE id=$1 FOR SHARE`,[quote.programId])).rows[0]?.body
         const pair = (await client.query(`SELECT body FROM ${schema}.pairs WHERE id=$1 FOR SHARE`,[quote.pairId])).rows[0]?.body
         // Payment was mined before its deadline; response delay cannot require another fee.
@@ -323,6 +344,9 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         await client.query(`INSERT INTO ${schema}.vault_jobs (intent_id,signer,factory,chain_id,plan) VALUES ($1,$2,$3,$4,$5)`,[id,quote.signer,FACTORY,CHAIN_ID,quote.plan])
         await client.query(`UPDATE ${schema}.payment_proofs SET state='fulfilled',error=NULL WHERE quote_id=$1`,[quoteId])
         await client.query(`UPDATE ${schema}.deployment_quotes SET hold_state='accepted' WHERE id=$1`,[quoteId])
+        await client.query(`UPDATE ${schema}.payment_obligations SET state='admitted',execution_allowed=TRUE,revision=revision+1,admission_override=$2,updated_at=NOW() WHERE hash=$1`,
+          [payment.hash,resolution?{hash:payment.hash,quoteId,planHash:quote.planHash,actor:resolution.operator,requestKey:resolution.requestKey}:null])
+        if(resolution)await db.auditPaymentResolution(client,payment.hash,'admit',resolution,replay.fingerprint,{id,replayed:false})
         return {id,replayed:false}
       })
     },
@@ -404,6 +428,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
     },
   }
   Object.assign(db,createCheckoutReservations(db))
+  Object.assign(db,createPaymentResolutions(db))
   db.execution=createExecutionDatabase(db)
   return db
 }

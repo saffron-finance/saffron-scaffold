@@ -49,6 +49,9 @@ export function createExecutionDatabase(db) {
       const budget=(await query(`SELECT paused,reconciliation_required FROM ${s}.budget_pools WHERE id=$1`,[job.budget_pool_id])).rows[0]
       if(budget?.reconciliation_required) throw fault(409,'Budget reconciliation is required before new transactions.')
       if(!allowRetirement && (budget?.paused || job.cancel_requested)) throw fault(409,job.cancel_requested?'Cancellation requested. Operator retirement is required.':'Campaign execution is paused.')
+      if(!allowRetirement&&!(await query(`SELECT 1 FROM ${s}.payment_obligations o JOIN ${s}.payment_proofs p ON p.hash=o.hash WHERE p.quote_id=$1 AND o.execution_allowed`,[job.quote_id])).rowCount)throw fault(409,'Payment resolution has stopped creation.')
+      if(!allowRetirement&&!(await query(`SELECT 1 FROM ${s}.deployment_quotes q JOIN ${s}.programs p ON p.id=q.program_id JOIN ${s}.pairs a ON a.id=q.body->>'pairId'
+        WHERE q.id=$1 AND p.body->>'active'='true' AND a.body->>'active'='true'`,[job.quote_id])).rowCount)throw fault(409,'Campaign execution is paused.')
       if(digest(job.accepted_plan)!==digest(Object.fromEntries(Object.keys(job.accepted_plan).map(key=>[key,job.plan[key]])))) throw fault(409,'The accepted deployment plan changed.')
       return job
     },
@@ -62,6 +65,7 @@ export function createExecutionDatabase(db) {
           attempts=CASE WHEN $6 THEN attempts+1 ELSE 0 END,next_attempt_at=NOW()+$7*INTERVAL '1 second',updated_at=NOW()
           WHERE intent_id=$1 AND lease_owner=$2`,[id,owner,state,fundingState,error,waiting,seconds])
         if(state==='failed') await client.query(`UPDATE ${s}.deployment_intents SET status='needs_attention',updated_at=NOW() WHERE id=$1`,[id])
+        if(state==='failed')await client.query(`UPDATE ${s}.payment_obligations SET kind='creation-failure',state='needs_attention',revision=revision+1,updated_at=NOW() WHERE hash=(SELECT p.hash FROM ${s}.payment_proofs p JOIN ${s}.deployment_intents i ON i.quote_id=p.quote_id WHERE i.id=$1) AND state='admitted'`,[id])
       })
     },
     async lastTransaction(id,step){return (await query(`SELECT * FROM ${s}.chain_operations WHERE intent_id=$1 AND step=$2 ORDER BY id DESC LIMIT 1`,[id,step])).rows[0]??null},
@@ -77,6 +81,7 @@ export function createExecutionDatabase(db) {
         await requireReservation(id,client)
         const latest=(await client.query(`SELECT cancel_requested FROM ${s}.deployment_intents WHERE id=$1`,[id])).rows[0]
         if(budget.reconciliation_required || (job.operation!=='retire' && (budget.paused||latest.cancel_requested))) throw fault(409,'Execution is paused pending operator review.')
+        if(job.operation!=='retire'&&!(await client.query(`SELECT 1 FROM ${s}.payment_obligations o JOIN ${s}.payment_proofs p ON p.hash=o.hash WHERE p.quote_id=$1 AND o.execution_allowed`,[intent.quote_id])).rowCount)throw fault(409,'Payment resolution has stopped creation.')
         const quote=(await client.query(`SELECT body FROM ${s}.deployment_quotes WHERE id=$1`,[intent.quote_id])).rows[0]?.body
         if(!quote||digest(intent.snapshot)!==digest(quote.snapshot)||digest(intent.accepted_plan)!==digest(quote.plan)
           ||digest(intent.accepted_plan)!==digest(Object.fromEntries(Object.keys(intent.accepted_plan).map(key=>[key,job.plan[key]])))) throw fault(409,'The accepted deployment plan changed.')

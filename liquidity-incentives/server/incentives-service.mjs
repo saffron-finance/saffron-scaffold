@@ -161,11 +161,12 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async recoverPayment(quoteId,recoverySecret){
       const quote=await db.quote(quoteId)
       if(!quote||typeof recoverySecret!=='string'||!/^0x[0-9a-f]{64}$/i.test(recoverySecret)||proofHash(recoverySecret)!==quote.recoveryHash)throw fault(403,'Request recovery record is required.')
-      const payment=(await db.query('SELECT hash,state FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[quoteId])).rows[0]
+      const payment=(await db.query(`SELECT o.hash,o.state,o.kind,o.amount_wei FROM saffron_incentives.payment_obligations o
+        WHERE quote_id=$1 ORDER BY EXISTS(SELECT 1 FROM saffron_incentives.payment_proofs p WHERE p.hash=o.hash) DESC,o.created_at LIMIT 1`,[quoteId])).rows[0]
       if(!payment)return {state:'discovering'}
-      await service.paymentProof(quoteId,payment.hash,recoverySecret)
+      await verifyPayment(quote,payment.hash,recoverySecret,rpc,{confirmations:config?.confirmations??2,allowAmountMismatch:true})
       const intent=(await db.query('SELECT id FROM saffron_incentives.deployment_intents WHERE quote_id=$1',[quoteId])).rows[0]
-      return {state:payment.state,paymentHash:payment.hash,wallet:quote.wallet,...(intent?{deployment:await service.detail(intent.id,quote.wallet,false,{fresh:false})}:{})}
+      return {state:payment.state,kind:payment.kind,amountWei:payment.amount_wei,paymentHash:payment.hash,wallet:quote.wallet,...(intent?{deployment:await service.detail(intent.id,quote.wallet,false,{fresh:false})}:{})}
     },
     async paymentProof(quoteId,paymentHash,recoverySecret){
       const quote=await db.quote(quoteId)
@@ -173,13 +174,27 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       return verifyPayment(quote,paymentHash,recoverySecret,rpc,{confirmations:config?.confirmations??2})
     },
     async acceptPayment(quoteId,paymentHash,recoverySecret){
-      const payment=await service.paymentProof(quoteId,paymentHash,recoverySecret)
+      const quote=await db.quote(quoteId)
+      if(!quote)throw fault(404,'Payment quote not found.')
+      const payment=await verifyPayment(quote,paymentHash,recoverySecret,rpc,{confirmations:config?.confirmations??2,allowAmountMismatch:true})
       try{return {...await db.acceptDeployment({wallet:payment.wallet,quoteId,payment,origin}),wallet:payment.wallet}}
       catch(error){
         await db.query('UPDATE saffron_incentives.payment_proofs SET state=$2,error=$3 WHERE hash=$1',
           [payment.hash,'needs_attention','Confirmed payment is awaiting capacity/policy resolution.'])
+        const row=await db.paymentObligation(payment.hash)
+        if(row?.kind==='creation-fee'||row?.kind==='late-fee')await db.paymentAttention(payment.hash,payment.late?'late-fee':'policy-blocked')
         throw fault(409,'Payment confirmed, but creation needs operator resolution. Your payment is saved; do not pay again.')
       }
+    },
+    async admitOriginalPayment(hash,resolution){
+      const row=await db.paymentObligation(hash)
+      if(!row)throw fault(404,'Received payment not found.')
+      const quote=await db.quote(row.quote_id)
+      requireConfigured()
+      await service.auditCheckoutSettlements()
+      if(quote.plan.factoryCodeHash!==config.factoryCodeHash||quote.plan.vaultTypeHash!==config.vaultTypeHash||quote.plan.adapterTypeHash!==config.adapterTypeHash||quote.signer!==signer.toLowerCase())throw fault(409,'The original plan is outside current execution policy.')
+      const payment=await verifyPayment(quote,hash,null,rpc,{confirmations:config?.confirmations??2,checkCapability:false})
+      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution})
     },
     async describe(job,wallet=job.wallet){
       let observation=await db.execution.observation(job.id)

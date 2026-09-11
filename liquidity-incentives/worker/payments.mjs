@@ -50,7 +50,7 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
           const quote=(await db.query('SELECT body FROM saffron_incentives.deployment_quotes WHERE payment_commitment=$1',[tx.input.toLowerCase()])).rows[0]?.body
           if(!quote)continue
           let proof
-          try{proof=await verifyPayment(quote,tx.hash,null,rpc,{confirmations,checkCapability:false})}
+          try{proof=await verifyPayment(quote,tx.hash,null,rpc,{confirmations,checkCapability:false,allowAmountMismatch:true})}
           catch(error){if(error.status===400){rejected++;continue}throw error}
           // Capability checking is bypassed only for this authenticated onchain
           // sender, never to establish an HTTP session or reveal recovery data.
@@ -60,6 +60,7 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
           }catch(error){
             if(![409,429].includes(error.status))throw error
             await db.query("UPDATE saffron_incentives.payment_proofs SET state='needs_attention',error='Verified fee retained; admission requires operator review.' WHERE hash=$1",[proof.hash])
+            if(proof.exactAmount!==false){const row=await db.paymentObligation(proof.hash);if(row?.kind!=='duplicate-fee')await db.paymentAttention(proof.hash,proof.late?'late-fee':'policy-blocked')}
             attention++
           }
         }

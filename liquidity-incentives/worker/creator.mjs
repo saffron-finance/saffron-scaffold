@@ -84,7 +84,9 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           const proof=(await database.query('SELECT hash FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[job.quote_id])).rows[0]
           if(!proof)throw new ConfirmedFailure('Creation payment is missing.')
           const payment=await verifyPayment(quote,proof.hash,null,rpc,{confirmations:config.confirmations,checkCapability:false})
-          if(payment.late)throw new ConfirmedFailure('Creation payment was late; operator resolution is required.')
+          const obligation=await database.paymentObligation(proof.hash)
+          const override=obligation?.admission_override
+          if(!obligation?.execution_allowed||payment.late&&!(override?.hash===proof.hash&&override.quoteId===quote.id&&override.planHash===job.plan_hash))throw new ConfirmedFailure('Creation payment requires operator resolution before execution.')
           const head=await rpc('eth_getBlockByNumber',['latest',false]),headTime=Number(BigInt(head?.timestamp??'0'))*1000
           if(!Number.isFinite(headTime)||Date.now()-headTime>60000||headTime>Date.now()+5000)throw new Waiting('Fresh canonical chain head is required before signing.')
           await database.execution.authorizeStep(job.intent_id,owner,{allowRetirement:job.operation==='retire'})
