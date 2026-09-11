@@ -24,9 +24,11 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
       if(cursor.block_number!==null){
         const canonical=await rpc('eth_getBlockByNumber',['0x'+BigInt(cursor.block_number).toString(16),false])
         if(canonical?.hash!==cursor.block_hash){
+          await db.reopenCheckoutSettlements(id)
           await db.query('UPDATE saffron_incentives.payment_scan_cursors SET block_number=NULL,block_hash=NULL,updated_at=NOW() WHERE id=$1',[id])
           return {state:'reorg-reset',startBlock:start.toString()}
         }
+        await db.settleCheckouts(id,canonical)
       }
       // Additive upgrade for native quotes created before the index existed.
       // Never reads/imports the old Arbitrum receipt schema.
@@ -39,6 +41,7 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
         const tag='0x'+next.toString(16),block=await rpc('eth_getBlockByNumber',[tag,true])
         if(!block?.hash||BigInt(block.number)!==next||!Array.isArray(block.transactions))throw new Error('Payment scan block unavailable.')
         if(previousHash&&block.parentHash!==previousHash){
+          await db.reopenCheckoutSettlements(id)
           await db.query('UPDATE saffron_incentives.payment_scan_cursors SET block_number=NULL,block_hash=NULL,updated_at=NOW() WHERE id=$1',[id])
           return {state:'reorg-reset',startBlock:start.toString()}
         }
@@ -64,6 +67,7 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
         // Assert the session lock remains alive before checkpointing any work.
         await client.query('SELECT 1')
         await db.query('UPDATE saffron_incentives.payment_scan_cursors SET block_number=$2,block_hash=$3,updated_at=NOW() WHERE id=$1',[id,next.toString(),block.hash])
+        await db.settleCheckouts(id,block)
         previousHash=block.hash;scanned++;next++
       }
       return {state:'scanned',scanned,accepted,attention,rejected,nextBlock:next.toString(),safeHead:safeHead.toString()}

@@ -22,6 +22,13 @@ export async function incentivesFixture(options={}) {
   const database=createIncentivesDatabase({...options,connection:{...connection,database:name}})
   try{await database.ready}catch(error){await database.close();await control.query(`DROP DATABASE "${name}"`);await control.end();throw error}
   return {database,connection:{...connection,database:name},
+    async settleCheckouts(timestamp=database.now()+121_000){
+      // Database seam only; EVM watcher tests prove canonical scan evidence.
+      const block={number:'0x10',hash:'0x'+'a'.repeat(64),timestamp:'0x'+Math.ceil(timestamp/1000).toString(16)}
+      await database.query(`INSERT INTO saffron_incentives.payment_scan_cursors(id,chain_id,start_block,block_number,block_hash)
+        VALUES('test-watermark',4663,0,16,$1) ON CONFLICT(id) DO UPDATE SET block_number=16,block_hash=$1`,[block.hash])
+      return database.settleCheckouts('test-watermark',block)
+    },
     async seed(actor,limitRaw='100000',pairOverride={}) {
       await database.savePair({...pair,...pairOverride},actor)
       await database.saveBudget({id:program.budgetPoolId,revision:0,name:'Test campaign',chainId:4663,rewardAsset:TOKEN,decimals:18,limitRaw,paused:false},actor)

@@ -18,7 +18,7 @@ it('campaign holds and accepted requests share atomic USD/capacity limits; exter
     let accounting=(await db.catalog(true)).budgets[0].accounting
     assert.equal(accounting.reservedCapacityCents,'50000000');assert.equal(accounting.heldCapacityCents,'50000000');assert.equal(accounting.availableCapacityCents,'0')
     assert.equal((await f.accept(a,qa)).id,accepted.id)
-    await db.query("UPDATE saffron_incentives.deployment_quotes SET expires_at=NOW()-INTERVAL '1 minute' WHERE id=$1",[(qb??results.find(r=>r.status==='fulfilled'&&r.value.id!==qa.id).value).id])
+    await f.settleCheckouts()
     await db.query("UPDATE saffron_incentives.vault_jobs SET plan=plan||jsonb_build_object('vault',$2::text) WHERE intent_id=$1",[accepted.id,a.address.toLowerCase()])
     const snapshot={verified:true,canonical:true,checkedAt:Date.now(),vault:a.address,variableCapacity:'500000',variableSupply:'500000',variableBalance:'500000',isStarted:false}
     await db.reconcileFunding(accepted.id,snapshot)
@@ -33,7 +33,7 @@ it('campaign holds and accepted requests share atomic USD/capacity limits; exter
   }finally{await f.close()}
 })
 
-it('an unpaid hold can be released only by its private capability; pausing and resuming a new campaign works',async()=>{
+it('a private withdrawal closes a hold until a canonical scan settles it; campaign pause can be resumed',async()=>{
   const f=await incentivesFixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),db=f.database,a=privateKeyToAccount(generatePrivateKey())
   try{
     await db.savePair(pair,a.address)
@@ -44,6 +44,8 @@ it('an unpaid hold can be released only by its private capability; pausing and r
     const secret='0x'+'4'.repeat(64),q=await f.quote(a,{programId:'paused',principalCents:'50000000',premium:'500000',recoveryHash:proofHash(secret)})
     await assert.rejects(db.withdrawQuote(q.id,'0x'+'5'.repeat(64)),e=>e.status===403)
     await db.withdrawQuote(q.id,secret)
+    assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'50000000')
+    await f.settleCheckouts()
     assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'100000000')
     await assert.rejects(f.accept(a,q),e=>e.status===409,'withdrawn quote cannot create after its hold is released')
   }finally{await f.close()}

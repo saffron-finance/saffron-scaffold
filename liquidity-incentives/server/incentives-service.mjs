@@ -48,6 +48,18 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   }
   const service={
     refresh,
+    async auditCheckoutSettlements(){
+      for(const cursor of await db.checkoutWatermarks()){
+        let block
+        try{if(cursor.block_number!==null)block=await rpc('eth_getBlockByNumber',['0x'+BigInt(cursor.block_number).toString(16),false])}
+        catch{throw fault(503,'Checkout settlement verification is unavailable.')}
+        if(!block?.hash)throw fault(503,'Checkout settlement verification is unavailable.')
+        if(block.hash!==cursor.block_hash){
+          await db.reopenCheckoutSettlements(cursor.id)
+          throw fault(503,'Checkout settlement requires reconciliation.')
+        }
+      }
+    },
     async operatorStatus(){
       let gasBalanceRaw=null
       try{if(validAddress(signer))gasBalanceRaw=BigInt(await rpc('eth_getBalance',[signer,'latest'])).toString()}catch{}
@@ -99,8 +111,14 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           let limit=capacity<BigInt(offer.maximumCents)?capacity:BigInt(offer.maximumCents)
           const perQuote=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxQuoteBps)/10000n
           const unpaidRoom=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.heldCapacityCents)
+          const campaign=offer.budget.campaign,budget=BigInt(campaign.budgetCents),totalCapacity=BigInt(campaign.capacityCents)
+          const quoteBudget=budget*BigInt(db.checkout.maxQuoteBps)/10000n
+          const unpaidBudget=budget*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.heldBudgetCents)
+          const premiumRoom=quoteBudget<unpaidBudget?quoteBudget:unpaidBudget
+          const premiumCapacity=(premiumRoom>0n?premiumRoom:0n)*totalCapacity/budget
           if(limit>perQuote)limit=perQuote
           if(limit>unpaidRoom)limit=unpaidRoom>0n?unpaidRoom:0n
+          if(limit>premiumCapacity)limit=premiumCapacity
           return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),availability:null}
         }
         try{
@@ -121,6 +139,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         return {...existing,paymentData:paymentData(existing)}
       }
       requireConfigured()
+      await service.auditCheckoutSettlements()
       if(!await db.execution.workerOnline(signer))throw fault(503,'The deployment worker is offline. Retry shortly.')
       const principalCents=cents(amount),offer=await db.offer(programId)
       if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents))throw fault(400,'Choose an amount within the program\'s vault size limits.')

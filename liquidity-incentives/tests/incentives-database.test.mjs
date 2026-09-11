@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { generatePrivateKey,privateKeyToAccount } from 'viem/accounts'
 import { incentivesFixture,program,ORIGIN,mockPayment } from './incentives-fixture.mjs'
-import { keccak256 } from 'viem'
+import { proofHash } from '../shared/payment.mjs'
 import pg from 'pg'
 import { once } from 'node:events'
 
@@ -23,15 +23,16 @@ it('a lost idle PostgreSQL connection reconnects without losing accepted intents
     assert.equal((await fixture.database.auditBudget(program.budgetPoolId)).valid,true)
   }finally{await control.end();await fixture.close()}
 })
-it('concurrent programs share one budget; acceptance commits reservation and worker job atomically',async()=>{
+it('concurrent programs reserve raw premium before payment; acceptance commits one reservation and worker job',async()=>{
   const fixture=await incentivesFixture(),a=account(),b=account()
   try{
     const db=fixture.database;await fixture.seed(a.address)
     await db.saveProgram({...program,id:'cashcat-90d',days:90},a.address)
-    const quotes=await Promise.all([fixture.quote(a),fixture.quote(b,{programId:'cashcat-90d'})])
-    const results=await Promise.allSettled([fixture.accept(a,quotes[0]),fixture.accept(b,quotes[1])])
+    const results=await Promise.allSettled([fixture.quote(a),fixture.quote(b,{programId:'cashcat-90d'})])
     assert.equal(results.filter(r=>r.status==='fulfilled').length,1)
     assert.equal(results.find(r=>r.status==='rejected').reason.status,409)
+    const accepted=results.find(r=>r.status==='fulfilled').value
+    await fixture.accept(accepted.wallet===a.address.toLowerCase()?a:b,accepted)
     const audit=await db.auditBudget(program.budgetPoolId)
     assert.equal(audit.valid,true);assert.equal(audit.budget.reservedRaw,'60000');assert.equal(audit.budget.availableRaw,'40000')
     for(const table of ['deployment_intents','budget_reservations','vault_jobs']) assert.equal((await db.query(`SELECT count(*)::int AS n FROM saffron_incentives.${table}`)).rows[0].n,1)
@@ -51,20 +52,20 @@ it('lost-response retries retain one commitment even after quote expiry; altered
     assert.equal((await fixture.database.auditBudget(program.budgetPoolId)).budget.reservedRaw,'60000')
   }finally{await fixture.close()}
 })
-it('changed program, pair, and budget revisions invalidate unaccepted quotes',async()=>{
+it('explicit program, pair and budget pauses preserve blocked paid obligations',async()=>{
   const fixture=await incentivesFixture(),a=account()
   try{
-    const db=fixture.database;await fixture.seed(a.address);const q=await fixture.quote(a)
+    const db=fixture.database;await fixture.seed(a.address);const q=await fixture.quote(a,{premium:'1000'})
     const p=(await db.catalog(true)).programs[0]
     await db.saveProgram({...p,active:false},a.address)
     await assert.rejects(fixture.accept(a,q),e=>e.status===409)
     assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'0')
     await db.saveProgram({...p,revision:p.revision+1,active:true},a.address)
-    const q2=await fixture.quote(a),pair=(await db.catalog(true)).pairs[0]
+    const q2=await fixture.quote(a,{premium:'1000'}),pair=(await db.catalog(true)).pairs[0]
     await db.savePair({...pair,active:false},a.address)
     await assert.rejects(fixture.accept(a,q2),e=>e.status===409)
     await db.savePair({...pair,revision:pair.revision+1,active:true},a.address)
-    const q3=await fixture.quote(a),budget=(await db.catalog(true)).budgets[0]
+    const q3=await fixture.quote(a,{premium:'1000'}),budget=(await db.catalog(true)).budgets[0]
     await db.saveBudget({...budget,paused:true},a.address)
     await assert.rejects(fixture.accept(a,q3),e=>e.status===409)
   }finally{await fixture.close()}
@@ -124,7 +125,7 @@ it('a failure to persist the worker job rolls back the entire acceptance',async(
     await assert.rejects(fixture.accept(a,q),/simulated unavailable queue/)
     assert.equal((await db.query('SELECT count(*)::int AS n FROM saffron_incentives.deployment_intents')).rows[0].n,0)
     const audit=await db.auditBudget(program.budgetPoolId)
-    assert.equal(audit.valid,true);assert.equal(audit.budget.availableRaw,'100000')
+    assert.equal(audit.valid,true);assert.equal(audit.budget.availableRaw,'40000');assert.equal(audit.budget.heldRaw,'60000')
     await db.query('DROP TRIGGER unavailable ON saffron_incentives.vault_jobs')
     assert.equal((await fixture.accept(a,q)).replayed,false)
   }finally{await fixture.close()}
@@ -134,7 +135,7 @@ it('paid-before-deadline requests survive response delay; wallet queue limits st
   try{
     const db=fixture.database;await fixture.seed(a.address);const q=await fixture.quote(a,{premium:'1000'})
     time+=61_000;await fixture.accept(a,q)
-    const extra=await fixture.quote(a,{premium:'1000'});await assert.rejects(fixture.accept(a,extra),e=>e.status===429)
+    await assert.rejects(fixture.quote(a,{premium:'1000'}),e=>e.status===429)
     assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'1000')
   }finally{await fixture.close()}
 })
@@ -152,6 +153,50 @@ it('paid commitments do not expire while a worker is interrupted',async()=>{
     assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'1000')
     assert.equal((await fixture.accept(a,quote)).id,id)
   }finally{await fixture.close()}
+})
+
+it('a fourth wallet checkout and concurrent global overflow are refused before a fee can be requested',async()=>{
+  const f=await incentivesFixture({maxPending:4}),a=account(),b=account(),c=account()
+  try{
+    await f.seed(a.address)
+    for(let i=0;i<3;i++)await f.quote(a,{premium:'1000'})
+    await assert.rejects(f.quote(a,{premium:'1000'}),e=>e.status===429)
+    const results=await Promise.allSettled([f.quote(b,{premium:'1000'}),f.quote(c,{premium:'1000'})])
+    assert.equal(results.filter(r=>r.status==='fulfilled').length,1)
+    assert.equal(results.find(r=>r.status==='rejected').reason.status,429)
+    assert.equal((await f.database.query('SELECT count(*)::int n FROM saffron_incentives.payment_proofs')).rows[0].n,0)
+  }finally{await f.close()}
+})
+
+it('elapsed time cannot release a hold; wrong watermark fails and an orphaned release restores the obligation',async()=>{
+  let time=Date.now();const f=await incentivesFixture({now:()=>time}),a=account(),db=f.database
+  try{
+    await f.seed(a.address);const q=await f.quote(a)
+    time+=3600_000
+    assert.equal((await db.auditBudget(program.budgetPoolId)).budget.heldRaw,'60000')
+    await assert.rejects(db.settleCheckouts('missing',{number:'0x10',hash:'0x'+'a'.repeat(64),timestamp:'0x'+Math.ceil(time/1000).toString(16)}),e=>e.status===409)
+    assert.equal((await f.settleCheckouts()).released,1)
+    assert.equal((await db.auditBudget(program.budgetPoolId)).budget.heldRaw,'0')
+    await db.reopenCheckoutSettlements('test-watermark')
+    const audit=await db.auditBudget(program.budgetPoolId)
+    assert.equal(audit.budget.heldRaw,'60000');assert.equal(audit.budget.reconciliationRequired,true)
+    await assert.rejects(f.quote(a,{premium:'1000'}),e=>e.status===409)
+    assert.equal((await db.quote(q.id)).paymentDeadline,q.paymentDeadline)
+  }finally{await f.close()}
+})
+
+it('closing checkout and cosmetic edits preserve timely paid terms after the deadline',async()=>{
+  let time=Date.now();const f=await incentivesFixture({now:()=>time}),a=account(),db=f.database
+  try{
+    await f.seed(a.address);const secret='0x'+'4'.repeat(64),q=await f.quote(a,{recoveryHash:proofHash(secret)})
+    await db.withdrawQuote(q.id,secret)
+    const p=(await db.catalog(true)).programs[0]
+    await db.saveProgram({...p,sortOrder:5,isNew:false},a.address)
+    time+=3600_000
+    const accepted=await f.accept(a,q)
+    assert.equal((await db.getIntent(accepted.id)).plan_hash,q.planHash)
+    assert.equal((await f.settleCheckouts()).released,0)
+  }finally{await f.close()}
 })
 
 it('deployment pages retain every entry beyond 100, including timestamp ties, while new inserts and wallet filters remain stable',async()=>{

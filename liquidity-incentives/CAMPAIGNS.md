@@ -87,10 +87,12 @@ Historical token-only budgets remain readable and retain their raw-token limit.
 
 The catalog exposes these separate quantities:
 
-- **Payment holds:** quoted, not yet accepted requests. Hold capacity while the
-  user submits and confirms the fee; expire after the payment deadline plus a
-  15-minute receipt/recovery grace. A private-capability cancellation releases an
-  unpaid hold. A verified blocked payment is retained for operator attention.
+- **Payment holds:** reserve USD budget, fixed capacity, raw premium and both
+  wallet/global queue slots before payment. Fresh source prices (at most 60 seconds
+  old) are frozen into a 120-second mining window. Expiry or a private-capability
+  withdrawal closes a checkout; only a canonical watcher checkpoint beyond its
+  deadline can release an unpaid hold. A timely payment discovered later retains
+  its admission. A reorg restores released holds and requires reconciliation.
 - **Reserved:** accepted, not yet premium-funded capacity and budget. Quotes are
   replaced by reservations atomically, not counted twice.
 - **Funded:** the fraction of each committed premium represented by confirmed

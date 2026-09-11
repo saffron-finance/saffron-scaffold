@@ -97,3 +97,33 @@ it('late mined payments are retained for attention and cannot enter the creation
     assert.equal((await f.db.query('SELECT count(*)::int n FROM saffron_incentives.vault_jobs')).rows[0].n,0)
   }finally{await f.close()}
 })
+
+it('canonical watcher settlement releases unpaid holds and reopens them after a reorg',{timeout:120000},async()=>{
+  const f=await fixture()
+  try{
+    const q=await f.quote(),startBlock=BigInt(q.plan.sizingBlock).toString(),snapshot=await f.chain.raw('evm_snapshot')
+    await f.db.withdrawQuote(q.id,f.chain.recoverySecret)
+    await f.chain.raw('evm_increaseTime',[180]);await f.chain.raw('anvil_mine',['0x3'])
+    const watcher=createPaymentWatcher({database:f.db,rpc:f.chain.rpc,startBlock})
+    await watcher.tick()
+    assert.equal((await f.db.query('SELECT hold_state FROM saffron_incentives.deployment_quotes WHERE id=$1',[q.id])).rows[0].hold_state,'released')
+    await f.chain.raw('evm_revert',[snapshot])
+    assert.equal((await watcher.tick()).state,'reorg-reset')
+    assert.equal((await f.db.query('SELECT hold_state FROM saffron_incentives.deployment_quotes WHERE id=$1',[q.id])).rows[0].hold_state,'closing')
+    assert.equal((await f.db.catalog(true)).budgets[0].reconciliationRequired,true)
+  }finally{await f.close()}
+})
+
+it('a timely payment discovered after its deadline keeps its original reserved admission',{timeout:120000},async()=>{
+  const f=await fixture()
+  try{
+    const q=await f.quote(),startBlock=BigInt(q.plan.sizingBlock).toString()
+    await f.db.withdrawQuote(q.id,f.chain.recoverySecret)
+    await f.chain.send(q.fee.recipient,paymentData(q),BigInt(q.fee.amountWei))
+    await f.chain.raw('evm_increaseTime',[180]);await f.chain.raw('anvil_mine',['0x2'])
+    const watcher=createPaymentWatcher({database:f.db,rpc:f.chain.rpc,startBlock})
+    assert.equal((await watcher.tick()).accepted,1)
+    assert.equal((await watcher.tick()).accepted,0)
+    assert.equal((await f.db.query('SELECT hold_state FROM saffron_incentives.deployment_quotes WHERE id=$1',[q.id])).rows[0].hold_state,'accepted')
+  }finally{await f.close()}
+})

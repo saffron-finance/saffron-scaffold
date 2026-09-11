@@ -25,8 +25,12 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
   id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),
   budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  client_hash TEXT REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT
+  client_hash TEXT REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT,
+  hold_state TEXT NOT NULL DEFAULT 'held' CHECK(hold_state IN ('held','closing','accepted','released')),
+  hold_raw NUMERIC(78,0) NOT NULL CHECK(hold_raw>0),sizing_block BIGINT NOT NULL CHECK(sizing_block>=0),
+  settled_cursor TEXT,settled_block BIGINT,settled_hash TEXT
 );
+CREATE INDEX IF NOT EXISTS quotes_holds ON saffron_incentives.deployment_quotes(budget_pool_id,hold_state);
 CREATE UNIQUE INDEX IF NOT EXISTS quotes_client_request ON saffron_incentives.deployment_quotes(client_hash,request_key) WHERE client_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS quotes_wallet_time ON saffron_incentives.deployment_quotes(wallet,created_at);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_intents (
