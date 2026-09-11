@@ -76,8 +76,10 @@ export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
     if(!treasuryWallet)return chain.fund(row)
     const bearer=await chain.client.readContract({address:row.plan.vault,abi,functionName:'variableBearerToken'})
     const supplied=await chain.client.readContract({address:bearer,abi,functionName:'totalSupply'}),amount=rawAmount??BigInt(row.plan.premium)-supplied
+    const receipts=[]
     for(const [to,data]of [[CASHCAT,encodeFunctionData({abi,functionName:'approve',args:[row.plan.vault,amount]})],[row.plan.vault,encodeFunctionData({abi,functionName:'deposit',args:[amount,1n,'0x']})]]){
-      const hash=await treasuryWallet.sendTransaction({to,data});await chain.client.waitForTransactionReceipt({hash});await chain.raw('evm_mine')}
+      const hash=await treasuryWallet.sendTransaction({to,data}),receipt=await chain.client.waitForTransactionReceipt({hash});await chain.raw('evm_mine');receipts.push({hash,blockNumber:receipt.blockNumber.toString(),blockHash:receipt.blockHash})}
+    return receipts
   }
   const wallet=createWalletClient({account,chain:chain.client.chain,transport:http(chain.url)})
   const state={chain:'0x1237',sends:0,signs:0,calls:[],messages:[],lostSend:false,lastHash:null,connected:false,holdSend:false}

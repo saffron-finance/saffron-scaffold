@@ -6,9 +6,14 @@ import { mockPayment } from '../incentives-fixture.mjs'
 import { proofHash } from '../../shared/payment.mjs'
 import { abi } from '../../shared/vault-lifecycle.mjs'
 import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
+import { runOneRequest } from '../../worker/one-shot.mjs'
+import { simulateFactory } from '../../worker/fork-simulate.mjs'
+import { privateFilesFixture } from '../private-files-fixture.mjs'
+import { mkdir,writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
 
-test('production runtime: user deployment, funding gate, shared profile entry, claim, maturity and withdrawal',async({page})=>{
-  const f=await setup(page,{wrap:true})
+test('production runtime: complete paid campaign cycle with watcher recovery, reviewed creation and external treasury',async({page})=>{
+  const f=await setup(page,{wrap:true,campaign:true}),files=await privateFilesFixture('saffron-browser-cycle-')
   try{
     await page.goto(f.origin);await connect(page)
     await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
@@ -17,10 +22,25 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
     await expect(page.getByRole('heading',{name:'Review deployment'})).toBeVisible()
     expect(f.state.sends).toBe(0)
     await expect(page.getByText('Pay request fee with',{exact:true})).toHaveCount(0)
+    // Lose the acceptance callback entirely. Only the keyless watcher can admit.
+    await page.route('**/api/incentives/deployments',async route=>route.request().method()==='POST'?route.fulfill({status:503,json:{error:'Payment callback unavailable'}}):route.continue())
+    await page.route('**/api/incentives/payments/recover',route=>route.fulfill({json:{state:'discovering'}}))
     await page.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
-    await expect(page.locator('[data-vault-lifecycle]')).toBeVisible()
+    await expect(page.getByText('Payment callback unavailable',{exact:true})).toBeVisible()
+    await page.reload();await page.getByRole('button',{name:'Resume deployment',exact:true}).click()
+    await page.unroute('**/api/incentives/payments/recover')
+    await expect(page.locator('[data-vault-lifecycle]')).toBeVisible({timeout:20000})
     const id=await page.locator('[data-vault-lifecycle]').getAttribute('data-vault-lifecycle')
-    expect((await f.worker.tick()).state).toBe('created')
+    expect((await f.database.list({wallet:f.account.address})).jobs).toHaveLength(1)
+    expect(await f.database.execution.workerOnline(f.chain.account.address)).toBe(false)
+    const job=await f.database.getIntent(id),simulation=await simulateFactory({upstream:f.chain.raw,config:f.chain.config,job})
+    expect(simulation.upstreamBroadcasts).toBe(0);expect(simulation.transactions).toHaveLength(3)
+    f.chain.beforeBroadcast=async()=>{
+      const journal=await f.database.execution.transactions(id)
+      if(journal.length>1){await page.getByRole('button',{name:'Check progress',exact:true}).click();await expect(page.getByRole('list',{name:'Vault creation progress'}).getByText('Complete',{exact:true})).toHaveCount(journal.length-1)}
+    }
+    expect((await runOneRequest({database:f.database,rpc:f.chain.rpc,account:f.chain.account,config:f.chain.config,requestId:id,simulation,directory:files.directory,pollMs:5})).state).toBe('created')
+    f.chain.beforeBroadcast=undefined
     await expect(page.getByRole('status',{name:''}).filter({hasText:'Awaiting campaign funding'})).toBeVisible({timeout:20000})
     const progress=page.getByRole('list',{name:'Vault creation progress'})
     await expect(progress.getByRole('listitem')).toHaveCount(4)
@@ -41,8 +61,13 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
     await expect(page.getByText('Awaiting campaign funding',{exact:true})).toBeVisible()
     await expect(page.getByRole('button',{name:'Deposit',exact:true})).toHaveCount(0)
     const row=await f.database.getIntent(id)
-    await f.chain.fund(row)
-    expect((await f.worker.tick()).state).toBe('idle')
+    expect(f.treasuryAddress.toLowerCase()).not.toBe(f.account.address.toLowerCase());expect(f.treasuryAddress.toLowerCase()).not.toBe(f.chain.account.address.toLowerCase())
+    const partialFunding=await f.fund(row,BigInt(row.plan.premium)/2n)
+    const partial=(await f.operatorCall('/admin/deployments/'+id+'/funding-brief')).brief
+    expect(BigInt(partial.outstandingRaw)).toBeGreaterThan(0n)
+    await page.getByRole('button',{name:'Check progress',exact:true}).click()
+    await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toHaveCount(0)
+    const finalFunding=await f.fund(row)
     await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toBeEnabled({timeout:20000})
     await expect(page.getByRole('button',{name:'Wrap ETH',exact:true})).toHaveCount(0)
     await page.getByRole('button',{name:'Close incentive vault'}).click()
@@ -54,6 +79,8 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
       const button=page.getByRole('dialog').getByRole('button',{name,exact:true});await expect(button).toBeEnabled({timeout:20000});await button.click()
     }
     await expect(page.getByRole('dialog').getByRole('button',{name:'Claim premium',exact:true})).toBeEnabled({timeout:20000})
+    const balance=token=>f.chain.client.readContract({address:token,abi,functionName:'balanceOf',args:[f.account.address]})
+    const deposited=await Promise.all([row.plan.token0.address,row.plan.token1.address].map(balance))
     await page.getByRole('dialog').getByRole('button',{name:'Claim premium',exact:true}).click()
     await expect(page.getByRole('dialog').getByText('Position active',{exact:true})).toBeVisible({timeout:20000})
     const snapshot=await f.database.execution.observation(id)
@@ -62,11 +89,33 @@ test('production runtime: user deployment, funding gate, shared profile entry, c
     await page.getByRole('dialog').getByRole('button',{name:'Withdraw LP assets',exact:true}).click()
     await expect(page.getByRole('dialog').getByText('Completed',{exact:true})).toBeVisible({timeout:20000})
     expect((await f.database.catalog(true)).budgets[0].allocatedRaw).toBe(row.plan.premium)
+    const final=await f.database.execution.observation(id),returned=await Promise.all([row.plan.token0.address,row.plan.token1.address].map(balance))
+    expect(final.claimBalance).toBe('0');expect(final.fixedBalance).toBe('0')
+    expect(returned[0]).toBeGreaterThan(deposited[0]);expect(returned[1]).toBeGreaterThan(deposited[1])
+    const variableOwner=await f.chain.client.readContract({address:final.variableBearerToken,abi,functionName:'balanceOf',args:[f.treasuryAddress]})
+    expect(variableOwner.toString()).toBe(row.plan.premium)
+    const budget=(await f.database.catalog(true)).budgets[0]
+    expect(budget.accounting.fundedBudgetCents).toBe('100');expect(budget.accounting.availableBudgetCents).toBe('99900')
+    expect(budget.accounting.fixedDepositedCents).toBe('10000');expect(budget.accounting.availableCapacityCents).toBe('9990000')
+    expect(budget.reservedRaw).toBe('0');expect(budget.heldRaw).toBe('0');expect((await f.database.auditBudget(budget.id)).valid).toBe(true)
     expect(f.state.calls).not.toContain('eth_sendRawTransaction')
     expect(f.state.sends).toBe(7)
     expect(f.state.signs).toBe(0)
+    expect(f.chain.broadcasts).toBe(3)
+    const transactions=(await f.database.execution.transactionMetadata(id)).map(t=>({step:t.step,hash:t.resolved_hash??t.hash,blockNumber:t.receipt.blockNumber,blockHash:t.receipt.blockHash}))
+    const payment=(await f.database.query('SELECT hash FROM saffron_incentives.payment_proofs')).rows[0]
+    const finalView=(await (await fetch(f.origin+'/api/incentives/deployments/'+id+'?wallet='+f.account.address)).json()).deployment
+    expect(finalView.state).toBe('completed');expect(finalView.canClaim).toBe(false);expect(finalView.canWithdraw).toBe(false)
+    const userTransactions=(await f.database.query('SELECT hash,action,canonical FROM saffron_incentives.user_operations WHERE intent_id=$1 ORDER BY created_at',[id])).rows
+    await mkdir('validation',{recursive:true})
+    await writeFile('validation/complete-cycle.json',JSON.stringify({codeCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).trim(),fixture:'evmFixture with real Uniswap position manager and generated accounts',chainId:4663,live:false,
+      requester:f.account.address,creator:f.chain.account.address,treasury:f.treasuryAddress,requestId:id,planHash:row.plan_hash,paymentHash:payment.hash,
+      protocol:{factoryCodeHash:f.chain.config.factoryCodeHash,vaultTypeHash:f.chain.config.vaultTypeHash,adapterTypeHash:f.chain.config.adapterTypeHash},
+      simulation:{ok:simulation.ok,upstreamBroadcasts:simulation.upstreamBroadcasts},creation:transactions,funding:[...partialFunding,...finalFunding],userTransactions,
+      final:{positionState:finalView.state,requestState:(await f.database.getIntent(id)).status,blockNumber:final.blockNumber,blockHash:final.blockHash,startTime:(BigInt(final.endTime)-BigInt(final.duration)).toString(),endTime:final.endTime,claimBalance:final.claimBalance,fixedBalance:final.fixedBalance,treasuryBearerRaw:variableOwner.toString(),tokenBalances:returned.map(String)},
+      ledger:{premiumRaw:row.plan.premium,reservedRaw:budget.reservedRaw,heldRaw:budget.heldRaw,allocatedRaw:budget.allocatedRaw,...budget.accounting},userMessageSignatures:f.state.signs,userTransactionsSent:f.state.sends},null,2)+'\n')
     await page.screenshot({path:'validation/completed-lifecycle.png',fullPage:true})
-  }finally{await f.close()}
+  }finally{await f.close();await files.close()}
 })
 
 test('approved cards, mobile layout, keyboard focus and local lifecycle navigation',async({page})=>{
