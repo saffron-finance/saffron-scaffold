@@ -29,7 +29,7 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
   const groups=Array.from(new Set(catalog.offers.map(o=>o.pairId))).map(id=>catalog.offers.filter(o=>o.pairId===id))
   function navigate(path:string){history.pushState(null,'',base+path);setRoute(path);window.dispatchEvent(new Event('saffron:navigation'))}
   useEffect(()=>{const update=()=>setRoute((location.pathname.slice(base.length).replace(/\/+$/,'')||'/'));window.addEventListener('popstate',update);return()=>window.removeEventListener('popstate',update)},[base])
-  function openOffer(offer:Offer){if(flow.saved){setResume(true);return}flow.reset();setSelected(offer);setVaultId(null)}
+  function openOffer(offer:Offer){flow.restore();setSelected(offer);setVaultId(null);setResume(false)}
   function close(){setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page>
     {route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Vaults</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>

@@ -1,4 +1,4 @@
-import { verifyPayment, paymentData } from './payment-proof.mjs'
+import { verifyPayment, paymentData,proofHash } from './payment-proof.mjs'
 import { ceilDiv } from '../shared/liquidity-math.mjs'
 import { WETH } from '../shared/vault-lifecycle.mjs'
 import { resolvePlan } from '../shared/deployment-plan.mjs'
@@ -130,6 +130,15 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
      * Keep confirmed but blocked payments for operator resolution; never prompt
      * the user to pay again because a response or later capacity check failed.
      */
+    async recoverPayment(quoteId,recoverySecret){
+      const quote=await db.quote(quoteId)
+      if(!quote||typeof recoverySecret!=='string'||!/^0x[0-9a-f]{64}$/i.test(recoverySecret)||proofHash(recoverySecret)!==quote.recoveryHash)throw fault(403,'Request recovery record is required.')
+      const payment=(await db.query('SELECT hash,state FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[quoteId])).rows[0]
+      if(!payment)return {state:'discovering'}
+      await service.paymentProof(quoteId,payment.hash,recoverySecret)
+      const intent=(await db.query('SELECT id FROM saffron_incentives.deployment_intents WHERE quote_id=$1',[quoteId])).rows[0]
+      return {state:payment.state,paymentHash:payment.hash,wallet:quote.wallet,...(intent?{deployment:await service.detail(intent.id,quote.wallet,false,{fresh:false})}:{})}
+    },
     async paymentProof(quoteId,paymentHash,recoverySecret){
       const quote=await db.quote(quoteId)
       if(!quote)throw fault(404,'Payment quote not found.')

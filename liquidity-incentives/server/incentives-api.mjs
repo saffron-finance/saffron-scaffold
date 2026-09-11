@@ -44,6 +44,11 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='POST'&&path==='/deployment-quotes/withdraw'){
         auth.checkOrigin(req);sendJson(res,200,await db.withdrawQuote(body.quoteId,body.recoverySecret));return true
       }
+      if(method==='POST'&&path==='/payments/recover'){
+        auth.checkOrigin(req)
+        const result=await service.recoverPayment(body.quoteId,body.recoverySecret)
+        sendJson(res,200,{...result,...(result.deployment?{session:auth.grantPayment(req,res,result.wallet)}:{})});return true
+      }
       // Public-user consent is the quoted ETH transaction; no message login.
       if(method==='POST'&&['/deployment-quotes','/deployments','/session/payment'].includes(path)){
         auth.checkOrigin(req)

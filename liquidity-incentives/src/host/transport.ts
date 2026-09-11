@@ -10,7 +10,7 @@ export type WalletSession={wallet:Address;csrf:string;operator:boolean;expires:n
 let viewerWallet:Address|null=null
 let session:WalletSession|null=null
 export const paymentSessionKey=(account:string)=>'saffron.payment-session.v1:'+account.toLowerCase()
-export function rememberPayment(account:Address,proof:object,current:WalletSession){localStorage.setItem(paymentSessionKey(account),JSON.stringify(proof));session=current;window.dispatchEvent(new Event('saffron:session'))}
+export function rememberPayment(account:Address,proof:object,current:WalletSession){localStorage.setItem(paymentSessionKey(account),JSON.stringify(proof));if(viewerWallet?.toLowerCase()===account.toLowerCase())session=current;window.dispatchEvent(new Event('saffron:session'))}
 let signing:Promise<WalletSession>|null=null
 export async function requestJson(path:string,body?:object,signal?:AbortSignal){
   if(!body&&viewerWallet&&/^\/(deployments|positions)(\/|\?|$)/.test(path))path+=(path.includes('?')?'&':'?')+'wallet='+viewerWallet

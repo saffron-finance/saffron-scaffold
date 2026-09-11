@@ -50,7 +50,7 @@ export async function setup(page,{admin=false,wrap=false}={}){
   for(let i=0;i<100;i++){try{if((await fetch(origin+'/')).ok)break}catch{}if(i===99)throw new Error('Application startup failed: '+output);await delay(100)}
   const wallet=createWalletClient({account,chain:chain.client.chain,transport:http(chain.url)})
   const state={chain:'0x1237',sends:0,signs:0,calls:[],messages:[],lostSend:false,lastHash:null,connected:false,holdSend:false}
-  await page.exposeFunction('fixtureWalletRequest',async(name,{method,params=[]})=>{
+  await page.context().exposeFunction('fixtureWalletRequest',async(name,{method,params=[]})=>{
     state.calls.push(method)
     if(method==='eth_requestAccounts'){state.connected=true;return [account.address]}
     if(method==='eth_accounts')return state.connected?[account.address]:[]
@@ -70,7 +70,7 @@ export async function setup(page,{admin=false,wrap=false}={}){
     }
     return chain.raw(method,params)
   })
-  await page.addInitScript(() => {
+  await page.context().addInitScript(() => {
     const makeProvider = (name) => {
       const listeners = new Map()
       return {
@@ -97,7 +97,7 @@ export async function setup(page,{admin=false,wrap=false}={}){
     })
   })
 
-  await page.addInitScript(()=>{const actual=Date.now;window.testClockOffset=Number(localStorage.getItem('saffron.fixture.clock-offset')||0);Date.now=()=>actual()+window.testClockOffset})
+  await page.context().addInitScript(()=>{const actual=Date.now;window.testClockOffset=Number(localStorage.getItem('saffron.fixture.clock-offset')||0);Date.now=()=>actual()+window.testClockOffset})
   return {account,chain,database,worker,state,origin,
     async advanceTo(timestamp){clockOffset=timestamp*1000-Date.now();await writeFile(clockFile,String(clockOffset));await page.evaluate(value=>{window.testClockOffset=value;localStorage.setItem('saffron.fixture.clock-offset',String(value))},clockOffset);await chain.raw('evm_setNextBlockTimestamp',[timestamp]);await chain.raw('evm_mine');await chain.raw('evm_mine')},
     close,

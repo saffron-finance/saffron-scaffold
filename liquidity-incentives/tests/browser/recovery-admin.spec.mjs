@@ -1,6 +1,31 @@
 import { test,expect } from '@playwright/test'
 import { setup,connect } from './fixture.mjs'
 
+test('a stale tab opening another offer preserves and recovers the already paid request',async({page,context})=>{
+  const f=await setup(page)
+  try{
+    await page.goto(f.origin);await connect(page)
+    const stale=await context.newPage()
+    await stale.addInitScript(()=>window.addEventListener('storage',event=>event.stopImmediatePropagation(),true))
+    await stale.goto(f.origin)
+    await expect(stale.getByRole('button',{name:'Create CASHCAT / ETH, 7 days',exact:true})).toBeVisible()
+    await page.route('**/api/incentives/deployments',async route=>{
+      if(route.request().method()==='POST'){const response=await route.fetch();expect(response.status()).toBe(201);await route.fulfill({status:503,json:{error:'Acceptance response lost'}})}else await route.continue()
+    })
+    await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
+    await page.getByRole('button',{name:'Continue',exact:true}).click()
+    await page.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
+    await expect(page.getByText('Acceptance response lost',{exact:true})).toBeVisible()
+    await stale.getByRole('button',{name:'Create CASHCAT / ETH, 7 days',exact:true}).click()
+    await expect(stale.getByRole('button',{name:'Pay $2 in ETH',exact:true})).toHaveCount(0)
+    await stale.getByRole('button',{name:'Check payment',exact:true}).click()
+    await expect(stale.locator('[data-vault-lifecycle]')).toBeVisible()
+    expect(f.state.sends).toBe(1);expect((await f.database.list({wallet:f.account.address})).jobs).toHaveLength(1)
+    const ledger=await stale.evaluate(account=>JSON.parse(localStorage.getItem('saffron.creation-payments.v1:'+account.toLowerCase())),f.account.address)
+    expect(ledger.activeId).toBeNull();expect(Object.values(ledger.records)[0].status).toBe('accepted')
+  }finally{await f.close()}
+})
+
 test('lost acceptance response and lost wallet response survive reload without another payment or transaction',async({page})=>{
   const f=await setup(page)
   try{

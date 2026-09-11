@@ -93,7 +93,7 @@ export function useDeploymentFlow(account:Address|null){
     state.jobs.unshift(row);save();setDeployment(row)
   }
   function reset(){setQuote(null);setDeployment(null);setError(undefined)}
-  return {quote,deployment,saved:null,busy:false,error,review,pay,reset,discardRejected:reset,recoveryHash:'',setRecoveryHash:()=>{}}
+  return {quote,deployment,saved:null,busy:false,error,review,pay,reset,restore:reset,discardRejected:reset,recoveryHash:'',setRecoveryHash:()=>{}}
 }
 
 /** Lifecycle is display-only in this preview, never routed to an injected wallet. */
