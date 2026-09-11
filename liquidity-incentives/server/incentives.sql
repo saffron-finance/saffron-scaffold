@@ -119,3 +119,12 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_resolution_audit (
   expected_revision INTEGER NOT NULL,fingerprint TEXT NOT NULL,evidence JSONB,result JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
 );
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_transfers (
+  hash TEXT PRIMARY KEY,payment_hash TEXT NOT NULL REFERENCES saffron_incentives.payment_obligations(hash),
+  amount_wei NUMERIC(78,0) NOT NULL CHECK(amount_wei>0),state TEXT NOT NULL CHECK(state IN ('confirming','confirmed','orphaned','failed')),
+  evidence JSONB NOT NULL,resolved_hash TEXT,checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS refund_payment ON saffron_incentives.refund_transfers(payment_hash);
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_evidence (
+  hash TEXT PRIMARY KEY,transfer_hash TEXT NOT NULL REFERENCES saffron_incentives.refund_transfers(hash)
+);

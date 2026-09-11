@@ -5,6 +5,7 @@ import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
 import { createCheckoutReservations } from './checkout-reservations.mjs'
 import { createPaymentResolutions } from './payment-resolutions.mjs'
+import { createRefundResolutions } from './refund-resolutions.mjs'
 import { proofHash,paymentData } from './payment-proof.mjs'
 import { campaignTerms,campaignPremiumCents } from '../shared/campaign.mjs'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
@@ -429,6 +430,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
   }
   Object.assign(db,createCheckoutReservations(db))
   Object.assign(db,createPaymentResolutions(db))
+  Object.assign(db,createRefundResolutions(db))
   db.execution=createExecutionDatabase(db)
   return db
 }

@@ -7,11 +7,14 @@ import { discoverPositionOwners } from './position-discovery.mjs'
 import { eligibility,sameAddress } from '../shared/vault-lifecycle.mjs'
 import { cents,snapshotFor,fault,jsonSafe,validAddress,UINT256_MAX } from '../shared/incentives.mjs'
 import { userActionEvidence } from '../shared/user-evidence.mjs'
+import { verifyRefund,verifyRefundReplacement } from './refund-proof.mjs'
+import { encodeFunctionData,decodeFunctionResult } from 'viem'
+import { abi } from '../shared/vault-lifecycle.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
 /** Read-only sizing/observation service; the separate worker owns all signing. */
-export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,feeRecipient,now=Date.now}) {
+export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,feeRecipient,refundSenders=[],now=Date.now}) {
   const pending=new Map()
   let polling=false
   async function refresh(id){
@@ -49,6 +52,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   const service={
     refresh,
     async auditCheckoutSettlements(){
+      await service.auditRefundSettlements()
       for(const cursor of await db.checkoutWatermarks()){
         let block
         try{if(cursor.block_number!==null)block=await rpc('eth_getBlockByNumber',['0x'+BigInt(cursor.block_number).toString(16),false])}
@@ -58,6 +62,69 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           await db.reopenCheckoutSettlements(cursor.id)
           throw fault(503,'Checkout settlement requires reconciliation.')
         }
+      }
+    },
+    async auditRefundSettlements(){
+      for(const row of (await db.query("SELECT hash,evidence FROM saffron_incentives.refund_transfers WHERE state='confirmed'")).rows){
+        let block
+        try{block=await rpc('eth_getBlockByNumber',[row.evidence.blockNumber,false])}
+        catch{throw fault(503,'Refund settlement verification is unavailable.')}
+        if(!block?.hash)throw fault(503,'Refund settlement verification is unavailable.')
+        if(block.hash!==row.evidence.blockHash){
+          await db.observeRefund(row.hash,row.evidence,'orphaned')
+          throw fault(503,'Refund settlement requires reconciliation.')
+        }
+      }
+    },
+    async refundSafety(hash){
+      const payment=await db.paymentObligation(hash)
+      if(!payment)throw fault(404,'Received payment not found.')
+      const quote=await db.quote(payment.quote_id)
+      await verifyPayment(quote,hash,null,rpc,{confirmations:config?.confirmations??2,checkCapability:false,allowAmountMismatch:true})
+      const original=(await db.query(`SELECT i.id FROM saffron_incentives.deployment_intents i JOIN saffron_incentives.payment_proofs p ON p.quote_id=i.quote_id WHERE p.hash=$1`,[hash])).rows[0]
+      if(original){
+        const job=await db.getIntent(original.id)
+        if(job.state!=='retired')throw fault(409,'Reconcile and retire the original request before recording a refund.')
+        const proofs=(await db.execution.transactionMetadata(job.id)).map(t=>t.receipt)
+        const releases=(await db.query("SELECT evidence FROM saffron_incentives.budget_entries WHERE intent_id=$1 AND kind='release-recovered' ORDER BY id DESC LIMIT 1",[job.id])).rows
+        if(releases[0]?.evidence?.blockHash)proofs.push({blockNumber:'0x'+BigInt(releases[0].evidence.blockNumber).toString(16),blockHash:releases[0].evidence.blockHash})
+        for(const proof of proofs)if(!proof||(await rpc('eth_getBlockByNumber',[proof.blockNumber,false]))?.hash!==proof.blockHash)throw fault(409,'Retirement transaction evidence must be reconciled before a refund.')
+        if(job.plan.vault){
+          const initialized=decodeFunctionResult({abi,functionName:'initialized',data:await rpc('eth_call',[{to:job.plan.vault,data:encodeFunctionData({abi,functionName:'initialized'})},'latest'])})
+          if(initialized){
+            const observation=await readVault(job,rpc,{confirmations:config?.confirmations??2,now})
+            if(observation.isStarted||BigInt(observation.claimSupply)>0n||BigInt(observation.variableSupply)>0n)throw fault(409,'External position recovery must finish before the original fee is refunded.')
+          }
+        }
+      }
+      return payment
+    },
+    async recordExternalRefund(hash,refundHash,resolution){
+      const payment=await service.refundSafety(hash)
+      const transfer=await verifyRefund(payment,refundHash,rpc,{senders:refundSenders,confirmations:config?.confirmations??2})
+      return db.recordRefund(hash,transfer,resolution)
+    },
+    async replaceExternalRefund(hash,originalHash,replacementHash,resolution){
+      const payment=await service.refundSafety(hash),original=(await db.query('SELECT * FROM saffron_incentives.refund_transfers WHERE hash=$1 AND payment_hash=$2',[originalHash,hash])).rows[0]
+      if(!original)throw fault(404,'Saved refund not found.')
+      const evidence=await verifyRefundReplacement(payment,original,replacementHash,rpc,{senders:refundSenders,confirmations:config?.confirmations??2})
+      return db.replaceRefund(hash,originalHash,evidence,resolution)
+    },
+    async reconcileRefunds(){
+      const rows=(await db.query("SELECT * FROM saffron_incentives.refund_transfers ORDER BY checked_at LIMIT 100")).rows
+      for(const row of rows){
+        // A provider outage leaves the last observation intact. A missing or
+        // different canonical block positively disproves the saved inclusion.
+        if(row.evidence.blockHash&&row.state!=='orphaned'){
+          let canonical
+          try{canonical=await rpc('eth_getBlockByNumber',[row.evidence.blockNumber,false])}catch{continue}
+          if(canonical?.hash!==row.evidence.blockHash){await db.observeRefund(row.hash,row.evidence,'orphaned');continue}
+        }
+        try{
+          const payment=await db.paymentObligation(row.payment_hash),policy={senders:refundSenders,confirmations:config?.confirmations??2}
+          const evidence=row.resolved_hash?await verifyRefundReplacement(payment,row,row.resolved_hash,rpc,policy):await verifyRefund(payment,row.hash,rpc,policy)
+          await db.observeRefund(row.hash,evidence,evidence.state)
+        }catch(error){if(['orphaned','failed'].includes(error.refundState))await db.observeRefund(row.hash,error.evidence??row.evidence,error.refundState)}
       }
     },
     async operatorStatus(){
@@ -291,6 +358,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async poll(){
       if(polling)return;polling=true
       try{
+        await service.reconcileRefunds()
         await db.execution.expireQueued()
         const jobs=await db.execution.tracked();let index=0
         await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{while(index<jobs.length)await refresh(jobs[index++].intent_id)}))

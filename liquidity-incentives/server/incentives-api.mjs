@@ -102,10 +102,13 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
       if(method==='POST'&&path==='/admin/campaigns'){sendJson(res,201,await db.saveCampaign(body,session.wallet));return true}
       if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,await db.listPayments(page()));return true}
-      const paymentAction=/^\/admin\/payments\/(0x[0-9a-f]{64})\/(admit|refund-due)$/.exec(path)
+      const paymentAudit=/^\/admin\/payments\/(0x[0-9a-f]{64})\/audit$/.exec(path)
+      if(method==='GET'&&paymentAudit){sendJson(res,200,{audit:(await db.query('SELECT actor,action,reason,expected_revision,evidence,result,created_at FROM saffron_incentives.payment_resolution_audit WHERE payment_hash=$1 ORDER BY id',[paymentAudit[1]])).rows});return true}
+      const paymentAction=/^\/admin\/payments\/(0x[0-9a-f]{64})\/(admit|refund-due|refund|refund-replacement)$/.exec(path)
       if(method==='POST'&&paymentAction){
         const resolution={operator:session.wallet,revision:body.revision,requestKey:body.requestKey,reason:body.reason}
-        sendJson(res,200,paymentAction[2]==='admit'?await service.admitOriginalPayment(paymentAction[1],resolution):await db.markRefundDue(paymentAction[1],resolution));return true
+        if(paymentAction[2]==='refund-replacement'){sendJson(res,200,await service.replaceExternalRefund(paymentAction[1],body.originalHash,body.refundHash,resolution));return true}
+        sendJson(res,200,paymentAction[2]==='admit'?await service.admitOriginalPayment(paymentAction[1],resolution):paymentAction[2]==='refund'?await service.recordExternalRefund(paymentAction[1],body.refundHash,resolution):await db.markRefundDue(paymentAction[1],resolution));return true
       }
       if(method==='POST'&&path==='/admin/pairs'){const pair=normalizePair(body);await verifyPair(pair,rpc);sendJson(res,200,{pair:await db.savePair(pair,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/programs'){sendJson(res,200,{program:await db.saveProgram(body,session.wallet)});return true}

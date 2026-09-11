@@ -201,3 +201,19 @@ resources again and records a payment/plan-bound authorization checked by the
 worker. A refund-due decision freezes new creation; saved transactions must still
 be reconciled and any original partially created vault safely retired. Resolving
 a duplicate fee never releases the original request's premium commitment.
+
+Refunds are executed externally from an EOA in `SAFFRON_REFUND_SENDERS` to the
+original payer. Record the hash in the payment-resolution panel. The verifier
+requires the correct chain, direct positive native transfer, sender, recipient,
+successful canonical inclusion and confirmation depth. Contract-treasury internal
+transfers are not supported evidence. Partial refunds remain owed; submitted
+transfers reserve their amount until their outcome is reconciled. A transaction
+cannot be allocated to two obligations.
+
+On a reorg, admission pauses and the fee returns to reconciliation. Verify the
+saved refund or its same-nonce replacement. A successful zero-value self
+cancellation proves that nonce did not deliver the refund and permits a fresh
+external transfer. This never initiates a new payment or refund automatically.
+The operator audit endpoint retains reasons, actors and public evidence. Original
+request retirement and external position recovery must be verified before its
+refund is recorded; duplicate-fee refunds leave the original commitment intact.

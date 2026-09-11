@@ -17,7 +17,9 @@ export function createPaymentResolutions(db){
     async listPayments({cursor=null,limit=25,wallet=null,all=false}={}){
       limit=Number(limit)
       if(!Number.isInteger(limit)||limit<1||limit>100||cursor&&!/^0x[0-9a-f]{64}$/.test(cursor))throw fault(400,'Invalid payment page.')
-      const rows=(await db.query(`SELECT o.hash,o.quote_id,o.wallet,o.amount_wei,o.kind,o.state,o.revision,o.created_at,o.updated_at,i.id AS deployment_id
+      const rows=(await db.query(`SELECT o.hash,o.quote_id,o.wallet,o.amount_wei,o.kind,o.state,o.revision,o.created_at,o.updated_at,i.id AS deployment_id,
+        (SELECT COALESCE(sum(r.amount_wei),0)::text FROM ${s}.refund_transfers r WHERE r.payment_hash=o.hash AND r.state='confirmed') AS refunded_wei,
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('hash',r.hash,'state',r.state,'amountWei',r.amount_wei::text)),'[]') FROM ${s}.refund_transfers r WHERE r.payment_hash=o.hash) AS refunds
         FROM ${s}.payment_obligations o LEFT JOIN ${s}.deployment_intents i ON i.quote_id=o.quote_id
         WHERE ($1::text IS NULL OR o.hash>$1) AND ($2::text IS NULL OR o.wallet=$2)
         AND ($3::boolean OR o.state NOT IN ('admitted','refunded')) ORDER BY o.hash LIMIT $4`,[cursor,wallet,all,limit+1])).rows

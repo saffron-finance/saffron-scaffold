@@ -67,14 +67,24 @@ function PaymentAttention({account}:{account:Address}){
   </Disclosure>
 }
 function PaymentResolution({account,row,onUpdate}:{account:Address;row:any;onUpdate:()=>void}){
-  const [reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('')
+  const [reason,setReason]=useState(''),[refundHash,setRefundHash]=useState(''),[originalHash,setOriginalHash]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('')
   async function resolve(action:string){setBusy(true);setError('');try{
-    await authedJson(account,'/admin/payments/'+row.hash+'/'+action,{revision:row.revision,requestKey:crypto.randomUUID(),reason});onUpdate()
+    await authedJson(account,'/admin/payments/'+row.hash+'/'+action,{revision:row.revision,requestKey:crypto.randomUUID(),reason,refundHash,originalHash});onUpdate()
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Stack style={{overflowWrap:'anywhere'}}><FinePrint>Quote {row.quote_id} · wallet {row.wallet}. Received {formatUnits(BigInt(row.amount_wei),18)} ETH · {statusLabel(row.kind)} · {statusLabel(row.state)}. <a href={'https://robinhoodchain.blockscout.com/tx/'+row.hash} target='_blank' rel='noreferrer'>Payment transaction ↗</a></FinePrint>
     <label>Resolution reason<input value={reason} onChange={e=>setReason(e.target.value)} maxLength={500}/></label>
     <Row>{!row.deployment_id&&!['duplicate-fee','underpayment','overpayment'].includes(row.kind)&&['received','needs_attention'].includes(row.state)&&<QuietButton disabled={busy||reason.trim().length<3} onClick={()=>void resolve('admit')}>Admit original request</QuietButton>}
     {['received','needs_attention','admitted'].includes(row.state)&&<QuietButton disabled={busy||reason.trim().length<3} onClick={()=>void resolve('refund-due')}>Freeze creation and mark refund due</QuietButton>}</Row>
     {row.state==='refund_due'&&<FinePrint>Resolve saved transactions and retire the original request before sending a refund externally. A duplicate fee does not require retiring the original request.</FinePrint>}
+    {['refund_due','confirming','reconciliation_required'].includes(row.state)&&<>
+      <FinePrint>Confirmed refunds: {formatUnits(BigInt(row.refunded_wei),18)} ETH. Still owed: {formatUnits(BigInt(row.amount_wei)-BigInt(row.refunded_wei),18)} ETH. Verify any pending transfer before sending another.</FinePrint>
+      {row.refunds?.map((refund:any)=><a key={refund.hash} href={'https://robinhoodchain.blockscout.com/tx/'+refund.hash} target='_blank' rel='noreferrer'>{statusLabel(refund.state)} refund ↗</a>)}
+      <label>External refund transaction<input value={refundHash} onChange={e=>setRefundHash(e.target.value)}/></label>
+      <QuietButton disabled={busy||reason.trim().length<3||!/^0x[0-9a-f]{64}$/i.test(refundHash)} onClick={()=>void resolve('refund')}>Verify and record external refund</QuietButton>
+      {row.refunds?.some((r:any)=>r.state!=='confirmed')&&<>
+        <label>Saved refund to reconcile<select value={originalHash} onChange={e=>setOriginalHash(e.target.value)}><option value=''>Select pending refund</option>{row.refunds.filter((r:any)=>r.state!=='confirmed').map((r:any)=><option key={r.hash} value={r.hash}>{r.hash}</option>)}</select></label>
+        <QuietButton disabled={busy||!originalHash||reason.trim().length<3||!/^0x[0-9a-f]{64}$/i.test(refundHash)} onClick={()=>void resolve('refund-replacement')}>Verify replacement or cancellation</QuietButton>
+      </>}
+    </>}
     {error&&<ErrorText role='alert'>{error}</ErrorText>}</Stack>
 }
