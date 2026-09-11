@@ -1,8 +1,5 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp,rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { evmFixture } from './evm-fixture.mjs'
 import { incentivesFixture,ORIGIN } from './incentives-fixture.mjs'
 import { createIncentivesService } from '../server/incentives-service.mjs'
@@ -10,6 +7,7 @@ import { createPaymentWatcher } from '../worker/payments.mjs'
 import { runOneRequest } from '../worker/one-shot.mjs'
 import { simulateFactory } from '../worker/fork-simulate.mjs'
 import { proofHash,paymentData } from '../shared/payment.mjs'
+import { privateFilesFixture } from './private-files-fixture.mjs'
 
 /** A real local ETH payment is discovered from blocks, not an API callback or a
  * mocked verified flag. The actual database and creator then finish the vault. */
@@ -23,7 +21,7 @@ async function fixture(){
 }
 
 it('keyless watcher finds a lost callback, rejects incorrect fees, and feeds exactly one real local vault',{timeout:120000},async()=>{
-  const f=await fixture(),directory=await mkdtemp(join(tmpdir(),'saffron-watch-flow-'))
+  const f=await fixture(),files=await privateFilesFixture('saffron-watch-flow-'),{directory}=files
   try{
     const q=await f.quote(),startBlock=BigInt(await f.chain.raw('eth_blockNumber')).toString(),data=paymentData(q),amount=BigInt(q.fee.amountWei)
     const receiverBefore=BigInt(await f.chain.raw('eth_getBalance',[q.fee.recipient,'latest']))
@@ -53,7 +51,7 @@ it('keyless watcher finds a lost callback, rejects incorrect fees, and feeds exa
       requestId:row.id,simulation,directory,pollMs:5})
     assert.equal(result.observation.initialized,true);assert.equal(f.chain.broadcasts,3)
     assert.equal(result.observation.variableSupply,'0');assert.equal(result.observation.claimSupply,'0')
-  }finally{await f.close();await rm(directory,{recursive:true,force:true})}
+  }finally{await f.close();await files.close()}
 })
 
 it('watcher survives RPC interruption, serializes replicas, pins start, and resets its orphaned cursor',{timeout:120000},async()=>{

@@ -1,7 +1,8 @@
-import { readFile,lstat } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { mnemonicToAccount,privateKeyToAccount } from 'viem/accounts'
+import { assertProtectedPath } from './protected-files.mjs'
 
 /** Read a host-owned protected value without shell interpolation or logging.
  * A pass reference is decrypted only inside this process; callers must never
@@ -13,8 +14,7 @@ export async function protectedValue({file,passEntry}){
     try{return execFileSync('pass',['show',passEntry],{stdio:['ignore','pipe','ignore'],maxBuffer:65536})}
     catch{throw new Error('Protected entry unavailable.')}
   }
-  const info=await lstat(file)
-  if(!info.isFile()||(info.mode&0o077)||info.size>65536)throw new Error('Credential must be an owner-only regular file.')
+  await assertProtectedPath(file,{maxBytes:65536,message:'Credential must be an owner-only regular file.'})
   return readFile(file)
 }
 

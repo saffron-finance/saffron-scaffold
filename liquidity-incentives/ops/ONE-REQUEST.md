@@ -122,6 +122,21 @@ match the authorized address. No signer is loaded by the API, payment scanner or
 fork simulator. This does not replace OS separation: keep API and worker users,
 database permissions, backup access, and signer files isolated.
 
+On Unix, credentials and state require private permission bits (`0600` files,
+`0700` directories); operator configuration must not be writable by group or
+others. On Windows, the worker checks the native DACL and owner instead of Unix
+mode bits. Private files/directories may grant access only to the worker account,
+SYSTEM and built-in Administrators. Configuration may grant other accounts read
+access, but no write, delete, ACL or ownership rights. Inherited grants are checked
+too. Symbolic links, junctions and other reparse points are rejected.
+
+Provision credential files with these permissions before using them. A missing
+state directory is created with a private, inheritable DACL on Windows; an existing
+unsafe directory is rejected without changing its ACL. Windows requires the
+built-in Windows PowerShell security services; unavailable ACL evidence fails
+closed. The disposable permission tests exercise these same checks without a
+live credential or a platform-specific security bypass.
+
 After concrete review and authorization, set `enabled:true` in the protected copy.
 Run the dedicated one-request command, **not** ordinary `worker --once`:
 
@@ -138,6 +153,11 @@ permit. The permit binds one UUID, signer, plan and simulation hash. The signing
 gate permits at most three journaled, sequential, zero-value factory calls, exact
 calldata, continuous nonces, and the total gas budget. The ordinary queue command
 explicitly rejects this config. It cannot select another queued request.
+
+State contents are synced before replacement. Unix then syncs the parent directory;
+Windows uses same-volume `MoveFileExW` replacement with `MOVEFILE_WRITE_THROUGH`,
+because Node cannot sync a Windows directory handle. Files inherit the private
+directory ACL, and replacement failures stop execution before further signing.
 
 The worker revalidates the payment, immutable request copies, current factory/type
 hashes, fee setting, fresh head, reservation/pauses and gas limits before each new

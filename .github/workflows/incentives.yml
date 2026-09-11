@@ -68,4 +68,5 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node --input-type=module -e "import { anvilBinary } from './tests/anvil.mjs'; import { execFileSync } from 'node:child_process'; execFileSync(anvilBinary(), ['--version'], {stdio:'inherit'});"
+      - run: node --test tests/protected-worker.test.mjs
       - run: npm run build:lab

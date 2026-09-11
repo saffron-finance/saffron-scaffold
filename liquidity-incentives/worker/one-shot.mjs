@@ -1,4 +1,4 @@
-import { mkdir,lstat,readFile,open,rename,rmdir } from 'node:fs/promises'
+import { mkdir,readFile,open,rmdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { decodeFunctionData } from 'viem'
@@ -6,6 +6,7 @@ import { abi,CHAIN_ID,FACTORY,sameAddress } from '../shared/vault-lifecycle.mjs'
 import { digest } from '../shared/incentives.mjs'
 import { createCreator } from './creator.mjs'
 import { readVault } from '../shared/vault-reader.mjs'
+import { assertProtectedPath,ensurePrivateDirectory,replaceProtectedState } from './protected-files.mjs'
 
 const steps=['create-adapter','create-vault','initialize-vault']
 
@@ -25,13 +26,12 @@ export function assertOneShotTransaction({permit,job,step,transaction,journal}){
   if(call.functionName!==expected[0]||call.args.length!==expected[1].length||call.args.some((value,index)=>String(value).toLowerCase()!==String(expected[1][index]).toLowerCase()))throw new Error('One-shot calldata differs from the reviewed plan.')
 }
 
-/** fsync a replacement and its directory. Public permit/results only; raw signed
+/** Persist a durable replacement. Public permit/results only; raw signed
  * bytes remain in the protected PostgreSQL execution journal, never this file. */
 async function saveState(directory,state){
   const temp=join(directory,`state.${process.pid}.tmp`),file=await open(temp,'wx',0o600)
   try{await file.writeFile(JSON.stringify(state,null,2)+'\n');await file.sync()}finally{await file.close()}
-  await rename(temp,join(directory,'state.json'))
-  const parent=await open(directory,'r');try{await parent.sync()}finally{await parent.close()}
+  await replaceProtectedState(temp,join(directory,'state.json'))
 }
 
 /** One invocation follows only one reviewed request through canonical completion.
@@ -41,9 +41,7 @@ async function saveState(directory,state){
  * Local/fork callers inject disposable accounts/RPCs through the identical path. */
 export async function runOneRequest({database,rpc,account,config,requestId,simulation,directory,onProgress=()=>{},timeoutMs=600000,pollMs=2000,now=Date.now}){
   if(!/^([0-9a-f]{8}-)([0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(requestId)||!Number.isFinite(timeoutMs)||timeoutMs<=0||!Number.isFinite(pollMs)||pollMs<0)throw new Error('Invalid one-shot arguments.')
-  await mkdir(directory,{recursive:true,mode:0o700})
-  const info=await lstat(directory)
-  if(!info.isDirectory()||(info.mode&0o077))throw new Error('One-shot state must be an owner-only directory.')
+  await ensurePrivateDirectory(directory)
   const lock=join(directory,'execution.lock');await mkdir(lock,{mode:0o700})
   try{
     await database.ready
@@ -57,8 +55,8 @@ export async function runOneRequest({database,rpc,account,config,requestId,simul
     const identity={requestId,signer:account.address.toLowerCase(),planHash:job.plan_hash,chainId:CHAIN_ID,factory:FACTORY,simulationHash:digest(simulation)}
     let state
     try{
-      const file=join(directory,'state.json'),meta=await lstat(file)
-      if(!meta.isFile()||(meta.mode&0o077))throw new Error('Invalid one-shot state protection.')
+      const file=join(directory,'state.json')
+      await assertProtectedPath(file,{message:'Invalid one-shot state protection.'})
       state=JSON.parse(await readFile(file,'utf8'))
     }catch(error){if(error.code!=='ENOENT')throw error}
     if(state){

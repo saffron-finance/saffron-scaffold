@@ -1,7 +1,6 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp,mkdir,readFile,rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir,readFile,rmdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { encodeFunctionData } from 'viem'
 import { abi,FACTORY,CHAIN_ID } from '../shared/vault-lifecycle.mjs'
@@ -12,6 +11,7 @@ import { readVault } from '../shared/vault-reader.mjs'
 import { createIncentivesService } from '../server/incentives-service.mjs'
 import { evmFixture } from './evm-fixture.mjs'
 import { incentivesFixture,ORIGIN } from './incentives-fixture.mjs'
+import { privateFilesFixture } from './private-files-fixture.mjs'
 
 /** Pure signing-firewall probes cover each forbidden escape without loading a
  * private signer or connecting to any chain. Full integration follows below. */
@@ -46,7 +46,7 @@ it('read-only fork RPC rejects every signing/admin method before touching the ne
 })
 
 it('one-shot runner follows exactly the pinned paid request, journals three real calls, and permanently refuses a second vault',{timeout:120000},async()=>{
-  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,directory=await mkdtemp(join(tmpdir(),'saffron-one-shot-'))
+  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,files=await privateFilesFixture('saffron-one-shot-'),{directory}=files
   try{
     await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
     const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
@@ -58,7 +58,7 @@ it('one-shot runner follows exactly the pinned paid request, journals three real
     await assert.rejects(runOneRequest({...options,simulation:{...simulation,ok:false}}),/passing simulation/)
     await mkdir(join(directory,'execution.lock'))
     await assert.rejects(runOneRequest(options),/EEXIST/)
-    await rm(join(directory,'execution.lock'),{recursive:true})
+    await rmdir(join(directory,'execution.lock'))
     const result=await runOneRequest(options)
     assert.equal(result.state,'created');assert.equal(result.requestId,second);assert.equal(result.observation.initialized,true)
     assert.equal(result.observation.variableSupply,'0','creator cannot fund premiums')
@@ -83,11 +83,11 @@ it('one-shot runner follows exactly the pinned paid request, journals three real
     const state=JSON.parse(await readFile(join(directory,'state.json'),'utf8'))
     assert.equal(state.status,'completed');assert.equal(state.identity.requestId,second)
     assert.equal(JSON.stringify(state).includes('raw_tx'),false)
-  }finally{await store.close();await chain.close();await rm(directory,{recursive:true,force:true})}
+  }finally{await store.close();await chain.close();await files.close()}
 })
 
 it('one-shot restart reconciles a lost broadcast without signing or creating twice',{timeout:120000},async()=>{
-  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,directory=await mkdtemp(join(tmpdir(),'saffron-one-shot-recover-'))
+  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,files=await privateFilesFixture('saffron-one-shot-recover-'),{directory}=files
   try{
     await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
     const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
@@ -108,11 +108,11 @@ it('one-shot restart reconciles a lost broadcast without signing or creating twi
     const result=await runOneRequest({...options,rpc:chain.rpc})
     assert.equal(result.state,'created');assert.equal(signatures,3);assert.equal(chain.broadcasts,3)
     assert.equal(result.transactions[0].hash,saved[0].hash)
-  }finally{await store.close();await chain.close();await rm(directory,{recursive:true,force:true})}
+  }finally{await store.close();await chain.close();await files.close()}
 })
 
 it('a proven revert exhausts the one-shot attempt and rerun cannot spend another nonce',{timeout:120000},async()=>{
-  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,directory=await mkdtemp(join(tmpdir(),'saffron-one-shot-revert-'))
+  const chain=await evmFixture(),store=await incentivesFixture(),db=store.database,files=await privateFilesFixture('saffron-one-shot-revert-'),{directory}=files
   try{
     await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
     const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
@@ -128,5 +128,5 @@ it('a proven revert exhausts the one-shot attempt and rerun cannot spend another
     await assert.rejects(runOneRequest(options),/new attempt is not authorized/)
     assert.equal(chain.broadcasts,1)
     assert.equal(JSON.parse(await readFile(join(directory,'state.json'),'utf8')).status,'failed')
-  }finally{await store.close();await chain.close();await rm(directory,{recursive:true,force:true})}
+  }finally{await store.close();await chain.close();await files.close()}
 })

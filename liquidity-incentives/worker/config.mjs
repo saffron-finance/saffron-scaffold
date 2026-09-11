@@ -1,13 +1,13 @@
-import { readFile,lstat } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
+import { assertProtectedPath } from './protected-files.mjs'
 import { CHAIN_ID,FACTORY,sameAddress } from '../shared/vault-lifecycle.mjs'
 
 /** Validate the operator file before resolving any signer or private RPC entry.
  * Live one-request operation is deliberately separate from ordinary queue mode. */
 export async function readOperatorConfig(file,{oneRequest=false}={}){
   if(typeof file!=='string'||!file||/^0x[0-9a-f]{64}$/i.test(file))throw new Error('Use an operator config path.')
-  const info=await lstat(file)
-  if(!info.isFile()||(info.mode&0o022)||info.size>65536)throw new Error('Operator config must be a non-writable-by-others regular file.')
+  await assertProtectedPath(file,{privateAccess:false,maxBytes:65536,message:'Operator config must be a non-writable-by-others regular file.'})
   const config=JSON.parse(await readFile(file,'utf8'))
   if(config.chainId!==CHAIN_ID||config.enabled!==true||!sameAddress(config.factory??FACTORY,FACTORY))throw new Error('Explicit Robinhood factory activation is required.')
   if(!/^0x[0-9a-f]{40}$/i.test(config.signerAddress??''))throw new Error('Configure the public signer address.')
