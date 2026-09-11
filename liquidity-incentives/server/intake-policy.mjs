@@ -35,7 +35,8 @@ export async function intakeReadiness({db,rpc,signer,confirmations=2,now=Date.no
   else if(policy.expires_at.getTime()<=now())reasons.push('intake_expired')
   if(policy&&slots.total>=policy.max_pending)reasons.push('queue_full')
   if(policy?.mode==='automatic'&&!workerOnline)reasons.push('worker_offline')
-  const overdue=policy&&(await db.query(`SELECT 1 FROM saffron_incentives.deployment_intents WHERE status NOT IN ('active','completed','retired') AND created_at<$1 LIMIT 1`,[new Date(now()-policy.service_minutes*60_000)])).rowCount
+  const overdue=policy&&(await db.query(`SELECT 1 FROM saffron_incentives.deployment_intents i JOIN saffron_incentives.vault_jobs j ON j.intent_id=i.id
+    JOIN saffron_incentives.budget_reservations r ON r.intent_id=i.id WHERE j.state<>'retired' AND (j.state<>'created' OR r.reserved_raw>0) AND i.created_at<$1 LIMIT 1`,[new Date(now()-policy.service_minutes*60_000)])).rowCount
   if(overdue)reasons.push('service_window_exceeded')
   let watcher=null
   if(policy){

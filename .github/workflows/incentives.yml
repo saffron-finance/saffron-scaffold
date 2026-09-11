@@ -45,12 +45,24 @@ jobs:
       - run: npm run test:database
       - run: npm run test:lifecycle
       - run: npm run test:watcher
+      - run: npm run test:restore
+        env:
+          SAFFRON_TEST_PG_CONTAINER: ${{ job.services.postgres.id }}
       - run: npm run test:browser
       - run: npm run demo -- --smoke
       - run: npm run build:lab
       - run: npm run test:browser -- --grep 'approved cards'
         env:
           SAFFRON_TEST_LAB: '1'
+      - run: npm run build:preview
+        env:
+          VITE_BASE_PATH: /saffron/apps/feature-lab/liquidity-incentives/
+      - run: node tests/preview-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: incentives-public-acceptance
+          path: liquidity-incentives/validation/complete-cycle.json
   windows:
     runs-on: windows-latest
     timeout-minutes: 10

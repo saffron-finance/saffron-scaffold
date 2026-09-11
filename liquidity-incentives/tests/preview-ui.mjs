@@ -99,7 +99,7 @@ try{
   await page.screenshot({path:output+'/navigation-menu.png',fullPage:true})
   await page.getByRole('link',{name:'Administration',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Administration',exact:true})).toBeVisible()
-  await expect(page.getByText(/Worker online/)).toBeVisible()
+  await expect(page.getByText(/Reviewed request execution/)).toBeVisible()
   await page.screenshot({path:output+'/administration.png',fullPage:true})
   for(const width of [390,320]){
     await page.setViewportSize({width,height:1000})

@@ -14,6 +14,7 @@ import { intakeReadiness } from './intake-policy.mjs'
 import { gasCoverage } from './gas-reservations.mjs'
 import { deploymentProgress } from './deployment-progress.mjs'
 import { treasuryCoverage } from './treasury-inventory.mjs'
+import { operationalStatus } from './operational-status.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -170,7 +171,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired'))::int AS pending,
         count(*) FILTER(WHERE state NOT IN ('created','retired') AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
         FROM saffron_incentives.vault_jobs`)).rows[0]
-      return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness:await service.readiness()}
+      const readiness=await service.readiness()
+      return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness,...await operationalStatus(db,readiness,now)}
     },
     async auditReleases(budgetId,operator){
       const rows=(await db.query(`SELECT DISTINCT ON(e.intent_id) e.intent_id,e.evidence FROM saffron_incentives.budget_entries e

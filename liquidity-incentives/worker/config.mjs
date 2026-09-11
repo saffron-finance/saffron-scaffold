@@ -5,11 +5,11 @@ import { CHAIN_ID,FACTORY,sameAddress } from '../shared/vault-lifecycle.mjs'
 
 /** Validate the operator file before resolving any signer or private RPC entry.
  * Live one-request operation is deliberately separate from ordinary queue mode. */
-export async function readOperatorConfig(file,{oneRequest=false}={}){
+export async function readOperatorConfig(file,{oneRequest=false,readOnly=false}={}){
   if(typeof file!=='string'||!file||/^0x[0-9a-f]{64}$/i.test(file))throw new Error('Use an operator config path.')
   await assertProtectedPath(file,{privateAccess:false,maxBytes:65536,message:'Operator config must be a non-writable-by-others regular file.'})
   const config=JSON.parse(await readFile(file,'utf8'))
-  if(config.chainId!==CHAIN_ID||config.enabled!==true||!sameAddress(config.factory??FACTORY,FACTORY))throw new Error('Explicit Robinhood factory activation is required.')
+  if(config.chainId!==CHAIN_ID||!readOnly&&config.enabled!==true||!sameAddress(config.factory??FACTORY,FACTORY))throw new Error('Explicit Robinhood factory activation is required.')
   if(!/^0x[0-9a-f]{40}$/i.test(config.signerAddress??''))throw new Error('Configure the public signer address.')
   for(const name of ['factoryCodeHash','vaultTypeHash','adapterTypeHash'])if(!/^0x[0-9a-f]{64}$/i.test(config[name]??''))throw new Error('Verified factory/type hashes are required.')
   for(const name of ['vaultTypeId','adapterTypeId','maxGasPerTx','maxGasPriceWei','maxPremiumRaw','maxDailyGasWei'])if(!/^[1-9][0-9]*$/.test(String(config[name]??'')))throw new Error('Positive execution limits are required.')

@@ -14,9 +14,10 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
   const data=useDeployments(account,true)
   return <Stack><Row><StepTitle>Administration</StepTitle><QuietButton onClick={onBack}>Vaults</QuietButton></Row>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!data.session?<Action disabled={data.busy} onClick={()=>void data.signIn()}>Sign in as operator</Action>:!data.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
-      <FinePrint>Worker {data.online?'online':'offline'} · {data.rows.length} deployments on this page. Confirmed $2 ETH payments queue creation automatically. Premium funding is managed externally.</FinePrint>
+      <FinePrint>{data.operatorStatus?.readiness.mode==='reviewed'?'Reviewed request execution':'Automatic request execution'} · {data.rows.length} deployments on this page. Confirmed $2 ETH payments queue creation. Premium funding is managed externally.</FinePrint>
       {data.operatorStatus&&<FinePrint>Worker gas: {data.operatorStatus.gasBalanceRaw===null?'unavailable':formatUnits(BigInt(data.operatorStatus.gasBalanceRaw),18)+' ETH'} · {data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
       {data.operatorStatus&&<IntakePolicy account={account} status={data.operatorStatus} onUpdate={data.refresh}/>}
+      {data.operatorStatus?.metrics&&<Disclosure><summary>Operational alerts · {data.operatorStatus.alerts.length}</summary><FinePrint>Oldest undelivered request without progress: {Math.floor(data.operatorStatus.metrics.oldestWithoutProgressSeconds/60)} minutes · treasury backlog: {data.operatorStatus.metrics.fundingBacklog} · unresolved payments: {data.operatorStatus.metrics.unresolvedPayments} · stale vault observations: {data.operatorStatus.metrics.staleVaultObservations}.</FinePrint>{data.operatorStatus.alerts.map((alert,index)=><FinePrint key={index}>{alert.severity}: {statusLabel(alert.code)}</FinePrint>)}</Disclosure>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
       <TreasuryInventory account={account} onUpdate={data.refresh}/>
       <AmountReviews account={account}/>

@@ -5,7 +5,8 @@ const s='saffron_incentives',max=(a,b)=>a>b?a:b
 /** Reserve the hard ceiling for all three supported factory calls. This is a
  * conservative upper bound, not a forecast from one historical deployment. */
 export function creationGasCeiling(config){
-  for(const name of ['maxGasPerTx','maxGasPriceWei','maxDailyGasWei','maxSubsidyWei'])if(!/^[1-9][0-9]*$/.test(String(config?.[name]??'')))throw fault(503,'Creation gas and subsidy ceilings must be configured.')
+  for(const name of ['maxGasPerTx','maxGasPriceWei','maxDailyGasWei'])if(!/^[1-9][0-9]*$/.test(String(config?.[name]??'')))throw fault(503,'Creation gas and subsidy ceilings must be configured.')
+  if(!/^(0|[1-9][0-9]*)$/.test(String(config?.maxSubsidyWei??'')))throw fault(503,'Configure a nonnegative creation subsidy ceiling.')
   return 3n*BigInt(config.maxGasPerTx)*BigInt(config.maxGasPriceWei)
 }
 export function createGasReservations(db){return {
@@ -77,7 +78,8 @@ export async function gasCoverage({db,rpc,config,signer,now=Date.now}){
     if(!row.evidence.blockHash||(await rpc('eth_getBlockByNumber',[row.evidence.blockNumber,false]))?.hash!==row.evidence.blockHash)throw fault(503,'Creation fee revenue requires canonical reconciliation.')
   }
   const balanceWei=BigInt(await rpc('eth_getBalance',[signer,head.number])).toString()
+  const signerNonce=BigInt(await rpc('eth_getTransactionCount',[signer,head.number])).toString()
   if((await rpc('eth_getBlockByNumber',[head.number,false]))?.hash!==head.hash)throw fault(503,'Gas coverage block changed.')
-  return {maximumWei:maximumWei.toString(),balanceWei,checkedAt:now(),blockNumber:head.number,blockHash:head.hash,
+  return {maximumWei:maximumWei.toString(),balanceWei,signerNonce,checkedAt:now(),blockNumber:head.number,blockHash:head.hash,
     maxDailyGasWei:config.maxDailyGasWei,maxSubsidyWei:config.maxSubsidyWei,book:await db.gasBook(signer)}
 }
