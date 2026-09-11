@@ -1,0 +1,175 @@
+# Payment watcher and exactly-one-vault test
+
+This is a separate, explicit execution mode. One vault requires **three** zero-value
+transactions to the existing unrestricted factory on chain **4663**:
+
+1. `createAdapter(2, reviewedPool, 0x)` — full-range adapter.
+2. `createVault(1, observedAdapter)` — vault with the registered type.
+3. `initializeVault(observedVaultId, rawLiquidity, rawPremium, durationSeconds, variableAsset, feeBps)`.
+
+It does not deploy a new factory, fund premiums, deposit user LP assets, start the
+vault, or run an unlimited queue. A created/initialized vault is not yet a funded,
+depositable vault. External premium funding and user-wallet entry remain separate.
+
+## Request and payment prerequisites
+
+Use a real `saffron_incentives.deployment_intents` UUID created by this package's
+native-ETH payment verifier. The request must be untouched, queued, on chain 4663,
+with the authorized signer, an active reservation, and an immutable accepted plan.
+
+The verifier binds the chain, payer, separate fee recipient, exact positive ETH
+wei amount, quote/plan/recovery commitment, successful receipt and canonical
+confirmations. Both underpayment and overpayment fail. A self-transfer is not a
+received fee. The ETH amount is fixed by the backend quote; later ETH/USD movement
+does not change the amount a paid request owes. Public payment evidence alone
+cannot restore someone else's HTTP session.
+
+The browser-only review build is **not** this API. Its localStorage entries and
+simulated payments cannot become paid jobs. Old Arbitrum USDC receipts must never
+be relabeled native Robinhood ETH receipts. Neither this command nor its schema
+imports them. An exceptional fee-waived test needs separate explicit authorization
+and a clearly identified test path; there is no hidden bypass in the normal watcher.
+
+LP valuation and the user's final asset amounts are confirmed at the later LP
+deposit step. The earlier design decision to remove the preview modal's price-
+expiry warning does not mean a browser preview payment is a real chain receipt.
+Existing server quote/admission deadlines retain paid-but-blocked evidence for
+operator resolution; they never discard a received fee or automatically charge again.
+
+## Local validation — no live key required
+
+Use a disposable PostgreSQL cluster/test role, never a production connection.
+The harness creates random test databases and generated local-only wallets.
+
+```sh
+npm ci
+npm run build
+npm test
+npm run test:database
+npm run test:lifecycle
+npm run test:watcher
+npm run test:browser
+npm run demo -- --smoke
+```
+
+Set `SAFFRON_TEST_DB_HOST`, `SAFFRON_TEST_DB_PORT`, and `SAFFRON_TEST_DB_USER` to
+that isolated cluster. Passwordless private Unix sockets avoid test credentials.
+The watcher tests send real local ETH transfers, intentionally omit the browser
+callback, scan canonical blocks, reserve one intent, fork-simulate it, and create
+the actual fixture adapter/vault. Separate tests force response loss, a mined
+revert, changed parameters, duplicate fees, reorgs, RPC outages and competing locks.
+
+## Keyless payment watcher
+
+Configure an operator-owned copy of `payments.example.json`. Pin `startBlock` at
+or before the first supported fee. It cannot change after the cursor is created.
+Start with a bounded inspection:
+
+```sh
+npm run worker:payments -- /protected/payments.json --once
+```
+
+Without `--once`, this process polls every two seconds. It is keyless and its RPC
+transport rejects sending/signing/admin methods. It scans at most 50 confirmed
+blocks per tick by default and indexes the public payment commitment.
+
+Cursor progress is durable. Every block is rechecked before advancing; mismatched
+parent/checkpoint hashes restart scanning at the original start. Concurrent
+scanners take a PostgreSQL advisory lock. Missing/outage evidence cannot advance
+past a candidate payment. Invalid amounts are rejected; valid but blocked/late
+payments remain `needs_attention`. A second payment for one quote is stored in
+`payment_exceptions`; it cannot create another vault or stall the entire scanner.
+After a deep reorg, an accepted intent's worker independently revalidates its
+payment before every new signature. Canonical replacement payments may require
+operator reconciliation; the scanner does not erase old obligations.
+
+## Prepare the exact real-chain simulation
+
+1. Inspect one payment-backed UUID and export only its public job fields:
+   `intent_id`, `wallet`, `signer`, `snapshot`, `plan`, and `plan_hash`. Do not export
+   the database journal, signed raw bytes, session cookies or recovery secrets.
+2. Copy `one-request.example.json` to a protected operator location. Set the public
+   signer, reviewed limits, same database, that UUID and permanent state directory.
+   Leave `enabled:false` while inspecting/simulating. Reinspect the factory hashes.
+3. Configure `rpcUrl` for a private loopback endpoint **or** `rpcPassEntry` plus
+   `rpcEntryName` for a protected dotenv bundle. Do not put a credentialed provider
+   URL in a command, report, browser bundle or Anvil argument.
+4. Simulate:
+
+```sh
+npm run worker:inspect -- /protected/one-request.json
+npm run worker:simulate -- /protected/one-request.json /protected/job.json /protected/simulation.json
+```
+
+The simulator creates a private loopback bridge whose upstream is read-only, forks
+the actual sizing block in Anvil, and impersonates the **public** creator address
+locally. It never reads the live signing credential. All three factory calls and
+the final vault invariants must pass. The output records the fork hash, exact plan
+hash, calldata, local transaction hashes, gas and final observation. Those hashes
+are **simulation-only**, not live chain transactions. The local fork clock advances
+to current time for freshness checks; original protocol parameters remain fixed.
+
+Anvil account reads are concurrency-limited to avoid provider throttling. Read-only
+transport retries are bounded; broadcasts never get hidden transport retries.
+Anvil output is suppressed so its generated fixture accounts cannot leak to logs.
+
+## Protected signer and one invocation
+
+The live worker supports an owner-only `signerCredentialFile` or an encrypted
+`signerPassEntry`, never both. `signerKind` is `privateKey` or `mnemonic`; mnemonic
+mode uses the first standard Ethereum account. The derived public address must
+match the authorized address. No signer is loaded by the API, payment scanner or
+fork simulator. This does not replace OS separation: keep API and worker users,
+database permissions, backup access, and signer files isolated.
+
+After concrete review and authorization, set `enabled:true` in the protected copy.
+Run the dedicated one-request command, **not** ordinary `worker --once`:
+
+```sh
+npm run worker:one -- /protected/one-request.json
+```
+
+Before the first signature it requires a recent (10-minute) passing simulation,
+the same canonical fork block and plan, a clean matching latest/pending nonce,
+and enough native ETH to cover the complete conservative gas budget.
+
+The owner-only state directory has an exclusive lock and an fsynced permanent
+permit. The permit binds one UUID, signer, plan and simulation hash. The signing
+gate permits at most three journaled, sequential, zero-value factory calls, exact
+calldata, continuous nonces, and the total gas budget. The ordinary queue command
+explicitly rejects this config. It cannot select another queued request.
+
+The worker revalidates the payment, immutable request copies, current factory/type
+hashes, fee setting, fresh head, reservation/pauses and gas limits before each new
+signature. It persists signed bytes before sending. Final verification checks
+factory registrations and creator, vault/adapter bytecode, pool/tokens/range,
+liquidity, premium, duration, protocol fee and initialized/unfunded state.
+
+## Stop and recovery rules
+
+- **Completed:** the permit is permanently spent; rerun returns the saved result
+  and sends nothing. A different request/simulation is rejected.
+- **Unknown/lost send response:** retain the exact journaled bytes. Restart with
+  the same permit to reconcile the same hash; never sign a replacement blindly.
+- **Proven revert:** the one attempt is terminal. No automatic new nonce, resume,
+  different request or second vault. Partial adapter/vault state may exist.
+- **Timeout:** preserve the armed permit and journal. It is not proof of failure.
+- **Hard crash:** an on-disk lock may remain. Inspect the process, pending/latest
+  nonce, every saved hash and receipts before deliberately clearing only that
+  stale lock. Never remove `state.json` or journal rows to bypass the one-vault limit.
+- **Competing sender or external nonce:** stop and reconcile. A directory/advisory
+  lock cannot stop someone using the same private key elsewhere.
+- **Database restoration:** reconcile against chain first; an older backup cannot
+  establish that previously signed transactions never existed.
+- **No indefinite activation for a one-off test:** do not install/start the ordinary
+  signing service merely to validate a single request. Only the chosen one-request
+  invocation is authorized; extra funding or user LP transactions are outside it.
+
+## Evidence to retain
+
+Save the request/payment identifiers and immutable terms, reviewed code commit,
+factory/type hashes, fork input/result, test summaries, public nonce/balance
+before/after, the three live transaction hashes and canonical receipts, actual gas
+fees, and final vault/adapter/state. Keep the raw signed journal protected and out
+of shared report bundles. Clearly distinguish tests, fork simulation and live
+deployment; an initialized but unfunded vault is not a completed user LP deposit.

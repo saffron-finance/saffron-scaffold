@@ -40,7 +40,7 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     assert.equal((await call('/session/challenge',{wallet:user.address})).status,403)
     const a=await login(admin),secret='0x'+randomBytes(32).toString('hex'),hash='0x'+'2'.repeat(64)
     const quote=await store.quote(user,{signer:admin.address,fee:{recipient:admin.address.toLowerCase(),amountWei:'1000000000000000'},recoveryHash:proofHash(secret)})
-    proofs.set(hash,{tx:{from:user.address,to:admin.address,value:'0x38d7ea4c68000',input:paymentData(quote)},
+    proofs.set(hash,{tx:{hash,blockHash:'0x'+'1'.repeat(64),blockNumber:'0x10',from:user.address,to:admin.address,value:'0x38d7ea4c68000',input:paymentData(quote)},
       receipt:{status:'0x1',transactionHash:hash,blockNumber:'0x10',blockHash:'0x'+'1'.repeat(64)}})
     const payment={quoteId:quote.id,paymentHash:hash,recoverySecret:secret}
     assert.equal((await call('/deployments',{...payment,recoverySecret:'0x'+'9'.repeat(64)})).status,403)

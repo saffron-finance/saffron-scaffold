@@ -16,7 +16,7 @@ it('real Uniswap factory and position manager: mint, claim conversion, maturity,
   try{
     await store.seed(chain.account.address,10n**30n+'',{pool:chain.pool})
     await db.execution.heartbeat(chain.account.address)
-    const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:ORIGIN,now:()=>Date.now()+offset})
+    const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN,now:()=>Date.now()+offset})
     const id=(await chain.accept(service)).id
     const worker=createCreator({database:db,rpc:chain.rpc,account:chain.account,config:chain.config})
     assert.equal((await worker.tick()).state,'created')
@@ -62,7 +62,7 @@ it('real pre-start LP recovery follows current claim ownership and preserves the
   try{
     const limit=10n**30n+''
     await store.seed(chain.account.address,limit,{pool:chain.pool});await db.execution.heartbeat(chain.account.address)
-    const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:ORIGIN})
+    const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
     const id=(await chain.accept(service)).id
     const worker=createCreator({database:db,rpc:chain.rpc,account:chain.account,config:chain.config})
     assert.equal((await worker.tick()).state,'created')
@@ -114,7 +114,7 @@ it('received claim and fixed bearer positions are discovered, reorg checked, cla
   let offset=0
   try{
     await store.seed(chain.account.address,10n**30n+'',{pool:chain.pool});await db.execution.heartbeat(chain.account.address)
-    const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:ORIGIN,now:()=>Date.now()+offset})
+    const service=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN,now:()=>Date.now()+offset})
     const id=(await chain.accept(service)).id
     const worker=createCreator({database:db,rpc:chain.rpc,account:chain.account,config:chain.config})
     await worker.tick()

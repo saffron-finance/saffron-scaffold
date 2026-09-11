@@ -26,15 +26,17 @@ export function createExecutionDatabase(db) {
       return {assert:async()=>{if(!alive)throw new Error('Signer lock lost.');await client.query('SELECT 1')},
         release:async()=>{client.off('error',lost);try{if(alive)await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key])}finally{client.release()}}}
     },
-    async claim(signer,owner){
+    // A pinned request is mandatory for one-shot operation. NULL retains the
+    // ordinary queue worker; an unknown ID must never fall back to another job.
+    async claim(signer,owner,requestId=null){
       const row=(await query(`UPDATE ${s}.vault_jobs SET lease_owner=$2,lease_until=NOW()+INTERVAL '60 seconds',
         state=CASE WHEN state='created' THEN state ELSE 'running' END,
         funding_state=CASE WHEN operation='fund' THEN 'running' ELSE funding_state END,updated_at=NOW()
-        WHERE intent_id=(SELECT intent_id FROM ${s}.vault_jobs WHERE signer=$1 AND next_attempt_at<=NOW()
+        WHERE intent_id=(SELECT intent_id FROM ${s}.vault_jobs WHERE signer=$1 AND ($3::uuid IS NULL OR intent_id=$3::uuid) AND next_attempt_at<=NOW()
           AND (state IN ('queued','running','waiting') OR (state='created' AND funding_state IN ('queued','running','waiting')))
           AND (EXISTS(SELECT 1 FROM ${s}.chain_operations t WHERE t.intent_id=${s}.vault_jobs.intent_id)
             OR EXISTS(SELECT 1 FROM ${s}.budget_reservations r WHERE r.intent_id=${s}.vault_jobs.intent_id AND r.released_raw<r.premium_raw))
-          AND (lease_until IS NULL OR lease_until<NOW()) ORDER BY next_attempt_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING intent_id`,[signer.toLowerCase(),owner])).rows[0]
+          AND (lease_until IS NULL OR lease_until<NOW()) ORDER BY next_attempt_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING intent_id`,[signer.toLowerCase(),owner,requestId])).rows[0]
       return row?db.getIntent(row.intent_id):null
     },
     async renew(id,owner){

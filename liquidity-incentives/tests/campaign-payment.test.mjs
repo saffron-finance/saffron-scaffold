@@ -22,7 +22,7 @@ function paymentFixture(){
   const secret='0x'+'4'.repeat(64),hash='0x'+'5'.repeat(64),blockHash='0x'+'6'.repeat(64)
   const quote={id:'request-one',planHash:'0x'+'7'.repeat(64),wallet:'0x'+'1'.repeat(40),recoveryHash:proofHash(secret),
     paymentDeadline:'2026-09-10T12:01:00.000Z',fee:{recipient:'0x'+'2'.repeat(40),amountWei:'1000'}}
-  const data={eth_chainId:'0x1237',eth_blockNumber:'0x11',eth_getTransactionByHash:{from:quote.wallet,to:quote.fee.recipient,value:'0x3e8',input:paymentData(quote)},
+  const data={eth_chainId:'0x1237',eth_blockNumber:'0x11',eth_getTransactionByHash:{hash,blockHash,blockNumber:'0x10',from:quote.wallet,to:quote.fee.recipient,value:'0x3e8',input:paymentData(quote)},
     eth_getTransactionReceipt:{status:'0x1',transactionHash:hash,blockNumber:'0x10',blockHash},
     eth_getBlockByNumber:{hash:blockHash,timestamp:'0x'+Math.floor(Date.parse('2026-09-10T12:00:00Z')/1000).toString(16)}}
   return {quote,hash,secret,data,rpc:async method=>data[method]}
@@ -33,8 +33,20 @@ it('ETH payment binds sender, recipient, exact amount, quote, recovery capabilit
   const changes=[['eth_chainId','0x1'],['eth_blockNumber','0x10'],['eth_getTransactionReceipt',null],
     ['eth_getTransactionReceipt',{...f.data.eth_getTransactionReceipt,status:'0x0'}],
     ['eth_getBlockByNumber',{...f.data.eth_getBlockByNumber,hash:'0x'+'9'.repeat(64)}],
-    ...Object.entries({from:f.quote.fee.recipient,to:f.quote.wallet,value:'0x3e7',input:'0x'}).map(([k,v])=>['eth_getTransactionByHash',{...f.data.eth_getTransactionByHash,[k]:v}])]
+    ...Object.entries({hash:'0x'+'9'.repeat(64),blockHash:'0x'+'8'.repeat(64),blockNumber:'0x9',from:f.quote.fee.recipient,to:f.quote.wallet,value:'0x3e7',input:'0x'}).map(([k,v])=>['eth_getTransactionByHash',{...f.data.eth_getTransactionByHash,[k]:v}])]
   for(const [method,value]of changes){f=paymentFixture();f.data[method]=value;await assert.rejects(verifyPayment(f.quote,f.hash,f.secret,f.rpc))}
   f=paymentFixture();f.quote.paymentDeadline='2026-09-10T11:59:00Z'
   assert.equal((await verifyPayment(f.quote,f.hash,f.secret,f.rpc)).late,true,'late payments retain evidence for resolution, not creation')
+})
+
+it('payment policy rejects self-transfers, overpayments, invalid deadlines/timestamps and weakened finality',async()=>{
+  for(const alter of [
+    f=>f.quote.fee.recipient=f.quote.wallet,
+    f=>f.quote.fee.amountWei='0',
+    f=>f.quote.paymentDeadline='invalid',
+    f=>f.data.eth_getTransactionByHash.value='0x3e9',
+    f=>f.data.eth_getBlockByNumber.timestamp='0x'+'f'.repeat(64),
+    f=>f.data.eth_getTransactionReceipt.transactionHash='0x'+'9'.repeat(64),
+  ]){const f=paymentFixture();alter(f);await assert.rejects(verifyPayment(f.quote,f.hash,f.secret,f.rpc))}
+  for(const confirmations of [0,1,1.5,NaN]){const f=paymentFixture();await assert.rejects(verifyPayment(f.quote,f.hash,f.secret,f.rpc,{confirmations}))}
 })

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { deploymentPage,deploymentCursor } from './deployment-pagination.mjs'
 import { createExecutionDatabase } from './execution-database.mjs'
-import { proofHash } from './payment-proof.mjs'
+import { proofHash,paymentData } from './payment-proof.mjs'
 import { campaignTerms,campaignPremiumCents } from '../shared/campaign.mjs'
 import { CHAIN_ID, FACTORY, normalizePair, normalizeProgram, normalizeBudget, validAddress, integer,
   digest, snapshotFor, jsonSafe, fault, UINT256_MAX, cents } from '../shared/incentives.mjs'
@@ -221,8 +221,8 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         await requireCapacity(client,locked,principalCents,plan.premiumCents??(locked.campaign?campaignPremiumCents(locked.campaign,principalCents):'0'))
         const recent = (await client.query(`SELECT count(*)::int AS count FROM ${schema}.deployment_quotes WHERE wallet=$1 AND created_at>$2`,[body.wallet,new Date(now()-300_000)])).rows[0].count
         if (recent>=30) throw fault(429,'Too many quotes. Retry in a few minutes.')
-        await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [body.id,body.wallet,body.programId,body.budgetPoolId,body,new Date(Date.parse(body.expiresAt)+(fee?15*60_000:0))])
+        await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at,payment_commitment) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [body.id,body.wallet,body.programId,body.budgetPoolId,body,new Date(Date.parse(body.expiresAt)+(fee?15*60_000:0)),fee?paymentData(body):null])
       })
       return body
     },
@@ -246,9 +246,18 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
     async recordPayment(payment){
       if(!payment?.verified)throw fault(400,'Verified payment evidence is required.')
       const result=await query(`INSERT INTO ${schema}.payment_proofs(hash,quote_id,wallet,evidence)
-        VALUES($1,$2,$3,$4) ON CONFLICT(hash) DO UPDATE SET evidence=EXCLUDED.evidence
-        WHERE ${schema}.payment_proofs.quote_id=EXCLUDED.quote_id RETURNING hash`,[payment.hash,payment.quoteId,payment.wallet,payment])
-      if(!result.rowCount)throw fault(409,'That payment was already used for another request.')
+        VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING hash`,[payment.hash,payment.quoteId,payment.wallet,payment])
+      if(result.rowCount)return
+      const existing=(await query(`SELECT hash,quote_id FROM ${schema}.payment_proofs WHERE hash=$1 OR quote_id=$2`,[payment.hash,payment.quoteId])).rows
+      if(existing.some(row=>row.hash===payment.hash&&row.quote_id===payment.quoteId)){
+        await query(`UPDATE ${schema}.payment_proofs SET evidence=$2 WHERE hash=$1`,[payment.hash,payment]);return
+      }
+      // A double-paid quote must not create a second vault or wedge every later
+      // payment behind a unique-key error. Retain the extra receipt for explicit
+      // operator resolution; this code never initiates a refund transaction.
+      if(existing.some(row=>row.quote_id===payment.quoteId))await query(`INSERT INTO ${schema}.payment_exceptions(hash,quote_id,kind,evidence)
+        VALUES($1,$2,'duplicate-fee',$3) ON CONFLICT DO NOTHING`,[payment.hash,payment.quoteId,payment])
+      throw fault(409,'A payment was already bound to this request or another request; duplicate evidence is retained.')
     },
     async acceptDeployment({ wallet, quoteId, payment, origin }) {
       const quote = await db.quote(quoteId)

@@ -8,7 +8,7 @@ import { createIncentivesService } from '../server/incentives-service.mjs'
 async function setup(){
   const chain=await evmFixture(),store=await incentivesFixture(),db=store.database
   await store.seed(chain.account.address,10n**30n+'');await db.execution.heartbeat(chain.account.address)
-  const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.account.address,origin:ORIGIN})
+  const service=createIncentivesService({database:db,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
   return {chain,store,db,service,options:{database:db,rpc:chain.rpc,account:chain.account,config:chain.config},
     accept:async()=>chain.accept(service),
     close:async()=>{await store.close();await chain.close()}}
@@ -53,6 +53,6 @@ it('operator proves same-nonce cancellation before resuming; altered saved terms
     const next=(await f.accept()).id
     await f.db.query(`UPDATE saffron_incentives.deployment_intents SET snapshot=jsonb_set(snapshot,'{durationSeconds}','1') WHERE id=$1`,[next])
     const result=await createCreator(f.options).tick()
-    assert.equal(result.state,'waiting');assert.equal((await f.db.execution.transactions(next)).length,0)
+    assert.equal(result.state,'failed');assert.equal((await f.db.execution.transactions(next)).length,0)
   }finally{await f.close()}
 })

@@ -83,7 +83,7 @@ test('a received claim appears in the holder profile and uses the native claim m
   const f=await setup(page)
   try{
     const {chain,database}=f
-    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:f.origin})
+    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:f.origin})
     const {id}=await chain.accept(service)
     await f.worker.tick()
     const row=await service.detail(id,chain.account.address)
@@ -111,7 +111,7 @@ test('profile and administration can page to older vaults and retain that page o
   const f=await setup(page,{admin:true})
   try{
     const {chain,database,account}=f
-    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.account.address,origin:f.origin})
+    const service=createIncentivesService({database,rpc:chain.rpc,config:chain.config,usdQuote:chain.usdQuote,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:f.origin})
     const template=await service.quote(account.address,'cashcat-3d','100',proofHash(chain.recoverySecret)),offer=await database.offer('cashcat-3d')
     let oldest
     for(let i=0;i<26;i++){

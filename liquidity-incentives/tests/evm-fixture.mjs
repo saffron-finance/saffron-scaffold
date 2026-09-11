@@ -104,7 +104,9 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
         await send(vault,encodeFunctionData({abi,functionName:'deposit',args:[premium-supplied,1n,'0x']}))
       }
     }
-    return {accept,fund,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
+    // A fee must leave the payer. Using a distinct receiver prevents self-
+    // transfers from making local payment tests pass without a real transfer.
+    return {feeRecipient:'0x2222222222222222222222222222222222222222',accept,fund,recoverySecret,account,client,wallet,raw,rpc,send,config,manager,pool:poolAddress,url,artifacts,abi,tokenAbi,
       get broadcasts(){return broadcasts},set loseBroadcast(value){loseBroadcast=value},set beforeBroadcast(value){beforeBroadcast=value},
       usdQuote:async()=>({priceRaw:(2000n*10n**18n).toString(),checkedAt:Date.now()}),
       close:async()=>{child.kill('SIGTERM');if(child.exitCode===null)await once(child,'exit')},

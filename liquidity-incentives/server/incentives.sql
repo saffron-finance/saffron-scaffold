@@ -81,3 +81,17 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_proofs (
   wallet TEXT NOT NULL, evidence JSONB NOT NULL, state TEXT NOT NULL DEFAULT 'verified',
   error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- A keyless scanner can discover a mined fee even if the browser loses its hash.
+-- This is the same public commitment carried in payment calldata, not a secret.
+ALTER TABLE saffron_incentives.deployment_quotes ADD COLUMN IF NOT EXISTS payment_commitment TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS quotes_payment_commitment ON saffron_incentives.deployment_quotes(payment_commitment);
+CREATE TABLE IF NOT EXISTS saffron_incentives.payment_scan_cursors (
+  id TEXT PRIMARY KEY,chain_id INTEGER NOT NULL CHECK(chain_id=4663),
+  start_block BIGINT NOT NULL CHECK(start_block>=0),block_number BIGINT,block_hash TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.payment_exceptions (
+  hash TEXT PRIMARY KEY,quote_id UUID NOT NULL REFERENCES saffron_incentives.deployment_quotes(id),
+  kind TEXT NOT NULL,evidence JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "mode": "payments",
+  "chainId": 4663,
+  "startBlock": "SET_REVIEWED_START_BLOCK",
+  "confirmations": 2,
+  "maxBlocks": 50,
+  "rpcUrl": "http://127.0.0.1:8545",
+  "database": {"host":"/var/run/postgresql","user":"saffron_payments","database":"saffron_incentives"}
+}

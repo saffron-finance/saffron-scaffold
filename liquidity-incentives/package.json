@@ -15,6 +15,10 @@
     "test:lifecycle": "node --test tests/incentives-evm.test.mjs tests/real-position.test.mjs tests/worker-recovery.test.mjs",
     "worker": "node worker/run.mjs",
     "worker:inspect": "node worker/inspect.mjs",
+    "worker:one": "node worker/run-one.mjs",
+    "worker:payments": "node worker/run-payments.mjs",
+    "worker:simulate": "node worker/simulate.mjs",
+    "test:watcher": "node --test tests/payment-watcher.test.mjs tests/one-shot.test.mjs tests/protected-worker.test.mjs",
     "demo": "node tests/demo.mjs",
     "build:preview": "node scripts/build-preview.mjs"
   },

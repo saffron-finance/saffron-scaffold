@@ -115,8 +115,10 @@ and install/start the included service, or run:
 npm run worker -- "<worker-config-file>"
 ```
 
-`--once` processes one eligible job for an external supervisor. Normal mode polls
-continuously. No additional agent or LLM deployment service is needed. Never
+`--once` performs one polling tick; it does **not** mean one completed vault and
+does not pin a request. For a single authorized live test use the dedicated
+[one-request workflow](ONE-REQUEST.md), payment scanner and fork simulator.
+Normal mode polls continuously. No additional agent or LLM deployment service is needed. Never
 activate a live signer merely to run tests.
 
 ## Operations and accounting

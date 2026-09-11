@@ -16,7 +16,7 @@ const read = async (rpc, address, functionName, args = [], block = 'latest') =>
 /** Execute at most one leased job; durable signed bytes precede every broadcast.
  * The injected account lives only in this worker, never the HTTP process.
  */
-export function createCreator({ database, rpc, account, config, usdQuote }) {
+export function createCreator({ database, rpc, account, config, usdQuote, requestId=null, beforeSign }) {
   const owner = randomUUID()
   async function tick() {
     await database.execution.expireQueued()
@@ -25,12 +25,18 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
     if (!lock) return { state: 'locked' }
     let job
     try {
-      job = await database.execution.claim(account.address, owner)
+      job = await database.execution.claim(account.address, owner, requestId)
       if (!job) return { state: 'idle' }
       if (!sameAddress(job.signer, account.address) || !sameAddress(job.factory, FACTORY) || job.chain_id !== CHAIN_ID) throw new ConfirmedFailure('Job signer, factory or chain mismatch.')
+      if(requestId&&(job.intent_id!==requestId||job.operation!=='create'||job.resume_version!==0)) throw new ConfirmedFailure('One-shot execution forbids another request, retirement or a new attempt.')
       if (BigInt(await rpc('eth_chainId', [])) !== BigInt(CHAIN_ID)) throw new ConfirmedFailure('Wrong deployer chain.')
       if (!job.plan || digest(job.accepted_plan) !== digest(Object.fromEntries(Object.keys(job.accepted_plan).map(key => [key,job.plan[key]])))) throw new ConfirmedFailure('Accepted deployment plan changed.')
       const plan = job.plan
+      // A valid payment does not authorize a different registered type or a
+      // larger premium than the worker operator reviewed.
+      if(plan.factoryCodeHash!==config.factoryCodeHash||plan.vaultTypeHash!==config.vaultTypeHash||plan.adapterTypeHash!==config.adapterTypeHash
+        ||String(plan.vaultTypeId)!==String(config.vaultTypeId)||String(plan.adapterTypeId)!==String(config.adapterTypeId)
+        ||BigInt(plan.premium)<=0n||BigInt(plan.premium)>BigInt(config.maxPremiumRaw))throw new ConfirmedFailure('Plan is outside the configured factory/type/premium policy.')
       async function guard() { await lock.assert(); await database.execution.renew(job.intent_id, owner) }
       async function savePlan() { await database.execution.setPlan(job.intent_id, owner, plan) }
       async function receiptFor(tx) {
@@ -42,7 +48,9 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
         const matching=tx.resolution_kind==='cancelled'
           ? sameAddress(mined?.to,account.address)&&mined.input==='0x'&&BigInt(mined.value)===0n
           : sameAddress(mined?.to,intended.to)&&mined.input===intended.data&&BigInt(mined.value)===BigInt(intended.value)
-        if (receipt.transactionHash?.toLowerCase() !== hash.toLowerCase() || !mined || !sameAddress(mined.from, account.address) || !matching || BigInt(mined.nonce) !== BigInt(tx.nonce)) throw new Waiting('Transaction evidence does not match the saved action.')
+        if (receipt.transactionHash?.toLowerCase() !== hash.toLowerCase() || !mined || mined.hash?.toLowerCase()!==hash.toLowerCase()
+          ||mined.blockHash!==receipt.blockHash||mined.blockNumber!==receipt.blockNumber
+          ||!sameAddress(mined.from, account.address) || !matching || BigInt(mined.nonce) !== BigInt(tx.nonce)) throw new Waiting('Transaction evidence does not match the saved action.')
         const block = await rpc('eth_getBlockByNumber', [receipt.blockNumber, false])
         const head = BigInt(await rpc('eth_blockNumber', []))
         if (block?.hash !== receipt.blockHash || head < BigInt(receipt.blockNumber) + BigInt(config.confirmations - 1)) throw new Waiting('Waiting for canonical transaction confirmations.')
@@ -64,15 +72,26 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
           // Revalidate the payer's canonical receipt before each new gas spend.
           // Existing signed transactions still reconcile even if the fee reorgs.
           const quote=await database.quote(job.quote_id)
+          // The fee commits to these terms, not merely a queue row's ID. Check
+          // every immutable copy before spending gas; a changed snapshot must
+          // fail before adapter creation, even if the cached plan is unchanged.
+          const committed=quote&&digest({snapshot:quote.snapshot,plan:quote.plan,signer:quote.signer,
+            programRevision:quote.programRevision,pairRevision:quote.pairRevision,budgetRevision:quote.budgetRevision})
+          if(!quote||committed!==quote.planHash||quote.planHash!==job.plan_hash
+            ||digest(quote.snapshot)!==digest(job.snapshot)||digest(quote.plan)!==digest(job.accepted_plan)
+            ||quote.signer!==job.signer||quote.wallet!==job.wallet)throw new ConfirmedFailure('Payment-bound request terms changed.')
           const proof=(await database.query('SELECT hash FROM saffron_incentives.payment_proofs WHERE quote_id=$1',[job.quote_id])).rows[0]
           if(!proof)throw new ConfirmedFailure('Creation payment is missing.')
           const payment=await verifyPayment(quote,proof.hash,null,rpc,{confirmations:config.confirmations,checkCapability:false})
           if(payment.late)throw new ConfirmedFailure('Creation payment was late; operator resolution is required.')
+          const head=await rpc('eth_getBlockByNumber',['latest',false]),headTime=Number(BigInt(head?.timestamp??'0'))*1000
+          if(!Number.isFinite(headTime)||Date.now()-headTime>60000||headTime>Date.now()+5000)throw new Waiting('Fresh canonical chain head is required before signing.')
           await database.execution.authorizeStep(job.intent_id,owner,{allowRetirement:job.operation==='retire'})
           // Verify current factory/type identity again before signing a new step.
           const code = await rpc('eth_getCode',[FACTORY,'latest'])
           const types = await Promise.all([read(rpc, FACTORY, 'vaultTypeByteCode', [BigInt(plan.vaultTypeId)]), read(rpc, FACTORY, 'adapterTypeByteCode', [BigInt(plan.adapterTypeId)])])
           if (keccak256(code) !== config.factoryCodeHash || keccak256(types[0]) !== plan.vaultTypeHash || keccak256(types[1]) !== plan.adapterTypeHash) throw new ConfirmedFailure('Factory code or registered type changed.')
+          if((await read(rpc,FACTORY,'feeBps')).toString()!==String(plan.feeBps))throw new ConfirmedFailure('Factory fee changed after the accepted plan.')
           const from = account.address
           const nonce = Number(BigInt(await rpc('eth_getTransactionCount', [from, 'pending'])))
           if (!Number.isSafeInteger(nonce)) throw new ConfirmedFailure('Invalid signer nonce.')
@@ -80,6 +99,10 @@ export function createCreator({ database, rpc, account, config, usdQuote }) {
           const gas = (BigInt(await rpc('eth_estimateGas', [{ from, to, data, value: '0x0' }])) * 120n + 99n) / 100n
           if (gas > BigInt(config.maxGasPerTx) || gasPrice > BigInt(config.maxGasPriceWei)) throw new ConfirmedFailure('Gas exceeds the configured operator budget.')
           const transaction = { chainId: CHAIN_ID, type: 'legacy', nonce, to, data, value: 0n, gas, gasPrice }
+          // An operator-scoped one-shot guard can narrow the ordinary worker to
+          // one request and one attempt per factory step before any key use.
+          try{await beforeSign?.({job,step,transaction})}
+          catch{throw new ConfirmedFailure('One-shot signing gate rejected this transaction.')}
           const raw = await account.signTransaction(transaction), hash = keccak256(raw)
           await guard()
           await database.execution.saveTransaction({ requestId: job.intent_id, step, resumeVersion: job.resume_version,

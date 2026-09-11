@@ -117,6 +117,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents))throw fault(400,'Choose an amount within the program\'s vault size limits.')
       const plan=await size(offer,principalCents,wallet)
       if(!validAddress(feeRecipient))throw fault(503,'The ETH creation-fee recipient is not configured.')
+      if(sameAddress(wallet,feeRecipient))throw fault(400,'The creation fee receiver cannot request a vault by paying itself.')
       if(typeof recoveryHash!=='string'||!/^0x[0-9a-f]{64}$/i.test(recoveryHash))throw fault(400,'A request recovery commitment is required.')
       const eth=await usdQuote(WETH)
       if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')

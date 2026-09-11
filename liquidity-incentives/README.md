@@ -152,6 +152,7 @@ npm run build
 npm test
 npm run test:database
 npm run test:lifecycle
+npm run test:watcher
 npm run test:browser
 npm run demo -- --smoke
 ```
@@ -178,6 +179,10 @@ The independent CI workflow runs database/EVM/browser checks and portable-build
 checks. Publishing/worker activation remain separate operator actions.
 [IMPLEMENTATION.md](IMPLEMENTATION.md) records the modular stages and validation.
 Local tests do not establish a live deployment or live funding.
+
+For keyless native-payment discovery and a strictly request-pinned, one-vault
+operator test, use [the watcher and one-request runbook](ops/ONE-REQUEST.md).
+This includes protected signer/RPC references and a real-factory Anvil fork.
 
 ## Browser-only UI review
 

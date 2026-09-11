@@ -1,16 +1,14 @@
 import { readFile } from 'node:fs/promises'
 import { decodeFunctionResult, encodeFunctionData, keccak256 } from 'viem'
 import { abi, CHAIN_ID, FACTORY } from '../shared/vault-lifecycle.mjs'
+import { protectedRpc } from './protected-config.mjs'
 
 /** Read-only operator inspection. Config contains references, never an EOA.
  * Results are public bytecode hashes/IDs; no provider URL or errors are echoed.
  */
 async function main() {
   const config=JSON.parse(await readFile(process.argv[2],'utf8'))
-  const rpc=async(method,params)=>{
-    const response=await fetch(config.rpcUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params}),signal:AbortSignal.timeout(15000)})
-    const body=await response.json();if(!response.ok||body.error)throw new Error('Inspection unavailable');return body.result
-  }
+  const rpc=await protectedRpc({...config,readOnly:true})
   if(BigInt(await rpc('eth_chainId',[]))!==BigInt(CHAIN_ID))throw new Error('Wrong chain')
   const block=await rpc('eth_getBlockByNumber',['latest',false])
   if(Date.now()-Number(BigInt(block.timestamp))*1000>60000)throw new Error('Stale chain')
