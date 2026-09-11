@@ -30,10 +30,9 @@ export function createExecutionDatabase(db) {
     // ordinary queue worker; an unknown ID must never fall back to another job.
     async claim(signer,owner,requestId=null){
       const row=(await query(`UPDATE ${s}.vault_jobs SET lease_owner=$2,lease_until=NOW()+INTERVAL '60 seconds',
-        state=CASE WHEN state='created' THEN state ELSE 'running' END,
-        funding_state=CASE WHEN operation='fund' THEN 'running' ELSE funding_state END,updated_at=NOW()
+        state='running',updated_at=NOW()
         WHERE intent_id=(SELECT intent_id FROM ${s}.vault_jobs WHERE signer=$1 AND ($3::uuid IS NULL OR intent_id=$3::uuid) AND next_attempt_at<=NOW()
-          AND (state IN ('queued','running','waiting') OR (state='created' AND funding_state IN ('queued','running','waiting')))
+          AND state IN ('queued','running','waiting')
           AND (EXISTS(SELECT 1 FROM ${s}.chain_operations t WHERE t.intent_id=${s}.vault_jobs.intent_id)
             OR EXISTS(SELECT 1 FROM ${s}.budget_reservations r WHERE r.intent_id=${s}.vault_jobs.intent_id AND r.released_raw<r.premium_raw))
           AND (lease_until IS NULL OR lease_until<NOW()) ORDER BY next_attempt_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING intent_id`,[signer.toLowerCase(),owner,requestId])).rows[0]
@@ -56,14 +55,14 @@ export function createExecutionDatabase(db) {
       return job
     },
     async setPlan(id,owner,plan){await transaction(async client=>{await lockedJob(client,id,owner);await client.query(`UPDATE ${s}.vault_jobs SET plan=$3,updated_at=NOW() WHERE intent_id=$1 AND lease_owner=$2`,[id,owner,plan])})},
-    async setState(id,owner,state,fundingState,error=null){
+    async setState(id,owner,state,error=null){
       await transaction(async client=>{
         const job=await lockedJob(client,id,owner)
-        const waiting=state==='waiting'||fundingState==='waiting'
+        const waiting=state==='waiting'
         const seconds=waiting?Math.min(300,5*2**Math.min(job.attempts,6)):0
-        await client.query(`UPDATE ${s}.vault_jobs SET state=$3,funding_state=$4,error=$5,lease_owner=NULL,lease_until=NULL,
-          attempts=CASE WHEN $6 THEN attempts+1 ELSE 0 END,next_attempt_at=NOW()+$7*INTERVAL '1 second',updated_at=NOW()
-          WHERE intent_id=$1 AND lease_owner=$2`,[id,owner,state,fundingState,error,waiting,seconds])
+        await client.query(`UPDATE ${s}.vault_jobs SET state=$3,error=$4,lease_owner=NULL,lease_until=NULL,
+          attempts=CASE WHEN $5 THEN attempts+1 ELSE 0 END,next_attempt_at=NOW()+$6*INTERVAL '1 second',updated_at=NOW()
+          WHERE intent_id=$1 AND lease_owner=$2`,[id,owner,state,error,waiting,seconds])
         if(state==='failed') await client.query(`UPDATE ${s}.deployment_intents SET status='needs_attention',updated_at=NOW() WHERE id=$1`,[id])
         if(state==='failed')await client.query(`UPDATE ${s}.payment_obligations SET kind='creation-failure',state='needs_attention',revision=revision+1,updated_at=NOW() WHERE hash=(SELECT p.hash FROM ${s}.payment_proofs p JOIN ${s}.deployment_intents i ON i.quote_id=p.quote_id WHERE i.id=$1) AND state='admitted'`,[id])
       })
@@ -114,7 +113,7 @@ export function createExecutionDatabase(db) {
       await transaction(async client=>{
         const job=await lockedJob(client,id,owner)
         if(job.plan.vault?.toLowerCase()!==snapshot.vault?.toLowerCase()) throw new Error('Creation identity changed.')
-        await client.query(`UPDATE ${s}.vault_jobs SET state='created',operation='observe',funding_state='external',lease_owner=NULL,lease_until=NULL,error=NULL,attempts=0,updated_at=NOW() WHERE intent_id=$1`,[id])
+        await client.query(`UPDATE ${s}.vault_jobs SET state='created',operation='observe',lease_owner=NULL,lease_until=NULL,error=NULL,attempts=0,updated_at=NOW() WHERE intent_id=$1`,[id])
         await client.query(`UPDATE ${s}.deployment_intents SET status='created',updated_at=NOW() WHERE id=$1`,[id])
       })
       await execution.saveObservation(id,snapshot)
@@ -145,11 +144,10 @@ export function createExecutionDatabase(db) {
         await db.lockBudget(client,current.budget_pool_id)
         const job=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(job.state==='retired'||job.lease_until>new Date(db.now()))throw fault(409,'The worker must finish reconciling its current action.')
-        if(operation==='resume'&&!['failed','waiting'].includes(job.state)&&!['failed','waiting'].includes(job.funding_state))throw fault(409,'This deployment does not need a resume.')
-        if(operation==='collect'&&!job.plan.vault)throw fault(409,'The vault has not been created.')
-        await client.query(`UPDATE ${s}.vault_jobs SET operation=$2,state=$3,funding_state=$4,funding_operator=$5,resume_version=resume_version+1,
+        if(operation==='resume'&&!['failed','waiting'].includes(job.state))throw fault(409,'This deployment does not need a resume.')
+        await client.query(`UPDATE ${s}.vault_jobs SET operation=$2,state='queued',operation_actor=$3,resume_version=resume_version+1,
           error=NULL,attempts=0,next_attempt_at=NOW(),updated_at=NOW() WHERE intent_id=$1`,
-          [id,operation==='resume'?job.operation:operation,operation==='resume'&&job.state==='created'?'created':'queued',operation==='resume'&&job.operation==='fund'?'queued':job.funding_state,operator])
+          [id,operation==='resume'?job.operation:operation,operator])
         if(operation==='retire')await client.query(`UPDATE ${s}.deployment_intents SET cancel_requested=TRUE WHERE id=$1`,[id])
       })
     },
@@ -161,7 +159,7 @@ export function createExecutionDatabase(db) {
         const reservation=(await client.query(`SELECT * FROM ${s}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(BigInt(reservation.released_raw)>0n)throw new Error('Already retired.')
         await db.entry(client,{budgetId:current.budget_pool_id,intentId:id,kind:'release-recovered',reserved:-BigInt(reservation.reserved_raw),
-          allocated:-BigInt(reservation.allocated_raw),actor:job.funding_operator,evidence})
+          allocated:-BigInt(reservation.allocated_raw),actor:job.operation_actor,evidence})
         await client.query(`UPDATE ${s}.budget_pools SET reserved_raw=reserved_raw-$2,allocated_raw=allocated_raw-$3 WHERE id=$1`,[current.budget_pool_id,reservation.reserved_raw,reservation.allocated_raw])
         await client.query(`UPDATE ${s}.budget_reservations SET reserved_raw=0,allocated_raw=0,released_raw=premium_raw WHERE intent_id=$1`,[id])
         await client.query(`UPDATE ${s}.vault_jobs SET state='retired',lease_owner=NULL,lease_until=NULL,error=NULL WHERE intent_id=$1`,[id])
@@ -183,8 +181,6 @@ export function createExecutionDatabase(db) {
         await client.query(`UPDATE ${s}.deployment_intents SET status='needs_attention' WHERE id=$1`,[id])
       })
     },
-    // Only unpaid quote holds expire. Paid creation commitments remain durable.
-    async expireQueued(){},
   }
   return execution
 }

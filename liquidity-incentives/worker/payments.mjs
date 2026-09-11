@@ -1,4 +1,4 @@
-import { verifyPayment,paymentData } from '../server/payment-proof.mjs'
+import { verifyPayment } from '../server/payment-proof.mjs'
 import { CHAIN_ID } from '../shared/vault-lifecycle.mjs'
 
 /** Keyless canonical block watcher. Lost browser callbacks do not lose payments:
@@ -30,11 +30,6 @@ export function createPaymentWatcher({database:db,rpc,startBlock,confirmations=2
         }
         await db.settleCheckouts(id,canonical)
       }
-      // Additive upgrade for native quotes created before the index existed.
-      // Never reads/imports the old Arbitrum receipt schema.
-      const unindexed=(await db.query("SELECT id,body FROM saffron_incentives.deployment_quotes WHERE payment_commitment IS NULL AND body ? 'fee' LIMIT 1000")).rows
-      for(const q of unindexed)await db.query('UPDATE saffron_incentives.deployment_quotes SET payment_commitment=$2 WHERE id=$1 AND payment_commitment IS NULL',[q.id,paymentData(q.body)])
-      if(unindexed.length===1000)return {state:'indexing'}
       const safeHead=BigInt(await rpc('eth_blockNumber',[]))-BigInt(confirmations-1)
       let next=cursor.block_number===null?start:BigInt(cursor.block_number)+1n,previousHash=cursor.block_hash,scanned=0,accepted=0,attention=0,rejected=0
       while(next<=safeHead&&scanned<maxBlocks){

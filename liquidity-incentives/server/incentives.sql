@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.budget_pools (
   chain_id INTEGER NOT NULL CHECK (chain_id=4663), reward_asset TEXT NOT NULL, decimals INTEGER NOT NULL CHECK (decimals BETWEEN 0 AND 18),
   limit_raw NUMERIC(78,0) NOT NULL CHECK (limit_raw>=0), reserved_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (reserved_raw>=0),
   allocated_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (allocated_raw>=0), paused BOOLEAN NOT NULL DEFAULT FALSE,
-  reconciliation_required BOOLEAN NOT NULL DEFAULT FALSE, updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reconciliation_required BOOLEAN NOT NULL DEFAULT FALSE,campaign JSONB, updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (reserved_raw+allocated_raw<=limit_raw)
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.programs (
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
   id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),
   budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  client_hash TEXT REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT,
+  client_hash TEXT REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT,payment_commitment TEXT,
   hold_state TEXT NOT NULL DEFAULT 'held' CHECK(hold_state IN ('held','closing','accepted','released')),
   hold_raw NUMERIC(78,0) NOT NULL CHECK(hold_raw>0),sizing_block BIGINT NOT NULL CHECK(sizing_block>=0),
   settled_cursor TEXT,settled_block BIGINT,settled_hash TEXT
@@ -55,7 +55,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS quotes_client_request ON saffron_incentives.de
 CREATE INDEX IF NOT EXISTS quotes_wallet_time ON saffron_incentives.deployment_quotes(wallet,created_at);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_intents (
   id UUID PRIMARY KEY, quote_id UUID NOT NULL UNIQUE REFERENCES saffron_incentives.deployment_quotes(id), wallet TEXT NOT NULL,
-  budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), signature TEXT NOT NULL, plan_hash TEXT NOT NULL,
+  budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), plan_hash TEXT NOT NULL,
   snapshot JSONB NOT NULL, accepted_plan JSONB NOT NULL, status TEXT NOT NULL DEFAULT 'queued',
   cancel_requested BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.budget_reservations (
   intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
   premium_raw NUMERIC(78,0) NOT NULL CHECK (premium_raw>0), reserved_raw NUMERIC(78,0) NOT NULL CHECK (reserved_raw>=0),
   allocated_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (allocated_raw>=0), released_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (released_raw>=0),
-  expires_at TIMESTAMPTZ NOT NULL, CHECK (reserved_raw+allocated_raw+released_raw=premium_raw)
+  CHECK (reserved_raw+allocated_raw+released_raw=premium_raw)
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.budget_entries (
   id BIGSERIAL PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
@@ -77,9 +77,9 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.budget_entries (
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.vault_jobs (
   intent_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_intents(id), signer TEXT NOT NULL, factory TEXT NOT NULL,
-  chain_id INTEGER NOT NULL CHECK (chain_id=4663), state TEXT NOT NULL DEFAULT 'queued', funding_state TEXT NOT NULL DEFAULT 'unapproved',
-  plan JSONB NOT NULL, funding_max_raw NUMERIC(78,0), funding_operator TEXT, operation TEXT NOT NULL DEFAULT 'create',
-  resume_version INTEGER NOT NULL DEFAULT 0, funding_round INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  chain_id INTEGER NOT NULL CHECK (chain_id=4663), state TEXT NOT NULL DEFAULT 'queued',
+  plan JSONB NOT NULL, operation_actor TEXT, operation TEXT NOT NULL DEFAULT 'create' CHECK(operation IN ('create','observe','retire')),
+  resume_version INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   lease_owner TEXT, lease_until TIMESTAMPTZ, error TEXT,funding_observed_at TIMESTAMPTZ,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.chain_operations (
@@ -102,10 +102,6 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.user_operations (
 );
 CREATE INDEX IF NOT EXISTS user_operations_wallet_intent ON saffron_incentives.user_operations(wallet,intent_id) WHERE canonical=TRUE;
 
--- Additive migration for externally funded USD campaigns and ETH payment proofs.
--- Existing journals/commitments are retained; no legacy tables are dropped.
-ALTER TABLE saffron_incentives.budget_pools ADD COLUMN IF NOT EXISTS campaign JSONB;
-ALTER TABLE saffron_incentives.deployment_intents ALTER COLUMN signature DROP NOT NULL;
 CREATE TABLE IF NOT EXISTS saffron_incentives.payment_proofs (
   hash TEXT PRIMARY KEY, quote_id UUID NOT NULL UNIQUE REFERENCES saffron_incentives.deployment_quotes(id),
   wallet TEXT NOT NULL, evidence JSONB NOT NULL, state TEXT NOT NULL DEFAULT 'verified',
@@ -114,7 +110,6 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_proofs (
 
 -- A keyless scanner can discover a mined fee even if the browser loses its hash.
 -- This is the same public commitment carried in payment calldata, not a secret.
-ALTER TABLE saffron_incentives.deployment_quotes ADD COLUMN IF NOT EXISTS payment_commitment TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS quotes_payment_commitment ON saffron_incentives.deployment_quotes(payment_commitment);
 CREATE TABLE IF NOT EXISTS saffron_incentives.payment_scan_cursors (
   id TEXT PRIMARY KEY,chain_id INTEGER NOT NULL CHECK(chain_id=4663),

@@ -21,7 +21,6 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
   if(retirementOnly&&!requestId)throw new Error('Retirement requires one pinned request.')
   const owner = randomUUID()
   async function tick() {
-    await database.execution.expireQueued()
     if(!requestId)await database.execution.heartbeat(account.address)
     const lock = await database.execution.signerLock(account.address)
     if (!lock) return { state: 'locked' }
@@ -191,8 +190,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
       if (job) {
         const waiting = error instanceof Waiting || !(error instanceof ConfirmedFailure)
         const reason = error instanceof Waiting || error instanceof ConfirmedFailure ? error.message : 'Worker/RPC unavailable; all saved transactions retained.'
-        await database.execution.setState(job.intent_id, owner, job.state === 'created' ? 'created' : waiting ? 'waiting' : 'failed',
-          job.state === 'created' ? waiting ? 'waiting' : 'failed' : job.funding_state, reason)
+        await database.execution.setState(job.intent_id, owner, waiting ? 'waiting' : 'failed', reason)
         return { state: waiting ? 'waiting' : 'failed', requestId: job.intent_id, reason }
       }
       throw error

@@ -24,7 +24,7 @@ const asBudget = row => ({ campaign:row.campaign??null, id: row.id, revision: ro
 
 /** All acceptance/accounting mutations use real SQL transactions. No RPC occurs under a row lock. */
 export function createIncentivesDatabase({ connection, now = Date.now, maxPendingPerWallet = 3, maxPending = 100,
-  reservationMs = 15 * 60_000, quoteMs = 120_000, initializationRetryMs = 5_000,checkoutPolicy={} } = {}) {
+  quoteMs = 120_000, initializationRetryMs = 5_000,checkoutPolicy={} } = {}) {
   const checkout={maxQuoteBps:1000,maxHeldBps:2500,maxUnpaid:32,...checkoutPolicy}
   if(!Number.isInteger(checkout.maxQuoteBps)||checkout.maxQuoteBps<1||checkout.maxQuoteBps>5000||!Number.isInteger(checkout.maxHeldBps)||checkout.maxHeldBps<checkout.maxQuoteBps||checkout.maxHeldBps>10000
     ||!Number.isInteger(checkout.maxUnpaid)||checkout.maxUnpaid<1||checkout.maxUnpaid>1000)throw new Error('Invalid checkout admission policy.')
@@ -70,8 +70,8 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [key,budgetId,intentId,kind,String(limit),String(reserved),String(allocated),actor,evidence])
   }
   async function getIntent(id, client = { query }) {
-    return (await client.query(`SELECT i.*,j.signer,j.factory,j.chain_id,j.state,j.funding_state,j.plan,j.operation,j.funding_max_raw,j.funding_operator,
-      j.resume_version,j.funding_round,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id,j.funding_observed_at
+    return (await client.query(`SELECT i.*,j.signer,j.factory,j.chain_id,j.state,j.plan,j.operation,j.operation_actor,
+      j.resume_version,j.attempts,j.error,j.lease_owner,j.lease_until,j.next_attempt_at,j.intent_id,j.funding_observed_at
       FROM ${schema}.deployment_intents i JOIN ${schema}.vault_jobs j ON j.intent_id=i.id WHERE i.id=$1`, [id])).rows[0] ?? null
   }
   /** Derive USD and fixed-side accounting from immutable accepted terms.
@@ -346,10 +346,10 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         const premium=BigInt(quote.plan.premium)
         if (premium+await db.rawHolds(client,quote.budgetPoolId,quoteId)>BigInt(budget.limit_raw)-BigInt(budget.reserved_raw)-BigInt(budget.allocated_raw)) throw fault(409,'Funding obligations require reconciliation. The payment remains saved.')
         const id=randomUUID()
-        await client.query(`INSERT INTO ${schema}.deployment_intents (id,quote_id,wallet,budget_pool_id,signature,plan_hash,snapshot,accepted_plan)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,[id,quoteId,quote.wallet,quote.budgetPoolId,null,quote.planHash,quote.snapshot,quote.plan])
-        await client.query(`INSERT INTO ${schema}.budget_reservations (intent_id,budget_pool_id,premium_raw,reserved_raw,expires_at) VALUES ($1,$2,$3,$3,$4)`,
-          [id,quote.budgetPoolId,premium.toString(),new Date(now()+reservationMs)])
+        await client.query(`INSERT INTO ${schema}.deployment_intents (id,quote_id,wallet,budget_pool_id,plan_hash,snapshot,accepted_plan)
+          VALUES ($1,$2,$3,$4,$5,$6,$7)`,[id,quoteId,quote.wallet,quote.budgetPoolId,quote.planHash,quote.snapshot,quote.plan])
+        await client.query(`INSERT INTO ${schema}.budget_reservations (intent_id,budget_pool_id,premium_raw,reserved_raw) VALUES ($1,$2,$3,$3)`,
+          [id,quote.budgetPoolId,premium.toString()])
         await client.query(`UPDATE ${schema}.budget_pools SET reserved_raw=reserved_raw+$2 WHERE id=$1`,[quote.budgetPoolId,premium.toString()])
         await entry(client,{key:`accept:${id}`,budgetId:quote.budgetPoolId,intentId:id,kind:'reserve',reserved:premium,actor:quote.wallet})
         await client.query(`INSERT INTO ${schema}.vault_jobs (intent_id,signer,factory,chain_id,plan) VALUES ($1,$2,$3,$4,$5)`,[id,quote.signer,FACTORY,CHAIN_ID,quote.plan])
@@ -397,7 +397,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       }
       return client?reconcile(client):transaction(reconcile)
     },
-    async cancelDeployment(id,wallet,{expiredOnly=false}={}) {
+    async cancelDeployment(id,wallet) {
       const current=await getIntent(id)
       if(!current || current.wallet!==wallet.toLowerCase()) throw fault(404,'Deployment not found for this wallet.')
       return transaction(async client=>{
@@ -405,11 +405,8 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
         const job=(await client.query(`SELECT * FROM ${schema}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(job.state==='retired') return {retired:true}
         const operations=await client.query(`SELECT 1 FROM ${schema}.chain_operations WHERE intent_id=$1 LIMIT 1`,[id])
-        const reservation=(await client.query(`SELECT *,expires_at<=NOW() AS expired FROM ${schema}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
+        const reservation=(await client.query(`SELECT * FROM ${schema}.budget_reservations WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         const leased=job.lease_until && job.lease_until.getTime()>now()
-        // The expiry sweep may have selected this row before a lease or journal
-        // changed. Recheck while locked without turning expiry into cancellation.
-        if(expiredOnly&&(!reservation.expired||operations.rowCount||leased))return {retired:false}
         if(operations.rowCount || leased) {
           await client.query(`UPDATE ${schema}.deployment_intents SET cancel_requested=TRUE,updated_at=NOW() WHERE id=$1`,[id])
           return {retired:false,needsReconciliation:true}

@@ -42,7 +42,7 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
     {row.error&&<FinePrint>{row.error} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
     {row.plan.vault&&<FundingBrief account={account} id={row.id}/>}
     <Row style={{flexWrap:'wrap'}}>
-      {(row.workerState==='failed'||['failed','waiting'].includes(row.fundingState)||row.error)&&row.workerState!=='retired'&&<QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton>}
+      {['failed','waiting'].includes(row.workerState)&&<QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton>}
       {row.workerState!=='retired'&&(!row.plan.vault||(s?.verified&&!s.isStarted&&BigInt(s.claimSupply)===0n))&&<QuietButton disabled={busy} onClick={()=>void run('retire')}>Verify external recovery and retire</QuietButton>}
     </Row>
     {s?.verified&&!s.isStarted&&BigInt(s.claimSupply)>0n&&<FinePrint>The fixed-position owner must recover their LP assets before this vault can be retired.</FinePrint>}

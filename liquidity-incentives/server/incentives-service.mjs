@@ -167,8 +167,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async operatorStatus(){
       let gasBalanceRaw=null
       try{if(validAddress(signer))gasBalanceRaw=BigInt(await rpc('eth_getBalance',[signer,'latest'])).toString()}catch{}
-      const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired') OR funding_state IN ('queued','running','waiting','failed'))::int AS pending,
-        count(*) FILTER(WHERE (state NOT IN ('created','retired') OR funding_state IN ('queued','running','waiting','failed')) AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
+      const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired'))::int AS pending,
+        count(*) FILTER(WHERE state NOT IN ('created','retired') AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
         FROM saffron_incentives.vault_jobs`)).rows[0]
       return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness:await service.readiness()}
     },
@@ -357,8 +357,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(depositable&&(!progress.verificationAvailable||progress.stages.some(s=>s.state!=='complete'))){depositable=false;state='checking'}
       return jsonSafe({id:job.id,wallet:job.wallet,positionWallet:wallet.toLowerCase(),isRequester,programId:job.snapshot.programId,createdAt:job.created_at,planHash:job.plan_hash,plan:job.plan,
         snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,progress,
-        workerState:job.state,fundingState:job.funding_state,cancelRequested:job.cancel_requested,error:job.error,transactions,
-        nextAttemptAt:job.next_attempt_at,fundingOperator:job.funding_operator})
+        workerState:job.state,fundingState:!fresh?'unverified':observation.isStarted?'spent':BigInt(observation.variableSupply)===BigInt(observation.variableCapacity)?'funded':BigInt(observation.variableSupply)>0n?'partial':'awaiting_external',cancelRequested:job.cancel_requested,error:job.error,transactions,
+        nextAttemptAt:job.next_attempt_at})
     },
     async detail(id,wallet,admin=false,{fresh=true}={}){
       let job=await db.getIntent(id)
@@ -420,7 +420,6 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(polling)return;polling=true
       try{
         await service.reconcileRefunds()
-        await db.execution.expireQueued()
         const jobs=await db.execution.tracked();let index=0
         await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{while(index<jobs.length)await refresh(jobs[index++].intent_id)}))
         for(const budget of (await db.catalog(true)).budgets){await db.auditBudget(budget.id);await service.auditReleases(budget.id)}

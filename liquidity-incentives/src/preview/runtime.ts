@@ -89,7 +89,7 @@ export function useDeploymentFlow(account:Address|null){
     if(current.budget.paused||BigInt(quote.principalCents)>BigInt(current.eligibleMaximumCents??0)){setError('Campaign capacity is exhausted.');return}
     const row:Deployment={id:quote.id,wallet:PREVIEW_ACCOUNT,positionWallet:PREVIEW_ACCOUNT,isRequester:true,programId:quote.programId,createdAt:new Date().toISOString(),planHash:quote.planHash,
       snapshot:quote.snapshot,plan:{...quote.plan,vault:'0x3333333333333333333333333333333333333333'},signer:PREVIEW_ACCOUNT,observation:null,state:'awaiting_funding',depositable:false,canClaim:false,canWithdraw:false,canRecover:false,
-      workerState:'created',fundingState:'external',cancelRequested:false,error:null,transactions:[],nextAttemptAt:new Date().toISOString(),fundingOperator:null,
+      workerState:'created',fundingState:'awaiting_external',cancelRequested:false,error:null,transactions:[],nextAttemptAt:new Date().toISOString(),
       progress:{version:1,reason:'awaiting_funding',activeStage:4,requestedAt:new Date().toISOString(),acceptedAt:new Date().toISOString(),lastProgressAt:new Date().toISOString(),checkedAt:new Date().toISOString(),observedBlock:null,verificationAvailable:true,operatorAction:false,paymentState:'admitted',serviceWindowMinutes:30,
         stages:['Prepare adapter','Create vault','Initialize and verify','Fund premium and enable entry'].map((name,index)=>({id:index+1,name,state:index<3?'complete':'active',hash:null,confirmedAt:index<3?new Date().toISOString():null}))}}
     state.jobs.unshift(row);save();setDeployment(row)

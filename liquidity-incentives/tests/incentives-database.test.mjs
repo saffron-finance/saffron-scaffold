@@ -7,6 +7,16 @@ import pg from 'pg'
 import { once } from 'node:events'
 
 const account=()=>privateKeyToAccount(generatePrivateKey())
+it('bootstrap creates an empty standalone catalog without superseded signature or worker-funding columns',async()=>{
+  const f=await incentivesFixture()
+  try{
+    assert.deepEqual(await f.database.catalog(true),{pairs:[],programs:[],budgets:[]})
+    const columns=(await f.database.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='saffron_incentives'")).rows
+    for(const name of ['signature','funding_state','funding_max_raw','funding_operator','funding_round'])assert.equal(columns.some(c=>c.column_name===name),false)
+    assert.equal(columns.some(c=>c.table_name==='budget_reservations'&&c.column_name==='expires_at'),false)
+    assert.equal(columns.some(c=>c.table_name==='deployment_quotes'&&c.column_name==='payment_commitment'),true)
+  }finally{await f.close()}
+})
 it('a lost idle PostgreSQL connection reconnects without losing accepted intents',async()=>{
   const fixture=await incentivesFixture(),a=account()
   const control=new pg.Pool({...fixture.connection,database:'postgres',max:1})
@@ -146,8 +156,8 @@ it('paid commitments do not expire while a worker is interrupted',async()=>{
     const db=fixture.database;await fixture.seed(a.address)
     const quote=await fixture.quote(a,{premium:'1000'}),{id}=await fixture.accept(a,quote)
     await db.execution.claim(a.address,'interrupted')
-    await db.query("UPDATE saffron_incentives.budget_reservations SET expires_at=NOW()-INTERVAL '1 day' WHERE intent_id=$1",[id])
-    await db.execution.expireQueued();await db.execution.authorizeStep(id,'interrupted')
+    await db.query("UPDATE saffron_incentives.deployment_intents SET created_at=NOW()-INTERVAL '1 day' WHERE id=$1",[id])
+    await db.execution.authorizeStep(id,'interrupted')
     await db.query("UPDATE saffron_incentives.vault_jobs SET lease_until=NOW()-INTERVAL '1 minute' WHERE intent_id=$1",[id])
     assert.equal((await db.execution.claim(a.address,'restarted')).id,id)
     assert.equal((await db.auditBudget(program.budgetPoolId)).budget.reservedRaw,'1000')
