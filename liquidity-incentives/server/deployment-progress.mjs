@@ -46,7 +46,7 @@ export async function deploymentProgress({job,observation,journal,payment,policy
     :stages[2].state==='complete'&&!funded?'awaiting_funding':stages.every(s=>s.state==='complete')?'ready':'creating'
   const operatorAction=reason==='operator_review'||reason.startsWith('payment_')||reason==='retirement_requested'
   const first=stages.find(stage=>stage.state!=='complete')
-  if(first&&first.state==='pending'&&reason!=='queued')first.state=operatorAction?'blocked':'active'
+  if(first&&first.state==='pending'&&reason!=='queued')first.state=operatorAction||reason==='retired'?'blocked':'active'
   const times=stages.map(s=>s.confirmedAt).filter(Boolean)
   return {version:1,reason,stages,activeStage:first?.id??null,requestedAt:job.created_at.toISOString(),acceptedAt:job.created_at.toISOString(),
     lastProgressAt:times.sort().at(-1)??job.created_at.toISOString(),checkedAt:new Date(now()).toISOString(),

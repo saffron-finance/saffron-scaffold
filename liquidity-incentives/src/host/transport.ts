@@ -13,17 +13,18 @@ export const paymentSessionKey=(account:string)=>'saffron.payment-session.v1:'+a
 export function rememberPayment(account:Address,proof:object,current:WalletSession){localStorage.setItem(paymentSessionKey(account),JSON.stringify(proof));if(viewerWallet?.toLowerCase()===account.toLowerCase())session=current;window.dispatchEvent(new Event('saffron:session'))}
 let signing:Promise<WalletSession>|null=null
 export async function requestJson(path:string,body?:object,signal?:AbortSignal){
-  if(!body&&viewerWallet&&/^\/(deployments|positions)(\/|\?|$)/.test(path))path+=(path.includes('?')?'&':'?')+'wallet='+viewerWallet
+  if(!body&&viewerWallet&&/^\/(deployments|positions)(\/|\?|$)/.test(path)&&!new URLSearchParams(path.split('?')[1]).has('wallet'))path+=(path.includes('?')?'&':'?')+'wallet='+viewerWallet
   const response=await fetch(apiUrl(path),{cache:'no-store',credentials:'same-origin',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(30_000)]):AbortSignal.timeout(30_000),
     ...(body?{method:'POST',headers:{'content-type':'application/json','x-saffron-csrf':session?.csrf??''},body:JSON.stringify(body)}:{})})
   const result=await response.json().catch(()=>null)
   if(!response.ok||!result){if(response.status===401)session=null;throw new Error(result?.error??'The application is unavailable. Your saved deployment can be resumed.')}
   return result
 }
-export async function readSession(account:Address|null){
+export async function readSession(account:Address|null,signal?:AbortSignal){
   viewerWallet=account
-  session=(await requestJson('/session')).session
-  return session?.wallet.toLowerCase()===account?.toLowerCase()?session:null
+  const current=(await requestJson('/session',undefined,signal)).session
+  if(viewerWallet===account&&!signal?.aborted)session=current
+  return current?.wallet.toLowerCase()===account?.toLowerCase()?current:null
 }
 export async function ensureOperatorSession(account:Address):Promise<WalletSession>{
   await assertWalletAccount(account)

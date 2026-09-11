@@ -22,20 +22,20 @@ export default function IncentivesPage(props:{account:Address|null;onConnect:()=
 }
 function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void;preview?:boolean}){
   const flow=useDeploymentFlow(account),positions=useDeployments(account),catalog=useIncentivePrograms()
-  const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false)
+  const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false),[openPosition,setOpenPosition]=useState(false)
   const base=import.meta.env.BASE_URL.replace(/\/$/,'')
   const [route,setRoute]=useState(()=>(location.pathname.slice(base.length).replace(/\/+$/,'')||'/'))
   const price=useOfferPrice(flow.quote?null:selected)
   const groups=Array.from(new Set(catalog.offers.map(o=>o.pairId))).map(id=>catalog.offers.filter(o=>o.pairId===id))
   function navigate(path:string){history.pushState(null,'',base+path);setRoute(path);window.dispatchEvent(new Event('saffron:navigation'))}
   useEffect(()=>{const update=()=>setRoute((location.pathname.slice(base.length).replace(/\/+$/,'')||'/'));window.addEventListener('popstate',update);return()=>window.removeEventListener('popstate',update)},[base])
-  function openOffer(offer:Offer){flow.restore();setSelected(offer);setVaultId(null);setResume(false)}
+  function openOffer(offer:Offer){flow.restore();setSelected(offer);setVaultId(null);setResume(false);setOpenPosition(false)}
   function close(){setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page>
-    {route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Vaults</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={setVaultId} onAdmin={()=>navigate('/admin')}/>:<>
+    {route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Vaults</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={(id,position=false)=>{setVaultId(id);setOpenPosition(position)}} onAdmin={()=>navigate('/admin')}/>:<>
       <TitleRow><StepTitle>Liquidity Incentives</StepTitle><QuietButton onClick={()=>navigate('/portfolio/vaults')}>My requests</QuietButton></TitleRow>
       <Introduction aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration, target APR and available capacity. Review your position and premium before paying the $2 creation fee in ETH.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from My requests.</StepSubtitle></Introduction>
-      {flow.saved&&<Recovery><FinePrint>A creation payment request is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
+      {flow.saved&&<Recovery><FinePrint>A creation payment request is saved.</FinePrint><QuietButton onClick={()=>{setOpenPosition(false);setResume(true)}}>Resume deployment</QuietButton></Recovery>}
       {flow.draft&&<Recovery><FinePrint>An unpaid checkout review is saved.</FinePrint><QuietButton disabled={!catalog.offers.some(o=>o.id===flow.draft?.programId)} onClick={()=>{const offer=catalog.offers.find(o=>o.id===flow.draft?.programId);if(offer)openOffer(offer)}}>Resume checkout</QuietButton><QuietButton disabled={flow.busy} onClick={()=>void flow.reset()}>Discard unpaid checkout</QuietButton></Recovery>}
       {catalog.loading&&<FinePrint role='status'>Loading incentive programs…</FinePrint>}
       {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
@@ -52,7 +52,7 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
       </Programs></ProgramGroup>)}
       <Row><FinePrint>Available size depends on the shared campaign budget and current prices.{catalog.readiness&&!catalog.readiness.canQuote?' New requests are temporarily paused.':''}</FinePrint><QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     </>}
-    {(selected||vaultId||resume)&&<IncentiveModal preview={preview} offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} onClose={close} onConnect={onConnect}/>}
+    {(selected||vaultId||resume)&&<IncentiveModal preview={preview} offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} openPosition={openPosition} onClose={close} onConnect={onConnect}/>}
   </Page>
 }
 

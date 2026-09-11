@@ -10,12 +10,15 @@ import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
 import { Action,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,Row,Stack,Token } from './styles'
 import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
-import { VaultLifecyclePanel } from './VaultLifecyclePanel'
+import { DeploymentWaiting } from './DeploymentWaiting'
+import { PaymentWaiting } from './PaymentWaiting'
 
-export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,onConnect,preview}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;onClose:()=>void;onConnect:()=>void;preview?:boolean}){
+export function IncentiveModal({offer,account,flow,price,deploymentId,openPosition=false,onClose,onConnect,preview}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;openPosition?:boolean;onClose:()=>void;onConnect:()=>void;preview?:boolean}){
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[now,setNow]=useState(Date.now)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
-  const second=Boolean(id||reviewed),busy=flow.busy||nativeBusy
+  const [phase,setPhase]=useState<'amount'|'payment-review'|'waiting'|'position'>(id?(openPosition?'position':'waiting'):flow.saved?.sent?'waiting':reviewed?'payment-review':'amount')
+  const busy=flow.busy||nativeBusy
+  useEffect(()=>{if(id)setPhase(openPosition?'position':'waiting');else setPhase(flow.saved?.sent?'waiting':reviewed?'payment-review':'amount')},[id,Boolean(reviewed),flow.saved?.sent,openPosition])
   const titleId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
   const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby',titleId)},[titleId])
   const focusedDeposit=useRef<HTMLInputElement|null>(null)
@@ -27,7 +30,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
       queueMicrotask(()=>{if(node.isConnected)node.focus({preventScroll:true})})
     }
   },[])
-  useEffect(()=>{if(second)titleRef.current?.focus()},[second,id])
+  useEffect(()=>{if(phase!=='amount')titleRef.current?.focus()},[phase,id])
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return ()=>clearInterval(timer)},[])
   const amount=Number(deposit),max=offer?.eligibleMaximumCents?Number(offer.eligibleMaximumCents)/100:0
   const minimum=offer?Number(offer.minimumCents)/100:0
@@ -37,16 +40,17 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
   const pair=offer?offer.token0.symbol+' / '+offer.token1.symbol:''
   const expired=reviewed&&Date.parse(reviewed.expiresAt)<=now
   const raw=reviewed?amountsForLiquidity(reviewed.plan.liquidity,reviewed.plan.sqrtPrice,reviewed.plan.minTick,reviewed.plan.maxTick):null
-  const close=()=>{if(!busy)onClose()}
-  return <Modal isOpen onRequestClose={close} shouldCloseOnOverlayClick={!busy} contentStyle={{padding:'10px 28px 26px 28px'}}>
-    <Close aria-label='Close incentive vault' disabled={busy} onClick={close}>×</Close>
-    <Header $hasLogo={!second}><RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
-      {second?(id?'Your incentive vault':'Review deployment'):<TitleContent><Token><PairIcons><TokenIcon symbol={offer!.token0.symbol} size={24}/><TokenIcon symbol={offer!.token1.symbol} size={24}/></PairIcons>{pair}</Token>
+  const canClose=!nativeBusy&&(phase==='waiting'||!flow.busy)
+  const close=()=>{if(canClose)onClose()}
+  return <Modal isOpen onRequestClose={close} shouldCloseOnOverlayClick={canClose} contentStyle={{padding:'10px 28px 26px 28px'}}>
+    <Close aria-label='Close incentive vault' disabled={!canClose} onClick={close}>×</Close>
+    <Header $hasLogo={phase==='amount'}><RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
+      {phase!=='amount'||!offer?(phase==='amount'?'Choose an incentive program':phase==='position'?'Your incentive vault':phase==='waiting'?'Your vault request':'Review deployment'):<TitleContent><Token><PairIcons><TokenIcon symbol={offer!.token0.symbol} size={24}/><TokenIcon symbol={offer!.token1.symbol} size={24}/></PairIcons>{pair}</Token>
         <TitleStats><TitleApr data-incentive-apr>{offer!.apr.toLocaleString()}% APR</TitleApr><TitleDays>{offer!.days} days</TitleDays></TitleStats></TitleContent>}
-    </RequestTitle>{!second&&<InteractiveEmblem/>}</Header>
+    </RequestTitle>{phase==='amount'&&<InteractiveEmblem/>}</Header>
     <ModalContent>
       {preview&&<FinePrint>Preview only · sample prices and simulated payments. No funds move.</FinePrint>}
-      {id&&account?<VaultLifecyclePanel key={account+id} account={account} id={id} onBusy={setNativeBusy}/>:reviewed?<>
+      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={phase==='position'} onPosition={()=>setPhase('position')} onBusy={setNativeBusy}/>:phase==='waiting'?<PaymentWaiting flow={flow}/>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li>LP value at request: <b>{usd(Number(reviewed.principalCents)/100)}</b>.</li>
           <li>Estimated LP: <b>{formatUnits(raw!.amount0,reviewed.plan.token0.decimals)} {reviewed.plan.token0.symbol}</b> and <b>{formatUnits(raw!.amount1,reviewed.plan.token1.decimals)} {reviewed.plan.token1.symbol}</b>.</li>
@@ -58,7 +62,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,onClose,on
         {flow.quote?.fee&&<FinePrint>Creation fee: $2 in ETH ({formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH), plus network gas. Payment reserves this exact vault request.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
-        <Action disabled={busy||Boolean(expired&&!flow.saved?.sent)} onClick={()=>void flow.pay()}>{busy?'Confirming payment…':flow.saved?.sent?'Check payment':'Pay $2 in ETH'}</Action>
+        <Action disabled={busy||flow.saved?.status==='confirmed_unpaid'||Boolean(expired&&!flow.saved?.sent)} onClick={()=>void flow.pay()}>{busy?'Confirming payment…':flow.saved?.sent?'Check payment':'Pay $2 in ETH'}</Action>
         {!flow.saved?.sent&&<QuietButton disabled={busy} onClick={flow.reset}>Change amount / refresh payment quote</QuietButton>}
       </>:offer?<>
         <Range aria-label='Full price range'><Row><Label>Price range: full</Label><RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch></Row><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></Range>

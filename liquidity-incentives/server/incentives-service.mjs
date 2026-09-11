@@ -250,6 +250,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         WHERE quote_id=$1 ORDER BY EXISTS(SELECT 1 FROM saffron_incentives.payment_proofs p WHERE p.hash=o.hash) DESC,o.created_at LIMIT 1`,[quoteId])).rows[0]
       if(!payment)return {state:'discovering'}
       await verifyPayment(quote,payment.hash,recoverySecret,rpc,{confirmations:config?.confirmations??2,allowAmountMismatch:true})
+      if(payment.state==='refunded')await service.auditRefundSettlements()
       const intent=(await db.query('SELECT id FROM saffron_incentives.deployment_intents WHERE quote_id=$1',[quoteId])).rows[0]
       return {state:payment.state,kind:payment.kind,amountWei:payment.amount_wei,paymentHash:payment.hash,wallet:quote.wallet,...(intent?{deployment:await service.detail(intent.id,quote.wallet,false,{fresh:false})}:{})}
     },

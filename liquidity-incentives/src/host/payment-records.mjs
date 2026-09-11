@@ -1,6 +1,6 @@
 export const paymentRecordsKey=wallet=>'saffron.creation-payments.v1:'+wallet.toLowerCase()
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
-const states=['prepared','submitting','submitted','confirming','accepted','needs_attention','confirmed_unpaid','abandoned']
+const states=['prepared','submitting','submitted','confirming','accepted','needs_attention','confirmed_unpaid','abandoned','refunded']
 
 /** One storage write publishes the records and active pointer together. Callers
  * hold the wallet Web Lock; revisions also reject stale async callbacks. */
@@ -22,7 +22,7 @@ export function savePayment(storage,wallet,expected,payment,{active=true}={}){
   if(!uuid.test(id)||payment.quote.wallet!==wallet.toLowerCase()||!states.includes(payment.status))throw new Error('Invalid payment record.')
   if(previous&&(JSON.stringify(previous.quote)!==JSON.stringify(payment.quote)||previous.recoverySecret!==payment.recoverySecret))throw new Error('Payment terms cannot be overwritten.')
   if(latest.activeId&&latest.activeId!==id)throw new Error('Finish the saved payment before starting another request.')
-  if(!active&&!['accepted','abandoned'].includes(payment.status))throw new Error('An unresolved payment must remain recoverable.')
+  if(!active&&!['accepted','abandoned','refunded'].includes(payment.status))throw new Error('An unresolved payment must remain recoverable.')
   if(previous?.sent&&payment.status==='abandoned')throw new Error('A submitted payment cannot be discarded.')
   const next={revision:latest.revision+1,activeId:active?id:null,draft:null,records:{...latest.records,[id]:{...payment,updatedAt:Date.now()}}}
   storage.setItem(paymentRecordsKey(wallet),JSON.stringify(next))

@@ -223,7 +223,7 @@ export function createIncentivesDatabase({ connection, now = Date.now, maxPendin
       const expiresAt = new Date(now()+quoteMs).toISOString()
       if (Date.parse(expiresAt)<=now()) throw fault(409,'Prices expired. Request a fresh quote.')
       const snapshot = snapshotFor(offer,principalCents,wallet)
-      const body = jsonSafe({ fee,recoveryHash,paymentDeadline:expiresAt, id:randomUUID(),wallet:wallet.toLowerCase(),origin,programId:offer.id,programRevision:offer.revision,pairId:offer.pairId,
+      const body = jsonSafe({ fee,recoveryHash,issuedAt:new Date(now()).toISOString(),paymentDeadline:expiresAt, id:randomUUID(),wallet:wallet.toLowerCase(),origin,programId:offer.id,programRevision:offer.revision,pairId:offer.pairId,
         pairRevision:offer.pairRevision,budgetPoolId:offer.budgetPoolId,budgetRevision:offer.budget.revision,principalCents,signer:signer.toLowerCase(),snapshot,plan,expiresAt })
       body.planHash = digest({snapshot,plan:body.plan,signer:body.signer,programRevision:body.programRevision,pairRevision:body.pairRevision,budgetRevision:body.budgetRevision})
       let resultBody=body

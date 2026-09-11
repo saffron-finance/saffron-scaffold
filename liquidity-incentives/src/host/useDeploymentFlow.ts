@@ -37,6 +37,23 @@ export function useDeploymentFlow(account:Address|null){
       },draft=>{ledger=saveCheckoutDraft(localStorage,account,ledger,draft);update(ledger);window.dispatchEvent(new Event('saffron:payment-record'))})
     })}catch(cause){if(alive.current)setError((cause as Error).message)}finally{if(alive.current)setBusy(false)}
   }
+  function finish(payment:Payment,persist:(payment:Payment,active?:boolean)=>void,result:any){
+    if(!account)return
+    payment={...payment,status:'accepted',deploymentId:result.deployment.id};persist(payment)
+    rememberPayment(account,{quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret},result.session)
+    persist(payment,false)
+    if(alive.current)setDeployment(result.deployment)
+    window.dispatchEvent(new Event('saffron:vault-updated'))
+  }
+  const recover=()=>coordinated(async(ledger,persist)=>{
+    const payment=ledger.activeId?ledger.records[ledger.activeId]:null
+    if(!payment?.sent)return
+    const result=await requestJson('/payments/recover',{quoteId:payment.quote.id,recoverySecret:payment.recoverySecret})
+    const next={...payment,hash:result.paymentHash??payment.hash}
+    if(result.deployment){finish(next,persist,result);return}
+    const status=result.state==='refunded'?'refunded':['needs_attention','refund_due','confirming','reconciliation_required'].includes(result.state)?'needs_attention':payment.status
+    if(payment.resolutionState!==result.state||next.hash!==payment.hash)persist({...next,status,resolutionState:result.state})
+  })
   const review=(offer:Offer,amount:string)=>coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
     if(ledger.activeId)throw new Error('Resume or close the saved payment review before starting another request.')
@@ -55,14 +72,8 @@ export function useDeploymentFlow(account:Address|null){
   const pay=()=>coordinated(async(ledger,persist)=>{
     if(!account||!ledger.activeId)return
     let payment={...ledger.records[ledger.activeId]}
-    const finish=(result:any)=>{
-      payment={...payment,status:'accepted',deploymentId:result.deployment.id};persist(payment)
-      const proof={quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret}
-      rememberPayment(account,proof,result.session)
-      persist(payment,false)
-      if(alive.current)setDeployment(result.deployment)
-      window.dispatchEvent(new Event('saffron:vault-updated'))
-    }
+    const accepted=(result:any)=>finish(payment,persist,result)
+    if(payment.status==='refunded')throw new Error('This creation payment has been refunded.')
     if(payment.status==='confirmed_unpaid')throw new Error('Refresh the quote before making another explicit payment.')
     if(!payment.sent){
       if(Date.parse(payment.quote.paymentDeadline)<=Date.now())throw new Error('Payment quote expired. Refresh before paying.')
@@ -81,7 +92,7 @@ export function useDeploymentFlow(account:Address|null){
     if(!payment.hash){
       const recovered=await requestJson('/payments/recover',{quoteId:payment.quote.id,recoverySecret:payment.recoverySecret})
       if(recovered.paymentHash){payment={...payment,hash:recovered.paymentHash,status:'submitted'};persist(payment)}
-      if(recovered.deployment){finish(recovered);return}
+      if(recovered.deployment){accepted(recovered);return}
     }
     if(!payment.hash&&/^0x[0-9a-fA-F]{64}$/.test(recoveryHash)){payment={...payment,hash:recoveryHash as Hex};persist(payment)}
     if(!payment.hash)throw new Error('Payment discovery is pending. Check again or enter the existing transaction hash. Do not pay again.')
@@ -95,10 +106,15 @@ export function useDeploymentFlow(account:Address|null){
       payment={...payment,sent:false,status:'confirmed_unpaid'};persist(payment)
       throw new Error('Payment reverted or was cancelled. No creation fee was received. Refresh the quote before retrying.')
     }
-    finish(await requestJson('/deployments',{quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret}))
+    accepted(await requestJson('/deployments',{quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret}))
   })
   const reset=()=>coordinated(async(ledger,persist,prepare)=>{
     const current=ledger.activeId?ledger.records[ledger.activeId]:null
+    if(current?.status==='refunded'){
+      const result=await requestJson('/payments/recover',{quoteId:current.quote.id,recoverySecret:current.recoverySecret})
+      if(result.state!=='refunded')throw new Error('Refund verification changed. Keep this request for reconciliation.')
+      persist(current,false);if(alive.current)setDeployment(null);return
+    }
     if(current?.sent)throw new Error('Recover the existing payment before starting another request.')
     if(ledger.draft){
       await requestJson('/checkout/session',{})
@@ -109,5 +125,5 @@ export function useDeploymentFlow(account:Address|null){
     if(current){await requestJson('/deployment-quotes/withdraw',{quoteId:current.quote.id,recoverySecret:current.recoverySecret});persist({...current,status:'abandoned'},false)}
     if(alive.current){setDeployment(null);setRecoveryHash('')}
   })
-  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,review,pay,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
+  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,review,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
 }

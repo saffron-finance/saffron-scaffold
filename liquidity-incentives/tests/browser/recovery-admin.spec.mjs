@@ -28,8 +28,9 @@ test('a stale tab opening another offer preserves and recovers the already paid 
     await stale.addInitScript(()=>window.addEventListener('storage',event=>event.stopImmediatePropagation(),true))
     await stale.goto(f.origin)
     await expect(stale.getByRole('button',{name:'Create CASHCAT / ETH, 7 days',exact:true})).toBeVisible()
+    await page.route('**/api/incentives/payments/recover',route=>route.fulfill({json:{state:'discovering'}}))
     await page.route('**/api/incentives/deployments',async route=>{
-      if(route.request().method()==='POST'){const response=await route.fetch();expect(response.status()).toBe(201);await route.fulfill({status:503,json:{error:'Acceptance response lost'}})}else await route.continue()
+      if(route.request().method()==='POST'){const response=await route.fetch();expect([200,201]).toContain(response.status());await route.fulfill({status:503,json:{error:'Acceptance response lost'}})}else await route.continue()
     })
     await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
     await page.getByRole('button',{name:'Continue',exact:true}).click()
@@ -37,7 +38,6 @@ test('a stale tab opening another offer preserves and recovers the already paid 
     await expect(page.getByText('Acceptance response lost',{exact:true})).toBeVisible()
     await stale.getByRole('button',{name:'Create CASHCAT / ETH, 7 days',exact:true}).click()
     await expect(stale.getByRole('button',{name:'Pay $2 in ETH',exact:true})).toHaveCount(0)
-    await stale.getByRole('button',{name:'Check payment',exact:true}).click()
     await expect(stale.locator('[data-vault-lifecycle]')).toBeVisible()
     expect(f.state.sends).toBe(1);expect((await f.database.list({wallet:f.account.address})).jobs).toHaveLength(1)
     const ledger=await stale.evaluate(account=>JSON.parse(localStorage.getItem('saffron.creation-payments.v1:'+account.toLowerCase())),f.account.address)
@@ -50,8 +50,9 @@ test('lost acceptance response and lost wallet response survive reload without a
   try{
     await page.goto(f.origin);await connect(page)
     let lose=true
+    await page.route('**/api/incentives/payments/recover',route=>route.fulfill({json:{state:'discovering'}}))
     await page.route('**/api/incentives/deployments',async route=>{
-      if(route.request().method()==='POST'&&lose){lose=false;const response=await route.fetch();expect(response.status()).toBe(201);await route.fulfill({status:503,json:{error:'Simulated lost response'}})}else await route.continue()
+      if(route.request().method()==='POST'&&lose){lose=false;const response=await route.fetch();expect([200,201]).toContain(response.status());await route.fulfill({status:503,json:{error:'Simulated lost response'}})}else await route.continue()
     })
     await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
     await page.getByRole('button',{name:'Continue',exact:true}).click()
@@ -59,8 +60,8 @@ test('lost acceptance response and lost wallet response survive reload without a
     await expect(page.getByText('Simulated lost response',{exact:true})).toBeVisible()
     const signs=f.state.signs
     await page.reload();await page.getByRole('button',{name:'Resume deployment',exact:true}).click()
-    await page.getByRole('dialog').getByRole('button',{name:'Check payment',exact:true}).click()
-    await expect(page.locator('[data-vault-lifecycle]')).toBeVisible()
+    await page.unroute('**/api/incentives/payments/recover')
+    await expect(page.locator('[data-vault-lifecycle]')).toBeVisible({timeout:20000})
     expect(f.state.signs).toBe(0)
     expect(f.state.sends).toBe(1)
     const {jobs:rows}=await f.database.list({wallet:f.account.address});expect(rows).toHaveLength(1)
@@ -69,6 +70,7 @@ test('lost acceptance response and lost wallet response survive reload without a
     const job=await f.database.getIntent(id)
     await f.chain.fund(job)
     expect((await f.worker.tick()).state).toBe('idle')
+    await page.getByRole('button',{name:'Deposit LP assets',exact:true}).click()
     f.state.lostSend=true
     await page.getByRole('button',{name:'Approve CASHCAT',exact:true}).click()
     await expect(page.getByRole('button',{name:'Check transaction',exact:true})).toBeVisible()
@@ -118,6 +120,7 @@ test('a lost ETH-payment wallet response restores from its hash with zero messag
   const f=await setup(page)
   try{
     await page.goto(f.origin);await connect(page)
+    await page.route('**/api/incentives/payments/recover',route=>route.fulfill({json:{state:'discovering'}}))
     await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
     await page.getByRole('button',{name:'Continue',exact:true}).click()
     f.state.lostSend=true

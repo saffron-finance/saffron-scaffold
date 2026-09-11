@@ -1,21 +1,23 @@
-import type { Address } from 'viem'
+import { formatUnits,type Address } from 'viem'
 import { StepTitle } from '../host/ui'
 import type { useDeployments } from '../host/useDeployments'
 import { statusLabel } from './model'
 import { DeploymentPagination } from './DeploymentPagination'
 import { Action,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
 
-export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin}:{account:Address|null;positions:ReturnType<typeof useDeployments>;onConnect:()=>void;onOpen:(id:string)=>void;onBack:()=>void;onAdmin:()=>void}){
+export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin}:{account:Address|null;positions:ReturnType<typeof useDeployments>;onConnect:()=>void;onOpen:(id:string,position?:boolean)=>void;onBack:()=>void;onAdmin:()=>void}){
   return <Stack><Row><StepTitle>My requests</StepTitle><QuietButton onClick={onBack}>Vaults</QuietButton></Row>
     {!account?<Action onClick={onConnect}>Connect wallet</Action>:<>
-      {!positions.online&&<FinePrint>The deployment worker is offline. Accepted deployments remain saved.</FinePrint>}
+      {positions.verificationUnavailable&&<FinePrint>Showing the last known requests. Verification is temporarily unavailable.</FinePrint>}
       {positions.positionsUpdating&&<FinePrint>Checking for received positions. More vaults may appear as confirmations become available.</FinePrint>}
-      {positions.loading?<FinePrint>Loading vaults…</FinePrint>:!positions.rows.length&&!positions.positionsUpdating?<FinePrint>{positions.page>1||positions.hasNext?'No positions on this page.':'You have no deployments or received positions yet. Choose an incentive program to create your first vault.'}</FinePrint>:null}
+      {positions.loading?<FinePrint>Loading vaults…</FinePrint>:!positions.error&&!positions.rows.length&&!positions.positionsUpdating?<FinePrint>{positions.page>1||positions.hasNext?'No positions on this page.':'You have no deployments or received positions yet. Choose an incentive program to create your first vault.'}</FinePrint>:null}
       {positions.rows.map(row=><Stack key={row.id} data-deployment-id={row.id} style={{padding:20,border:'1px solid #1d1d1d',borderRadius:'var(--radius-md)',background:'#0a0a0a'}}>
         <Row><b>{row.snapshot.display.pair} · {row.snapshot.durationSeconds/86400} days</b><span role='status'>{statusLabel(row.state)}</span></Row>
         <FinePrint>${(Number(row.snapshot.fixedCapacityAmount)/100).toFixed(2)} LP at request · {row.id.slice(0,8)}</FinePrint>
-        <QuietButton onClick={()=>onOpen(row.id)}>{row.depositable?'Deposit':row.canClaim?'Claim premium':row.canWithdraw?'Withdraw':row.canRecover?'Recover LP assets':'View vault'}</QuietButton>
+        <QuietButton onClick={()=>onOpen(row.id,!positions.verificationUnavailable&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover))}>{positions.verificationUnavailable?'View request':row.depositable?'Deposit':row.canClaim?'Claim premium':row.canWithdraw?'Withdraw':row.canRecover?'Recover LP assets':'View vault'}</QuietButton>
       </Stack>)}
+      {positions.payments.filter(row=>!row.deployment_id).map(row=><FinePrint key={row.hash} style={{overflowWrap:'anywhere'}}>Creation payment · {formatUnits(BigInt(row.amount_wei),18)} ETH · {statusLabel(row.state)}. <a href={'https://robinhoodchain.blockscout.com/tx/'+row.hash} target='_blank' rel='noreferrer'>Payment transaction ↗</a></FinePrint>)}
+      {(positions.paymentPage>1||positions.hasNextPayments)&&<Row aria-label='Creation payment history'><QuietButton disabled={positions.paymentPage===1||positions.loading} onClick={positions.previousPayments}>Newer payments</QuietButton><FinePrint>Payments page {positions.paymentPage}</FinePrint><QuietButton disabled={!positions.hasNextPayments||positions.loading} onClick={positions.nextPayments}>Older payments</QuietButton></Row>}
       <DeploymentPagination data={positions}/>
       <Row><QuietButton onClick={positions.refresh}>Refresh vaults</QuietButton>{positions.session?.operator&&<QuietButton onClick={onAdmin}>Administration</QuietButton>}</Row>
     </>}

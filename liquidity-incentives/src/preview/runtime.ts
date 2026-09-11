@@ -50,8 +50,8 @@ export async function requestJson(path:string,body?:any):Promise<any>{
   if(route==='/programs')return {offers:offers(),creatorOnline:true}
   if(route==='/session')return {session:session()}
   if(route==='/admin/catalog')return {pairs:[pair],programs:state.programs,budgets:budgets()}
-  if(route==='/admin/payments')return {payments:[]}
-  if(route==='/admin/status')return {workerOnline:true,pending:0,stalled:0,gasBalanceRaw:null}
+  if(['/payments','/admin/payments'].includes(route))return {payments:[],nextCursor:null}
+  if(route==='/admin/status')return {workerOnline:false,pending:0,stalled:0,gasBalanceRaw:null,readiness:{canQuote:true,mode:'reviewed',reasons:[],policy:null}}
   if(route==='/admin/campaigns'&&body){
     const campaign=campaignTerms(body)
     if(!/^[a-z0-9][a-z0-9-]{0,79}$/.test(body.id)||state.budgets.some(b=>b.id===body.id))throw new Error('Use a unique campaign ID.')
@@ -89,11 +89,13 @@ export function useDeploymentFlow(account:Address|null){
     if(current.budget.paused||BigInt(quote.principalCents)>BigInt(current.eligibleMaximumCents??0)){setError('Campaign capacity is exhausted.');return}
     const row:Deployment={id:quote.id,wallet:PREVIEW_ACCOUNT,positionWallet:PREVIEW_ACCOUNT,isRequester:true,programId:quote.programId,createdAt:new Date().toISOString(),planHash:quote.planHash,
       snapshot:quote.snapshot,plan:{...quote.plan,vault:'0x3333333333333333333333333333333333333333'},signer:PREVIEW_ACCOUNT,observation:null,state:'awaiting_funding',depositable:false,canClaim:false,canWithdraw:false,canRecover:false,
-      workerState:'created',fundingState:'external',cancelRequested:false,error:null,transactions:[],nextAttemptAt:new Date().toISOString(),fundingOperator:null}
+      workerState:'created',fundingState:'external',cancelRequested:false,error:null,transactions:[],nextAttemptAt:new Date().toISOString(),fundingOperator:null,
+      progress:{version:1,reason:'awaiting_funding',activeStage:4,requestedAt:new Date().toISOString(),acceptedAt:new Date().toISOString(),lastProgressAt:new Date().toISOString(),checkedAt:new Date().toISOString(),observedBlock:null,verificationAvailable:true,operatorAction:false,paymentState:'admitted',serviceWindowMinutes:30,
+        stages:['Prepare adapter','Create vault','Initialize and verify','Fund premium and enable entry'].map((name,index)=>({id:index+1,name,state:index<3?'complete':'active',hash:null,confirmedAt:index<3?new Date().toISOString():null}))}}
     state.jobs.unshift(row);save();setDeployment(row)
   }
   function reset(){setQuote(null);setDeployment(null);setError(undefined)}
-  return {quote,deployment,saved:null,draft:null,busy:false,error,review,pay,reset,restore:reset,discardRejected:reset,recoveryHash:'',setRecoveryHash:()=>{}}
+  return {quote,deployment,saved:null,draft:null,busy:false,error,review,pay,recover:async()=>{},reset,restore:reset,discardRejected:reset,recoveryHash:'',setRecoveryHash:()=>{}}
 }
 
 /** Lifecycle is display-only in this preview, never routed to an injected wallet. */

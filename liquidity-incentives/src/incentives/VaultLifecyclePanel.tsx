@@ -1,25 +1,18 @@
 import { useEffect,useState } from 'react'
 import { formatUnits,type Address,type Hex } from 'viem'
 import { useVaultPosition } from '../host/useVaultPosition'
-import { requestJson,authedJson,ensureSession } from '../host/transport'
+import { authedJson,ensureSession } from '../host/transport'
 import type { Deployment } from './model'
 import { statusLabel } from './model'
 import { Action,ErrorText,FinePrint,QuietButton,Row,Stack,Disclosure } from './styles'
 import { VaultReview } from './VaultReview'
 
-/** The one second-page lifecycle surface, used from both offers and My vaults. */
-export function VaultLifecyclePanel({account,id,onBusy}:{account:Address;id:string;onBusy:(busy:boolean)=>void}){
-  const [row,setRow]=useState<Deployment|null>(null),[error,setError]=useState<string>(),[hash,setHash]=useState(''),[cancelling,setCancelling]=useState(false)
-  const mode=row?.canClaim?'claim':row?.canWithdraw?'withdraw':row?.canRecover?'recover':row?.depositable?'deposit':'view'
+/** Fixed-position actions share the request view's single status poll. */
+export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{account:Address;id:string;onBusy:(busy:boolean)=>void;row:Deployment|null;verificationError?:string}){
+  const [error,setError]=useState<string>(),[hash,setHash]=useState(''),[cancelling,setCancelling]=useState(false)
+  const mode=verificationError?'view':row?.canClaim?'claim':row?.canWithdraw?'withdraw':row?.canRecover?'recover':row?.depositable?'deposit':'view'
   const flow=useVaultPosition(account,id,mode)
   useEffect(()=>{onBusy(flow.busy||cancelling)},[flow.busy,cancelling])
-  useEffect(()=>{
-    let alive=true,pending=false
-    async function load(){if(pending)return;pending=true;try{const value=await requestJson('/deployments/'+id);if(alive){setRow(value.deployment);setError(undefined)}}catch(cause){if(alive){setRow(null);setError((cause as Error).message)}}finally{pending=false}}
-    void load();const timer=setInterval(()=>void load(),5000);const update=()=>void load()
-    window.addEventListener('saffron:vault-updated',update)
-    return ()=>{alive=false;clearInterval(timer);window.removeEventListener('saffron:vault-updated',update)}
-  },[account,id])
   const s=flow.quote?.snapshot??row?.observation
   async function cancel(){setCancelling(true);try{await authedJson(account,'/deployments/'+id+'/cancel',{});window.dispatchEvent(new Event('saffron:vault-updated'))}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}
   return <Stack data-vault-lifecycle={id}>
@@ -40,7 +33,7 @@ export function VaultLifecyclePanel({account,id,onBusy}:{account:Address;id:stri
       {[0,1].map(i=><FinePrint key={i}>{flow.amountLabel(i)} {flow.quote.tokens[i].symbol}</FinePrint>)}
       <FinePrint>Slippage: 0.5% · deadline: 5 minutes. The token mix can change with pool price; LP positions are subject to impermanent loss.</FinePrint>
     </>}
-    {(error||flow.error)&&<ErrorText role='alert'>{error??flow.error}</ErrorText>}
+    {(verificationError||error||flow.error)&&<ErrorText role='alert'>{verificationError??error??flow.error}</ErrorText>}
     {/Sign in|wallet session/.test(error??flow.error??'')&&<Action disabled={flow.busy||cancelling} onClick={async()=>{setCancelling(true);try{await ensureSession(account);setError(undefined);window.dispatchEvent(new Event('saffron:vault-updated'));await flow.refresh()}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}}>Restore payment session</Action>}
     {flow.pending?<Stack>
       <FinePrint>A wallet action needs confirmation. Check it before submitting another.</FinePrint>
