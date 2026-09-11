@@ -1,5 +1,5 @@
 [Unit]
-Description=Saffron isolated vault creator and approved premium funder
+Description=Saffron isolated vault creator
 After=network-online.target postgresql.service
 
 [Service]

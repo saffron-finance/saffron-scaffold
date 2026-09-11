@@ -1,4 +1,4 @@
-# Payment watcher and exactly-one-vault test
+# Payment watcher and reviewed one-request creation
 
 This is a separate, explicit execution mode. One vault requires **three** zero-value
 transactions to the existing unrestricted factory on chain **4663**:
@@ -19,22 +19,18 @@ with the authorized signer, an active reservation, and an immutable accepted pla
 
 The verifier binds the chain, payer, separate fee recipient, exact positive ETH
 wei amount, quote/plan/recovery commitment, successful receipt and canonical
-confirmations. Both underpayment and overpayment fail. A self-transfer is not a
-received fee. The ETH amount is fixed by the backend quote; later ETH/USD movement
+confirmations. Underpayment and overpayment cannot authorize creation, but a
+recognized positive transfer to the receiver remains a received-fee obligation.
+A self-transfer is not a received fee. The ETH amount is fixed by the backend quote; later ETH/USD movement
 does not change the amount a paid request owes. Public payment evidence alone
 cannot restore someone else's HTTP session.
 
-The browser-only review build is **not** this API. Its localStorage entries and
-simulated payments cannot become paid jobs. Old Arbitrum USDC receipts must never
-be relabeled native Robinhood ETH receipts. Neither this command nor its schema
-imports them. An exceptional fee-waived test needs separate explicit authorization
-and a clearly identified test path; there is no hidden bypass in the normal watcher.
-
-LP valuation and the user's final asset amounts are confirmed at the later LP
-deposit step. The earlier design decision to remove the preview modal's price-
-expiry warning does not mean a browser preview payment is a real chain receipt.
-Existing server quote/admission deadlines retain paid-but-blocked evidence for
-operator resolution; they never discard a received fee or automatically charge again.
+The browser-only preview cannot create paid jobs. Production intake reserves
+campaign, raw premium, treasury, queue and gas resources before offering a payable
+quote. Source prices must be fresh at issuance; the separate mining window is
+120 seconds. LP valuation and asset mix are refreshed later at fixed deposit.
+Payment exceptions retain their original terms and deadline for audited resolution;
+they never discard a received fee or automatically charge again.
 
 ## Local validation — no live key required
 
@@ -48,6 +44,7 @@ npm test
 npm run test:database
 npm run test:lifecycle
 npm run test:watcher
+npm run test:restore
 npm run test:browser
 npm run demo -- --smoke
 ```
@@ -76,8 +73,8 @@ blocks per tick by default and indexes the public payment commitment.
 Cursor progress is durable. Every block is rechecked before advancing; mismatched
 parent/checkpoint hashes restart scanning at the original start. Concurrent
 scanners take a PostgreSQL advisory lock. Missing/outage evidence cannot advance
-past a candidate payment. Invalid amounts are rejected; valid but blocked/late
-payments remain `needs_attention`. A second payment for one quote is stored in
+past a candidate payment. Recognized wrong amounts and blocked/late received fees
+remain actionable obligations. A second payment for one quote is stored in
 `payment_exceptions`; it cannot create another vault or stall the entire scanner.
 After a deep reorg, an accepted intent's worker independently revalidates its
 payment before every new signature. Canonical replacement payments may require
@@ -179,8 +176,8 @@ liquidity, premium, duration, protocol fee and initialized/unfunded state.
   stale lock. Never remove `state.json` or journal rows to bypass the one-vault limit.
 - **Competing sender or external nonce:** stop and reconcile. A directory/advisory
   lock cannot stop someone using the same private key elsewhere.
-- **Database restoration:** reconcile against chain first; an older backup cannot
-  establish that previously signed transactions never existed.
+- **Database restoration:** follow the [freeze and reconciliation procedure](README.md#backup-restore-and-reconciliation).
+  An older backup cannot establish that later payments or signatures never existed.
 - **No indefinite activation for a one-off test:** do not install/start the ordinary
   signing service merely to validate a single request. Only the chosen one-request
   invocation is authorized; extra funding or user LP transactions are outside it.
@@ -214,7 +211,7 @@ A real requester wallet is needed for application identity and later user action
 observer when no viewer exists; this neither reserves the vault nor assigns LP
 ownership. A preview ID is not a verified payment or a real requester identity.
 
-New legacy transactions include one current base fee of gas-price headroom. The
+New EIP-155 transactions include one current base fee of gas-price headroom. The
 simulator uses the same policy. Configured per-transaction and aggregate budgets
 remain hard limits. Already-journaled bytes/hash/nonce never change during recovery.
 
@@ -254,3 +251,10 @@ only saved bytes for the pinned request and cannot sign a new vault. Finish any
 external variable/fixed recovery first. Once retirement is proven, resolve the
 original fee through the payment queue. An exhausted creation permit remains
 terminal; the broad queue runner rejects both kinds of one-request configuration.
+
+```sh
+npm run worker:retire -- "<protected-retirement-config>"
+```
+
+Retirement does not send a fee refund. Record an externally executed refund in
+the payment queue after canonical retirement and recovery evidence is established.

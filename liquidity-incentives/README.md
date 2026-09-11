@@ -50,7 +50,7 @@ boundary are substituted. No live wallet or RPC is used.
    the adapter and vault and initializes it automatically.
 3. Type `fund` in the demo terminal to simulate external treasury variable-side
    deposits. This test-only helper is not part of the production creator.
-4. Return to **My vaults → Deposit**. Wrap ETH if needed, approve LP assets,
+4. Return to **My requests → Deposit LP assets**. Wrap ETH if needed, approve LP assets,
    deposit and claim using the shared modal.
 5. Type `mature` in the demo terminal to advance the disposable chain, then
    withdraw the matured position. No message sign-in is required.
@@ -62,11 +62,14 @@ exist only in memory. Production entry points never load demo seeds/configuratio
 ### Configured application development
 
 Copy `.env.example` to the ignored `.env`. Configure PostgreSQL, server-side
-Robinhood RPC, the explicit USD provider, public protocol config, operator wallets
+Robinhood RPC, the explicit USD provider, public protocol config, operator wallets,
 the public `SAFFRON_CREATION_FEE_RECIPIENT`, and the exact browser origin. New production databases start with an empty catalog
 and no campaign allocation. Configure pairs and create campaigns at `/admin`. Enter duration and any two of
 USD budget, fixed-side target capacity, and APR; the third is calculated.
-See [the operator runbook](ops/README.md) for service and worker provisioning.
+Assign treasury inventory, supervise the keyless payment watcher, provision
+creator gas and configure an expiring intake window before offering payment.
+Reviewed one-request mode works without a continuously running signer. Automatic
+queue mode also requires the signing worker heartbeat. See [the operator runbook](ops/README.md).
 
 For hot reload set `SAFFRON_APP_ORIGIN=http://127.0.0.1:5187`, run these in separate
 terminals, and open that exact origin:
@@ -116,6 +119,16 @@ and closing returns focus to the control that opened the modal.
   premium funding. Claim and maturity do not replenish cumulative allocation.
 - Paid commitments do not automatically expire. Only verified unused-vault
   retirement releases them. An external funder must recover unused funds itself.
+- Unpaid checkout is bounded per request, browser and campaign. Firm quotes reserve
+  campaign, raw premium, queue and creation gas before payment. Larger amounts can
+  receive an operator amount review without paying. The quote lasts 120 seconds;
+  only canonical watcher settlement releases an unpaid hold after its deadline.
+- The modal retains payment recovery and shows adapter, vault, initialization and
+  external funding progress. Elapsed time is separate from the declared operator
+  service window. Close/reload returns to the same request without another fee.
+- Received duplicate, late or blocked fees have an audited resolution queue.
+  Operators can admit the original immutable request when resources allow, or
+  verify an externally executed refund. Neither action sends money from the API.
 
 See **[CAMPAIGNS.md](CAMPAIGNS.md)** for formulas, rounding, USD valuation, lifecycle
 accounting, payment recovery and the external-operations contract.
@@ -135,13 +148,11 @@ accounting, payment recovery and the external-operations contract.
   entries with `limit` and continue using the returned `nextCursor` as `cursor`.
   Ordering retains timestamp precision and an ID tie-breaker as new entries arrive.
 
-The clean `saffron_incentives` schema contains `pairs`, `budget_pools`, `programs`,
-`deployment_quotes`, `deployment_intents`, `budget_reservations`, `budget_entries`,
-`vault_jobs`, `chain_operations`, `vault_observations`, `worker_heartbeats`, and
-`user_operations` and `payment_proofs`. The additive schema change preserves
-existing journals and commitments; it does not import retired paid-request schemas.
-Existing token-only budgets remain readable. Create new USD campaigns for the
-calculator flow; do not relabel historical token allocations as USD.
+The clean `saffron_incentives` bootstrap includes campaign, checkout/admission,
+treasury, payment/refund, gas, execution and canonical observation tables.
+[IMPLEMENTATION.md](IMPLEMENTATION.md) defines their roles and state contracts.
+No production seed or data migration is run. Current payment recovery, signed
+journals and accounting evidence are durable application state and must be backed up.
 
 ## Validation and release
 
@@ -153,9 +164,15 @@ npm test
 npm run test:database
 npm run test:lifecycle
 npm run test:watcher
+npm run test:restore
 npm run test:browser
 npm run demo -- --smoke
 ```
+
+The restore test needs PostgreSQL 16 `pg_dump`/`pg_restore` in PATH, or
+`SAFFRON_TEST_PG_CONTAINER` naming the disposable PostgreSQL container so the test
+can invoke its matching tools. It creates a second random test database and
+verifies that restoring an older queue cannot repeat later creator activity.
 
 For lab controls, run `npm run build:lab`, set `SAFFRON_TEST_LAB=1` in the test
 process environment, and run:
@@ -177,8 +194,10 @@ sources and UI primitives are explicitly packaged in `tests/protocol` and
 
 The independent CI workflow runs database/EVM/browser checks and portable-build
 checks. Publishing/worker activation remain separate operator actions.
-[IMPLEMENTATION.md](IMPLEMENTATION.md) records the modular stages and validation.
-Local tests do not establish a live deployment or live funding.
+[IMPLEMENTATION.md](IMPLEMENTATION.md) defines the runtime contract and validation
+map. The joined browser test writes public transaction and final ledger evidence
+to ignored `validation/complete-cycle.json`. Disposable tests do not establish a
+live full-cycle acceptance; live activation and treasury execution are separate.
 
 For keyless native-payment discovery and a strictly request-pinned, one-vault
 operator test, use [the watcher and one-request runbook](ops/ONE-REQUEST.md).

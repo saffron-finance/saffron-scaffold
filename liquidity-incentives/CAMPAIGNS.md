@@ -1,7 +1,7 @@
 # Campaign budgets, external funding, and ETH-paid creation
 
-Current product specification, 2026-09-10. This supersedes the fee-free signed
-request and worker-controlled premium funding design at `213794c`.
+Current product specification for the standalone application. Implementation state
+names and storage boundaries are defined in [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ## Responsibilities
 
@@ -17,8 +17,10 @@ request and worker-controlled premium funding design at `213794c`.
   approvals and LP transactions. No sign-in message or EIP-712 deployment signature.
   Operator administration has a separate allowlisted message-login boundary.
 
-No separate treasury approval/execution pipeline is added to this application.
-A configured accounting budget is a commitment limit, not custody or proof of cash.
+Treasury checks each created vault and funds it externally. Complete canonical
+funding is the release signal; there is no additional publication approval flag.
+A configured accounting budget is a commitment limit. Explicit treasury inventory
+allocations and canonical balance checks are also required before issuing quotes.
 
 ## Campaign creation and calculator
 
@@ -80,10 +82,16 @@ the native payment still establishes the payer. Trusted direct-peer limits ignor
 forwarded client headers. Public deployment must also configure per-client edge
 rate limits/challenges; rotating wallets is not an effective quota identity.
 
-For new USD campaigns, the raw-token ledger remains exact chain-unit telemetry;
-the campaign USD budget and fixed-side target are the authoritative aggregate
-limits. The worker's per-vault raw premium/gas ceilings remain independent bounds.
-Historical token-only budgets remain readable and retain their raw-token limit.
+Larger requests use **Request amount review**, without payment or a resource hold.
+An operator can approve one exact wallet/program/amount for 15 minutes. The user
+then obtains an ordinary firm quote. The approval exempts that request from public
+size/share limits only; campaign, raw-token, treasury, queue and gas checks still
+apply atomically. Pending reviews expire after 24 hours. See [TREASURY.md](ops/TREASURY.md).
+
+USD campaign budget and fixed-side target limits apply alongside exact raw-token
+limits and the named treasury allocation. The worker's per-vault raw premium/gas
+ceilings remain independent bounds. An allocation cannot promise more unspent
+tokens across campaigns than the assigned wallet canonically holds once.
 
 The catalog exposes these separate quantities:
 
@@ -165,27 +173,31 @@ payment and restores the payer's HttpOnly/CSRF session without message signing.
 Do not share or log that recovery record. Public position reads and onchain LP
 ownership do not require an application login.
 
-Save the request before opening the wallet and save the payment hash before API
-submission. One quote/payment can create only one intent/job; retries return the
-same result even after the quote expires. Lost wallet responses accept the existing
-payment hash from the user's wallet history. Never request a second payment to
-repair a lost response. A reverted/cancelled payment pays no creation fee (gas may
-still be spent). A late valid fee or other confirmed-but-blocked request stays in
-`payment_proofs` for external operator resolution; there is no automatic refund or
-unrelated replacement-vault creation.
+The browser persists a per-wallet recovery ledger before opening the wallet and
+records ambiguous submission before awaiting its response. Payment and LP wallet
+actions share a cross-tab lock. Revision checks prevent stale tabs or callbacks
+from clearing a submitted fee. Accepted request/session data is retained before
+the active pointer is retired. Storage failure stops before a wallet payment.
 
-## Upgrade and integration boundary
+One quote/payment creates at most one intent/job; retries return the same result.
+The keyless watcher admits a canonical payment without the browser callback.
+Private recovery restores the session after reload; a wallet-history hash can
+reconcile a lost send response. Nothing automatically sends a second fee. A
+verified revert or same-nonce zero-value self-cancellation establishes no received
+fee, although network gas may have been spent. Unknown outcomes remain recoverable.
 
-The standalone schema adds campaign JSON and payment proofs, and permits null
-historical signature columns. It preserves existing raw ledgers and transaction
-journals. Drain/reconcile pre-upgrade signed-only creation/funding jobs before
-activating the new worker: old authorizations are not silently converted to paid
-requests, and this worker does not execute old funding/collection operations.
+## Standalone deployment and custody boundary
 
-This is not yet a fixed-income migration or deployment. That integration still
-needs versioned shared migrations, API/auth adaptation and links to canonical
-indexer vault/position records. External treasury custody remains outside this
-package in either hosting arrangement.
+This package owns its UI, API, PostgreSQL schema, canonical observers, payment
+watcher and creation worker. Its catalog starts empty. It operates the common
+on-chain product independently, with no other application required for the user
+cycle. Packaged source provenance does not create a runtime integration dependency.
+
+The server and payment watcher are keyless. Protected creator custody pays factory
+gas; the separate treasury owns premiums and variable rights; the user's wallet
+owns fixed-side actions. A request association does not confer exclusive on-chain
+entry rights. Another fixed depositor can occupy an unrestricted vault, and fresh
+ownership checks must govern the actions shown to each wallet.
 
 ## Creation payment resolution
 

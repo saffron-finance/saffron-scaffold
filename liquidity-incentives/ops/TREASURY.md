@@ -41,6 +41,8 @@ does not consume the approval or ask for a fee. This is not a vault creation for
 2. Use **Refresh and copy funding brief** immediately before preparing an external
    transaction. Check chain `4663`, vault, reward token, decimals, outstanding raw
    amount and the verified block. Recheck if any funding transaction is pending.
+   Campaign pauses, reconciliation, missing allocation or a fee requiring
+   resolution suppress the brief's funding recommendation; resolve those first.
 3. In the treasury wallet, approve the vault for the outstanding token amount.
    Execute `vault.deposit(outstandingRaw, 1, "0x")`. The depositor receives variable
    bearer rights. A plain ERC-20 transfer gives no bearer supply and does not count
