@@ -242,6 +242,27 @@ and TVL are separate and unchanged.
 
 [Vault #2 live test, 11 September 2026](ops/live-tests/2026-09-11-vault-2/README.md): exact pre-signing factory fork, three successful live receipts, canonical state verification and recovery regressions. Creation/initialization succeeded; premium funding and LP entry were not performed. The normal payment watcher remains a separate path.
 
+## Admin configuration warnings
+
+Admin shows an expanded warning for missing or invalid effective server settings.
+The merged app also shows it on Campaigns. Each warning names the setting and
+explains the affected action and restart/rebuild step. It never shows values.
+
+`GET /api/incentives/admin/configuration` requires a wallet-signed operator
+session. Its checks are independent of catalog, database and operational-status
+queries, so an operations outage cannot hide missing configuration. Missing
+origin/allowlist settings can prevent sign-in; the panel explains what to check
+without bypassing authentication. Failed checks are explicitly unverified; old
+results are labeled stale, never reported as healthy.
+
+Required checks cover the ETH fee recipient, Robinhood RPC, LP price provider,
+application origin, admin wallets, and protocol file contents. Missing optional
+WalletConnect and automatic network-setup settings are separate frontend-build
+warnings. Valid defaults (including PostgreSQL peer authentication without a
+password) are not missing-setting alarms. Expand the checklist to inspect them.
+Configuration checks do not prove network/database/worker health or open intake.
+Private signing keys belong only in the separate worker, never in this API.
+
 ## Operator token discovery and campaign IDs
 
 The campaign form no longer accepts an ID or a custom name. The API assigns

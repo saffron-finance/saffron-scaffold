@@ -1,6 +1,13 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.5.3 provides Home, Portfolio, Live APR and the full fixed-side vault
+Version 0.6.0 adds visible configuration warnings to Admin and Campaigns.
+Missing/invalid server settings show their names, impact, and corrective action
+after wallet-signed operator login; secret values are never returned. Optional
+WalletConnect and automatic network setup are labeled separately. PostgreSQL
+defaults do not trigger false alarms. An unavailable check is not a healthy
+result. The check does not open intake or test worker/network availability.
+
+The application provides Home, Portfolio, Live APR and the full fixed-side vault
 journey in one standalone interface. Its canonical API, database, watcher and
 creator are maintained in this repository's `liquidity-incentives` package.
 Vendored sources and licenses are included; no other application is a build or

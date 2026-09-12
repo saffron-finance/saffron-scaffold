@@ -1,6 +1,7 @@
 import { useEffect,useState,type FormEvent } from 'react'
 import { formatUnits,type Address } from 'viem'
 import styled from 'styled-components'
+import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { PairEditor } from './PairEditor'
 import { requestFeeFromEth } from '../../shared/incentives.mjs'
 import { campaignTerms } from '../../shared/campaign.mjs'
@@ -22,6 +23,7 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
   async function changed(){await load();setSaved('Campaign configuration saved.');window.dispatchEvent(new Event('saffron:catalog-updated'))}
   async function pause(budget:Budget){if(!account)return;setBusy(true);try{await authedJson(account,'/admin/budgets',{...budget,paused:!budget.paused});await changed()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Stack>
+    {autoLoad&&<ConfigurationWarnings account={account}/>}
     <FinePrint>Campaign targets are private planning estimates, not request limits. Premium funding is handled externally.</FinePrint>
     <QuietButton disabled={busy} onClick={()=>void load()}>{catalog?'Reload campaigns':'Load incentive catalog'}</QuietButton>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}{saved&&<FinePrint role='status'>{saved}</FinePrint>}

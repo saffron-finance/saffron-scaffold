@@ -1,3 +1,4 @@
+import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { RefundAdmin } from './RefundAdmin'
 import { useState } from 'react'
 import { formatUnits,type Address } from 'viem'
@@ -12,6 +13,7 @@ import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Row,Stack } from './s
 export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null;onConnect:()=>void;onBack:()=>void}){
   const data=useDeployments(account,true)
   return <Stack><Row><StepTitle>Administration</StepTitle><QuietButton onClick={onBack}>Vaults</QuietButton></Row>
+    <ConfigurationWarnings account={account}/>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!data.session?<Action disabled={data.busy} onClick={()=>void data.signIn()}>Sign in as operator</Action>:!data.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
       <FinePrint>{data.operatorStatus?.readiness.mode==='reviewed'?'Reviewed request execution':'Automatic request execution'} · {data.rows.length} deployments on this page. Confirmed ETH request-fee payments queue creation. Premium funding is managed externally.</FinePrint>
       {data.operatorStatus&&<FinePrint>{data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
