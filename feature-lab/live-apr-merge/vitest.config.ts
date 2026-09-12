@@ -10,5 +10,5 @@ export default defineConfig({
     '@packages/api-types/live-pool-apr.mjs': here('./vendor/live-apr-shared/live-pool-apr.mjs'),
     'src/shared/styles/themes/darkTheme': here('./vendor/fixed-income-ui/shared/styles/themes/darkTheme.ts'),
   } },
-  test: { environment: 'jsdom', setupFiles: ['@testing-library/jest-dom/vitest'], include: ['src/**/*.test.{ts,tsx}'] },
+  test: { environment: 'jsdom', setupFiles: ['./tests/browser-storage.mjs','@testing-library/jest-dom/vitest'], include: ['src/**/*.test.{ts,tsx}'] },
 })
