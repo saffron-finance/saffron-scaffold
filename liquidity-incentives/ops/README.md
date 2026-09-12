@@ -3,7 +3,7 @@
 Current policy: [CAMPAIGNS.md](../CAMPAIGNS.md). State/migrations:
 [IMPLEMENTATION.md](../IMPLEMENTATION.md). Hosted disposable UI:
 [VNC runbook](vnc/README.md). Historical acceptance files describe their original
-versions; removed capacity/refund/retirement/gas/treasury workflows are not current.
+versions; current external-refund verification is documented in [REFUNDS.md](REFUNDS.md).
 
 ## Fresh installation
 
@@ -67,8 +67,9 @@ admitted creation and funding using shared database/API state.
 
 Review duplicate/late/invalid payments in Administration. Original-payment
 admission is revision-protected and audited against the original terms. Refunds
-are processed manually outside the app. No refund request, transfer verification,
-or retirement command exists. Do not delete journal rows to remove exceptions.
+are paid externally and verified through [the refund workflow](REFUNDS.md).
+Approval stops creation; canonical full repayment and execution reconciliation
+permit terminal closure. Do not delete journal rows to remove exceptions.
 
 ## Signer and gas policy
 

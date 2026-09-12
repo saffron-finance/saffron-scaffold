@@ -12,7 +12,7 @@ ETH payment binds the exact deployment quote, without user message signatures.
 Keep atomic paid-commitment accounting and reviewed or automatic worker creation.
 Budget/capacity targets are private, advisory planning inputs, never admission
 limits. Show near-capacity notices only on the authenticated operator portfolio.
-Do not add per-user request quotas, C05 tracking, refund/retirement workflows,
+Do not add per-user request quotas, C05 tracking,
 gas-spending ledgers, or treasury balance/inventory tracking. Premium funding is external. Do not reintroduce worker funding, a USDC fee choice, legacy
 receipt imports or an admin per-vault creation form. Campaign creation belongs in
 the operator interface. IMPLEMENTATION.md defines the current state contract.
@@ -23,6 +23,11 @@ evidence. Spent premium never replenishes a campaign. The HTTP process cannot
 sign or broadcast; protected signer custody belongs to the separate worker.
 Tests use random disposable databases and generated local-only wallets. Do not
 activate live signing/funding for validation or modify the root app to run tests.
+
+Unfulfillable accepted requests may receive a full original ETH fee refund.
+Operators pay externally; the API only prepares manifests, verifies canonical
+repayment, reconciles signed creator work and closes requests. Never add a refund
+signer, assume generic bulk calldata proves delivery, or resume refunded work.
 
 Never force-push or merge a feature branch into main without authorization.
 Keep dev controls isolated from src/incentives.

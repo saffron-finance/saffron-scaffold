@@ -137,6 +137,7 @@ export function createExecutionDatabase(db) {
         await db.lockBudget(client,current.budget_pool_id)
         const job=(await client.query(`SELECT * FROM ${s}.vault_jobs WHERE intent_id=$1 FOR UPDATE`,[id])).rows[0]
         if(job.operation!=='create'||current.cancel_requested||job.state==='retired'||job.lease_until>new Date(db.now()))throw fault(409,'The worker must finish reconciling its current action.')
+        if(!(await client.query(`SELECT 1 FROM ${s}.payment_obligations o JOIN ${s}.payment_proofs p ON p.hash=o.hash WHERE p.quote_id=$1 AND o.execution_allowed`,[current.quote_id])).rowCount)throw fault(409,'Payment resolution has stopped creation.')
         if(operation==='resume'&&!['failed','waiting'].includes(job.state))throw fault(409,'This deployment does not need a resume.')
         await client.query(`UPDATE ${s}.vault_jobs SET operation=$2,state='queued',operation_actor=$3,resume_version=resume_version+1,
           error=NULL,attempts=0,next_attempt_at=NOW(),updated_at=NOW() WHERE intent_id=$1`,

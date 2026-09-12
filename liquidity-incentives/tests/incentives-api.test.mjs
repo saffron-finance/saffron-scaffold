@@ -61,10 +61,14 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     assert.equal(rows.body.deployments.length,1)
     assert.doesNotMatch(JSON.stringify(rows.body),/raw_tx|transaction_data|privateKey|signature/)
     for(const path of ['/deployments/'+id+'/cancel','/admin/deployments/'+id+'/retire','/admin/treasury','/admin/amount-reviews',
-      '/admin/payments/'+hash+'/refund-due','/admin/payments/'+hash+'/refund','/admin/payments/'+hash+'/refund-replacement']){
+      '/admin/payments/'+hash+'/refund-due','/admin/payments/'+hash+'/refund-replacement']){
       assert.equal((await call(path,{},a)).status,404,path+' must not remain an active workflow')
     }
     assert.equal((await call('/admin/portfolio-capacity',undefined,u)).status,403)
+    assert.equal((await call('/admin/refunds',undefined,u)).status,403)
+    assert.equal((await call('/admin/payments/'+hash+'/refund',{},u)).status,403)
+    assert.equal((await call('/admin/payments/'+hash+'/refund',{},a,{'x-saffron-csrf':'wrong'})).status,403)
+    assert.equal((await call('/admin/payments/'+hash+'/refund',{},a)).status,400,'an operator must supply reason, stop confirmation and revision')
     assert.equal((await call('/admin/portfolio-capacity',undefined,a)).status,200)
     assert.equal((await call('/payments?wallet='+user.address)).body.payments[0].state,'admitted')
     assert.doesNotMatch(JSON.stringify((await call('/payments?wallet='+user.address)).body),/refunded_wei|refunds/)

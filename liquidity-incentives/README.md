@@ -124,8 +124,10 @@ and closing returns focus to the control that opened the modal.
   polling, inventory allocation, funding brief, or treasury admission check.
 - Canonical vault funding still gates LP entry. Current bearer ownership controls
   claim, recovery, and withdrawal. Request identity does not confer token ownership.
-- Refunds are handled manually outside the application. There is no refund request,
-  transfer-recording, or retirement workflow. Ordinary LP recovery is retained.
+- Unfulfillable accepted requests receive the full original ETH creation fee
+  through an external operator payment. [Refund administration](ops/REFUNDS.md)
+  prepares manifests and verifies payouts before permanently closing requests.
+  Ordinary LP claim, recovery and withdrawal rights remain available.
 - No daily gas/subsidy ledger or gas reservations remain. Per-signature gas bounds,
   signer nonce checks, durable signed bytes, canonical receipts, and one-request
   execution permits remain necessary for safe transaction recovery.

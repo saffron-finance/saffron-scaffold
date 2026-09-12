@@ -1,3 +1,4 @@
+import { RefundAdmin } from './RefundAdmin'
 import { useState } from 'react'
 import { formatUnits,type Address } from 'viem'
 import { StepTitle } from '../host/ui'
@@ -17,7 +18,7 @@ export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null
       {data.operatorStatus&&<IntakePolicy account={account} status={data.operatorStatus} onUpdate={data.refresh}/>}
       {data.operatorStatus?.metrics&&<Disclosure><summary>Operational alerts · {data.operatorStatus.alerts.length}</summary><FinePrint>Oldest undelivered request without progress: {Math.floor(data.operatorStatus.metrics.oldestWithoutProgressSeconds/60)} minutes · premium funding pending: {data.operatorStatus.metrics.fundingBacklog} · unresolved payments: {data.operatorStatus.metrics.unresolvedPayments} · stale vault observations: {data.operatorStatus.metrics.staleVaultObservations}.</FinePrint>{data.operatorStatus.alerts.map((alert,index)=><FinePrint key={index}>{alert.severity}: {statusLabel(alert.code)}</FinePrint>)}</Disclosure>}
       <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
-      <PaymentAttention account={account}/>
+      <PaymentAttention account={account}/><RefundAdmin account={account}/>
       <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
       {data.rows.map(row=><AdminVault key={row.id} account={account} row={row} onUpdate={data.refresh}/>)}
       <DeploymentPagination data={data}/>
@@ -84,8 +85,8 @@ function IntakePolicy({account,status,onUpdate}:{account:Address;status:any;onUp
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
   </Disclosure>
 }
-/** Payment evidence stays available for manual support. Refund workflows live
- * outside this application; only an exact paid request may be admitted here. */
+/** Unadmitted payments retain their separate exception policy. Accepted-request
+ * refunds are prepared and verified by RefundAdmin; payouts remain external. */
 function PaymentResolution({account,row,onUpdate}:{account:Address;row:any;onUpdate:()=>void}){
   const [reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('')
   async function admit(){setBusy(true);setError('');try{

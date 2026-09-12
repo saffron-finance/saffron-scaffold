@@ -235,8 +235,9 @@ heartbeat; reviewed one-request execution does not advertise continuous signing.
 No pending-count, campaign capacity, raw premium, treasury inventory, or daily
 gas-spending limit gates requests. Each additional request needs its own fee.
 
-There is no retirement command or refund workflow. Handle exceptional refunds
-manually outside this application. Preserve journal, fee, and canonical evidence.
+Use the operator [external refund workflow](REFUNDS.md) for unfulfillable requests.
+A spent one-shot permit stays spent, including after refund closure. Preserve
+journal, fee and canonical evidence; there is no refund signer in this application.
 User LP recovery/claim/withdrawal remains separate from operator creation.
 
 Use `maxOneShotGasWei` for the permanent permit's per-invocation signing ceiling.

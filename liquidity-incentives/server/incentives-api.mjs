@@ -106,7 +106,19 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       }
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
       if(method==='POST'&&path==='/admin/campaigns'){sendJson(res,201,await db.saveCampaign(body,session.wallet));return true}
-      if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,await db.listPayments(page()));return true}
+      if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,await db.listPayments({...page(),all:new URL(req.url,'http://localhost').searchParams.get('all')==='true'}));return true}
+      if(method==='GET'&&path==='/admin/refunds'){sendJson(res,200,await service.refunds.list());return true}
+      if(method==='POST'&&path==='/admin/refunds/prepare'){sendJson(res,201,await service.refunds.prepare(body,session.wallet));return true}
+      const refundBatch=/^\/admin\/refunds\/([0-9a-f-]{36})(?:\/(submit|remainder))?$/.exec(path)
+      if(refundBatch){
+        if(method==='GET'&&!refundBatch[2])sendJson(res,200,await service.refunds.detail(refundBatch[1]))
+        else if(method==='POST'&&refundBatch[2]==='submit')sendJson(res,200,await service.refunds.submit(refundBatch[1],body.hashes,session.wallet))
+        else if(method==='POST'&&refundBatch[2]==='remainder')sendJson(res,200,await service.refunds.remainder(refundBatch[1],session.wallet))
+        else throw fault(405,'Method not allowed.')
+        return true
+      }
+      const approveRefund=/^\/admin\/payments\/(0x[0-9a-f]{64})\/refund$/.exec(path)
+      if(method==='POST'&&approveRefund){sendJson(res,200,await service.refunds.approve(approveRefund[1],{...body,operator:session.wallet},body));return true}
       const paymentAudit=/^\/admin\/payments\/(0x[0-9a-f]{64})\/audit$/.exec(path)
       if(method==='GET'&&paymentAudit){sendJson(res,200,{audit:(await db.query('SELECT actor,action,reason,expected_revision,evidence,result,created_at FROM saffron_incentives.payment_resolution_audit WHERE payment_hash=$1 ORDER BY id',[paymentAudit[1]])).rows});return true}
       const paymentAction=/^\/admin\/payments\/(0x[0-9a-f]{64})\/(admit)$/.exec(path)

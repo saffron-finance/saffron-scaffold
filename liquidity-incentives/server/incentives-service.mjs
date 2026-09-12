@@ -14,6 +14,7 @@ import { deploymentProgress } from './deployment-progress.mjs'
 import { operationalStatus } from './operational-status.mjs'
 import { createCheckoutProbe } from './checkout-readiness.mjs'
 import { createVaultTvl } from './vault-tvl.mjs'
+import { createRefunds } from './refunds.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -55,7 +56,9 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
   }
   const checkoutProbe=createCheckoutProbe({rpc,usdQuote,feeRecipient,signer,requireConfigured,size,now})
   const vaultTvl=createVaultTvl({db,rpc,usdQuote,confirmations:config?.confirmations??2,now})
+  const refunds=createRefunds({db,rpc,confirmations:config?.confirmations??2,now})
   const service={
+    refunds,
     refresh,
     async readiness(offers){
       // Operator enablement and canonical payment discovery remain. Neither
@@ -78,8 +81,8 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       }
     },
     async operatorStatus(){
-      const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired'))::int AS pending,
-        count(*) FILTER(WHERE state NOT IN ('created','retired') AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
+      const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired','refunded'))::int AS pending,
+        count(*) FILTER(WHERE state NOT IN ('created','retired','refunded') AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
         FROM saffron_incentives.vault_jobs`)).rows[0]
       const readiness=await service.readiness()
       return {signer,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness,...await operationalStatus(db,readiness,now)}
@@ -211,8 +214,10 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const progress=await deploymentProgress({job,observation,journal,payment,policy:await db.intakePolicy(job.signer),rpc,confirmations:config?.confirmations??2,now})
       const transactions=journal.map(tx=>({hash:tx.resolved_hash??tx.hash,originalHash:tx.hash,step:tx.step,nonce:String(tx.nonce),confirmed:progress.stages.some(s=>s.hash===(tx.resolved_hash??tx.hash)&&s.state==='complete'),reverted:tx.receipt?.status==='0x0'||tx.resolution_kind==='cancelled'}))
       if(depositable&&(!progress.verificationAvailable||progress.stages.some(s=>s.state!=='complete'))){depositable=false;state='checking'}
+      const refund=await refunds.forDeployment(job.id)
+      if(refund){depositable=false;if(!canClaim&&!canWithdraw&&!canRecover)state=refund.state}
       return jsonSafe({id:job.id,wallet:job.wallet,positionWallet:wallet.toLowerCase(),isRequester,programId:job.snapshot.programId,createdAt:job.created_at,planHash:job.plan_hash,plan:job.plan,
-        snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,progress,
+        snapshot:job.snapshot,signer:job.signer,observation,state,depositable,canClaim,canWithdraw,canRecover,progress,refund,
         workerState:job.state,fundingState:!fresh?'unverified':observation.isStarted?'spent':BigInt(observation.variableSupply)===BigInt(observation.variableCapacity)?'funded':BigInt(observation.variableSupply)>0n?'partial':'awaiting_external',cancelRequested:job.cancel_requested,error:job.error,transactions,
         nextAttemptAt:job.next_attempt_at})
     },
@@ -275,6 +280,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async poll(){
       if(polling)return;polling=true
       try{
+        await refunds.poll()
         const jobs=await db.execution.tracked();let index=0
         await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{while(index<jobs.length)await refresh(jobs[index++].intent_id)}))
         for(const budget of (await db.catalog(true)).budgets)await db.auditBudget(budget.id)

@@ -12,6 +12,7 @@ The API observes the individual vault's canonical variable supply and covered
 token balance to decide when users can enter. Partial funding does not enable
 entry. Request-time USD values are historical valuation, not current inventory.
 
-Refunds, if needed, are processed manually outside the app. There is no refund
-request or retirement workflow. Ordinary user LP recovery remains available
+Unfulfillable requests receive the original creation fee back through externally
+paid, canonically verified [refunds](REFUNDS.md). Stop funding before approval and
+coordinate any variable-side recovery separately. Ordinary user LP recovery remains available
 when canonical ownership and protocol state allow it.

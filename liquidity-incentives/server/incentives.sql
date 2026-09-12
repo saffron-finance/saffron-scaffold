@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_resolution_audit (
 
 -- Non-destructive upgrade: retain historical records, but remove the former
 -- aggregate hard limit. Git rollback needs the pre-upgrade database backup if
--- a new commitment exceeds its old limit. No refund/treasury/gas table is used.
+-- a new commitment exceeds its old limit.
 DO $$
 DECLARE constraint_name TEXT;
 BEGIN
@@ -142,3 +142,42 @@ ALTER TABLE saffron_incentives.intake_policies ALTER COLUMN max_pending SET DEFA
 
 -- A separately editable planning target must never reprice accepted premiums.
 ALTER TABLE saffron_incentives.budget_pools ADD COLUMN IF NOT EXISTS advisory_budget_cents NUMERIC(78,0) CHECK(advisory_budget_cents>0);
+
+-- External refunds retain their original fee obligation and immutable manifest.
+ALTER TABLE saffron_incentives.payment_obligations ADD COLUMN IF NOT EXISTS refund_reason TEXT;
+ALTER TABLE saffron_incentives.payment_obligations ADD COLUMN IF NOT EXISTS refund_error TEXT;
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_batches (
+  id UUID PRIMARY KEY, actor TEXT NOT NULL, source TEXT NOT NULL, fingerprint TEXT NOT NULL,
+  manifest JSONB NOT NULL, state TEXT NOT NULL DEFAULT 'prepared',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_items (
+  batch_id UUID NOT NULL REFERENCES saffron_incentives.refund_batches(id),
+  payment_hash TEXT NOT NULL REFERENCES saffron_incentives.payment_obligations(hash),
+  expected_wei NUMERIC(78,0) NOT NULL CHECK(expected_wei>0), PRIMARY KEY(batch_id,payment_hash)
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_submissions (
+  hash TEXT PRIMARY KEY, batch_id UUID NOT NULL REFERENCES saffron_incentives.refund_batches(id),
+  actor TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', evidence JSONB, error TEXT,
+  lease_token UUID, lease_until TIMESTAMPTZ, checked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_payouts (
+  hash TEXT NOT NULL REFERENCES saffron_incentives.refund_submissions(hash), payout_index INTEGER NOT NULL,
+  recipient TEXT NOT NULL, amount_wei NUMERIC(78,0) NOT NULL CHECK(amount_wei>0),
+  canonical BOOLEAN NOT NULL, block_number TEXT NOT NULL, block_hash TEXT NOT NULL, method TEXT NOT NULL,
+  PRIMARY KEY(hash,payout_index)
+);
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_allocations (
+  hash TEXT NOT NULL,payout_index INTEGER NOT NULL,payment_hash TEXT NOT NULL REFERENCES saffron_incentives.payment_obligations(hash),
+  amount_wei NUMERIC(78,0) NOT NULL CHECK(amount_wei>0), PRIMARY KEY(hash,payout_index,payment_hash),
+  FOREIGN KEY(hash,payout_index) REFERENCES saffron_incentives.refund_payouts(hash,payout_index)
+);
+CREATE INDEX IF NOT EXISTS refund_allocation_payment ON saffron_incentives.refund_allocations(payment_hash);
+CREATE INDEX IF NOT EXISTS refund_queue ON saffron_incentives.refund_submissions(checked_at NULLS FIRST);
+CREATE TABLE IF NOT EXISTS saffron_incentives.refund_verification_audit (
+  id BIGSERIAL PRIMARY KEY, hash TEXT NOT NULL REFERENCES saffron_incentives.refund_submissions(hash),
+  previous_evidence JSONB, evidence JSONB NOT NULL,
+  previous_allocations JSONB NOT NULL, allocations JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

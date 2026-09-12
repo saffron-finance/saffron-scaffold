@@ -6,7 +6,7 @@ export async function operationalStatus(db,readiness,now=Date.now){
     o.snapshot->>'verified' verified,o.snapshot->>'checkedAt' checked_at
     FROM saffron_incentives.deployment_intents i JOIN saffron_incentives.vault_jobs j ON j.intent_id=i.id
     JOIN saffron_incentives.budget_reservations r ON r.intent_id=i.id LEFT JOIN saffron_incentives.vault_observations o ON o.intent_id=i.id`)).rows
-  const pending=rows.filter(r=>r.state!=='retired'&&(r.state!=='created'||BigInt(r.reserved_raw)>0n))
+  const pending=rows.filter(r=>!['retired','refunded'].includes(r.state)&&(r.state!=='created'||BigInt(r.reserved_raw)>0n))
   const funding=rows.filter(r=>r.state==='created'&&BigInt(r.reserved_raw)>0n)
   const age=row=>Math.max(0,Math.floor((now()-(row.last_progress??row.created_at).getTime())/1000))
   const oldest=items=>items.length?Math.max(...items.map(age)):0

@@ -1,3 +1,4 @@
+import { formatUnits } from 'viem'
 import { useEffect,useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
@@ -18,22 +19,22 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy}:{accou
   useEffect(()=>onBusy(busy),[busy,onBusy])
   if(position)return <VaultLifecyclePanel account={account} id={id} onBusy={onBusy} row={row} verificationError={status.error}/>
   const reason=status.error?'verification_unavailable':progress?.reason
-  const label=reason==='queued'?'Your request is queued':reason==='awaiting_funding'?'Awaiting campaign funding':reason==='operator_review'?'Waiting for operator review'
+  const label=row?.refund?statusLabel(row.refund.state):reason==='queued'?'Your request is queued':reason==='awaiting_funding'?'Awaiting campaign funding':reason==='operator_review'?'Waiting for operator review'
     :reason==='verification_unavailable'?'Verification temporarily unavailable':reason==='ready'?(row?.state==='occupied'?'Fixed side occupied':'Your vault is ready')
     :reason?.startsWith('payment_')?statusLabel(reason.slice(8)):reason==='retired'?'Historical request':reason==='retirement_requested'?'Needs operator attention'
     :progress?.activeStage===1?'Preparing your vault':progress?.activeStage===2?'Creating your vault':progress?.activeStage===3?'Checking your vault':'Loading your request…'
   return <Stack data-vault-lifecycle={id} data-deployment-waiting>
-    <b role='status' aria-live='polite'>{label}</b><Elapsed since={progress?.requestedAt??row?.createdAt}/>
+    <b role='status' aria-live='polite'>{label}</b>{row?.refund?<FinePrint>{row.refund.state==='refunded'?'Your original creation fee has been repaid on Robinhood and this request is closed.':row.refund.state==='refund_exception'?'The refund needs canonical verification again. Creation remains stopped.':'The operator cannot fulfill this request and has approved repayment of your original creation fee. Creation is stopped.'} {formatUnits(BigInt(row.refund.verifiedWei),18)} / {formatUnits(BigInt(row.refund.amountWei),18)} ETH verified.</FinePrint>:<Elapsed since={progress?.requestedAt??row?.createdAt}/>}
     <FinePrint>You can close this window and return through Portfolio. Your request remains saved.</FinePrint>
     {progress?.paymentState==='sample'&&<FinePrint>Sample request progress · no onchain transactions.</FinePrint>}
-    {progress&&<Stages aria-label='Vault creation progress'>{progress.stages.map(stage=><li key={stage.id} aria-current={stage.state==='active'?'step':undefined}>
+    {progress&&!row?.refund&&<Stages aria-label='Vault creation progress'>{progress.stages.map(stage=><li key={stage.id} aria-current={stage.state==='active'?'step':undefined}>
       <StageMarker $active={stage.state==='active'&&reason!=='verification_unavailable'} $complete={stage.state==='complete'} aria-hidden='true'>{stage.state==='complete'?'✓':stage.id}</StageMarker>
       <span>{stage.name}<small>{{complete:'Complete',active:'In progress',pending:'Pending',blocked:'On hold',checking:'Checking'}[stage.state]}</small></span>
     </li>)}</Stages>}
     {progress?.lastProgressAt&&<FinePrint>Last verified progress: {new Date(progress.lastProgressAt).toLocaleString()}{progress.observedBlock?' · block '+progress.observedBlock.number:''}.</FinePrint>}
     {progress?.serviceWindowMinutes&&<FinePrint>Operator service window: {progress.serviceWindowMinutes} minutes. This is an operational window; funding and chain confirmations may take longer.</FinePrint>}
     {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The campaign operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
-    {progress?.operatorAction&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
+    {progress?.operatorAction&&!row?.refund&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
     {status.error&&<ErrorText role='alert'>The last known request is shown. Verification is unavailable and new actions are paused.</ErrorText>}
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
     {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<Action disabled={Boolean(status.error)||busy} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</Action>}

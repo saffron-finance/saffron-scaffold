@@ -73,8 +73,19 @@ button. C06 follows the admitted request through creation and vault funding.
 
 Late or duplicate fees remain visible to operators as payment exceptions.
 An operator can admit an eligible original payment against its original terms.
-Refunds, if necessary, are processed manually outside this application. There
-are no refund request, refund verification, or retirement operations.
+When an accepted request cannot be deployed or its premium cannot be provided,
+an operator may approve a full refund of the original ETH creation fee. Approval
+stops creation. Operators pay externally through bulksender.app; the application
+verifies canonical payouts and reconciles every signed creator transaction before
+closing the request. There is no user refund form or application refund signer.
+See [External refunds](ops/REFUNDS.md). Late/duplicate/unadmitted fees retain their
+separate payment exception classification and original-payment admission controls.
+
+Vault TVL is current deposited LP principal valued at one confirmed block and
+fresh quote-asset prices. Maturity and transfer of rights do not remove principal;
+withdrawal does. Requested amounts, premiums and accrued LP fees are excluded.
+The API returns source block/hash and price time, or explicit stale/unavailable
+status. Live APR's Pool TVL continues to describe the entire underlying pool.
 
 ## Operational boundaries
 

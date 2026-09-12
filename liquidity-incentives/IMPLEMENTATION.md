@@ -20,10 +20,12 @@ The active pointer selects the displayed checkout, not a user quota.
 Quote states `held`, `closing`, `accepted`, and `released` are retained for
 canonical payment-window settlement; they no longer hold capacity or gas.
 Payment proofs establish canonical fees. Payment exceptions retain duplicate,
-late, or otherwise unresolved received fees. There is no refund state machine.
-Historical refund/retirement values are preserved but no new actions create them.
+late, or otherwise unresolved received fees. Approved accepted-request refunds
+move through `refund_pending`, `refunded`, or `refund_exception`. Immutable batch
+manifests bind exact original fee allocations; canonical payout identities prevent
+double credit. See [refund operation and recovery](ops/REFUNDS.md).
 
-Creator jobs are queued/running/waiting/failed/created. Only create operations
+Creator jobs are queued/running/waiting/failed/created/refunded. Only create operations
 are executable. Saved retired/cancelled records are not silently reactivated.
 The vault observer distinguishes awaiting funding, partial funding, funded,
 and started/spent. Position actions depend on fresh canonical ownership.
@@ -64,6 +66,10 @@ All application tables use schema `saffron_incentives`.
 - `payment_scan_cursors`, `payment_proofs`, `payment_exceptions`,
   `payment_obligations`, `payment_resolution_audit`: canonical fee discovery,
   received amounts, exceptions, and audited original-payment admission.
+- `refund_batches`, `refund_items`, `refund_submissions`: frozen manifests,
+  original fee bindings, external hashes and durable verifier leases.
+- `refund_payouts`, `refund_allocations`, `refund_verification_audit`: canonical
+  payout identities, bounded credit and append-only verification history.
 
 Private recovery capabilities stay in browser storage. Quotes keep only their
 commitments. Public data excludes capabilities, cookies, raw signed bytes, and
@@ -77,7 +83,8 @@ constraint that capped reserved plus allocated premium at `limit_raw`.
 It does not delete or rewrite accepted quotes, payment records, raw transactions,
 old refund/gas/treasury tables, or historical retired records.
 
-Fresh databases omit the removed refund, gas reservation, treasury inventory,
+Fresh databases include external refund manifests, submissions, payouts and allocations.
+They omit removed gas reservation, treasury inventory,
 and amount-review tables. Legacy quota columns can remain for schema compatibility
 but are not used for admission. Historical `capacity*` names remain rate inputs
 or private accounting metrics, never hard limits. Old quote hashes stay intact.
