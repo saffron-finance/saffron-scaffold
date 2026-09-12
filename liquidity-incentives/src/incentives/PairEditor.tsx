@@ -67,7 +67,7 @@ export function PairEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[]
     {picker!==null&&<TokenPicker key={picker} account={account} tokens={listed} other={(picker===0?token1:token0)?.address} onClose={()=>setPicker(null)} onSelect={token=>{(picker===0?setToken0:setToken1)(token);setPicker(null)}}/>}
   </Form>
 }
-const Form=styled.form`display:flex;flex-direction:column;gap:24px;padding:28px 32px;background:${p=>p.theme.colors.background.base};border:1px solid var(--line);border-radius:var(--radius-md);>b{font-family:${p=>p.theme.fonts.display};font-size:22px;font-weight:400}a{overflow-wrap:anywhere}@media(max-width:650px){padding:24px 16px}`
+const Form=styled.form`display:flex;flex-direction:column;gap:24px;padding:28px 32px;background:${p=>p.theme.colors.background.base};border:1px solid var(--line);border-radius:var(--radius-md);>b{font-family:${p=>p.theme.fonts.display};font-size:22px;font-weight:400}a{overflow-wrap:anywhere;color:${p=>p.theme.colors.accent.gold}}@media(max-width:650px){padding:24px 16px}`
 const Selectors=styled.div`display:flex;gap:52px;`
 const Slot=styled.div`flex:1;min-width:0;position:relative;font-size:12px;color:${p=>p.theme.colors.text.secondary};`
 const Trigger=styled.button`display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:50px;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:var(--radius-md);color:${p=>p.theme.colors.text.primary};background:var(--surface-input);font-size:15px;cursor:pointer;span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}span:last-child{margin-left:auto} &:hover:not(:disabled),&:focus-visible{border-color:var(--line-strong);outline:1px solid var(--line-strong)}`

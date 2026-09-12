@@ -13,7 +13,7 @@ const abi=parseAbi(['function name() view returns(string)','function symbol() vi
  * Bound external data and use only an operator-owned URL; no caller URL is fetched. */
 export function listToken(value){
   if(value?.chainId!==CHAIN_ID||!validAddress(value.address)||!Number.isInteger(value.decimals)
-    ||value.decimals<0||value.decimals>18||!/^\S.{0,99}$/u.test(value.symbol??''))return null
+    ||value.decimals<0||value.decimals>18||!/^[A-Za-z0-9._-]{1,20}$/.test(value.symbol??''))return null
   return {address:value.address.toLowerCase(),symbol:value.symbol.slice(0,100),decimals:value.decimals,
     name:typeof value.name==='string'?value.name.slice(0,120):value.symbol,
     ...(typeof value.logoURI==='string'&&/^https:\/\//.test(value.logoURI)&&value.logoURI.length<1000?{logoURI:value.logoURI}:{})}
