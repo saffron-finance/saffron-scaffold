@@ -1,11 +1,11 @@
 import { useEffect,useRef,useState } from 'react'
 import { toHex,type Address,type Hex } from 'viem'
-import { walletClient,walletPublicClient,assertWalletAccount,ensureChain } from '@lab/wallet/wallet'
+import { walletClient,assertWalletAccount,ensureChain } from '@lab/wallet/wallet'
 import { robinhoodChain } from '@lab/chain/chains'
 import { digest,cents } from '../../shared/incentives.mjs'
 import { proofHash,paymentData } from '../../shared/payment.mjs'
 import { requestJson,rememberPayment,robinhoodClient } from './transport'
-import { readPayments,savePayment,saveCheckoutDraft,selectPayment,type Payment,type Payments,type CheckoutDraft } from './payment-records.mjs'
+import { readPayments,savePayment,saveCheckoutDraft,selectPayment,nextPaymentNonce,retryPaymentNonce,type Payment,type Payments,type CheckoutDraft } from './payment-records.mjs'
 import type { Deployment,Offer } from '../incentives/model'
 
 export function useDeploymentFlow(account:Address|null){
@@ -70,7 +70,7 @@ export function useDeploymentFlow(account:Address|null){
       ||q.fee?.usdCents!=='200'||q.fee.asset!=='ETH'||q.recoveryHash!==proofHash(recoverySecret)||q.paymentData!==paymentData(q))throw new Error('Payment or deployment terms changed. Refresh before paying.')
     await assertWalletAccount(account);persist({quote:q,recoverySecret,sent:false,status:'prepared'})
   })
-  const pay=()=>coordinated(async(ledger,persist)=>{
+  const pay=(retryMissingHash=false)=>coordinated(async(ledger,persist)=>{
     if(!account||!ledger.activeId)return
     let payment={...ledger.records[ledger.activeId]}
     const accepted=(result:any)=>finish(payment,persist,result)
@@ -78,21 +78,26 @@ export function useDeploymentFlow(account:Address|null){
     if(payment.sent){
       const recovered=await requestJson('/payments/recover',{quoteId:payment.quote.id,recoverySecret:payment.recoverySecret})
       if(recovered.deployment){payment={...payment,hash:recovered.paymentHash??payment.hash};accepted(recovered);return}
+      if(recovered.paymentHash){payment={...payment,hash:recovered.paymentHash,status:'submitted'};persist(payment)}
     }
-    if(!payment.sent){
-      if(Date.parse(payment.quote.paymentDeadline)<=Date.now())throw new Error('Payment quote expired. Refresh before paying.')
+    if(payment.sent&&!payment.hash&&/^0x[0-9a-fA-F]{64}$/.test(recoveryHash)){payment={...payment,hash:recoveryHash as Hex};persist(payment)}
+    const retrying=retryMissingHash&&payment.sent&&!payment.hash
+    if(!payment.sent||retrying){
+      if(!retrying&&Date.parse(payment.quote.paymentDeadline)<=Date.now())throw new Error('Payment quote expired. Refresh before paying.')
       await assertWalletAccount(account);await ensureChain(robinhoodChain)
-      const pendingNonce=await walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'})
-      // A lost submission response must not let a second request replace the
-      // earlier fee. Retain its nonce while allowing a separate paid request.
-      const nonce=Object.values(ledger.records).reduce((next,p)=>p.sent&&p.nonce!==undefined?Math.max(next,p.nonce+1):next,pendingNonce)
+      const [latestNonce,pendingNonce]=await Promise.all([
+        robinhoodClient.getTransactionCount({address:account,blockTag:'latest'}),
+        robinhoodClient.getTransactionCount({address:account,blockTag:'pending'}),
+      ])
+      const nonce=retrying?retryPaymentNonce(payment,latestNonce,pendingNonce):nextPaymentNonce(ledger.records,latestNonce,pendingNonce)
       await assertWalletAccount(account)
       payment={...payment,sent:true,status:'submitting',nonce};persist(payment)
       try{
         const hash=await walletClient().sendTransaction({chain:robinhoodChain,account,to:payment.quote.fee.recipient,value:BigInt(payment.quote.fee.amountWei),data:paymentData(payment.quote),nonce})
         payment={...payment,hash,status:'submitted'};persist(payment)
       }catch(cause:any){
-        let current=cause;for(let i=0;current&&i<8;i++,current=current.cause)if(current.code===4001){payment={...payment,sent:false,status:'prepared',nonce:undefined};persist(payment);break}
+        // Rejecting a retry does not prove the original unknown send was unpaid.
+        let current=cause;for(let i=0;!retrying&&current&&i<8;i++,current=current.cause)if(current.code===4001){payment={...payment,sent:false,status:'prepared',nonce:undefined};persist(payment);break}
         throw cause
       }
     }

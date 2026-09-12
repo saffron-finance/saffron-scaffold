@@ -1,10 +1,29 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { readPayments,savePayment,selectPayment,paymentRecordsKey } from '../src/host/payment-records.mjs'
+import { readPayments,savePayment,selectPayment,paymentRecordsKey,nextPaymentNonce,retryPaymentNonce } from '../src/host/payment-records.mjs'
 const wallet='0x'+'1'.repeat(40)
 function fixture(){const values=new Map();return {getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)}}
 const payment=()=>({quote:{id:randomUUID(),wallet,planHash:'terms'},recoverySecret:'private-fixture-capability',sent:false,status:'prepared'})
+
+it('lost or pre-broadcast failures cannot create a nonce gap for a second fee',()=>{
+  const first={...payment(),sent:true,status:'submitting',nonce:0}
+  const second={...payment(),sent:true,status:'submitting',nonce:1}
+  assert.throws(()=>nextPaymentNonce({first},0,0),/nonce 0/)
+  assert.throws(()=>nextPaymentNonce({first,second},0,0),/nonce 0/)
+  assert.equal(nextPaymentNonce({first},0,1),1)
+  assert.equal(nextPaymentNonce({first},1,1),1)
+  assert.equal(nextPaymentNonce({first:{...first,sent:false,status:'prepared',nonce:undefined}},0,0),0)
+  assert.throws(()=>nextPaymentNonce({},2,1),/unavailable/)
+})
+
+it('explicit retries reuse only the original unpaid nonce and immutable valid quote',()=>{
+  const p={...payment(),quote:{paymentDeadline:new Date(2000).toISOString()},sent:true,nonce:3}
+  assert.equal(retryPaymentNonce(p,3,3,1000),3)
+  for(const [latest,pending] of [[3,4],[4,4],[2,2],[2,3]])assert.throws(()=>retryPaymentNonce(p,latest,pending,1000),/occupied|unresolved/)
+  assert.throws(()=>retryPaymentNonce({...p,hash:'known'},3,3,1000),/existing payment/)
+  assert.throws(()=>retryPaymentNonce(p,3,3,2000),/expired/)
+})
 
 it('stale tabs cannot erase submitted recovery or change committed terms',()=>{
   const storage=fixture(),stale=readPayments(storage,wallet),record=payment()

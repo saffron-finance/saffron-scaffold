@@ -68,6 +68,7 @@ const ALLOWED_METHODS = new Set([
   'eth_getLogs',
   'eth_getBlockByNumber',
   'eth_getTransactionByHash',
+  'eth_getTransactionCount',
   'eth_getTransactionReceipt',
   'eth_getCode',
   'net_version',

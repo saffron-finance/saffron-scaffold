@@ -2,6 +2,35 @@ export const paymentRecordsKey=wallet=>'saffron.creation-payments.v1:'+wallet.to
 const uuid=/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 const states=['prepared','submitting','submitted','confirming','accepted','needs_attention','confirmed_unpaid','abandoned','refunded']
 
+function checkedNonces(latest,pending){
+  if(!Number.isSafeInteger(latest)||latest<0||!Number.isSafeInteger(pending)||pending<latest)
+    throw new Error('Wallet transaction state is unavailable. Check again before paying.')
+}
+
+/** A saved submission is evidence to recover, never evidence of a mined or
+ * pending transaction. Only the chain can advance the next account nonce. */
+export function nextPaymentNonce(records,latest,pending){
+  checkedNonces(latest,pending)
+  if(Object.values(records).some(p=>p.sent&&p.nonce===undefined&&!p.deploymentId))
+    throw new Error('Resume the saved payment in Portfolio. Its transaction nonce is missing, so another fee cannot be safely sequenced.')
+  const unresolved=Object.values(records).filter(p=>p.sent&&p.nonce!==undefined&&p.nonce>=pending).sort((a,b)=>a.nonce-b.nonce)[0]
+  if(unresolved)throw new Error(`Resume the earlier payment at nonce ${unresolved.nonce} from Portfolio before paying for another vault. Its submission is not yet accounted for on the chain.`)
+  return pending
+}
+
+/** Used only by the explicit same-payment retry action. Even if the original
+ * send later arrives, identical terms at the same nonce cannot pay twice. */
+export function retryPaymentNonce(payment,latest,pending,now=Date.now()){
+  checkedNonces(latest,pending)
+  if(!payment.sent||payment.hash||!Number.isSafeInteger(payment.nonce)||payment.nonce<0)
+    throw new Error('Check the existing payment transaction instead of submitting it again.')
+  if(!Number.isFinite(Date.parse(payment.quote.paymentDeadline))||Date.parse(payment.quote.paymentDeadline)<=now)
+    throw new Error(`This quote expired. Resolve nonce ${payment.nonce} in your wallet, then enter its transaction hash here to verify the outcome.`)
+  if(latest!==payment.nonce||pending!==payment.nonce)
+    throw new Error('The original nonce is occupied or an earlier transaction is unresolved. Check payment discovery or enter the existing transaction hash.')
+  return payment.nonce
+}
+
 /** One storage write publishes the records and active pointer together. Callers
  * hold the wallet Web Lock; revisions also reject stale async callbacks. */
 export function readPayments(storage,wallet){
@@ -10,7 +39,7 @@ export function readPayments(storage,wallet){
   let ledger
   try{ledger=JSON.parse(raw)}catch{throw new Error('Saved payment recovery data is unreadable. Do not pay again.')}
   if(!Number.isSafeInteger(ledger?.revision)||ledger.revision<0||!ledger.records||typeof ledger.records!=='object'||Array.isArray(ledger.records)
-    ||Object.entries(ledger.records).some(([id,p])=>!uuid.test(id)||p?.quote?.id!==id||p.quote.wallet!==wallet.toLowerCase()||!states.includes(p.status)||typeof p.sent!=='boolean')
+    ||Object.entries(ledger.records).some(([id,p])=>!uuid.test(id)||p?.quote?.id!==id||p.quote.wallet!==wallet.toLowerCase()||!states.includes(p.status)||typeof p.sent!=='boolean'||(p.nonce!==undefined&&(!Number.isSafeInteger(p.nonce)||p.nonce<0)))
     ||(ledger.activeId!==null&&!Object.hasOwn(ledger.records,ledger.activeId))
     ||(ledger.draft&&(!uuid.test(ledger.draft.requestKey)||ledger.draft.wallet!==wallet.toLowerCase())))throw new Error('Saved payment recovery data is invalid. Do not pay again.')
   return ledger

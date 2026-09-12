@@ -75,6 +75,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
         {flow.saved&&<FinePrint>Your payment request is saved. Retry to recover it without paying twice.</FinePrint>}
         {flow.quote?.fee&&<FinePrint>Creation fee: $2 in ETH plus gas.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
+        {flow.saved?.sent&&!flow.saved.hash&&flow.saved.nonce!==undefined&&<Disclosure><summary>Recover a missing transaction response</summary><p>Check payment first. If your wallet never returned a hash, retry the exact same fee at nonce {flow.saved.nonce}. Your wallet will ask for confirmation. If the quote expired, resolve or cancel that nonce in your wallet and enter the resulting hash here.</p><QuietButton disabled={busy} onClick={()=>void flow.pay(true)}>Retry same payment</QuietButton></Disclosure>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
         <ModalAction disabled={busy||flow.saved?.status==='confirmed_unpaid'} onClick={()=>void flow.pay()}>{busy?'Confirming payment…':flow.saved?.sent?'Check payment':claimLabel}</ModalAction>
         {flow.saved?.sent&&<QuietButton disabled={busy} onClick={async()=>{await flow.startNew();onClose()}}>Create another vault</QuietButton>}
