@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vault test session · Saffron</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101014;color:#f4f1f9;font:15px/1.5 system-ui,sans-serif}header{padding:20px 24px;border-bottom:1px solid #38313f}h1{font-size:24px;margin:0 0 5px}.label{color:#c5a6ff;font-weight:650}.intro{margin:8px 0;color:#d0cbd7;max-width:1100px}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 8px}button{font:inherit;color:inherit;background:#37294c;border:1px solid #8764b5;padding:9px 14px;border-radius:7px;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}button:focus-visible,a:focus-visible{outline:3px solid #d3b2ff;outline-offset:3px}a{color:#d3b2ff}#notice{min-height:24px;color:#dcc5ff}.meta{font-size:13px;color:#b9b2c1}iframe{display:block;width:100%;height:calc(100vh - 286px);min-height:580px;border:0;background:#18151d}details{margin-top:10px}summary{cursor:pointer}ol{margin:8px 0 0;padding-left:22px}code{font-family:ui-monospace,monospace}#state{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}@media(max-width:700px){header{padding:14px}h1{font-size:21px}iframe{height:720px;min-height:550px}.controls{gap:7px}button{font-size:13px;padding:8px 10px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Vault test session</h1>
+<div class="label">Disposable local chain · Test tokens only · No mainnet transactions</div>
+<p class="intro">Use <strong>Connect wallet → Uniswap Extension</strong> inside the browser below. This is a pre-funded test wallet; your real wallet is not used. Each accepted request is fork-simulated before creation.</p>
+<div class="controls">
+<button data-action="fund-half" disabled>Fund halfway</button>
+<button data-action="fund" disabled>Finish funding</button>
+<button data-action="mature" disabled>Advance to maturity</button>
+<button id="refresh">Refresh status</button>
+<button id="reopen" disabled>Reopen test browser</button>
+<button id="reset" disabled>Start fresh test</button>
+<a href="desktop/vnc.html?autoconnect=1&amp;resize=scale&amp;path=saffron/apps/vault-watcher-test/desktop/websockify" target="_blank" rel="noopener">Open browser full-screen</a>
+</div>
+<div id="notice" role="status" aria-live="polite">Connecting to the test session…</div>
+<div id="refresh-feedback" class="meta" role="status" aria-live="polite">Checking session status…</div>
+<div id="browser-notice" class="meta" role="status" aria-live="polite">Checking whether the test browser is open…</div>
+<div class="meta"><strong>Refresh status</strong> checks this test. <strong>Reopen test browser</strong> restores its window. Neither starts a new test.</div>
+<div class="meta"><strong>Start fresh test</strong> saves a test record, then replaces this sandbox with a new test wallet, empty requests and a reset clock.</div>
+<div id="clock-note" class="meta" hidden>Time was advanced for this test. Use Start fresh test to try another checkout from the beginning.</div>
+<div class="meta">Source <code>8c912ee</code> · Separate PostgreSQL, creator and treasury · One shared testing session</div>
+<details><summary>Test walkthrough and session state</summary>
+<ol><li>Connect the test wallet; request a $100 vault and pay $2 in test ETH.</li><li>Watch adapter → vault → initialization. Creation uses the request-pinned runner.</li><li>Use “Fund halfway”; entry should remain unavailable. Then “Finish funding”.</li><li>Deposit LP assets, wrap/approve as prompted, and claim the premium.</li><li>Use “Advance to maturity”, then withdraw LP assets in the app.</li></ol>
+<p>Advancing time affects only this local chain. Use Start fresh test for another checkout cycle. Closing this tab does not stop the session; Reopen test browser restores an accidentally closed app window.</p>
+<pre id="state"></pre></details>
+</header>
+<iframe title="Interactive disposable Saffron test browser" src="desktop/vnc.html?autoconnect=1&amp;resize=scale&amp;path=saffron/apps/vault-watcher-test/desktop/websockify" allow="fullscreen"></iframe>
+<script>
+const notice=document.querySelector('#notice'),state=document.querySelector('#state');
+const refreshButton=document.querySelector('#refresh'),feedback=document.querySelector('#refresh-feedback');
+const reopenButton=document.querySelector('#reopen'),browserNotice=document.querySelector('#browser-notice');
+const resetButton=document.querySelector('#reset');
+let inFlight=null,commandPending=false,commandError='',reopening=false,resetPending=false,resetting=false,currentSessionId=null,seenReadyReset=null;
+
+/** Reset is explicit and separate from status/reopen. Keep all fixture controls
+ * disabled while the server archives, restarts and verifies the fresh session.
+ */
+function showReset(reset){
+ resetting=true;notice.textContent=reset.message;feedback.textContent='Starting a fresh test. This page will update automatically.';
+ browserNotice.textContent='The previous test record is being preserved; the replacement browser will open automatically.';
+ resetButton.disabled=true;resetButton.textContent='Starting fresh test…';resetButton.setAttribute('aria-busy','true');
+ document.querySelector('iframe').style.pointerEvents='none';
+ reopenButton.disabled=true;document.querySelectorAll('[data-action]').forEach(button=>button.disabled=true);
+}
+
+/** Describe the wallet lifecycle, not the creation worker's permanently-created
+ * job. A moved local clock alone says nothing about a completed withdrawal.
+ */
+function describe(data){
+ if(data.busy)return 'Simulating and creating the exact test request…';
+ if(!data.jobs.length)return 'Ready. Create your first test request in the browser below.';
+ const labels={completed:'Completed — LP assets withdrawn. Your test session is preserved.',
+  matured:'Ready to withdraw LP assets in the app.',active:'Position active — waiting for maturity.',
+  claimable:'Premium is ready to claim in the app.',depositable:'Funding complete — deposit LP assets in the app.',
+  awaiting_funding:'Awaiting campaign funding.',fixed_awaiting_funding:'LP deposit confirmed — awaiting campaign funding.',
+  checking:'Checking the latest position state…',queued:'Deployment queued.',deploying:'Creating vault…',
+  no_position:'No position currently held by this test wallet.',occupied:'Fixed side occupied.',
+  needs_attention:'This request needs operator attention.',retired:'Request retired.',retirement_requested:'Retirement requested.'};
+ return data.jobs.map(job=>job.position?.available?(labels[job.position.state]||'Position status: '+job.position.state):
+  'Position status unavailable. Your test session is preserved; refresh to retry.').join(' · ');
+}
+
+/** Coalesce overlapping clicks/polls, show progress, and always recover from a
+ * failed or timed-out request. No refresh reloads the embedded browser or sends
+ * a fixture action. The timestamp is wall-clock time, not the advanced EVM clock.
+ */
+function refresh(manual=false){
+ if(inFlight)return inFlight;
+ refreshButton.disabled=true;refreshButton.textContent='Refreshing…';refreshButton.setAttribute('aria-busy','true');
+ if(manual)feedback.textContent='Checking session status…';
+ inFlight=(async()=>{
+  try{
+   const response=await fetch('api/status',{cache:'no-store',signal:AbortSignal.timeout(25000)});
+   const payload=await response.json();
+   if(payload.reset?.running){showReset(payload.reset);return}
+   resetting=false;resetButton.textContent='Start fresh test';resetButton.setAttribute('aria-busy','false');
+   document.querySelector('iframe').style.pointerEvents='';
+   if(!response.ok||!payload.ok||!payload.result)throw Error(payload.reset?.state==='failed'?payload.reset.message:payload.error||'Session unavailable');const data=payload.result;
+   currentSessionId=data.user.toLowerCase();
+   resetButton.disabled=resetPending||commandPending||reopening||data.busy;
+   const waiting=data.jobs.some(j=>j.position?.verified&&j.state==='created'&&j.funding&&!j.funding.started&&BigInt(j.funding.suppliedRaw)<BigInt(j.funding.capacityRaw));
+   const started=!data.clockAdvanced&&data.jobs.some(j=>j.position?.verified&&j.funding?.started&&!['completed','no_position'].includes(j.position.state));
+   document.querySelectorAll('[data-action]').forEach(button=>{button.disabled=resetPending||commandPending||data.busy||(button.dataset.action==='mature'?!started:!waiting)});
+   if(!commandPending)notice.textContent=payload.reset?.state==='failed'?payload.reset.message:commandError||
+    (payload.reset?.state==='ready'&&!data.jobs.length?'Fresh test ready. Connect the test wallet to begin.':describe(data));
+   state.textContent=JSON.stringify(data,null,2);
+   reopenButton.disabled=resetPending||reopening||commandPending||data.busy||!data.browser?.available;
+   if(!reopening)browserNotice.textContent=data.browser?.available?
+    (data.browser.open?'Test browser is open — same wallet and session.':'Test browser is closed. Click Reopen test browser to restore the same wallet and session.'):
+    'Browser availability could not be checked. Refresh status to retry; no reset was performed.';
+   document.querySelector('#clock-note').hidden=!data.clockAdvanced;
+   feedback.textContent=(manual?'Refresh complete. ':'')+'Last checked '+new Date(data.checkedAt).toLocaleTimeString()+'.';
+   feedback.dataset.checkedAt=data.checkedAt;
+   if(payload.reset?.state==='ready'&&payload.reset.id!==seenReadyReset){
+    seenReadyReset=payload.reset.id;
+    const viewer=document.querySelector('iframe');viewer.src=viewer.getAttribute('src');
+   }
+  }catch(error){
+   if(!commandPending)notice.textContent='Status unavailable. Refresh to check the current test.';
+   feedback.textContent=['TimeoutError','AbortError'].includes(error.name)?'Status check timed out. Press Refresh status to retry.':error.message+' Press Refresh status to retry.';
+   document.querySelectorAll('[data-action]').forEach(button=>button.disabled=true);
+   reopenButton.disabled=true;
+   resetButton.disabled=true;
+  }finally{
+   inFlight=null;refreshButton.disabled=false;refreshButton.textContent='Refresh status';refreshButton.setAttribute('aria-busy','false');
+  }
+ })();
+ return inFlight;
+}
+document.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',async()=>{
+ commandPending=true;commandError='';resetButton.disabled=true;document.querySelectorAll('[data-action]').forEach(item=>item.disabled=true);notice.textContent='Applying the local test action…';
+ try{const response=await fetch('api/'+button.dataset.action,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});const value=await response.json();if(!response.ok||!value.ok)throw Error(value.error||'Action failed');notice.textContent='Local test action completed.'}catch(error){commandError=error.message;notice.textContent=commandError}finally{
+  commandPending=false;
+  // A poll begun before this action completed must not satisfy its fresh check.
+  if(inFlight)await inFlight;await refresh();
+ }
+}));
+/** Reopen a missing app window or focus the existing one. Reconnecting the viewer
+ * iframe does not reload the application inside Chromium or change wallet state.
+ */
+reopenButton.addEventListener('click',async()=>{
+ if(reopening)return;
+ reopening=true;reopenButton.disabled=true;reopenButton.textContent='Reopening…';reopenButton.setAttribute('aria-busy','true');
+ resetButton.disabled=true;
+ browserNotice.textContent='Opening the same test browser. Your wallet and vault are preserved…';
+ try{
+  const response=await fetch('api/reopen',{method:'POST',headers:{'content-type':'application/json'},body:'{}',signal:AbortSignal.timeout(25000)});
+  const payload=await response.json();if(!response.ok||!payload.ok)throw Error(payload.error||'Browser recovery unavailable.');
+  const viewer=document.querySelector('iframe');viewer.src=viewer.getAttribute('src');
+  browserNotice.textContent=payload.result.reopened?'Test browser reopened. No new test was started.':'Existing test browser restored to view. No new test was started.';
+ }catch(error){browserNotice.textContent=error.message;return}
+ finally{
+  reopening=false;reopenButton.textContent='Reopen test browser';reopenButton.setAttribute('aria-busy','false');reopenButton.disabled=false;
+ }
+ if(inFlight)await inFlight;await refresh();
+});
+/** One explicit reset request, pinned to the displayed wallet. A lost response
+ * is reconciled by status polling; retries cannot reset the next test twice.
+ */
+resetButton.addEventListener('click',async()=>{
+ if(resetPending||resetting||!currentSessionId)return;
+ const expected=currentSessionId;
+ resetPending=true;commandError='';showReset({message:'Requesting a fresh test…'});
+ try{
+  const response=await fetch('api/reset',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({sessionId:expected}),signal:AbortSignal.timeout(25000)});
+  const payload=await response.json();if(!response.ok||!payload.ok)throw Error(payload.error||'Could not confirm the reset.');
+  if(payload.reset?.running)showReset(payload.reset);
+ }catch(error){notice.textContent=error.message;feedback.textContent='Checking whether a reset was accepted…'}
+ finally{
+  resetPending=false;
+  if(inFlight)await inFlight;await refresh();
+ }
+});
+refreshButton.addEventListener('click',()=>refresh(true));refresh();setInterval(()=>refresh(),4000);
+</script>
+</body>
+</html>
