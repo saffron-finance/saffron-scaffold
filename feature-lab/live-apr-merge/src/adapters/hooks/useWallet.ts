@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type Address } from 'viem'
 import {
   connect,
+  cancelWalletConnection,
   currentAccounts,
   currentChainId,
   disconnect,
@@ -36,6 +37,8 @@ export function useWallet() {
   const [error, setError] = useState<string | null>(null)
   const pendingConnection = useRef<PendingConnection | null>(null)
   const readVersion = useRef(0)
+  const connectVersion = useRef(0)
+  const connecting = useRef(false)
 
   const readState = useCallback(async () => {
     const version = ++readVersion.current
@@ -87,6 +90,11 @@ export function useWallet() {
     document.addEventListener('visibilitychange', resume)
     return () => {
       readVersion.current++
+      connectVersion.current++
+      if (connecting.current) cancelWalletConnection()
+      connecting.current = false
+      pendingConnection.current?.reject(new Error('Wallet connection cancelled.'))
+      pendingConnection.current = null
       window.removeEventListener('focus', resume)
       window.removeEventListener('pageshow', resume)
       document.removeEventListener('visibilitychange', resume)
@@ -100,14 +108,17 @@ export function useWallet() {
   }, [refreshProviders])
 
   const closeModal = useCallback(() => {
-    if (connectingProviderId) return
+    connectVersion.current++
+    cancelWalletConnection()
+    connecting.current = false
+    setConnectingProviderId(null)
     setModalOpen(false)
     setError(null)
     if (pendingConnection.current) {
       pendingConnection.current.reject(new Error('Wallet connection cancelled.'))
       pendingConnection.current = null
     }
-  }, [connectingProviderId])
+  }, [])
 
   const requestConnection = useCallback((): Promise<void> => {
     if (account) return Promise.resolve()
@@ -132,27 +143,35 @@ export function useWallet() {
   }, [account, refreshProviders])
 
   const connectProvider = useCallback(async (providerId: string) => {
+    if (connecting.current) return
+    connecting.current = true
+    const version = ++connectVersion.current
     setConnectingProviderId(providerId)
     setError(null)
     try {
       const address = await connect(providerId)
+      if (version !== connectVersion.current) return
       setActiveProviderId(providerId)
       setAccount(address)
-      setChainId(await currentChainId())
+      setChainId(undefined)
       setModalOpen(false)
       pendingConnection.current?.resolve()
       pendingConnection.current = null
     } catch (connectionError) {
+      if (version !== connectVersion.current) return
       const message = connectionError instanceof Error ? connectionError.message : 'Unable to connect wallet.'
       setError(message.split('\n')[0].slice(0, 180))
     } finally {
-      setConnectingProviderId(null)
+      if (version === connectVersion.current) { connecting.current = false; setConnectingProviderId(null) }
     }
   }, [])
 
   const disconnectWallet = useCallback(() => {
     readVersion.current++
-    disconnect()
+    const version = ++connectVersion.current
+    connecting.current = false
+    setConnectingProviderId(null)
+    void disconnect().catch(() => { if (version !== connectVersion.current) return; setError('Disconnected here. End the session in your wallet if it still appears connected.'); setModalOpen(true) })
     setAccount(null)
     setChainId(undefined)
     setActiveProviderId(null)

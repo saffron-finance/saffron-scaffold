@@ -27,7 +27,7 @@
     {
       "id": "routes",
       "title": "5. Navigation and recovery",
-      "body_html": "<p>Home: <code>/</code>; Portfolio: <code>/portfolio/vaults</code>; operators: <code>/campaigns</code> and <code>/admin</code>; pool observations: <code>/live-apr</code>. Up to four pools can be compared.</p><p>Payment and position recovery survives reloads without automatic wallet sends. Full premium funding and actual ownership govern safe entry and later actions. APR outages remain explicitly unavailable while independently ready vault actions remain usable. Preview reset affects only its simulation.</p><p>Initial mobile use is through a wallet browser. Real phones require qualification; WalletConnect remains desired future work.</p>"
+      "body_html": "<p>Home: <code>/</code>; Portfolio: <code>/portfolio/vaults</code>; operators: <code>/campaigns</code> and <code>/admin</code>; pool observations: <code>/live-apr</code>. Up to four pools can be compared.</p><p>Payment and position recovery survives reloads without automatic wallet sends. Full premium funding and actual ownership govern safe entry and later actions. APR outages remain explicitly unavailable while independently ready vault actions remain usable. Preview reset affects only its simulation.</p><p>WalletConnect enables mobile wallet links and desktop QR pairing when VITE_WALLETCONNECT_PROJECT_ID is configured before the live build. Configure Reown allowed HTTPS origins. Wallet browsers remain available. Qualify the real relay and supported phones before launch.</p>"
     },
     {
       "id": "reuse",

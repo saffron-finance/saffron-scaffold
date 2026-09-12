@@ -129,6 +129,8 @@ export async function checkMobileHome({browser,origin,base,output,report,wire}) 
     // Switching from a collapsed desktop rail cannot leave a phone-sized gutter.
     await page.setViewportSize({width:1440,height:1100})
     await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
+    // Let the desktop collapse reach layout before changing mobile emulation.
+    await expect.poll(()=>page.locator('[data-saffron-sidebar]').evaluate(el=>el.getBoundingClientRect().width)).toBe(64)
     await page.setViewportSize({width:390,height:736})
     await expect.poll(()=>page.locator('[data-incentive-offer]').first().evaluate(el=>el.getBoundingClientRect().x)).toBe(16)
     await expect(nav).toBeVisible();await expect(page.locator('[data-saffron-sidebar]')).toBeHidden()

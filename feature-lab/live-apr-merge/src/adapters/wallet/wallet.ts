@@ -1,3 +1,4 @@
+import { WALLETCONNECT_ID, WALLETCONNECT_RDNS, walletConnectConfigured, walletConnectConnector } from './walletconnect'
 import { createPublicClient, createWalletClient, custom, type Address, type Chain } from 'viem'
 
 // This module deliberately implements only the small browser-wallet boundary
@@ -26,6 +27,7 @@ export type WalletProvider = {
   id: string
   name: string
   icon?: string
+  kind?: 'walletconnect'
   rdns?: string
   provider: Eip1193Provider
 }
@@ -47,6 +49,7 @@ const providers = new Map<string, WalletProvider>()
 const providerIds = new WeakMap<object, string>()
 const providerListeners = new Set<() => void>()
 let discoveryStarted = false
+let connectionVersion = 0
 let selectedProviderIdMemory: string | null = null
 
 /** Read the stored wallet selection without failing in private browsing. */
@@ -76,6 +79,7 @@ function notifyProviderListeners(): void {
  */
 function registerProvider(provider: Eip1193Provider, info: Partial<Eip6963ProviderInfo>): void {
   if (!provider || typeof provider.request !== 'function') return
+  if (info.uuid === 'walletconnect' || info.rdns === WALLETCONNECT_RDNS) return
 
   const providerObject = provider as object
   const existingId = providerIds.get(providerObject)
@@ -113,6 +117,12 @@ function legacyProviderName(provider: Eip1193Provider, index: number): string {
  */
 export function discoverWalletProviders(): void {
   if (typeof window === 'undefined') return
+
+  if (walletConnectConfigured && !providers.has(WALLETCONNECT_ID)) {
+    providers.set(WALLETCONNECT_ID, { id: WALLETCONNECT_ID, name: 'WalletConnect', kind: 'walletconnect',
+      rdns: WALLETCONNECT_RDNS, provider: walletConnectConnector().provider })
+    notifyProviderListeners()
+  }
 
   if (!discoveryStarted) {
     window.addEventListener('eip6963:announceProvider', ((event: CustomEvent<Eip6963ProviderDetail>) => {
@@ -195,12 +205,13 @@ function selectProvider(id: string): WalletProvider {
 
 function requireSelectedProvider(): Eip1193Provider {
   const wallet = selectedProvider()
-  if (!wallet) throw new Error('Choose a browser wallet to continue.')
+  if (!wallet) throw new Error('Choose a wallet to continue.')
   return wallet.provider
 }
 
 export function walletClient() {
-  return createWalletClient({ transport: custom(requireSelectedProvider()) })
+  // A lost wallet response belongs to transaction recovery, not automatic retries.
+  return createWalletClient({ transport: custom(requireSelectedProvider(), { retryCount: 0 }) })
 }
 
 // Use this only for wallet-specific reads such as gas estimation. Receipt and
@@ -213,19 +224,29 @@ export function walletPublicClient(chain: Chain) {
 export async function connect(providerId: string): Promise<Address> {
   const provider = providers.get(providerId)
   if (!provider) throw new Error('That wallet is no longer available.')
-  const client = createWalletClient({ transport: custom(provider.provider) })
-  const addresses = await client.requestAddresses()
+  const version = ++connectionVersion
+  const client = createWalletClient({ transport: custom(provider.provider, { retryCount: 0 }) })
+  // Preserve the connector's actionable pairing/cancellation messages rather
+  // than wrapping local session errors as unknown JSON-RPC failures.
+  const addresses = provider.kind === 'walletconnect'
+    ? await provider.provider.request({ method: 'eth_requestAccounts' }) as Address[]
+    : await client.requestAddresses()
+  if (version !== connectionVersion) throw new Error('Wallet connection cancelled.')
   if (!addresses[0]) throw new Error('No account authorized.')
   selectProvider(providerId)
+  notifyProviderListeners()
   return addresses[0]
 }
 
-/**
- * Disconnect This application locally. Browser extensions do not expose a consistent,
- * permission-safe disconnect RPC, so clearing the selected provider is the
- * interoperable dapp behavior and never locks or alters the wallet itself.
- */
-export function disconnect(): void {
+/** Ignore late approvals without revoking an already selected wallet. */
+export function cancelWalletConnection(): void {
+  connectionVersion++
+  if (walletConnectConfigured) walletConnectConnector().cancel()
+}
+
+/** Browser extensions disconnect locally; WalletConnect also ends its session. */
+export async function disconnect(): Promise<void> {
+  cancelWalletConnection()
   selectedProviderIdMemory = null
   try {
     localStorage.removeItem(SELECTED_PROVIDER_KEY)
@@ -233,6 +254,8 @@ export function disconnect(): void {
   } catch {
     // No persisted selection exists in private mode.
   }
+  notifyProviderListeners()
+  if (walletConnectConfigured) await walletConnectConnector().disconnect()
 }
 
 // Read already-authorized accounts without prompting. No provider is consulted

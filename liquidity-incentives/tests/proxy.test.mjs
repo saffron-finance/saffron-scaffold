@@ -66,6 +66,7 @@ it('relays canonical reads but rejects every disallowed member of a batch', asyn
   const read = { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }
   assert.equal((await (await post(read)).json()).result, '0x1237')
   for(const tag of ['latest','pending'])assert.equal((await (await post({...read,method:'eth_getTransactionCount',params:['0x'+'1'.repeat(40),tag]})).json()).result,'0x1237')
+  assert.equal((await (await post({...read,method:'eth_estimateGas',params:[{from:'0x'+'1'.repeat(40),to:'0x'+'2'.repeat(40),value:'0x1'}]})).json()).result,'0x1237')
   assert.equal((await post(Array(51).fill(read))).status,403)
   assert.equal((await post([read, { ...read, method: 'eth_sendRawTransaction' }])).status, 403)
   for (const method of ['eth_accounts', 'personal_sign', 'eth_sendTransaction', 'debug_traceTransaction', 'wallet_switchEthereumChain']) {

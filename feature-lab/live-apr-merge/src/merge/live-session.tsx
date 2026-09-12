@@ -10,11 +10,12 @@ export function useMergeSession(){
     overlays:wallet.modalOpen?<Modal isOpen layer='wallet' onRequestClose={wallet.closeModal} shouldCloseOnOverlayClick={!wallet.connecting}>
       <ModalTitle>Connect wallet</ModalTitle><WalletList>
         {wallet.providers.map(provider=><WalletButton key={provider.id} disabled={wallet.connecting} onClick={()=>void wallet.connectProvider(provider.id)}>{provider.name}{wallet.connectingProviderId===provider.id?', connecting…':''}</WalletButton>)}
+        {wallet.providers.some(provider => provider.kind === 'walletconnect') && <p>WalletConnect opens your mobile wallet or shows a QR code. Choose a wallet that supports Robinhood Chain.</p>}
         {!wallet.available&&<p>Open this page in your wallet browser or enable a wallet extension.</p>}
         {wallet.error&&<p role='alert'>{wallet.error}</p>}
         <WalletButton disabled={wallet.connecting} onClick={wallet.refreshProviders}>Refresh wallets</WalletButton>
         {wallet.account&&<WalletButton disabled={wallet.connecting} onClick={wallet.disconnect}>Disconnect wallet</WalletButton>}
-        <WalletButton disabled={wallet.connecting} onClick={wallet.closeModal}>Close</WalletButton>
+        <WalletButton onClick={wallet.closeModal}>{wallet.connecting ? 'Cancel connection' : 'Close'}</WalletButton>
       </WalletList></Modal>:null}
 }
 // Preview-only menu and storage notice are absent from the live entry.

@@ -9,15 +9,17 @@ import { pathToFileURL } from 'node:url'
  * Run after build:live at base /. It does not use or reset the VNC browser. */
 const expect=baseExpect.configure({timeout:20000})
 const frontend=process.cwd(),source=process.env.SAFFRON_BACKEND_SOURCE
+const walletConnect=process.env.MERGE_WALLETCONNECT_FIXTURE==='1'
+const wc=walletConnect?await import('./walletconnect-browser.mjs'):null
 if(!source)throw new Error('Set SAFFRON_BACKEND_SOURCE to the liquidity-incentives package with its test dependencies installed.')
 const device=process.env.MERGE_DEVICE??'mobile'
 if(!['mobile','desktop'].includes(device))throw new Error('MERGE_DEVICE must be mobile or desktop.')
-const backend=resolve(source),evidence=resolve(frontend,process.env.MERGE_EVIDENCE||'validation/backend-browser-'+device)
+const backend=resolve(source),evidence=resolve(frontend,process.env.MERGE_EVIDENCE||'validation/backend-browser-'+device+(walletConnect?'-walletconnect':''))
 const backendCommit=execFileSync('git',['-C',backend,'rev-parse','HEAD'],{encoding:'utf8'}).trim()
 const moduleAt=relative=>import(pathToFileURL(resolve(backend,relative)).href)
 const {setup,connect}=await moduleAt('tests/browser/fixture.mjs')
 const {simulateFactory}=await moduleAt('worker/fork-simulate.mjs')
-process.env.DIST_DIR=resolve(frontend,'dist-live')
+process.env.DIST_DIR=resolve(frontend,walletConnect?'validation/walletconnect-build':'dist-live')
 // The canonical fixture starts its actual server relative to the backend root.
 process.chdir(backend)
 await mkdir(evidence,{recursive:true})
@@ -25,16 +27,17 @@ const browser=await chromium.launch({headless:true})
 // The approved mobile Home must connect a real injected-wallet boundary and
 // submit to the canonical backend, not just pass browser-only preview tests.
 const context=await browser.newContext(device==='mobile'?{viewport:{width:390,height:844},isMobile:true,hasTouch:true}:{viewport:{width:1440,height:1000}})
+if(wc)await wc.prepareWalletConnect(context)
 const page=await context.newPage();page.setDefaultTimeout(20000)
 const errors=[];page.on('pageerror',error=>errors.push(error.message))
 let f,heartbeat
-const report={ok:false,live:false,backendCommit,device,checks:[]}
+const report={ok:false,live:false,backendCommit,device,wallet:walletConnect?'WalletConnect fixture peer with real AppKit':'Injected fixture',relayQualified:false,realPhoneTested:false,checks:[]}
 try{
   f=await setup(page,{wrap:true,campaign:true})
   await f.database.execution.heartbeat(f.chain.account.address)
   await f.chain.prepareIntake(f.database,{mode:'automatic',continuous:true})
   heartbeat=setInterval(()=>void f.database.execution.heartbeat(f.chain.account.address).catch(()=>{}),5000)
-  await page.goto(f.origin);await connect(page)
+  await page.goto(f.origin);if(wc)await wc.connectWalletConnect(page,report);else await connect(page)
   // APR transport does not supply campaign economics or checkout readiness.
   // Keep its gateway unavailable throughout the successful payment/deposit flow.
   await page.route('**/api/live-apr/**',route=>route.fulfill({status:503,json:{code:'service_unavailable'}}))

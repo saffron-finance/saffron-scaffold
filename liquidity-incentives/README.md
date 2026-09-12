@@ -101,6 +101,25 @@ Opening the vault modal or returning to its amount step focuses the deposit fiel
 Typing and price updates preserve focus. Continuing focuses the review heading,
 and closing returns focus to the control that opened the modal.
 
+## Mobile wallets
+
+Set the public `VITE_WALLETCONNECT_PROJECT_ID` (32 hex characters) before building
+this interface to enable WalletConnect alongside injected wallets. Configure its
+allowed HTTPS origins in the Reown dashboard. The wallet must support Robinhood
+Chain (4663). With the setting blank, wallet browsers/extensions remain available.
+
+WalletConnect opens mobile wallet links or desktop QR pairing. No user message
+login is added. Accepted sessions restore without prompting; returning from a
+wallet refreshes account/chain state. Disconnect ends the session and retains
+payment recovery records. A cancelled proposal never reconnects the application
+when approved late; reject the old request in the wallet before trying again.
+Qualify real wallet/phone combinations and relay connectivity before advertising
+them. The merged public interface documents the detailed WalletConnect checks.
+
+Wallet-specific gas estimates and pending nonce reads use the same-origin
+read-only RPC route. Signing and transaction broadcasts remain in the wallet;
+the relay continues to reject those methods, including in mixed batches.
+
 ## Domain and accounting
 
 - Each canonical $2-equivalent ETH payment authorizes one exact vault request.

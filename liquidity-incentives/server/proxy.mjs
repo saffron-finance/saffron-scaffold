@@ -65,6 +65,7 @@ const ALLOWED_METHODS = new Set([
   'eth_getBalance',
   'eth_blockNumber',
   'eth_call',
+  'eth_estimateGas',
   'eth_getLogs',
   'eth_getBlockByNumber',
   'eth_getTransactionByHash',

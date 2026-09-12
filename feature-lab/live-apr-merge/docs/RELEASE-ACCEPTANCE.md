@@ -13,7 +13,7 @@ backend revision and CI reports together in the release record.
 
 | Boundary | Maintained evidence |
 | --- | --- |
-| Source handoff | Allowlisted ZIP, exact hashes, normalized source identity, 29 shared-source pins, lockfile and guide version; clean extraction with installation, source/unit/type checks and all three builds |
+| Source handoff | Allowlisted ZIP, exact hashes, normalized source identity, 32 shared-source pins, lockfile and guide version; clean extraction with installation, source/unit/type checks and all three builds |
 | Release integrity | Root/nested HTTP checks, live appearance variants, preview rejection, entry/lazy-asset integrity, wrong source/base, HTML API fallbacks and missing recipient |
 | Served browser | Actual canonical proxy/API/database with a disposable EVM; navigation, checkout cookie/Origin, operator separation, closed/open readiness and no jobs or wallet broadcasts |
 | Full lifecycle | Desktop/mobile real API/EVM journeys with automatic creator, lost callback recovery, partial/full premium funding, fixed deposit, claim and mature withdrawal; APR unavailable throughout |
@@ -46,7 +46,8 @@ simulated payment adapter or qualify mobile performance.
   success or its permission failure. Fixtures do not qualify that deployment.
 - Test the supported real wallet browsers/phones on Robinhood, including network
   selection, wallet confirmation, background/return and ownership recovery.
-  WalletConnect remains recorded future work.
+  Configure the Reown project ID/origin allowlist and qualify WalletConnect QR
+  and mobile app-link pairing with a real relay; fixture peers do not prove it.
 - Record an exact eligible rollback frontend/backend pair and verify a backup
   clone against it. Retain the 0.3.0 live UI for request recovery with intake closed.
   The earliest eligible backend baseline and data invariants are in `LIVE-CUTOVER.md`.

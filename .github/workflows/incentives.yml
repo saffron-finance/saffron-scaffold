@@ -70,6 +70,7 @@ jobs:
         env:
           VITE_BASE_PATH: /
           MERGE_BASE: /
+          VITE_WALLETCONNECT_PROJECT_ID: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       - run: npm run build:live
         working-directory: feature-lab/live-apr-merge
         env:
@@ -90,6 +91,11 @@ jobs:
         env:
           SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
           MERGE_DEVICE: desktop
+      - run: npm run test:walletconnect
+        working-directory: feature-lab/live-apr-merge
+        env:
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
+          MERGE_DEVICE: mobile
       - run: npm run test:release-browser
         working-directory: feature-lab/live-apr-merge
         env:

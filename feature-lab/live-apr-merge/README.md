@@ -68,12 +68,18 @@ boundary. Never put RPC or signer credentials in frontend settings.
 
 ## Mobile wallet support
 
-Initial mobile use is through the wallet's built-in browser and injected
-provider, with Robinhood Chain (4663) support. Qualify each advertised wallet and
-phone combination on a real device.
+WalletConnect supports wallet-app links on mobile Safari/Chrome and QR pairing
+from desktop. Set the public `VITE_WALLETCONNECT_PROJECT_ID` before a live build;
+without it, the picker retains injected wallets and wallet browsers. The chosen
+wallet must support Robinhood Chain (4663) and transaction requests.
 
-- [ ] Add WalletConnect for ordinary mobile Safari/Chrome, including wallet-app
-  switching and recovery on return. This is desired future work.
+Pairing asks for connection permission, without a message-signing login. Returning
+from the wallet refreshes accounts and chain state, and restores an accepted
+session on reload without sending a payment. Disconnect ends the WalletConnect
+session while retaining this browser's payment recovery records.
+
+See [WalletConnect setup and qualification](docs/WALLETCONNECT.md) for project
+origins, cancellation, mobile return behavior and the real-device acceptance gate.
 
 ## Routes and durable state
 
@@ -104,7 +110,7 @@ npm run build:live
 npm run test:apr-http
 ```
 
-The source check compares all 29 exact copied files with their pins and, when
+The source check compares all 32 exact copied files with their pins and, when
 available in this repository, the canonical backend. It normalizes CRLF to LF
 only. A portable frontend archive verifies without a backend checkout.
 

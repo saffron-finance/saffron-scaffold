@@ -18,8 +18,8 @@
     "shared/liquidity-math.d.mts": "8727396afc51ed1910f6a7272bf48fcc69f0b8d2ad549b3239eb23e30a5631bf",
     "shared/campaign.d.mts": "be4779f2dd162c64480b76890ef43a7365f2811976fee79e70683725d3eceaca",
     "src/adapters/chain/chains.ts": "97c4fc701f493de262203301dbabca9f3cec0c248734d26b1a213840e49b1ae8",
-    "src/adapters/hooks/useWallet.ts": "1911e239b76a3389f511155495346c93be8c47bd9eefb620040a1e51c091185b",
-    "src/adapters/wallet/wallet.ts": "0150ed5816c68048a3bd937d4543f72288f4b00d343982479d920f1bc549bb32",
+    "src/adapters/hooks/useWallet.ts": "76e24f558b62c24ce9da30ed4a98e92b7a1be6fa5fc65130d5182c4b778dedf1",
+    "src/adapters/wallet/wallet.ts": "18ae1a1360b4176d0e933ee5019f6ee8accd96d59558b489cadae985acd02b5c",
     "src/host/transport.ts": "827b3c8549cc04aa3759005e02506699e74a977caee3f35838f04f341a79e100",
     "src/host/useDeploymentFlow.ts": "23079af6fa003b0c5754d52bd7a83e778d5145d67d2385d4662f38843cdbaf6c",
     "src/host/useOfferPrice.ts": "60856858619b9eb19eeb28cda5a8b99a693c2fd7ba5ea053523e32a3fe03ed29",
@@ -29,7 +29,10 @@
     "src/host/useDeploymentStatus.ts": "e0b27895fbb8a3dc7950835a8b1593158af308a7984bed211beef49ef5114479",
     "src/host/usePollingResource.ts": "cfbbd75e80f55559cacb995d2f86608913a88fffe180f827e63ae1c97b2bcff2",
     "src/host/payment-records.mjs": "6835a5e66aee51d83b3a9af0ac445aaa1345bb9518efeecc7a34296d9079549c",
-    "src/host/payment-records.d.mts": "dbadab8767c4029eed51dc2fedad0d6c175167c468d6ace434c0be0af2caef30"
+    "src/host/payment-records.d.mts": "dbadab8767c4029eed51dc2fedad0d6c175167c468d6ace434c0be0af2caef30",
+    "src/adapters/wallet/walletconnect.ts": "cdcaacfb65265c146929db0fe0e1cea07ca51992408de62e47e4bd5c89fda87d",
+    "src/adapters/wallet/walletconnect-sdk.ts": "bbb71a238e3e10db8ced2eb5cc3d7f300e8e69ce589394573e66246adef435b5",
+    "vendor/fixed-income-ui/shared/components/Modal.tsx": "308c54a2445444ea7791408e844ebc7a72cf7c73546c730bfb8e60a15690c92a"
   },
   "adaptedFiles": [
     "src/incentives/IncentivesPage.tsx",
