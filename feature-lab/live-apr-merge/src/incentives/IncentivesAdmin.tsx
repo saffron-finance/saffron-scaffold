@@ -67,7 +67,7 @@ function PaymentAttention({account}:{account:Address}){
   </Disclosure>
 }
 function IntakePolicy({account,status,onUpdate}:{account:Address;status:any;onUpdate:()=>void}){
-  const [mode,setMode]=useState('reviewed'),[minutes,setMinutes]=useState('60'),[serviceMinutes,setServiceMinutes]=useState('240'),[watcher,setWatcher]=useState('native-eth-v1'),[error,setError]=useState(''),[busy,setBusy]=useState(false)
+  const [mode,setMode]=useState(()=>status.readiness?.policy?.mode??'automatic'),[minutes,setMinutes]=useState('60'),[serviceMinutes,setServiceMinutes]=useState('240'),[watcher,setWatcher]=useState('native-eth-v1'),[error,setError]=useState(''),[busy,setBusy]=useState(false)
   const readiness=status.readiness,policy=readiness?.policy
   async function save(enabled:boolean){setBusy(true);setError('');try{
     await authedJson(account,'/admin/intake',{signer:status.signer,revision:policy?.revision??0,mode:enabled?mode:policy?.mode??mode,enabled,
@@ -76,11 +76,11 @@ function IntakePolicy({account,status,onUpdate}:{account:Address;status:any;onUp
   return <Disclosure><summary>Request intake · {readiness?.canQuote?'open':'paused'}</summary>
     <FinePrint>{readiness?.mode==='reviewed'?'Reviewed one-request execution':'Automatic queue execution'}. {readiness?.reasons.map(statusLabel).join(' · ')}. Signer process: {readiness?.workerOnline?'online':'offline'}. Watcher lag: {readiness?.watcher?.lagBlocks??'unavailable'} blocks.</FinePrint>
     {policy&&<FinePrint>Intake expires {new Date(policy.expires_at).toLocaleString()}. Declared service window: {policy.service_minutes} minutes.</FinePrint>}
-    <label>Execution mode<select value={mode} onChange={e=>setMode(e.target.value)}><option value='reviewed'>Reviewed one-request</option><option value='automatic'>Automatic queue</option></select></label>
+    <label>Execution mode<select value={mode} onChange={e=>setMode(e.target.value)}><option value='automatic'>Automatic queue</option><option value='reviewed'>Reviewed one-request</option></select></label>
     <label>Intake window (minutes, at most 1440)<input type='number' min='1' max='1440' value={minutes} onChange={e=>setMinutes(e.target.value)}/></label>
     <label>Declared service window (minutes)<input type='number' min='1' max='1440' value={serviceMinutes} onChange={e=>setServiceMinutes(e.target.value)}/></label>
     <label>Payment watcher ID<input value={watcher} onChange={e=>setWatcher(e.target.value)}/></label>
-    <Row><QuietButton disabled={busy} onClick={()=>void save(true)}>Open reviewed intake window</QuietButton><QuietButton disabled={busy||!policy?.enabled} onClick={()=>void save(false)}>Pause new requests</QuietButton></Row>
+    <Row><QuietButton disabled={busy} onClick={()=>void save(true)}>Open intake window</QuietButton><QuietButton disabled={busy||!policy?.enabled} onClick={()=>void save(false)}>Pause new requests</QuietButton></Row>
     <FinePrint>This enables quotes only when the watcher and admission checks pass. It does not start the signer.</FinePrint>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
   </Disclosure>

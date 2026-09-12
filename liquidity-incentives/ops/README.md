@@ -4,6 +4,8 @@ Current policy: [CAMPAIGNS.md](../CAMPAIGNS.md). State/migrations:
 [IMPLEMENTATION.md](../IMPLEMENTATION.md). Hosted disposable UI:
 [VNC runbook](vnc/README.md). Historical acceptance files describe their original
 versions; current external-refund verification is documented in [REFUNDS.md](REFUNDS.md).
+Campaign setup, automatic fulfillment and required launch owners are documented
+in [FULFILLMENT.md](FULFILLMENT.md).
 
 ## Fresh installation
 
@@ -15,9 +17,9 @@ versions; current external-refund verification is documented in [REFUNDS.md](REF
    credentials out of the API; operator config contains protected references.
 4. Start the API. Production catalogs are empty. Configure a verified pair and
    a campaign through the authenticated operator UI.
-5. Supervise the keyless watcher, then explicitly enable an expiring intake window.
-   Reviewed mode needs no continuously running signer. Automatic mode requires
-   a separately authorized queue worker and its heartbeat.
+5. Supervise the keyless watcher and the separately configured automatic queue
+   worker, then explicitly enable an expiring automatic intake window. No per-vault
+   approval is needed. Reviewed execution remains an optional testing/recovery mode.
 6. Provision creator ETH and external premium funding independently. No treasury
    inventory allocation, balance check, or gas ledger is part of checkout.
 
