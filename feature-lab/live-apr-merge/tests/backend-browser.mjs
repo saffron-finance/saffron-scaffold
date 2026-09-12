@@ -17,8 +17,6 @@ const backendCommit=execFileSync('git',['-C',backend,'rev-parse','HEAD'],{encodi
 const moduleAt=relative=>import(pathToFileURL(resolve(backend,relative)).href)
 const {setup,connect}=await moduleAt('tests/browser/fixture.mjs')
 const {simulateFactory}=await moduleAt('worker/fork-simulate.mjs')
-const {runOneRequest}=await moduleAt('worker/one-shot.mjs')
-const {privateFilesFixture}=await moduleAt('tests/private-files-fixture.mjs')
 process.env.DIST_DIR=resolve(frontend,'dist-live')
 // The canonical fixture starts its actual server relative to the backend root.
 process.chdir(backend)
@@ -29,15 +27,30 @@ const browser=await chromium.launch({headless:true})
 const context=await browser.newContext(device==='mobile'?{viewport:{width:390,height:844},isMobile:true,hasTouch:true}:{viewport:{width:1440,height:1000}})
 const page=await context.newPage();page.setDefaultTimeout(20000)
 const errors=[];page.on('pageerror',error=>errors.push(error.message))
-let f,files
+let f,heartbeat
 const report={ok:false,live:false,backendCommit,device,checks:[]}
 try{
   f=await setup(page,{wrap:true,campaign:true})
-  files=await privateFilesFixture('saffron-merge-cycle-')
+  await f.database.execution.heartbeat(f.chain.account.address)
+  await f.chain.prepareIntake(f.database,{mode:'automatic',continuous:true})
+  heartbeat=setInterval(()=>void f.database.execution.heartbeat(f.chain.account.address).catch(()=>{}),5000)
   await page.goto(f.origin);await connect(page)
   await expect(page.locator('[data-incentive-offer]')).toHaveCount(1)
   await expect(page.getByText(/capacity remaining|near capacity|Sample request/i)).toHaveCount(0)
   await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
+  if(device==='mobile'){
+    for(const width of [320,390,430,599,600]){
+      await page.setViewportSize({width,height:844})
+      expect(await page.getByRole('dialog').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
+    }
+    // Shortened viewport exercises the amount field and next action while a
+    // keyboard occupies space; real phone keyboard qualification remains separate.
+    await page.setViewportSize({width:390,height:420})
+    await page.getByLabel('Deposit value in US dollars').fill('100')
+    await page.getByRole('button',{name:'Continue',exact:true}).scrollIntoViewIfNeeded()
+    await expect(page.getByRole('button',{name:'Continue',exact:true})).toBeInViewport()
+    await page.setViewportSize({width:390,height:844})
+  }
   await page.getByLabel('Deposit value in US dollars').fill('100')
   await page.getByRole('button',{name:'Continue',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Claim $1.00',exact:true})).toBeVisible()
@@ -48,6 +61,8 @@ try{
   await page.route('**/api/incentives/payments/recover',route=>route.fulfill({json:{state:'discovering'}}))
   await page.getByRole('button',{name:'Claim $1.00',exact:true}).click()
   await expect(page.getByText('Payment callback unavailable',{exact:true})).toBeVisible()
+  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})))
+  expect(f.state.sends).toBe(1)
   await page.reload();await page.getByRole('button',{name:'Resume deployment',exact:true}).click()
   await expect.poll(async()=>(await f.database.list({wallet:f.account.address})).jobs.length,{timeout:20000}).toBe(1)
   // Start a second request from a reloaded recovery modal (no selected offer).
@@ -73,7 +88,9 @@ try{
   const job=await f.database.getIntent(id)
   const simulation=await simulateFactory({upstream:f.chain.raw,config:f.chain.config,job})
   expect(simulation.upstreamBroadcasts).toBe(0);expect(simulation.transactions).toHaveLength(3)
-  expect((await runOneRequest({database:f.database,rpc:f.chain.rpc,account:f.chain.account,config:f.chain.config,requestId:id,simulation,directory:files.directory,pollMs:5})).state).toBe('created')
+  expect((await f.database.intakePolicy(f.chain.account.address)).mode).toBe('automatic')
+  expect((await f.worker.tick()).state).toBe('created')
+  expect((await f.database.getIntent(id)).state).toBe('created')
   await page.getByRole('button',{name:'Check progress',exact:true}).click()
   await expect(page.getByText('Awaiting campaign funding',{exact:true})).toBeVisible()
   const progress=page.getByRole('list',{name:'Vault creation progress'})
@@ -84,7 +101,6 @@ try{
   await expect(page.getByText('Verification temporarily unavailable',{exact:true})).toBeVisible()
   await expect(progress.getByText('Complete',{exact:true})).toHaveCount(3)
   await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toHaveCount(0)
-  await page.setViewportSize({width:390,height:844})
   expect(await page.getByRole('dialog').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
   await page.screenshot({path:resolve(evidence,'c06-'+device+'.png'),fullPage:true})
   await page.unroute('**/api/incentives/deployments/'+id+'?*')
@@ -95,7 +111,7 @@ try{
   await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toHaveCount(0)
   await f.fund(row)
   await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toBeEnabled()
-  report.checks.push('Exact fork simulation, three creation transactions, C06, retained progress on API failure, partial-funding entry guard')
+  report.checks.push('Automatic queue creates without per-vault approval; read-only fork simulation, three creation transactions, C06, retained progress on API failure and partial-funding entry guard')
   await page.getByRole('button',{name:'Close incentive vault',exact:true}).click()
   await page.getByRole('link',{name:'Portfolio',exact:true}).click()
   await page.locator('[data-deployment-id="'+id+'"]').getByRole('button',{name:'Deposit',exact:true}).click()
@@ -114,7 +130,7 @@ try{
   await expect(page.getByRole('button',{name:/retirement|refund request/i})).toHaveCount(0)
   report.checks.push('Merged Portfolio opens the owned position; wrap/approve/deposit/claim, start/maturity dates and withdrawal complete')
   const final=await f.database.execution.observation(id)
-  report.requestId=id;report.chainId=4663;report.simulation={ok:simulation.ok,upstreamBroadcasts:simulation.upstreamBroadcasts}
+  report.requestId=id;report.chainId=4663;report.executionMode='automatic';report.viewport=page.viewportSize();report.simulation={ok:simulation.ok,upstreamBroadcasts:simulation.upstreamBroadcasts}
   report.final={claimBalance:final.claimBalance,fixedBalance:final.fixedBalance,blockNumber:final.blockNumber,blockHash:final.blockHash}
   expect(final.claimBalance).toBe('0');expect(final.fixedBalance).toBe('0');expect(errors).toEqual([])
   await page.screenshot({path:resolve(evidence,'completed.png'),fullPage:true})
@@ -122,6 +138,6 @@ try{
 }catch(error){report.failure=String(error);await page.screenshot({path:resolve(evidence,'failure.png'),fullPage:true});throw error}
 finally{
   await writeFile(resolve(evidence,'verification.json'),JSON.stringify({...report,errors},null,2)+'\n')
-  await browser.close();if(f)await f.close();if(files)await files.close()
+  clearInterval(heartbeat);await browser.close();if(f)await f.close()
   console.log(JSON.stringify(report));process.chdir(frontend)
 }

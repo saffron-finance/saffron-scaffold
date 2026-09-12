@@ -1,6 +1,7 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { writeFile,readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { incentivesFixture,ORIGIN } from './incentives-fixture.mjs'
@@ -60,5 +61,28 @@ it('restored backups stay paused and detect later signer activity instead of cre
     assert.equal(chain.broadcasts,broadcasts);assert.equal((await target.database.execution.transactions(id)).length,0)
     assert.equal((await target.database.getIntent(id)).cancel_requested,false)
     assert.doesNotMatch(JSON.stringify(comparison),/privateKey|raw_tx|recoverySecret|rpcUrl/)
+
+    // A later complete backup carries terminal refunds and their execution stop,
+    // allocations and audit, even when the creator and verifier are restarted.
+    const payment=await source.database.paymentObligation(hash)
+    await service.refunds.approve(hash,{operator:chain.account.address,revision:payment.revision,requestKey:randomUUID(),reason:'Premium cannot be provided'}, {category:'funding_unavailable',fundingStopped:true})
+    const refundSource=chain.feeRecipient
+    const batch=await service.refunds.prepare({source:refundSource,payments:[hash],requestKey:randomUUID()},chain.account.address)
+    await chain.raw('anvil_setBalance',[refundSource,toHex(10n**18n)]);await chain.raw('anvil_impersonateAccount',[refundSource])
+    const payout=await chain.raw('eth_sendTransaction',[{from:refundSource,to:payer.address,value:toHex(BigInt(payment.amount_wei)),gas:'0x5208'}]);await chain.raw('evm_mine',[])
+    await service.refunds.submit(batch.id,[payout],chain.account.address);await service.refunds.poll()
+    assert.equal((await source.database.paymentObligation(hash)).state,'refunded')
+    await pgTool('pg_restore',target.connection,await pgTool('pg_dump',source.connection))
+    await freezeRestoredDatabase(target.database)
+    assert.equal((await target.database.paymentObligation(hash)).execution_allowed,false)
+    const restored=createIncentivesService({database:target.database,rpc:chain.rpc,usdQuote:chain.usdQuote,config:chain.config,signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
+    assert.equal((await restored.refunds.detail(batch.id)).outstandingWei,'0')
+    assert((await target.database.query('SELECT 1 FROM saffron_incentives.refund_verification_audit WHERE hash=$1',[payout])).rowCount>0)
+    await target.database.query('UPDATE saffron_incentives.refund_submissions SET checked_at=NULL')
+    await restored.refunds.poll()
+    assert.equal((await target.database.paymentObligation(hash)).state,'refunded')
+    const afterRefund=chain.broadcasts
+    assert.equal((await createCreator({database:target.database,rpc:chain.rpc,account:chain.account,config:chain.config}).tick()).state,'idle')
+    assert.equal(chain.broadcasts,afterRefund)
   }finally{await source.close();await target.close();await chain.close();await files.close()}
 })

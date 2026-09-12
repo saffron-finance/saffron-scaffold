@@ -92,6 +92,8 @@ export function createRefunds({db,rpc,confirmations=2,now=Date.now,verify=verify
         const row=(await client.query(`SELECT * FROM ${s}.payment_obligations WHERE hash=$1 FOR UPDATE`,[hash])).rows[0]
         await assertStopped(client,row,evidence.get(hash))
         if((await client.query(`SELECT 1 FROM ${s}.refund_items i JOIN ${s}.refund_batches b ON b.id=i.batch_id WHERE i.payment_hash=$1 AND b.state<>'superseded'`,[hash])).rowCount)fail('An existing manifest already covers this payment. Reconcile its submissions before preparing a remainder.')
+        if((await client.query(`SELECT 1 FROM ${s}.refund_items i JOIN ${s}.refund_submissions t ON t.batch_id=i.batch_id WHERE i.payment_hash=$1
+          AND (t.state NOT IN ('verified','failed','ineligible') OR t.checked_at IS NULL OR t.checked_at<NOW()-INTERVAL '30 seconds' OR t.lease_until>NOW())`,[hash])).rowCount)fail('An earlier manifest has uncertain or stale payout evidence. Reconcile it before preparing another batch.')
         const amount=BigInt(row.amount_wei)-await credit(hash,client);if(amount<=0n)fail('This creation fee is already repaid.')
         if(sameAddress(row.wallet,source))fail('The refund source must differ from the original payer.')
         items.push({hash,wallet:row.wallet,amountWei:amount.toString(),originalWei:row.amount_wei,revision:row.revision,reason:row.refund_reason})
@@ -195,8 +197,11 @@ export function createRefunds({db,rpc,confirmations=2,now=Date.now,verify=verify
         await client.query(`INSERT INTO ${s}.refund_payouts(hash,payout_index,recipient,amount_wei,canonical,block_number,block_hash,method) VALUES($1,$2,$3,$4,TRUE,$5,$6,$7)
           ON CONFLICT(hash,payout_index) DO UPDATE SET canonical=TRUE,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash`,[row.hash,payout.index,payout.recipient,payout.amountWei,proof.block.number,proof.block.hash,proof.method])
         let remaining=BigInt(payout.amountWei)-BigInt((await client.query(`SELECT COALESCE(sum(amount_wei),0)::text AS amount FROM ${s}.refund_allocations WHERE hash=$1 AND payout_index=$2`,[row.hash,payout.index])).rows[0].amount)
-        const items=(await client.query(`SELECT o.* FROM ${s}.refund_items i JOIN ${s}.payment_obligations o ON o.hash=i.payment_hash WHERE i.batch_id=$1 AND o.wallet=$2 ORDER BY o.hash`,[row.batch_id,payout.recipient])).rows
-        for(const item of items){const needed=BigInt(item.amount_wei)-await credit(item.hash,client),amount=needed<remaining?needed:remaining;if(amount<=0n)continue
+        const items=(await client.query(`SELECT o.*,i.expected_wei FROM ${s}.refund_items i JOIN ${s}.payment_obligations o ON o.hash=i.payment_hash WHERE i.batch_id=$1 AND o.wallet=$2 ORDER BY o.hash`,[row.batch_id,payout.recipient])).rows
+        for(const item of items){
+          const batchPaid=BigInt((await client.query(`SELECT COALESCE(sum(a.amount_wei),0)::text amount FROM ${s}.refund_allocations a JOIN ${s}.refund_payouts p USING(hash,payout_index)
+            JOIN ${s}.refund_submissions t ON t.hash=a.hash WHERE a.payment_hash=$1 AND t.batch_id=$2 AND p.canonical`,[item.hash,row.batch_id])).rows[0].amount)
+          const amount=[BigInt(item.amount_wei)-await credit(item.hash,client),BigInt(item.expected_wei)-batchPaid,remaining].reduce((a,b)=>a<b?a:b);if(amount<=0n)continue
           await client.query(`INSERT INTO ${s}.refund_allocations(hash,payout_index,payment_hash,amount_wei) VALUES($1,$2,$3,$4) ON CONFLICT(hash,payout_index,payment_hash) DO UPDATE SET amount_wei=${s}.refund_allocations.amount_wei+EXCLUDED.amount_wei`,[row.hash,payout.index,item.hash,amount.toString()]);remaining-=amount}
       }
       const allocations=(await client.query(`SELECT payout_index,payment_hash,amount_wei FROM ${s}.refund_allocations WHERE hash=$1 ORDER BY payout_index,payment_hash`,[row.hash])).rows

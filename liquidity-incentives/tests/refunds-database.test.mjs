@@ -61,10 +61,13 @@ test('fresh remainder manifests cannot reuse a payout; returning reorg evidence 
     // The first payout loses canonicality before the deliberate remainder lands.
     proofs.set(first,{state:'pending'});await db.query('UPDATE saffron_incentives.refund_submissions SET checked_at=NULL');await refunds.poll()
     proofs.set(second,payout('1000'));await refunds.submit(remaining.id,[second],owner.address);await refunds.poll()
-    assert.equal((await db.paymentObligation(hash)).state,'refunded')
+    assert.equal((await refunds.detail(remaining.id)).items[0].verifiedWei,'600','credit cannot exceed the frozen remainder manifest')
+    assert.notEqual((await db.paymentObligation(hash)).state,'refunded')
+    await refunds.remainder(remaining.id,owner.address)
+    await assert.rejects(refunds.prepare({source,payments:[hash],requestKey:randomUUID()},owner.address),/earlier manifest/)
     proofs.set(first,payout('400'));await db.query('UPDATE saffron_incentives.refund_submissions SET checked_at=NULL WHERE hash=$1',[first]);await refunds.poll()
     assert.equal((await refunds.detail(original.id)).items[0].verifiedWei,'1000')
-    assert.equal((await refunds.detail(original.id)).unmatched[0].amount_wei,'400')
+    assert.equal((await refunds.detail(remaining.id)).unmatched[0].amount_wei,'400')
     assert.equal((await refunds.detail(original.id)).outstandingWei,'0')
     assert.equal((await db.query("SELECT * FROM saffron_incentives.budget_entries WHERE event_key=$1",['refund-release:'+hash])).rowCount,1)
   }finally{await f.close()}

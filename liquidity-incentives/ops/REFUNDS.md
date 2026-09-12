@@ -46,7 +46,9 @@ Never resend merely because a receipt is slow. The CSV always represents its
 original frozen manifest. To pay a deliberate remainder, reconcile **every**
 submission first, then use “Close reconciled manifest to prepare a remaining-amount
 batch.” Reconciliation must be recent and no hash may be uncertain. Prepare a new
-batch from the selected remaining obligations. Unknown/wrapped sender transactions
+batch from the selected remaining obligations. This also checks submissions in
+earlier superseded manifests. Credit never exceeds a manifest's frozen allocation;
+extra amounts remain visible as surplus. Unknown/wrapped sender transactions
 require qualification; an operator assertion cannot turn them into paid evidence.
 
 ## Proof and recovery boundary

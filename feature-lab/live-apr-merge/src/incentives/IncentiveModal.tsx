@@ -43,7 +43,11 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const reward=offer?.budget.campaign&&Number.isSafeInteger(principalCents)
     ?Number(campaignPremiumCents(offer.budget.campaign,String(principalCents)))/100
     :offer&&Number.isFinite(amount)?Math.max(0,amount)*offer.apr/100*offer.days/365:0
-  const claimUsd=reviewed?Number(reviewed.plan.premiumCents)/100:reward
+  // Every quote freezes raw premium and its USD price. Direct APR programs may
+  // omit campaign-cent economics, so value their actual quoted token amount.
+  const claimUsd=reviewed?Number(reviewed.plan.premiumCents??(
+    BigInt(reviewed.plan.premium)*BigInt(reviewed.plan.variablePrice)/(10n**BigInt(reviewed.plan.variableDecimals)*10n**16n)
+  ))/100:reward
   // The review title highlights the reward in green; the primary action stays white.
   const claimLabel=<>Claim <ClaimAmount data-claim-amount>{usd(claimUsd)}</ClaimAmount></>
   const depositTokens=reviewed?[reviewed.plan.token0,reviewed.plan.token1]:offer?[offer.token0,offer.token1]:null

@@ -81,7 +81,7 @@ export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
     return receipts
   }
   const wallet=createWalletClient({account,chain:chain.client.chain,transport:http(chain.url)})
-  const state={chain:'0x1237',sends:0,signs:0,calls:[],messages:[],lostSend:false,lastHash:null,connected:false,holdSend:false}
+  const state={chain:'0x1237',sends:0,signs:0,calls:[],messages:[],lostSend:false,failBeforeSend:false,lastHash:null,connected:false,holdSend:false}
   await page.context().exposeFunction('fixtureWalletRequest',async(name,{method,params=[]})=>{
     state.calls.push(method)
     if(method==='eth_requestAccounts'){state.connected=true;return [account.address]}
@@ -95,6 +95,7 @@ export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
     if(method==='eth_sendTransaction'){
       const tx=params[0];state.sends++
       if(state.holdSend)await new Promise(r=>{state.releaseSend=r})
+      if(state.failBeforeSend){state.failBeforeSend=false;throw new Error('Wallet connection interrupted before a transaction response')}
       const hash=await wallet.sendTransaction({to:tx.to,data:tx.data,value:BigInt(tx.value??0),...(tx.nonce?{nonce:Number(BigInt(tx.nonce))}:{})})
       state.lastHash=hash;await chain.raw('evm_mine')
       if(state.lostSend){state.lostSend=false;throw new Error('Simulated lost wallet response')}
