@@ -27,7 +27,7 @@
 <div class="meta"><strong>Refresh status</strong> checks this test. <strong>Reopen test browser</strong> restores its window. Neither starts a new test.</div>
 <div class="meta"><strong>Start fresh test</strong> saves a test record, then replaces this sandbox with a new test wallet, empty requests and a reset clock.</div>
 <div id="clock-note" class="meta" hidden>Time was advanced for this test. Use Start fresh test to try another checkout from the beginning.</div>
-<div class="meta">Source <code>8c912ee</code> · Separate PostgreSQL, creator and treasury · One shared testing session</div>
+<div class="meta">Source <code id="source-commit">checking</code> · Separate PostgreSQL, creator and treasury · One shared testing session</div>
 <details><summary>Test walkthrough and session state</summary>
 <ol><li>Connect the test wallet; request a $100 vault and pay $2 in test ETH.</li><li>Watch adapter → vault → initialization. Creation uses the request-pinned runner.</li><li>Use “Fund halfway”; entry should remain unavailable. Then “Finish funding”.</li><li>Deposit LP assets, wrap/approve as prompted, and claim the premium.</li><li>Use “Advance to maturity”, then withdraw LP assets in the app.</li></ol>
 <p>Advancing time affects only this local chain. Use Start fresh test for another checkout cycle. Closing this tab does not stop the session; Reopen test browser restores an accidentally closed app window.</p>
@@ -93,6 +93,7 @@ function refresh(manual=false){
    if(!commandPending)notice.textContent=payload.reset?.state==='failed'?payload.reset.message:commandError||
     (payload.reset?.state==='ready'&&!data.jobs.length?'Fresh test ready. Connect the test wallet to begin.':describe(data));
    state.textContent=JSON.stringify(data,null,2);
+   document.querySelector('#source-commit').textContent=data.commit.slice(0,7);
    reopenButton.disabled=resetPending||reopening||commandPending||data.busy||!data.browser?.available;
    if(!reopening)browserNotice.textContent=data.browser?.available?
     (data.browser.open?'Test browser is open — same wallet and session.':'Test browser is closed. Click Reopen test browser to restore the same wallet and session.'):

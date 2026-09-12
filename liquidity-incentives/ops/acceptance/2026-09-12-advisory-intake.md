@@ -56,6 +56,12 @@ A verified Git bundle, pre-change Git anchor, encrypted non-Git files, and encry
 consistent QA database/chain/permit archive were taken before modification.
 Their host-specific locations are recorded locally, outside this repository.
 The prior populated browser session is retained while the new harness is staged.
+The new host passed two real Refresh clicks without a session change, actual
+noVNC/RFB keyboard navigation, encrypted archive verification before an actual
+reset, and a delayed repeat reset that preserved the successor. The fresh test
+had zero requests, user transactions, creator broadcasts, and clock advances.
+A loopback edge exercised wrapper/viewer routing without credentials; public
+authentication is checked separately.
 
 Schema upgrades preserve deprecated historical tables and old accepted terms.
 New databases do not create removed modules' tables. Rollback after above-target
