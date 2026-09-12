@@ -96,6 +96,7 @@ releases it, while suspended-document recovery reuses it when recognized.
 ```sh
 npm run check:upstream
 npm run test:source
+npm run test:release
 npm test
 npm run typecheck
 npx playwright install chromium
@@ -133,6 +134,10 @@ and normalized source digest. Extract with the verifier's `--extract` option
 into a new directory, then verify/install/build there. Source changes, including
 line endings, are checked against exact archive hashes; shared import checks
 separately allow checkout line-ending differences.
+
+Use the served-release preflight and non-spending browser check described in
+[cutover](docs/LIVE-CUTOVER.md), with the actual mount and approved source manifest.
+[Release acceptance](docs/RELEASE-ACCEPTANCE.md) records the separate launch gates.
 
 See [deployment](docs/DEPLOYMENT.md), [cutover](docs/LIVE-CUTOVER.md), the
 [historical adoption map](docs/PRODUCT-SYNC.md) and the included installation

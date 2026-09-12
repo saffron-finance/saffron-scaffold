@@ -34,7 +34,7 @@ Keep the existing read-only APR endpoint separately configured.
 Restore the previous index and static manifest from backup. Retained content-hash
 assets make this independent of Git rollback. If route configuration was changed,
 restore it, run the nginx validator separately, then reload the exact service.
-No route change is needed for this preview update.
+Record whether the route changed for the actual publication.
 
 Do not clear browser storage, reset VNC, restore a database, or replace live APR
 services to roll back a frontend update. The preview storage key is unchanged.
@@ -55,3 +55,12 @@ default/lab/live builds. The archive builds without a backend checkout.
 The guide model and generated header, contents and sections must agree with the
 package version. The archive manifest records exact file hashes and a normalized
 source digest, separate from the historical shared-source adoption pins.
+
+## Served release qualification
+
+Follow [cutover verification](LIVE-CUTOVER.md) for the actual combined frontend,
+asset/source identity checks, hosting-only browser access, root/nested mounts and
+compatible rollback. Include `.vite/manifest.json` when publishing the build.
+A mode flag alone does not establish that the entry and lazy assets match.
+[Release acceptance](RELEASE-ACCEPTANCE.md) separates automated fixture evidence
+from hosting, gateway, phone and live-fund qualification still required at launch.

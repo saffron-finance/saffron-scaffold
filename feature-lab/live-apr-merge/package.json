@@ -14,7 +14,9 @@
     "check:upstream": "node scripts/check_upstream.mjs",
     "test:backend-browser": "node tests/backend-browser.mjs",
     "test:source": "node --test tests/source-sync.test.mjs tests/release-source.test.mjs",
-    "test:apr-http": "node tests/apr-http-browser.mjs"
+    "test:apr-http": "node tests/apr-http-browser.mjs",
+    "test:release": "node --test tests/release-check.test.mjs",
+    "test:release-browser": "node tests/release-browser.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

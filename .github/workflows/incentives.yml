@@ -63,7 +63,7 @@ jobs:
         working-directory: feature-lab/live-apr-merge
       - run: npx playwright install --with-deps chromium
         working-directory: feature-lab/live-apr-merge
-      - run: npm run check:upstream && npm run test:source && npm test
+      - run: npm run check:upstream && npm run test:source && npm run test:release && npm test
         working-directory: feature-lab/live-apr-merge
       - run: npm run build:lab && npm run test:browser
         working-directory: feature-lab/live-apr-merge
@@ -90,8 +90,22 @@ jobs:
         env:
           SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
           MERGE_DEVICE: desktop
+      - run: npm run test:release-browser
+        working-directory: feature-lab/live-apr-merge
+        env:
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
       - run: npm run test:apr-http
         working-directory: feature-lab/live-apr-merge
+      - run: npm run build:live
+        working-directory: feature-lab/live-apr-merge
+        env:
+          VITE_BASE_PATH: /nested/incentives/
+          MERGE_BUILD_DIR: validation/nested
+      - run: npm run test:release-browser
+        working-directory: feature-lab/live-apr-merge
+        env:
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
+          MERGE_WEBROOT: validation/nested
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -103,6 +117,7 @@ jobs:
             feature-lab/live-apr-merge/validation/backend-browser-*/*.json
             feature-lab/live-apr-merge/validation/backend-browser-*/*.png
             feature-lab/live-apr-merge/validation/apr-http/*.json
+            feature-lab/live-apr-merge/validation/release/*.json
   frontend-portable:
     strategy:
       fail-fast: false
@@ -124,9 +139,20 @@ jobs:
       - run: npm ci
       - run: npm run check:upstream
       - run: npm run test:source
+      - run: npm run test:release
       - run: npm test
       - run: npm run build
       - run: npm run build:live
+      - run: python scripts/package_source.py validation/live-apr-merge-source.zip
+      - run: python scripts/verify_source.py validation/live-apr-merge-source.zip --extract validation/extracted
+      - run: npm ci
+        working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
+      - run: python scripts/verify_source.py
+        working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
+      - run: npm run check:upstream && npm run test:source && npm run test:release && npm test
+        working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
+      - run: npm run build && npm run build:lab && npm run build:live
+        working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
   windows:
     runs-on: windows-latest
     timeout-minutes: 10

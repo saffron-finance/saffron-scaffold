@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import svgr from 'vite-plugin-svgr'
 import { fileURLToPath } from 'node:url'
 import { dirname,resolve } from 'node:path'
+import { sourceIdentity } from './scripts/release-source.mjs'
+import { mountPath,writeReleaseMarker } from './scripts/release-artifact.mjs'
 
 const here = (file: string) => normalizePath(fileURLToPath(new URL(file, import.meta.url)))
 /** Compile-time separation: default/lab builds keep no-funds sample adapters.
@@ -15,16 +17,17 @@ export default defineConfig(({ mode }) => {
   // Appearance controls do not select the payment adapter. An explicit live
   // release can retain the approved lab styling without simulating requests.
   const tweaks=mode==='lab'||(live&&settings.VITE_UI_TWEAKS==='true')
+  const basePath=mountPath(settings.VITE_BASE_PATH||'/')
   return {
-  base: settings.VITE_BASE_PATH || '/',
+  base: basePath,
   plugins: [react(), svgr(), {
     // A served release must identify its adapter independently of its appearance.
     // Operations can reject a preview bundle before enabling a payment route.
-    name:'deployment-mode',generateBundle(){
-      this.emitFile({type:'asset',fileName:'deployment-mode.json',source:JSON.stringify({
+    name:'deployment-mode',writeBundle(options){
+      writeReleaseMarker(resolve(options.dir!),{
         incentives:live?'canonical-api':'browser-simulation',wallet:live,appearanceControls:tweaks,
-        basePath:settings.VITE_BASE_PATH||'/',
-      },null,2)+'\n'})
+        basePath,release:sourceIdentity(here('.')),
+      })
     },
   }, {name:'separate-incentive-mode',enforce:'pre',resolveId(source,importer){
     if(!live&&importer&&source.startsWith('.')&&replaced.has(normalizePath(resolve(dirname(importer),source)).replace(/\.tsx?$/,'')))return here('./src/preview/runtime.ts')

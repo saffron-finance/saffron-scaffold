@@ -1,8 +1,58 @@
 {
-  "trees": ["src", "vendor", "shared", "public", "tests", "docs", "scripts"],
-  "singles": ["package.json", "package-lock.json", "tsconfig.json", "vite.config.ts", "vitest.config.ts", "index.html", ".gitignore", ".env.example", "README.md", "source-provenance.json", "source-files.json"],
-  "excludedNames": ["node_modules", ".git", "__pycache__", "validation", "test-results", ".DS_Store"],
-  "excludedSuffixes": [".zip", ".pyc", ".log"],
-  "textExtensions": [".ts", ".tsx", ".js", ".mjs", ".json", ".md", ".css", ".html", ".py", ".svg", ".yml", ".yaml", ".txt", ".example"],
-  "textNames": [".gitignore", "LICENSE"]
+  "trees": [
+    "src",
+    "vendor",
+    "shared",
+    "public",
+    "tests",
+    "docs",
+    "scripts"
+  ],
+  "singles": [
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "index.html",
+    ".gitignore",
+    ".env.example",
+    "README.md",
+    "source-provenance.json",
+    "source-files.json"
+  ],
+  "excludedNames": [
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "validation",
+    "test-results",
+    ".DS_Store"
+  ],
+  "excludedSuffixes": [
+    ".zip",
+    ".pyc",
+    ".log"
+  ],
+  "textExtensions": [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".mjs",
+    ".json",
+    ".md",
+    ".css",
+    ".html",
+    ".py",
+    ".svg",
+    ".yml",
+    ".yaml",
+    ".txt",
+    ".example",
+    ".mts"
+  ],
+  "textNames": [
+    ".gitignore",
+    "LICENSE"
+  ]
 }

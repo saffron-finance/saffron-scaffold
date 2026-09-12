@@ -73,6 +73,7 @@ VITE_UI_TWEAKS=false</code></pre><p><code>npm run build:live</code> writes <code
 <details class="section" id="testing"><summary><h2 id="h-testing">7. Verification</h2></summary>
 <pre><code>npm run check:upstream
 npm run test:source
+npm run test:release
 npm test
 npm run typecheck
 npx playwright install chromium
@@ -81,7 +82,7 @@ npm run test:apr-http</code></pre><p>For preview checks, run <code>build:lab</co
 </details>
 <details class="section" id="files"><summary><h2 id="h-files">8. Source and release identity</h2></summary>
 <p><code>source-files.json</code> defines the inventory. <code>source-manifest.json</code> records version, Git revision, normalized source digest and exact file hashes. Shared pins normalize CRLF to LF; archive integrity verifies exact bytes.</p><pre><code>python scripts/verify_source.py
-python scripts/render_install.py</code></pre><p>The ZIP includes the lockfile, tests, portable scripts and licenses, excluding runtime settings, credentials, dependencies, build output and other ZIPs. Regenerate this guide from <code>docs/install-guide.json</code>.</p>
+python scripts/render_install.py</code></pre><p>The ZIP includes the lockfile, tests, portable scripts and licenses, excluding runtime settings, credentials, dependencies, build output and other ZIPs. Regenerate this guide from <code>docs/install-guide.json</code>.</p><p>Builds bind this source identity to the exact entry, asset manifest and lazy assets in <code>deployment-mode.json</code>. Include <code>.vite/manifest.json</code> when publishing. Pin the approved source manifest in the served-release checks described in <code>docs/LIVE-CUTOVER.md</code>.</p>
 </details>
 <details class="section" id="rollback"><summary><h2 id="h-rollback">9. Release and rollback</h2></summary>
 <p>Follow <code>docs/DEPLOYMENT.md</code> and <code>docs/LIVE-CUTOVER.md</code>. Build identity does not establish publication or enabled intake. Verify the intended candidate through existing hosting access before cutover.</p><p>Publish hashed assets before the entrypoint and retain old assets for open tabs. Preserve database/WAL, received fees, watcher cursors, journals, permits and browser recovery. Use a backend compatible with advisory commitments and refund closure. Do not restore the old hard-cap schema or reset QA for a frontend release.</p>

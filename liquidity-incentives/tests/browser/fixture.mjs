@@ -16,7 +16,8 @@ import { randomUUID } from 'node:crypto'
 
 /** Actual production server, real PostgreSQL, and real local protocol/Uniswap.
  * Only the injected test wallet and external USD provider are substituted. */
-export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
+export async function setup(page,{admin=false,wrap=false,campaign=false,basePath=''}={}){
+  if(!/^(?:\/[a-zA-Z0-9_-]+)*$/.test(basePath))throw new Error('Invalid fixture mount')
   const cleanup=[];let closing
   const close=()=>closing??=(async()=>{let failure;for(const release of cleanup.reverse()){try{await release()}catch(error){failure??=error}}if(failure)throw failure})()
   try{
@@ -45,16 +46,16 @@ export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
   await writeFile(protocolFile,JSON.stringify({...chain.config,signerAddress:chain.account.address}))
   const conn=store.connection
   const child=spawn(process.execPath,['--import','./tests/clock-env.mjs','server/proxy.mjs'],{windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...process.env,NODE_ENV:'test',SAFFRON_TEST_CLOCK_FILE:clockFile,
-    SAFFRON_API_DISABLED:'',PORT:String(port),BASE_PATH:'',RPC_ROBINHOOD:chain.url,SAFFRON_APP_ORIGIN:origin,SAFFRON_PROTOCOL_CONFIG:protocolFile,
+    SAFFRON_API_DISABLED:'',PORT:String(port),BASE_PATH:basePath,RPC_ROBINHOOD:chain.url,SAFFRON_APP_ORIGIN:origin,SAFFRON_PROTOCOL_CONFIG:protocolFile,
     SAFFRON_CREATION_FEE_RECIPIENT:chain.feeRecipient,PRICE_API_ROOT:'http://127.0.0.1:'+price.address().port,SAFFRON_ADMIN_WALLETS:admin?account.address:chain.account.address,
     PGHOST:conn.host,PGPORT:String(conn.port),PGUSER:conn.user,PGPASSWORD:conn.password,PGDATABASE:conn.database}})
   cleanup.push(async()=>{if(child.exitCode===null){child.kill();await once(child,'exit')}})
   let output='';child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
-  for(let i=0;i<100;i++){try{if((await fetch(origin+'/')).ok)break}catch{}if(i===99)throw new Error('Application startup failed: '+output);await delay(100)}
+  for(let i=0;i<100;i++){try{if((await fetch(origin+basePath+'/')).ok)break}catch{}if(i===99)throw new Error('Application startup failed: '+output);await delay(100)}
   let operatorSession
   const operatorAccount=admin?account:chain.account
   async function operatorCall(path,body){
-    const call=async(path,body)=>{const response=await fetch(origin+'/api/incentives'+path,{method:body?'POST':'GET',headers:{origin,'content-type':'application/json',...(operatorSession?{cookie:operatorSession.cookie,'x-saffron-csrf':operatorSession.csrf}:{})},...(body?{body:JSON.stringify(body)}:{})});return {response,data:await response.json()}}
+    const call=async(path,body)=>{const response=await fetch(origin+basePath+'/api/incentives'+path,{method:body?'POST':'GET',headers:{origin,'content-type':'application/json',...(operatorSession?{cookie:operatorSession.cookie,'x-saffron-csrf':operatorSession.csrf}:{})},...(body?{body:JSON.stringify(body)}:{})});return {response,data:await response.json()}}
     if(!operatorSession){const challenge=(await call('/session/challenge',{wallet:operatorAccount.address})).data
       const result=await call('/session/login',{wallet:operatorAccount.address,nonce:challenge.nonce,signature:await operatorAccount.signMessage({message:walletSessionMessage(challenge)})})
       if(!result.response.ok)throw new Error('Fixture operator login failed')
@@ -131,7 +132,7 @@ export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
   })
 
   await page.context().addInitScript(()=>{const actual=Date.now;window.testClockOffset=Number(localStorage.getItem('saffron.fixture.clock-offset')||0);Date.now=()=>actual()+window.testClockOffset})
-  return {account,chain,database,worker,state,origin,operatorCall,fund,treasuryAddress:treasury?.address,
+  return {account,chain,database,worker,state,origin:origin+basePath,operatorCall,fund,treasuryAddress:treasury?.address,
     async advanceTo(timestamp){clockOffset=timestamp*1000-Date.now();await writeFile(clockFile,String(clockOffset));await page.evaluate(value=>{window.testClockOffset=value;localStorage.setItem('saffron.fixture.clock-offset',String(value))},clockOffset);await chain.raw('evm_setNextBlockTimestamp',[timestamp]);await chain.raw('evm_mine');await chain.raw('evm_mine')},
     close,
   }
