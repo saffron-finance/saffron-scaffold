@@ -24,7 +24,7 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
   pageLabel?: string; sampleMode?: boolean;
 }) {
   const path = useLocation().pathname
-  const mobileHome = (path.replace(/\/+$/, '') || '/') === '/'
+  const mobileHome = true
   // Menus close on navigation; sidebar state belongs to this stable dark shell.
   useEffect(() => setMenu(false), [path])
   const labHref = import.meta.env.VITE_FEATURE_LAB_HREF
@@ -81,8 +81,8 @@ const Frame = styled.div<{ $sidebarCollapsed: boolean; $mobileHome: boolean }>`
   @media(max-width:1100px){grid-template-columns:220px minmax(0,1fr);}
   @media(max-width:${sidebarMobileWidth}px){grid-template-columns:minmax(0,1fr);}
   ${p => p.$sidebarCollapsed ? `&&{grid-template-columns:${sidebarCollapsedWidth}px minmax(0,1fr);}` : ''}
-  /* Phone Home owns its compact chrome. Keep the sidebar mounted so resizing
-     or visiting an existing destination never discards navigation state. */
+  /* Every phone destination shares the approved compact navigation. Keep the
+     desktop sidebar mounted so resizing preserves its collapse state. */
   ${p => p.$mobileHome && css`@media(max-width:${mobileHomeMaxWidth}px){
     &&{grid-template-columns:minmax(0,1fr);background:#000;}
     > [data-saffron-sidebar]{display:none;}

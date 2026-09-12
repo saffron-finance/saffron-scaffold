@@ -43,7 +43,7 @@ const page=await context.newPage()
 page.setDefaultTimeout(10000)
 page.on('pageerror',e=>report.errors.push(e.message))
 page.on('console',message=>{if(message.type()==='error'||message.text().startsWith('APR PNG capture failed')) report.errors.push(message.text())})
-const nav=()=>page.getByRole('navigation',{name:'Main navigation',exact:true})
+const nav=()=>page.getByRole('navigation',{name:page.viewportSize().width<=599?'Mobile navigation':'Main navigation',exact:true})
 const stats=()=>page.evaluate(()=>window.__aprFixture.stats())
 /** Decode actual copied pixels. Capture must not depend on the shell's bounds. */
 async function png(label,name='NVDA / USDG 0.05%'){
@@ -63,7 +63,7 @@ async function png(label,name='NVDA / USDG 0.05%'){
 }
 /** Open the host menu and follow a real internal router link. */
 async function menuLink(name){
-  await page.getByRole('button',{name:'Open menu',exact:true}).click()
+  await page.getByRole('button',{name:/^(Open menu|More)$/}).click()
   await page.getByRole('dialog').getByRole('link',{name,exact:true}).click()
 }
 
@@ -473,7 +473,7 @@ try {
     assert.equal((await stats()).admissions,0)
     for(const width of [320,390,1001,1440]){
       await page.setViewportSize({width,height:1100})
-      for(const collapsed of [false,true]){
+      for(const collapsed of width<=599?[false]:[false,true]){
         if(collapsed)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${name} overflow ${width}/${collapsed}`)
         if(collapsed)await page.getByRole('button',{name:'Open sidebar',exact:true}).click()
@@ -483,7 +483,7 @@ try {
   }
   await page.emulateMedia({colorScheme:'light'})
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(0, 0, 0)')
-  await page.getByRole('button',{name:'Open menu',exact:true}).click()
+  await page.getByRole('button',{name:/^(Open menu|More)$/}).click()
   assert.equal(await page.getByRole('button',{name:/^(Light|Dark) theme$/}).count(),0)
   assert.equal(await page.getByRole('dialog').getByRole('link',{name:'Portfolio',exact:true}).count(),0)
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click()
@@ -520,7 +520,7 @@ try {
 
   for(const width of [320,390,800,1000,1001,1100,1280,1440,1600]){
     await page.setViewportSize({width,height:1100})
-    for(const collapsed of [false,true]){
+    for(const collapsed of width<=599?[false]:[false,true]){
       if(collapsed)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
       const geometry=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,content:document.querySelector('main').getBoundingClientRect().width}))
       assert(geometry.scroll<=geometry.width,`overflow single ${width} collapsed=${collapsed}: ${JSON.stringify(geometry)}`)
@@ -537,11 +537,11 @@ try {
   }
   assert.equal((await stats()).admissions,1)
   await page.setViewportSize({width:390,height:1100})
-  await page.getByRole('button',{name:'Open menu',exact:true}).click()
+  await page.getByRole('button',{name:/^(Open menu|More)$/}).click()
   assert.equal(await page.getByRole('button',{name:/^(Light|Dark) theme$/}).count(),0)
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click()
   await png('apr-mobile')
-  await page.getByRole('button',{name:'Open menu',exact:true}).click()
+  await page.getByRole('button',{name:/^(Open menu|More)$/}).click()
   const labLink=page.getByRole('dialog').getByRole('link',{name:'Feature Lab',exact:true})
   if(await labLink.count())await expect(labLink).toHaveAttribute('href','/saffron/apps/feature-lab/')
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click()
@@ -649,7 +649,7 @@ try {
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`campaign overflow ${width}`)
   }
   await page.screenshot({path:path.join(output,'campaigns.png'),fullPage:true})
-  await page.getByRole('button',{name:'Open menu',exact:true}).click()
+  await page.getByRole('button',{name:/^(Open menu|More)$/}).click()
   await page.getByRole('button',{name:'Reset preview',exact:true}).click()
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('saffron.live-apr-merge.campaign-preview.v1')).programs.length),3,'Reset persists only the three seed campaigns')
   await expect(page.locator('[data-incentive-offer]')).toHaveCount(3)

@@ -83,9 +83,12 @@ const ModalElement = styled.div<{ $size: 'default' | 'wide' }>`
      instead of overflowing past the centered box (top/bottom clipped). The
      existing overflow: auto supplies the scrollbar once this cap is hit. */
   max-height: 90vh;
+  max-height: calc(100dvh - max(24px, env(safe-area-inset-top, 0px)) - max(24px, env(safe-area-inset-bottom, 0px)));
   background: ${(props) => props.theme.colors.background.base};
   color: ${(props) => props.theme.colors.text.primary};
   overflow: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
   border-radius: var(--radius-md);
   outline: none;
   border: 1px solid var(--line-strong);
@@ -98,6 +101,8 @@ const ModalElement = styled.div<{ $size: 'default' | 'wide' }>`
     width: 95%;
     max-width: ${({ $size }) => ($size === 'wide' ? 'none' : '450px')};
     padding: 20px;
+    input, select, textarea { font-size: 16px; max-width: 100%; }
+    button, a[role='button'] { min-height: 44px; }
   }
 `
 

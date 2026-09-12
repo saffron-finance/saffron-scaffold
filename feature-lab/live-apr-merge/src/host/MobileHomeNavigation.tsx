@@ -1,8 +1,7 @@
 import styled from 'styled-components'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
-// The first mobile release changes Home only; other destinations retain their
-// current layouts. Keep one cutoff for the shell, cards and preview controls.
+// One cutoff for the public journey, cards and preview controls.
 export const mobileHomeMaxWidth = 599
 
 const paths = {
@@ -15,9 +14,10 @@ const paths = {
 /** Real router links retain the current session and backend state. More opens
  * the existing accessible menu, not a prototype route or a new state store. */
 export function MobileHomeNavigation({ onMore, menuOpen }: { onMore: () => void; menuOpen: boolean }) {
+  const path=useLocation().pathname.replace(/\/+$/,'')||'/'
   return <Navigation aria-label='Mobile navigation' data-mobile-home-nav>
     {([['Home', '/'], ['Portfolio', '/portfolio/vaults'], ['Live APR', '/live-apr']] as const).map(([name, to]) =>
-      <Item key={name} to={to} aria-current={name === 'Home' ? 'page' : undefined} data-live-apr={name === 'Live APR' || undefined}>
+      <Item key={name} to={to} aria-current={path===to||(to!=='/'&&path.startsWith(to+'/')) ? 'page' : undefined} data-live-apr={name === 'Live APR' || undefined}>
         <svg viewBox='0 0 24 24' aria-hidden='true'><path d={paths[name]} /></svg><span>{name}</span>
       </Item>)}
     <Item as='button' type='button' onClick={onMore} aria-haspopup='dialog' aria-expanded={menuOpen}>
