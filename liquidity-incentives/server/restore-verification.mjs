@@ -24,10 +24,10 @@ export async function inspectRestoredDatabase({db,rpc,confirmations=2}){
   if(!head?.hash||Date.now()-Number(BigInt(head.timestamp))*1000>60000||Number(BigInt(head.timestamp))*1000>Date.now()+5000)throw new Error('Fresh restore evidence is required.')
   const canonical=async(number,hash)=>Boolean(hash&&BigInt(number)+BigInt(confirmations-1)<=BigInt(head.number)&&(await rpc('eth_getBlockByNumber',['0x'+BigInt(number).toString(16),false]))?.hash===hash)
   const journal=(await db.query('SELECT signer,nonce,hash,resolved_hash,receipt,transaction_data FROM saffron_incentives.chain_operations ORDER BY id')).rows
-  const reservations=(await db.query('SELECT signer,evidence FROM saffron_incentives.gas_reservations')).rows
-  for(const signer of new Set([...journal,...reservations].map(r=>r.signer))){
+  const checkpoints=(await db.query("SELECT body->>'signer' signer,body->>'signerNonce' nonce FROM saffron_incentives.deployment_quotes")).rows
+  for(const signer of new Set([...journal,...checkpoints].map(r=>r.signer))){
     const known=journal.filter(r=>r.signer===signer).map(r=>BigInt(r.nonce)+1n)
-    known.push(...reservations.filter(r=>r.signer===signer&&r.evidence.signerNonce!==undefined).map(r=>BigInt(r.evidence.signerNonce)))
+    known.push(...checkpoints.filter(r=>r.signer===signer&&r.nonce!==null).map(r=>BigInt(r.nonce)))
     const expected=known.length?known.reduce((a,b)=>a>b?a:b):null
     const latest=BigInt(await rpc('eth_getTransactionCount',[signer,'latest'])),pending=BigInt(await rpc('eth_getTransactionCount',[signer,'pending']))
     if(expected===null||latest!==expected||pending!==latest)problems.push({kind:'signer_nonce_requires_reconciliation',signer})
@@ -46,8 +46,6 @@ export async function inspectRestoredDatabase({db,rpc,confirmations=2}){
     if(cursor.block_number!==null&&!await canonical(cursor.block_number,cursor.block_hash))problems.push({kind:'watcher_cursor_requires_reconciliation',id:cursor.id})
   for(const {intent_id,snapshot} of (await db.query('SELECT intent_id,snapshot FROM saffron_incentives.vault_observations')).rows)
     if(!snapshot.verified||!await canonical(snapshot.blockNumber,snapshot.blockHash))problems.push({kind:'vault_requires_reconciliation',id:intent_id})
-  for(const {hash,evidence} of (await db.query("SELECT hash,evidence FROM saffron_incentives.refund_transfers WHERE state='confirmed'")).rows)
-    if(!await canonical(evidence.blockNumber,evidence.blockHash))problems.push({kind:'refund_requires_reconciliation',hash})
   for(const budget of (await db.catalog(true)).budgets){
     const totals=(await db.query('SELECT COALESCE(sum(limit_delta),0)::text l,COALESCE(sum(reserved_delta),0)::text r,COALESCE(sum(allocated_delta),0)::text a FROM saffron_incentives.budget_entries WHERE budget_pool_id=$1',[budget.id])).rows[0]
     const reserves=(await db.query('SELECT COALESCE(sum(reserved_raw),0)::text r,COALESCE(sum(allocated_raw),0)::text a FROM saffron_incentives.budget_reservations WHERE budget_pool_id=$1',[budget.id])).rows[0]
@@ -55,5 +53,5 @@ export async function inspectRestoredDatabase({db,rpc,confirmations=2}){
   }
   if((await rpc('eth_getBlockByNumber',[head.number,false]))?.hash!==head.hash)throw new Error('Restore comparison block changed.')
   return {recordedEvidenceMatches:problems.length===0,signers,problems,activationAllowed:false,
-    requiredReview:'Verify backup/WAL completeness, later quotes and fee receipts, protected signer permits and treasury state. Reconcile before explicitly reopening campaigns and intake.'}
+    requiredReview:'Verify backup/WAL completeness, later quotes and fee receipts, protected signer permits. Reconcile before explicitly reopening campaigns and intake.'}
 }

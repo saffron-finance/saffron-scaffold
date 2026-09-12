@@ -17,7 +17,7 @@ export async function operationalStatus(db,readiness,now=Date.now){
     unresolvedPayments:payments.reduce((sum,r)=>sum+r.count,0),paymentStates:payments,staleVaultObservations:stale,reconciliationBudgets:budgets}
   const alerts=readiness.reasons.map(code=>({code,severity:'warning'}))
   if(metrics.oldestWithoutProgressSeconds>(readiness.policy?.service_minutes??240)*60)alerts.push({code:'paid_request_stalled',severity:'critical'})
-  if(funding.length)alerts.push({code:'treasury_funding_backlog',severity:'warning'})
+  if(funding.length)alerts.push({code:'premium_funding_pending',severity:'warning'})
   if(metrics.unresolvedPayments)alerts.push({code:'received_fees_need_resolution',severity:'critical'})
   if(stale)alerts.push({code:'vault_observations_stale',severity:'warning'})
   if(budgets.length)alerts.push({code:'campaign_reconciliation_required',severity:'critical'})

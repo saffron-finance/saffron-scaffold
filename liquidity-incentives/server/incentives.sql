@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.budget_pools (
   chain_id INTEGER NOT NULL CHECK (chain_id=4663), reward_asset TEXT NOT NULL, decimals INTEGER NOT NULL CHECK (decimals BETWEEN 0 AND 18),
   limit_raw NUMERIC(78,0) NOT NULL CHECK (limit_raw>=0), reserved_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (reserved_raw>=0),
   allocated_raw NUMERIC(78,0) NOT NULL DEFAULT 0 CHECK (allocated_raw>=0), paused BOOLEAN NOT NULL DEFAULT FALSE,
-  reconciliation_required BOOLEAN NOT NULL DEFAULT FALSE,campaign JSONB, updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CHECK (reserved_raw+allocated_raw<=limit_raw)
+  reconciliation_required BOOLEAN NOT NULL DEFAULT FALSE,campaign JSONB, updated_by TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.programs (
   id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK (revision>0), pair_id TEXT NOT NULL REFERENCES saffron_incentives.pairs(id),
@@ -20,27 +19,7 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.programs (
 CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_clients (
   id TEXT PRIMARY KEY,peer_hash TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),expires_at TIMESTAMPTZ NOT NULL
 );
-CREATE TABLE IF NOT EXISTS saffron_incentives.treasury_allocations (
-  budget_pool_id TEXT PRIMARY KEY REFERENCES saffron_incentives.budget_pools(id),wallet TEXT NOT NULL,
-  limit_raw NUMERIC(78,0) NOT NULL CHECK(limit_raw>0),revision INTEGER NOT NULL CHECK(revision>0),
-  updated_by TEXT NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE TABLE IF NOT EXISTS saffron_incentives.treasury_allocation_audit (
-  id BIGSERIAL PRIMARY KEY,budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id),
-  actor TEXT NOT NULL,request_key TEXT NOT NULL,fingerprint TEXT NOT NULL,reason TEXT NOT NULL,evidence JSONB NOT NULL,result JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
-);
 CREATE INDEX IF NOT EXISTS checkout_clients_issued ON saffron_incentives.checkout_clients(created_at);
-CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_reviews (
-  id UUID PRIMARY KEY,client_hash TEXT NOT NULL REFERENCES saffron_incentives.checkout_clients(id),request_key TEXT NOT NULL,recovery_hash TEXT NOT NULL,
-  wallet TEXT NOT NULL,program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),principal_cents NUMERIC(78,0) NOT NULL CHECK(principal_cents>0),
-  state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','approved','declined','expired','used')),revision INTEGER NOT NULL DEFAULT 1,
-  expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(client_hash,request_key)
-);
-CREATE TABLE IF NOT EXISTS saffron_incentives.checkout_review_audit (
-  id BIGSERIAL PRIMARY KEY,review_id UUID NOT NULL REFERENCES saffron_incentives.checkout_reviews(id),actor TEXT NOT NULL,request_key TEXT NOT NULL,
-  fingerprint TEXT NOT NULL,reason TEXT NOT NULL,result JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
-);
 CREATE TABLE IF NOT EXISTS saffron_incentives.deployment_quotes (
   id UUID PRIMARY KEY, wallet TEXT NOT NULL, program_id TEXT NOT NULL REFERENCES saffron_incentives.programs(id),
   budget_pool_id TEXT NOT NULL REFERENCES saffron_incentives.budget_pools(id), body JSONB NOT NULL,
@@ -116,15 +95,10 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_scan_cursors (
   start_block BIGINT NOT NULL CHECK(start_block>=0),block_number BIGINT,block_hash TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),checked_at TIMESTAMPTZ,safe_head BIGINT
 );
-CREATE TABLE IF NOT EXISTS saffron_incentives.gas_reservations (
-  quote_id UUID PRIMARY KEY REFERENCES saffron_incentives.deployment_quotes(id),signer TEXT NOT NULL,
-  maximum_wei NUMERIC(78,0) NOT NULL CHECK(maximum_wei>0),fee_wei NUMERIC(78,0) NOT NULL CHECK(fee_wei>0),
-  evidence JSONB NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 CREATE TABLE IF NOT EXISTS saffron_incentives.intake_policies (
   signer TEXT PRIMARY KEY,revision INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('automatic','reviewed')),
   enabled BOOLEAN NOT NULL,expires_at TIMESTAMPTZ NOT NULL,service_minutes INTEGER NOT NULL CHECK(service_minutes BETWEEN 1 AND 1440),
-  max_pending INTEGER NOT NULL CHECK(max_pending BETWEEN 1 AND 100),watcher_id TEXT NOT NULL,
+  max_pending INTEGER NOT NULL DEFAULT 100 CHECK(max_pending BETWEEN 1 AND 100),watcher_id TEXT NOT NULL,
   actor TEXT NOT NULL,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS saffron_incentives.intake_audit (
@@ -148,12 +122,23 @@ CREATE TABLE IF NOT EXISTS saffron_incentives.payment_resolution_audit (
   expected_revision INTEGER NOT NULL,fingerprint TEXT NOT NULL,evidence JSONB,result JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(actor,request_key)
 );
-CREATE TABLE IF NOT EXISTS saffron_incentives.refund_transfers (
-  hash TEXT PRIMARY KEY,payment_hash TEXT NOT NULL REFERENCES saffron_incentives.payment_obligations(hash),
-  amount_wei NUMERIC(78,0) NOT NULL CHECK(amount_wei>0),state TEXT NOT NULL CHECK(state IN ('confirming','confirmed','orphaned','failed')),
-  evidence JSONB NOT NULL,resolved_hash TEXT,checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS refund_payment ON saffron_incentives.refund_transfers(payment_hash);
-CREATE TABLE IF NOT EXISTS saffron_incentives.refund_evidence (
-  hash TEXT PRIMARY KEY,transfer_hash TEXT NOT NULL REFERENCES saffron_incentives.refund_transfers(hash)
-);
+
+-- Non-destructive upgrade: retain historical records, but remove the former
+-- aggregate hard limit. Git rollback needs the pre-upgrade database backup if
+-- a new commitment exceeds its old limit. No refund/treasury/gas table is used.
+DO $$
+DECLARE constraint_name TEXT;
+BEGIN
+  FOR constraint_name IN
+    SELECT conname FROM pg_constraint
+    WHERE conrelid='saffron_incentives.budget_pools'::regclass AND contype='c'
+      AND pg_get_constraintdef(oid) LIKE '%reserved_raw%allocated_raw%limit_raw%'
+  LOOP
+    EXECUTE format('ALTER TABLE saffron_incentives.budget_pools DROP CONSTRAINT %I', constraint_name);
+  END LOOP;
+END $$;
+-- Compatibility-only column for older databases; it has no admission effect.
+ALTER TABLE saffron_incentives.intake_policies ALTER COLUMN max_pending SET DEFAULT 100;
+
+-- A separately editable planning target must never reprice accepted premiums.
+ALTER TABLE saffron_incentives.budget_pools ADD COLUMN IF NOT EXISTS advisory_budget_cents NUMERIC(78,0) CHECK(advisory_budget_cents>0);

@@ -41,6 +41,8 @@ async function saveState(directory,state){
  * Local/fork callers inject disposable accounts/RPCs through the identical path. */
 export async function runOneRequest({database,rpc,account,config,requestId,simulation,directory,onProgress=()=>{},timeoutMs=600000,pollMs=2000,now=Date.now}){
   if(!/^([0-9a-f]{8}-)([0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(requestId)||!Number.isFinite(timeoutMs)||timeoutMs<=0||!Number.isFinite(pollMs)||pollMs<0)throw new Error('Invalid one-shot arguments.')
+  // The old name is accepted for existing permanent one-request configurations.
+  const maxOneShotGasWei=config.maxOneShotGasWei??config.maxDailyGasWei
   await ensurePrivateDirectory(directory)
   const lock=join(directory,'execution.lock');await mkdir(lock,{mode:0o700})
   try{
@@ -68,13 +70,13 @@ export async function runOneRequest({database,rpc,account,config,requestId,simul
       if(!Number.isFinite(simulatedAt)||now()-simulatedAt>600000||simulatedAt>now()+5000)throw new Error('A recent simulation is required before first signing.')
       const forkBlock=await rpc('eth_getBlockByNumber',['0x'+BigInt(simulation.forkBlockNumber).toString(16),false])
       if(forkBlock?.hash!==simulation.forkBlockHash)throw new Error('Simulation fork block is no longer canonical.')
-      if(BigInt(simulation.worstCaseGasWei)>BigInt(config.maxDailyGasWei))throw new Error('Simulation exceeds the one-shot gas budget.')
+      if(BigInt(simulation.worstCaseGasWei)>BigInt(maxOneShotGasWei))throw new Error('Simulation exceeds the one-shot gas budget.')
       const transactions=await database.execution.transactions(requestId)
       if(transactions.length||job.state!=='queued'||job.resume_version!==0)throw new Error('A new one-shot permit requires an untouched queued request.')
       const [chain,latest,pending,balance]=await Promise.all([rpc('eth_chainId',[]),rpc('eth_getTransactionCount',[account.address,'latest']),rpc('eth_getTransactionCount',[account.address,'pending']),rpc('eth_getBalance',[account.address,'latest'])])
       if(BigInt(chain)!==BigInt(CHAIN_ID)||BigInt(latest)!==BigInt(pending)||BigInt(latest)>BigInt(Number.MAX_SAFE_INTEGER))throw new Error('Signer chain/nonce is not ready for an isolated attempt.')
-      if(!/^[1-9][0-9]*$/.test(String(config.maxDailyGasWei??''))||BigInt(balance)<BigInt(config.maxDailyGasWei))throw new Error('One-shot gas budget must be positive and covered by the funded signer.')
-      state={identity,status:'armed',initialNonce:Number(BigInt(latest)),maxGasWei:String(config.maxDailyGasWei),armedAt:new Date(now()).toISOString()}
+      if(!/^[1-9][0-9]*$/.test(String(maxOneShotGasWei??''))||BigInt(balance)<BigInt(maxOneShotGasWei))throw new Error('One-shot gas budget must be positive and covered by the funded signer.')
+      state={identity,status:'armed',initialNonce:Number(BigInt(latest)),maxGasWei:String(maxOneShotGasWei),armedAt:new Date(now()).toISOString()}
       await saveState(directory,state)
     }
     const permit={...identity,initialNonce:state.initialNonce,maxGasWei:state.maxGasWei}

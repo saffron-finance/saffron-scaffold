@@ -53,22 +53,21 @@ it('HTTP wallet authorization, atomic replay, privacy, CSRF and separate operato
     assert.equal((await call('/admin/deployments',undefined,u)).status,403)
     assert.equal((await call('/admin/status',undefined,u)).status,403)
     const status=await call('/admin/status',undefined,a)
-    assert.equal(status.body.pending,1);assert.equal(status.body.gasBalanceRaw,null)
+    assert.equal(status.body.pending,1);assert.equal(status.body.gasBalanceRaw,undefined)
     assert.equal((await call('/admin/deployments/'+id+'/fund',{planHash:quote.planHash,maximumRaw:quote.plan.premium},u)).status,403)
     assert.equal((await call('/deployments/'+id+'/cancel',{},u,{'x-saffron-csrf':'wrong'})).status,403)
     assert.equal((await call('/deployments/'+id+'/cancel',{},u,{origin:'https://foreign.example'})).status,403)
     const rows=await call('/admin/deployments',undefined,a)
     assert.equal(rows.body.deployments.length,1)
     assert.doesNotMatch(JSON.stringify(rows.body),/raw_tx|transaction_data|privateKey|signature/)
-    assert.equal((await call('/deployments/'+id+'/cancel',{},u)).body.retired,true)
-    const obligation=await db.paymentObligation(hash)
-    const resolution={revision:obligation.revision,requestKey:randomUUID(),reason:'User requested cancellation before creation.'}
-    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,u)).status,403)
-    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,a,{'x-saffron-csrf':'wrong'})).status,403)
-    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,a)).body.state,'refund_due')
-    assert.equal((await call('/admin/payments/'+hash+'/refund-due',resolution,a)).body.state,'refund_due')
-    assert.equal((await call('/admin/payments?limit=1',undefined,a)).body.payments[0].hash,hash)
-    assert.equal((await call('/payments?wallet='+user.address)).body.payments[0].state,'refund_due')
+    for(const path of ['/deployments/'+id+'/cancel','/admin/deployments/'+id+'/retire','/admin/treasury','/admin/amount-reviews',
+      '/admin/payments/'+hash+'/refund-due','/admin/payments/'+hash+'/refund','/admin/payments/'+hash+'/refund-replacement']){
+      assert.equal((await call(path,{},a)).status,404,path+' must not remain an active workflow')
+    }
+    assert.equal((await call('/admin/portfolio-capacity',undefined,u)).status,403)
+    assert.equal((await call('/admin/portfolio-capacity',undefined,a)).status,200)
+    assert.equal((await call('/payments?wallet='+user.address)).body.payments[0].state,'admitted')
+    assert.doesNotMatch(JSON.stringify((await call('/payments?wallet='+user.address)).body),/refunded_wei|refunds/)
     for(let i=0;i<2;i++)await store.accept(user,await store.quote(user,{premium:'1000',signer:admin.address}))
     const foreign=(await store.accept(admin,await store.quote(admin,{premium:'1000'}))).id
     let cursor=null;const paged=[]

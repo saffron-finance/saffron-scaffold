@@ -1,7 +1,7 @@
 /** Price a new legacy transaction with one current base fee of headroom.
  * Some rollups return eth_gasPrice equal to the base fee; using it verbatim can
  * make a transaction inadmissible before the first broadcast. Existing signed
- * bytes must never be repriced here. Caller enforces the aggregate gas budget.
+ * bytes must never be repriced here. The signing boundary enforces a per-transaction fee ceiling.
  * A configured ceiling is a hard limit, not permission to silently drop margin.
  */
 export function legacyGasPrice({ suggested, baseFee = 0n, maximum }) {

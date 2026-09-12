@@ -52,7 +52,6 @@ export async function resolvePlan(job, rpc, usdQuote, config) {
     capacities.premiumCents=campaignPremiumCents(t.campaign,t.fixedCapacityAmount)
     capacities.premium=ceilDiv(BigInt(capacities.premiumCents)*10n**16n*10n**BigInt(t.token0.decimals),variablePrice).toString()
   }
-  if (BigInt(capacities.premium) > BigInt(config.maxPremiumRaw)) throw new ConfirmedFailure('Premium exceeds the configured operator budget.')
   if ((await rpc('eth_getBlockByNumber',[tag,false]))?.hash !== head.hash) throw new Waiting('Sizing block changed.')
   return { ...capacities, token0: { ...sorted0, address: token0.toLowerCase() }, token1: { ...sorted1, address: token1.toLowerCase() },
     minTick, maxTick, variableDecimals: t.token0.decimals, variableSymbol: t.token0.symbol,

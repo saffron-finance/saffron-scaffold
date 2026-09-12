@@ -6,24 +6,22 @@ export function createIntakePolicy(db){return {
     const expiry=Date.parse(input.expiresAt)
     if(!validAddress(input.signer)||!Number.isInteger(input.revision)||!['automatic','reviewed'].includes(input.mode)||typeof input.enabled!=='boolean'
       ||!Number.isFinite(expiry)||expiry<=db.now()||expiry>db.now()+86400_000||!Number.isInteger(input.serviceMinutes)||input.serviceMinutes<1||input.serviceMinutes>1440
-      ||!Number.isInteger(input.maxPending)||input.maxPending<1||input.maxPending>100||!/^[-a-z0-9]{1,64}$/.test(input.watcherId??''))throw fault(400,'Set a bounded intake window, service window, queue limit and watcher identity.')
+      ||!/^[-a-z0-9]{1,64}$/.test(input.watcherId??''))throw fault(400,'Set a bounded intake window, service window and watcher identity.')
     return db.transaction(async client=>{
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended('saffron-admission',0))")
       const previous=(await client.query(`SELECT revision FROM ${s}.intake_policies WHERE signer=$1 FOR UPDATE`,[input.signer.toLowerCase()])).rows[0]
       if((previous?.revision??0)!==input.revision)throw fault(409,'Intake policy changed. Refresh before saving.')
-      const result=(await client.query(`INSERT INTO ${s}.intake_policies(signer,revision,mode,enabled,expires_at,service_minutes,max_pending,watcher_id,actor)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(signer) DO UPDATE SET revision=EXCLUDED.revision,mode=EXCLUDED.mode,enabled=EXCLUDED.enabled,
-        expires_at=EXCLUDED.expires_at,service_minutes=EXCLUDED.service_minutes,max_pending=EXCLUDED.max_pending,watcher_id=EXCLUDED.watcher_id,actor=EXCLUDED.actor,updated_at=NOW() RETURNING *`,
-        [input.signer.toLowerCase(),input.revision+1,input.mode,input.enabled,new Date(expiry),input.serviceMinutes,input.maxPending,input.watcherId,actor])).rows[0]
+      const result=(await client.query(`INSERT INTO ${s}.intake_policies(signer,revision,mode,enabled,expires_at,service_minutes,watcher_id,actor)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(signer) DO UPDATE SET revision=EXCLUDED.revision,mode=EXCLUDED.mode,enabled=EXCLUDED.enabled,
+        expires_at=EXCLUDED.expires_at,service_minutes=EXCLUDED.service_minutes,watcher_id=EXCLUDED.watcher_id,actor=EXCLUDED.actor,updated_at=NOW() RETURNING *`,
+        [input.signer.toLowerCase(),input.revision+1,input.mode,input.enabled,new Date(expiry),input.serviceMinutes,input.watcherId,actor])).rows[0]
       await client.query(`INSERT INTO ${s}.intake_audit(signer,actor,policy) VALUES($1,$2,$3)`,[result.signer,actor,result])
       return result
     })
   },
   async requireIntake(client,signer,revision){
     const row=(await client.query(`SELECT * FROM ${s}.intake_policies WHERE signer=$1`,[signer.toLowerCase()])).rows[0]
-    const slots=await db.pendingSlots(client,null)
     if(!row?.enabled||row.revision!==revision||row.expires_at.getTime()<=db.now())throw fault(409,'Intake policy changed before checkout. Refresh offers.')
-    if(slots.total>=row.max_pending)throw fault(429,'The intake queue is full before payment.')
   },
 }}
 
@@ -33,11 +31,7 @@ export async function intakeReadiness({db,rpc,signer,confirmations=2,now=Date.no
   const slots=await db.pendingSlots(db,null)
   if(!policy?.enabled)reasons.push('intake_paused')
   else if(policy.expires_at.getTime()<=now())reasons.push('intake_expired')
-  if(policy&&slots.total>=policy.max_pending)reasons.push('queue_full')
   if(policy?.mode==='automatic'&&!workerOnline)reasons.push('worker_offline')
-  const overdue=policy&&(await db.query(`SELECT 1 FROM saffron_incentives.deployment_intents i JOIN saffron_incentives.vault_jobs j ON j.intent_id=i.id
-    JOIN saffron_incentives.budget_reservations r ON r.intent_id=i.id WHERE j.state<>'retired' AND (j.state<>'created' OR r.reserved_raw>0) AND i.created_at<$1 LIMIT 1`,[new Date(now()-policy.service_minutes*60_000)])).rowCount
-  if(overdue)reasons.push('service_window_exceeded')
   let watcher=null
   if(policy){
     const cursor=(await db.query('SELECT * FROM saffron_incentives.payment_scan_cursors WHERE id=$1',[policy.watcher_id])).rows[0]

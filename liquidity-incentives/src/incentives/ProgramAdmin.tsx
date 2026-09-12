@@ -8,7 +8,7 @@ import { Action,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
 
 type Catalog={pairs:Pair[];budgets:Budget[];programs:Program[]}
 
-/** Campaign configuration owns accounting limits, never the external treasury.
+/** Campaign configuration owns advisory targets and immutable premium rates.
  * A single API transaction creates the budget and its matching offer together.
  */
 export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address|null;onConnect:()=>void;autoLoad?:boolean}){
@@ -20,16 +20,17 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
   async function changed(){await load();setSaved('Campaign configuration saved.');window.dispatchEvent(new Event('saffron:catalog-updated'))}
   async function pause(budget:Budget){if(!account)return;setBusy(true);try{await authedJson(account,'/admin/budgets',{...budget,paused:!budget.paused});await changed()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Stack>
-    <FinePrint>Campaign budgets limit vault creation. Premium funds stay with your external operations wallet.</FinePrint>
+    <FinePrint>Campaign targets are private planning estimates, not request limits. Premium funding is handled externally.</FinePrint>
     <QuietButton disabled={busy} onClick={()=>void load()}>{catalog?'Reload campaigns':'Load incentive catalog'}</QuietButton>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}{saved&&<FinePrint role='status'>{saved}</FinePrint>}
     {catalog&&account&&<>
       {catalog.budgets.map(b=><Card key={b.id}><Row><b>{b.name}</b><QuietButton disabled={busy} onClick={()=>void pause(b)}>{b.paused?'Resume campaign':'Pause campaign'}</QuietButton></Row>
         {b.campaign&&b.accounting?<>
           <FinePrint>{b.campaign.days} days · {Number(b.campaign.aprPercent).toLocaleString('en-US',{maximumFractionDigits:4})}% APR · {usd(Number(b.campaign.capacityCents)/100)} target fixed-side capacity</FinePrint>
-          <Stats><div>Budget<Strong>{usd(Number(b.accounting.budgetCents)/100)}</Strong></div><div>Premium funded<Strong>{usd(Number(b.accounting.fundedBudgetCents)/100)}</Strong></div><div>Budget reserved<Strong>{usd(Number(b.accounting.reservedBudgetCents)/100)}</Strong></div><div>Payment holds<Strong>{usd(Number(b.accounting.heldBudgetCents)/100)}</Strong></div><div>Capacity funded<Strong>{usd(Number(b.accounting.fundedCapacityCents)/100)}</Strong></div><div>Capacity available<Strong>{usd(Number(b.accounting.availableCapacityCents)/100)}</Strong></div></Stats>
+          <Stats><div>Budget<Strong>{usd(Number(b.accounting.budgetCents)/100)}</Strong></div><div>Premium funded<Strong>{usd(Number(b.accounting.fundedBudgetCents)/100)}</Strong></div><div>Budget reserved<Strong>{usd(Number(b.accounting.reservedBudgetCents)/100)}</Strong></div><div>Capacity funded<Strong>{usd(Number(b.accounting.fundedCapacityCents)/100)}</Strong></div><div>Target difference<Strong>{usd(Number(b.accounting.availableCapacityCents)/100)}</Strong></div></Stats>
           <FinePrint>LP deposits observed: {usd(Number(b.accounting.fixedDepositedCents)/100)} at request-time valuations. Premium funding and LP entry are tracked separately.</FinePrint>
         </>:<FinePrint>Token allocation: {formatUnits(BigInt(b.limitRaw),b.decimals)} · reserved {formatUnits(BigInt(b.reservedRaw),b.decimals)} · funded {formatUnits(BigInt(b.allocatedRaw),b.decimals)}.</FinePrint>}
+        {b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}
         {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
       </Card>)}
       <CampaignEditor account={account} pairs={catalog.pairs} onSaved={changed}/>
@@ -46,13 +47,13 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
 function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];onSaved:()=>Promise<void>}){
   const [id,setId]=useState(''),[name,setName]=useState(''),[pairId,setPairId]=useState(pairs[0]?.id??'')
   const [days,setDays]=useState('3'),[budget,setBudget]=useState('10000'),[capacity,setCapacity]=useState('1000000'),[apr,setApr]=useState('121.66666667')
-  const [computed,setComputed]=useState('apr'),[minimum,setMinimum]=useState('100'),[active,setActive]=useState(false)
+  const [computed,setComputed]=useState('apr'),[active,setActive]=useState(false)
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
   const economics={days:Number(days),...(computed!=='budget'?{budgetUsd:budget}:{}),...(computed!=='capacity'?{capacityUsd:capacity}:{}),...(computed!=='apr'?{aprPercent:apr}:{})}
   let terms:any=null,validation=''
   try{terms=campaignTerms(economics)}catch(e){validation=(e as Error).message}
   async function submit(event:FormEvent){event.preventDefault();if(!terms)return;setBusy(true);setError('')
-    try{await authedJson(account,'/admin/campaigns',{id,name,pairId,minimumUsd:minimum,active,...economics});setId('');setName('');await onSaved()}
+    try{await authedJson(account,'/admin/campaigns',{id,name,pairId,active,...economics});setId('');setName('');await onSaved()}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Editor onSubmit={submit} aria-label='Create campaign'><b>Create campaign</b><Fields>
     <Field>Campaign ID<input aria-label='Campaign ID' required pattern='[a-z0-9][a-z0-9-]{0,79}' value={id} onChange={e=>setId(e.target.value)}/></Field>
@@ -63,13 +64,20 @@ function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];on
     <Field>Budget (USD)<input aria-label='Campaign budget USD' inputMode='decimal' readOnly={computed==='budget'} value={computed==='budget'?(terms?formatUnits(BigInt(terms.budgetCents),2):''):budget} onChange={e=>setBudget(e.target.value)}/></Field>
     <Field>Target fixed-side capacity (USD)<input aria-label='Campaign capacity USD' inputMode='decimal' readOnly={computed==='capacity'} value={computed==='capacity'?(terms?formatUnits(BigInt(terms.capacityCents),2):''):capacity} onChange={e=>setCapacity(e.target.value)}/></Field>
     <Field>Target APR (%)<input aria-label='Campaign APR percent' inputMode='decimal' readOnly={computed==='apr'} value={computed==='apr'?(terms?Number(terms.aprPercent).toFixed(6):''):apr} onChange={e=>setApr(e.target.value)}/></Field>
-    <Field>Minimum LP request (USD)<input aria-label='Campaign minimum USD' inputMode='decimal' required value={minimum} onChange={e=>setMinimum(e.target.value)}/></Field>
   </Fields>
-    <FinePrint>Enter duration and any two economics inputs. APR uses a 365-day year, without compounding. Requested vaults reserve capacity immediately; confirmed variable-side funding consumes the matching budget and capacity. Maturity does not replenish them.</FinePrint>
+    <FinePrint>Enter duration and any two economics inputs. APR uses a 365-day year, without compounding. Targets do not restrict request count or size. The premium rate stays fixed after quoting; the internal planning budget can change independently.</FinePrint>
     <label><input type='checkbox' checked={active} onChange={e=>setActive(e.target.checked)}/> Accept paid vault requests when this campaign is created</label>
     {validation&&<FinePrint>{validation}</FinePrint>}{error&&<ErrorText role='alert'>{error}</ErrorText>}
     <Action disabled={busy||!terms||!pairId}>{busy?'Saving campaign…':'Create campaign'}</Action>
   </Editor>
+}
+
+/** Editing a planning target must not alter the campaign's quoted economics. */
+function AdvisoryTarget({account,budget,onSaved}:{account:Address;budget:Budget;onSaved:()=>Promise<void>}){
+  const [value,setValue]=useState(String(Number(budget.advisoryBudgetCents??budget.campaign.budgetCents)/100)),[busy,setBusy]=useState(false),[error,setError]=useState('')
+  async function save(){setBusy(true);setError('');try{await authedJson(account,'/admin/budgets/'+budget.id+'/advisory',{revision:budget.revision,budgetUsd:value});await onSaved()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  return <><label>Internal planning budget (USD)<input aria-label={'Planning budget for '+budget.name} value={value} onChange={e=>setValue(e.target.value)} inputMode='decimal'/></label>
+    <QuietButton disabled={busy} onClick={()=>void save()}>Update planning target</QuietButton>{error&&<ErrorText role='alert'>{error}</ErrorText>}</>
 }
 
 /** Pool metadata is verified against the chain by the API before it is saved. */

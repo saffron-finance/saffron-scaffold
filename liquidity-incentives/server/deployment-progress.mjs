@@ -41,10 +41,10 @@ export async function deploymentProgress({job,observation,journal,payment,policy
   if(latest[2]?.receipt?.status==='0x1'&&!fresh)unavailable=true
   const funded=fresh&&(observation.isStarted||BigInt(observation.variableSupply)===BigInt(observation.variableCapacity)&&BigInt(observation.variableBalance)>=BigInt(observation.variableCapacity))
   if(stages[2].state==='complete'&&funded){stages[3].state='complete';stages[3].confirmedAt=job.funding_observed_at?.toISOString()??new Date(observation.checkedAt).toISOString()}
-  let reason=unavailable?'verification_unavailable':payment&&['refund_due','confirming','refunded','reconciliation_required'].includes(payment.state)?'payment_'+payment.state
-    :job.state==='retired'?'retired':job.cancel_requested?'retirement_requested':job.state==='failed'?'operator_review':job.state==='queued'?'queued'
+  let reason=unavailable?'verification_unavailable':payment&&!['received','admitted','needs_attention'].includes(payment.state)?'operator_review'
+    :job.state==='retired'?'retired':job.cancel_requested?'operator_review':job.state==='failed'?'operator_review':job.state==='queued'?'queued'
     :stages[2].state==='complete'&&!funded?'awaiting_funding':stages.every(s=>s.state==='complete')?'ready':'creating'
-  const operatorAction=reason==='operator_review'||reason.startsWith('payment_')||reason==='retirement_requested'
+  const operatorAction=reason==='operator_review'||reason.startsWith('payment_')
   const first=stages.find(stage=>stage.state!=='complete')
   if(first&&first.state==='pending'&&reason!=='queued')first.state=operatorAction||reason==='retired'?'blocked':'active'
   const times=stages.map(s=>s.confirmedAt).filter(Boolean)

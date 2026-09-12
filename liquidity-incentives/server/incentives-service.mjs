@@ -7,19 +7,16 @@ import { discoverPositionOwners } from './position-discovery.mjs'
 import { eligibility,sameAddress } from '../shared/vault-lifecycle.mjs'
 import { cents,snapshotFor,fault,jsonSafe,validAddress,UINT256_MAX } from '../shared/incentives.mjs'
 import { userActionEvidence } from '../shared/user-evidence.mjs'
-import { verifyRefund,verifyRefundReplacement } from './refund-proof.mjs'
 import { encodeFunctionData,decodeFunctionResult } from 'viem'
 import { abi } from '../shared/vault-lifecycle.mjs'
 import { intakeReadiness } from './intake-policy.mjs'
-import { gasCoverage } from './gas-reservations.mjs'
 import { deploymentProgress } from './deployment-progress.mjs'
-import { treasuryCoverage } from './treasury-inventory.mjs'
 import { operationalStatus } from './operational-status.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
 /** Read-only sizing/observation service; the separate worker owns all signing. */
-export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,feeRecipient,refundSenders=[],now=Date.now}) {
+export function createIncentivesService({database:db,rpc,usdQuote,config,signer,origin,feeRecipient,now=Date.now}) {
   const pending=new Map()
   let polling=false
   async function refresh(id){
@@ -46,54 +43,22 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     pending.set(id,operation);return operation
   }
   function requireConfigured(){
-    if(!validAddress(signer)||!config?.factoryCodeHash||!config?.vaultTypeHash||!config?.adapterTypeHash||!config?.maxPremiumRaw||!origin) throw fault(503,'Deployment is not configured yet.')
+    if(!validAddress(signer)||!config?.factoryCodeHash||!config?.vaultTypeHash||!config?.adapterTypeHash||!origin) throw fault(503,'Deployment is not configured yet.')
   }
-  async function size(offer,principalCents,wallet,probe=false){
+  async function size(offer,principalCents,wallet){
     requireConfigured()
     const snapshot=snapshotFor(offer,principalCents,wallet)
-    const plan=await resolvePlan({snapshot},rpc,usdQuote,probe?{...config,maxPremiumRaw:UINT256_MAX.toString()}:config)
+    const plan=await resolvePlan({snapshot},rpc,usdQuote,config)
     return plan
   }
   const service={
     refresh,
-    treasuryStatus:()=>treasuryCoverage({db,rpc,confirmations:config?.confirmations??2,now}),
-    async assignTreasury(input,actor){
-      const budget=(await db.catalog(true)).budgets.find(b=>b.id===input.budgetId)
-      if(!budget||!validAddress(input.wallet))throw fault(400,'Select a campaign and treasury wallet.')
-      const evidence=await treasuryCoverage({db,rpc,confirmations:config?.confirmations??2,now,extra:[{wallet:input.wallet.toLowerCase(),reward_asset:budget.rewardAsset}]})
-      return db.assignTreasury(input,actor,evidence)
-    },
-    async fundingBrief(id,actor){
-      const row=await service.detail(id,actor,true),s=row.observation,job=await db.getIntent(id)
-      if(!s?.verified||eligibility(s,now()).state==='checking'||row.progress?.verificationAvailable!==true||!row.progress.stages.slice(0,3).every(s=>s.state==='complete'))throw fault(503,'Fresh verified vault evidence is required for the funding brief.')
-      const budget=(await db.catalog(true)).budgets.find(b=>b.id===job.budget_pool_id)
-      const allocation=(await db.treasuryBook()).find(a=>a.budget_pool_id===job.budget_pool_id)
-      const outstanding=BigInt(s.variableCapacity)-BigInt(s.variableSupply),canFund=Boolean(budget&&!budget.paused&&!budget.reconciliationRequired&&allocation)
-        &&row.progress.paymentState==='admitted'&&!row.cancelRequested&&row.workerState!=='retired'&&!s.isStarted&&outstanding>0n&&BigInt(s.claimSupply)===0n
-      return {requestId:row.id,planHash:row.planHash,chainId:4663,vault:s.vault,token:s.variableAsset,decimals:s.variableDecimals,symbol:s.variableSymbol,
-        totalRaw:s.variableCapacity,observedSupplyRaw:s.variableSupply,vaultBalanceRaw:s.variableBalance,outstandingRaw:(outstanding>0n?outstanding:0n).toString(),
-        treasuryWallet:allocation?.wallet??null,
-        state:row.state,canFund,checkedAt:s.checkedAt,blockNumber:s.blockNumber,blockHash:s.blockHash,
-        action:canFund?'Approve the vault for the outstanding token amount, then call vault.deposit(outstandingRaw, 1, "0x") externally.':'Review current ownership and recovery; no funding action is proposed.',
-        recovery:s.isStarted?'The vault has started; use protocol maturity rights.':BigInt(s.claimSupply)>0n?'The fixed claim owner must recover the unstarted LP assets before retirement.':BigInt(s.variableSupply)>0n?'The variable bearer owner must recover the premium externally before retirement.':'Settle all creator transactions, then verify retirement.'}
-    },
     async readiness(){
-      const result=await intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now})
-      try{
-        const gas=await gasCoverage({db,rpc,config,signer,now}),eth=await usdQuote(WETH)
-        if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60000||eth.checkedAt>now()+5000)throw new Error('Fee price unavailable.')
-        const feeWei=ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)),maximum=BigInt(gas.maximumWei),subsidy=maximum>feeWei?maximum-feeWei:0n
-        result.gas={...gas,feeWei:feeWei.toString(),ethPriceRaw:eth.priceRaw,remainingSubsidyWei:(BigInt(gas.maxSubsidyWei)-BigInt(gas.book.subsidyWei)).toString()}
-        if(BigInt(gas.book.exposureWei)+maximum>BigInt(gas.balanceWei)||BigInt(gas.book.exposureWei)+BigInt(gas.book.spentWei)+maximum>BigInt(gas.maxDailyGasWei)
-          ||BigInt(gas.book.subsidyWei)+subsidy>BigInt(gas.maxSubsidyWei))result.reasons.push('gas_capacity_exhausted')
-      }catch{result.reasons.push('gas_unavailable')}
-      try{result.treasury=await service.treasuryStatus();if(!result.treasury.available)result.reasons.push('treasury_inventory_unavailable')}
-      catch{result.reasons.push('treasury_verification_unavailable')}
-      result.canQuote=result.reasons.length===0
-      return result
+      // Operator enablement and canonical payment discovery remain. Neither
+      // campaign targets nor wallet inventory determine whether a user can pay.
+      return intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now})
     },
     async auditCheckoutSettlements(){
-      await service.auditRefundSettlements()
       for(const cursor of await db.checkoutWatermarks()){
         let block
         try{if(cursor.block_number!==null)block=await rpc('eth_getBlockByNumber',['0x'+BigInt(cursor.block_number).toString(16),false])}
@@ -105,157 +70,38 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         }
       }
     },
-    async auditRefundSettlements(){
-      for(const row of (await db.query("SELECT hash,evidence FROM saffron_incentives.refund_transfers WHERE state='confirmed'")).rows){
-        let block
-        try{block=await rpc('eth_getBlockByNumber',[row.evidence.blockNumber,false])}
-        catch{throw fault(503,'Refund settlement verification is unavailable.')}
-        if(!block?.hash)throw fault(503,'Refund settlement verification is unavailable.')
-        if(block.hash!==row.evidence.blockHash){
-          await db.observeRefund(row.hash,row.evidence,'orphaned')
-          throw fault(503,'Refund settlement requires reconciliation.')
-        }
-      }
-    },
-    async refundSafety(hash){
-      const payment=await db.paymentObligation(hash)
-      if(!payment)throw fault(404,'Received payment not found.')
-      const quote=await db.quote(payment.quote_id)
-      await verifyPayment(quote,hash,null,rpc,{confirmations:config?.confirmations??2,checkCapability:false,allowAmountMismatch:true})
-      const original=(await db.query(`SELECT i.id FROM saffron_incentives.deployment_intents i JOIN saffron_incentives.payment_proofs p ON p.quote_id=i.quote_id WHERE p.hash=$1`,[hash])).rows[0]
-      if(original){
-        const job=await db.getIntent(original.id)
-        if(job.state!=='retired')throw fault(409,'Reconcile and retire the original request before recording a refund.')
-        const proofs=(await db.execution.transactionMetadata(job.id)).map(t=>t.receipt)
-        const releases=(await db.query("SELECT evidence FROM saffron_incentives.budget_entries WHERE intent_id=$1 AND kind='release-recovered' ORDER BY id DESC LIMIT 1",[job.id])).rows
-        if(releases[0]?.evidence?.blockHash)proofs.push({blockNumber:'0x'+BigInt(releases[0].evidence.blockNumber).toString(16),blockHash:releases[0].evidence.blockHash})
-        for(const proof of proofs)if(!proof||(await rpc('eth_getBlockByNumber',[proof.blockNumber,false]))?.hash!==proof.blockHash)throw fault(409,'Retirement transaction evidence must be reconciled before a refund.')
-        if(job.plan.vault){
-          const initialized=decodeFunctionResult({abi,functionName:'initialized',data:await rpc('eth_call',[{to:job.plan.vault,data:encodeFunctionData({abi,functionName:'initialized'})},'latest'])})
-          if(initialized){
-            const observation=await readVault(job,rpc,{confirmations:config?.confirmations??2,now})
-            if(observation.isStarted||BigInt(observation.claimSupply)>0n||BigInt(observation.variableSupply)>0n)throw fault(409,'External position recovery must finish before the original fee is refunded.')
-          }
-        }
-      }
-      return payment
-    },
-    async recordExternalRefund(hash,refundHash,resolution){
-      const payment=await service.refundSafety(hash)
-      const transfer=await verifyRefund(payment,refundHash,rpc,{senders:refundSenders,confirmations:config?.confirmations??2})
-      return db.recordRefund(hash,transfer,resolution)
-    },
-    async replaceExternalRefund(hash,originalHash,replacementHash,resolution){
-      const payment=await service.refundSafety(hash),original=(await db.query('SELECT * FROM saffron_incentives.refund_transfers WHERE hash=$1 AND payment_hash=$2',[originalHash,hash])).rows[0]
-      if(!original)throw fault(404,'Saved refund not found.')
-      const evidence=await verifyRefundReplacement(payment,original,replacementHash,rpc,{senders:refundSenders,confirmations:config?.confirmations??2})
-      return db.replaceRefund(hash,originalHash,evidence,resolution)
-    },
-    async reconcileRefunds(){
-      const rows=(await db.query("SELECT * FROM saffron_incentives.refund_transfers ORDER BY checked_at LIMIT 100")).rows
-      for(const row of rows){
-        // A provider outage leaves the last observation intact. A missing or
-        // different canonical block positively disproves the saved inclusion.
-        if(row.evidence.blockHash&&row.state!=='orphaned'){
-          let canonical
-          try{canonical=await rpc('eth_getBlockByNumber',[row.evidence.blockNumber,false])}catch{continue}
-          if(canonical?.hash!==row.evidence.blockHash){await db.observeRefund(row.hash,row.evidence,'orphaned');continue}
-        }
-        try{
-          const payment=await db.paymentObligation(row.payment_hash),policy={senders:refundSenders,confirmations:config?.confirmations??2}
-          const evidence=row.resolved_hash?await verifyRefundReplacement(payment,row,row.resolved_hash,rpc,policy):await verifyRefund(payment,row.hash,rpc,policy)
-          await db.observeRefund(row.hash,evidence,evidence.state)
-        }catch(error){if(['orphaned','failed'].includes(error.refundState))await db.observeRefund(row.hash,error.evidence??row.evidence,error.refundState)}
-      }
-    },
     async operatorStatus(){
-      let gasBalanceRaw=null
-      try{if(validAddress(signer))gasBalanceRaw=BigInt(await rpc('eth_getBalance',[signer,'latest'])).toString()}catch{}
       const backlog=(await db.query(`SELECT count(*) FILTER(WHERE state NOT IN ('created','retired'))::int AS pending,
         count(*) FILTER(WHERE state NOT IN ('created','retired') AND created_at<NOW()-INTERVAL '24 hours')::int AS stalled
         FROM saffron_incentives.vault_jobs`)).rows[0]
       const readiness=await service.readiness()
-      return {signer,gasBalanceRaw,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness,...await operationalStatus(db,readiness,now)}
-    },
-    async auditReleases(budgetId,operator){
-      const rows=(await db.query(`SELECT DISTINCT ON(e.intent_id) e.intent_id,e.evidence FROM saffron_incentives.budget_entries e
-        JOIN saffron_incentives.budget_reservations r ON r.intent_id=e.intent_id
-        WHERE e.budget_pool_id=$1 AND e.kind='release-recovered' AND r.released_raw>0 ORDER BY e.intent_id,e.id DESC`,[budgetId])).rows
-      let valid=true
-      for(const row of rows){
-        const proofs=(await db.execution.transactionMetadata(row.intent_id)).map(tx=>tx.receipt).filter(Boolean)
-        if(row.evidence?.blockHash)proofs.push({blockNumber:'0x'+BigInt(row.evidence.blockNumber).toString(16),blockHash:row.evidence.blockHash})
-        let canonical=true
-        for(const proof of proofs){
-          try{if((await rpc('eth_getBlockByNumber',[proof.blockNumber,false]))?.hash!==proof.blockHash)canonical=false}
-          catch{canonical=false}
-        }
-        if(!canonical){
-          valid=false
-          await db.query('UPDATE saffron_incentives.budget_pools SET reconciliation_required=TRUE WHERE id=$1',[budgetId])
-          // Explicit operator reconciliation restores the obligation first. The
-          // worker then resolves saved transactions and proves retirement again.
-          if(operator)await db.execution.restoreReleased(row.intent_id,operator)
-        }
-      }
-      return valid
+      return {signer,...backlog,workerOnline:await db.execution.workerOnline(signer),readiness,...await operationalStatus(db,readiness,now)}
     },
     async reconcileBudget(id,operator){
-      await service.auditReleases(id,operator)
       const result=await db.auditBudget(id)
       if(!result.valid)throw fault(409,'Ledger totals differ. Repair the accounting evidence before resuming this campaign.')
       await db.query('UPDATE saffron_incentives.budget_pools SET reconciliation_required=FALSE,paused=TRUE,revision=revision+1,updated_by=$2 WHERE id=$1',[id,operator])
       return (await db.catalog(true)).budgets.find(row=>row.id===id)
     },
     async programs(){
-      const {offers}=await db.catalog()
-      const readiness=await service.readiness()
-      const rows=[]
-      // Small bounded batches; a failed price read leaves an explicit unavailable size.
-      for(let start=0;start<offers.length;start+=4) rows.push(...await Promise.all(offers.slice(start,start+4).map(async offer=>{
-        if(offer.budget.paused||offer.budget.reconciliationRequired||offer.budget.availableRaw==='0')return {...offer,eligibleMaximumCents:'0',availability:'Campaign funding is unavailable'}
-        const inventory=readiness.treasury?.allocations.find(a=>a.budget_pool_id===offer.budgetPoolId)
-        const rawRoom=[BigInt(offer.budget.availableRaw),BigInt(inventory?.availableRaw??0),BigInt(config?.maxPremiumRaw??0)].reduce((a,b)=>a<b?a:b)
-        if(offer.budget.campaign){
-          const a=offer.budget.accounting
-          const byBudget=BigInt(a.availableBudgetCents)*BigInt(offer.budget.campaign.capacityCents)/BigInt(offer.budget.campaign.budgetCents)
-          const capacity=BigInt(a.availableCapacityCents)<byBudget?BigInt(a.availableCapacityCents):byBudget
-          let limit=capacity<BigInt(offer.maximumCents)?capacity:BigInt(offer.maximumCents)
-          const perQuote=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxQuoteBps)/10000n
-          const unpaidRoom=BigInt(offer.budget.campaign.capacityCents)*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.anonymousHeldCapacityCents)
-          const campaign=offer.budget.campaign,budget=BigInt(campaign.budgetCents),totalCapacity=BigInt(campaign.capacityCents)
-          const quoteBudget=budget*BigInt(db.checkout.maxQuoteBps)/10000n
-          const unpaidBudget=budget*BigInt(db.checkout.maxHeldBps)/10000n-BigInt(a.anonymousHeldBudgetCents)
-          const premiumRoom=quoteBudget<unpaidBudget?quoteBudget:unpaidBudget
-          const premiumCapacity=(premiumRoom>0n?premiumRoom:0n)*totalCapacity/budget
-          let reviewedLimit=limit
-          if(limit>perQuote)limit=perQuote
-          if(limit>unpaidRoom)limit=unpaidRoom>0n?unpaidRoom:0n
-          if(limit>premiumCapacity)limit=premiumCapacity
-          try{
-            const plan=await size(offer,offer.minimumCents,signer,true)
-            const rawCapacity=rawRoom*BigInt(plan.variablePrice)/(10n**16n*10n**BigInt(plan.variableDecimals))*totalCapacity/budget
-            if(limit>rawCapacity)limit=rawCapacity
-            if(reviewedLimit>rawCapacity)reviewedLimit=rawCapacity
-          }catch{return {...offer,eligibleMaximumCents:null,availability:'Live treasury sizing is unavailable'}}
-          return {...offer,eligibleMaximumCents:limit<BigInt(offer.minimumCents)?'0':limit.toString(),reviewMaximumCents:reviewedLimit.toString(),availability:null}
-        }
-        try{
-          const plan=await size(offer,offer.minimumCents,signer,true)
-          const aprRaw=BigInt(snapshotFor(offer,offer.minimumCents,signer).aprRaw)
-          const budget=rawRoom
-          const maximum=budget*10n**18n*31_536_000n*BigInt(plan.variablePrice)/(10n**16n*aprRaw*BigInt(offer.days*86400)*10n**BigInt(plan.variableDecimals))
-          const eligible=maximum<BigInt(offer.maximumCents)?maximum:BigInt(offer.maximumCents)
-          return {...offer,eligibleMaximumCents:eligible<BigInt(offer.minimumCents)?'0':eligible.toString(),availability:null}
-        }catch{return {...offer,eligibleMaximumCents:null,availability:'Live sizing is unavailable'}}
-      })))
-      return {offers:rows.map(row=>readiness.canQuote?row:{...row,eligibleMaximumCents:'0',availability:'New requests are paused: '+readiness.reasons.join(', ').replaceAll('_',' ')}),creatorOnline:readiness.workerOnline,readiness}
+      const {offers}=await db.catalog(),readiness=await service.readiness()
+      // Expose offer terms only. Planning amounts, usage and readiness internals
+      // are administrator data, never front-page or payment-modal payloads.
+      return {offers:offers.map(offer=>({id:offer.id,revision:offer.revision,pairId:offer.pairId,pairRevision:offer.pairRevision,
+        chainId:offer.chainId,pool:offer.pool,feeTier:offer.feeTier,token0:offer.token0,token1:offer.token1,
+        budgetPoolId:offer.budgetPoolId,apr:offer.apr,days:offer.days,sortOrder:offer.sortOrder,isNew:offer.isNew,active:offer.active,
+        budget:{id:offer.budget.id,revision:offer.budget.revision,paused:offer.budget.paused},
+        availability:offer.budget.paused||offer.budget.reconciliationRequired||!readiness.canQuote?'New requests are temporarily paused.':null})),
+        creatorOnline:readiness.workerOnline,readiness:{canQuote:readiness.canQuote}}
     },
-    async requestAmountReview(wallet,programId,amount,recoveryHash,checkout){
-      if(!validAddress(wallet))throw fault(400,'Connect a valid wallet.')
-      const principalCents=cents(amount),offer=await db.offer(programId)
-      if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents)||!offer.budget.campaign)throw fault(400,'Choose an amount within the campaign limits.')
-      return db.requestCheckoutReview({wallet:wallet.toLowerCase(),programId,principalCents,recoveryHash,...checkout})
+    /** Admin-only advisory for the portfolio. It never changes admission. */
+    async capacityAdvisory(){
+      const {budgets}=await db.catalog(true)
+      return {campaigns:budgets.filter(b=>b.accounting).map(b=>{
+        const a=b.accounting,committed=BigInt(a.fundedBudgetCents)+BigInt(a.reservedBudgetCents),target=BigInt(b.advisoryBudgetCents??a.budgetCents)
+        return {id:b.id,name:b.name,nearCapacity:target>0n&&committed*100n>=target*90n,
+          overTarget:committed>target,targetBudgetCents:target.toString(),committedBudgetCents:committed.toString()}
+      })}
     },
     async quote(wallet,programId,amount,recoveryHash,{clientHash=null,requestKey=null}={}){
       const existing=await db.checkoutQuote(clientHash,requestKey)
@@ -268,7 +114,6 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const readiness=await service.readiness()
       if(!readiness.canQuote)throw fault(503,'New requests are paused: '+readiness.reasons.join(', ').replaceAll('_',' ')+'. Your saved payments remain available.')
       const principalCents=cents(amount),offer=await db.offer(programId)
-      if(BigInt(principalCents)<BigInt(offer.minimumCents)||BigInt(principalCents)>BigInt(offer.maximumCents))throw fault(400,'Choose an amount within the program\'s vault size limits.')
       const plan=await size(offer,principalCents,wallet)
       if(!validAddress(feeRecipient))throw fault(503,'The ETH creation-fee recipient is not configured.')
       if(sameAddress(wallet,feeRecipient))throw fault(400,'The creation fee receiver cannot request a vault by paying itself.')
@@ -277,7 +122,10 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
       const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
         amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
-      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision,gas:readiness.gas,treasury:readiness.treasury})
+      // Retain a nonce checkpoint for backup/restore reconciliation, without
+      // collecting signer balances, fees, or gas-spending totals.
+      const signerNonce=BigInt(await rpc('eth_getTransactionCount',[signer,plan.sizingBlock])).toString()
+      const quote=await db.putQuote({offer,principalCents,wallet,origin,plan,signer,fee,recoveryHash,clientHash,requestKey,intakeRevision:readiness.policy.revision,signerNonce})
       return {...quote,paymentData:paymentData(quote)}
     },
     /** Verify the payment chain evidence before admitting exactly one creation.
@@ -291,7 +139,6 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         WHERE quote_id=$1 ORDER BY EXISTS(SELECT 1 FROM saffron_incentives.payment_proofs p WHERE p.hash=o.hash) DESC,o.created_at LIMIT 1`,[quoteId])).rows[0]
       if(!payment)return {state:'discovering'}
       await verifyPayment(quote,payment.hash,recoverySecret,rpc,{confirmations:config?.confirmations??2,allowAmountMismatch:true})
-      if(payment.state==='refunded')await service.auditRefundSettlements()
       const intent=(await db.query('SELECT id FROM saffron_incentives.deployment_intents WHERE quote_id=$1',[quoteId])).rows[0]
       return {state:payment.state,kind:payment.kind,amountWei:payment.amount_wei,paymentHash:payment.hash,wallet:quote.wallet,...(intent?{deployment:await service.detail(intent.id,quote.wallet,false,{fresh:false})}:{})}
     },
@@ -307,7 +154,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       try{return {...await db.acceptDeployment({wallet:payment.wallet,quoteId,payment,origin}),wallet:payment.wallet}}
       catch(error){
         await db.query('UPDATE saffron_incentives.payment_proofs SET state=$2,error=$3 WHERE hash=$1',
-          [payment.hash,'needs_attention','Confirmed payment is awaiting capacity/policy resolution.'])
+          [payment.hash,'needs_attention','Confirmed payment is awaiting operator review.'])
         const row=await db.paymentObligation(payment.hash)
         if(row?.kind==='creation-fee'||row?.kind==='late-fee')await db.paymentAttention(payment.hash,payment.late?'late-fee':'policy-blocked')
         throw fault(409,'Payment confirmed, but creation needs operator resolution. Your payment is saved; do not pay again.')
@@ -321,9 +168,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       await service.auditCheckoutSettlements()
       if(quote.plan.factoryCodeHash!==config.factoryCodeHash||quote.plan.vaultTypeHash!==config.vaultTypeHash||quote.plan.adapterTypeHash!==config.adapterTypeHash||quote.signer!==signer.toLowerCase())throw fault(409,'The original plan is outside current execution policy.')
       const payment=await verifyPayment(quote,hash,null,rpc,{confirmations:config?.confirmations??2,checkCapability:false})
-      const gas=await gasCoverage({db,rpc,config,signer,now})
-      const treasury=await service.treasuryStatus()
-      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution,gas,treasury})
+      return db.acceptDeployment({wallet:quote.wallet,quoteId:quote.id,payment,origin:quote.origin,resolution})
     },
     async describe(job,wallet=job.wallet){
       let observation=await db.execution.observation(job.id)
@@ -354,7 +199,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
           state=canRecover?'fixed_awaiting_funding':'occupied'
         }else if(job.state==='created'){state=isRequester?eligible.state:'no_position';depositable=isRequester&&eligible.depositable}
       }
-      if(job.cancel_requested&&job.state!=='retired'&&!observation?.isStarted){state='retirement_requested';depositable=false}
+      if(job.cancel_requested&&!observation?.isStarted){state='needs_attention';depositable=false} // Preserve historical stops without restarting legacy work.
       const journal=await db.execution.transactionMetadata(job.id)
       const payment=(await db.query('SELECT o.state FROM saffron_incentives.payment_obligations o JOIN saffron_incentives.payment_proofs p ON p.hash=o.hash WHERE p.quote_id=$1',[job.quote_id])).rows[0]
       const progress=await deploymentProgress({job,observation,journal,payment,policy:await db.intakePolicy(job.signer),rpc,confirmations:config?.confirmations??2,now})
@@ -424,10 +269,9 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     async poll(){
       if(polling)return;polling=true
       try{
-        await service.reconcileRefunds()
         const jobs=await db.execution.tracked();let index=0
         await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{while(index<jobs.length)await refresh(jobs[index++].intent_id)}))
-        for(const budget of (await db.catalog(true)).budgets){await db.auditBudget(budget.id);await service.auditReleases(budget.id)}
+        for(const budget of (await db.catalog(true)).budgets)await db.auditBudget(budget.id)
       }finally{polling=false}
     },
   }

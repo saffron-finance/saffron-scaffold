@@ -4,7 +4,7 @@ import type { Deployment } from '../incentives/model'
 import { readSession,ensureOperatorSession,requestJson,type WalletSession } from './transport'
 import { usePollingResource } from './usePollingResource'
 
-type OperatorStatus={signer:string;gasBalanceRaw:string|null;pending:number;stalled:number;workerOnline:boolean;readiness:any;metrics:any;alerts:{code:string;severity:string}[]}
+type OperatorStatus={signer:string;pending:number;stalled:number;workerOnline:boolean;readiness:any;metrics:any;alerts:{code:string;severity:string}[]}
 type PageData={rows:Deployment[];session:WalletSession|null;online:boolean;operatorStatus:OperatorStatus|null;positionsUpdating:boolean;nextCursor:string|null;payments:any[];paymentNextCursor:string|null}
 export function useDeployments(account:Address|null,admin=false){
   const [error,setError]=useState<string>(),[busy,setBusy]=useState(false)

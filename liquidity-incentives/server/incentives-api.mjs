@@ -48,9 +48,6 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(!['GET','POST'].includes(method))throw fault(405,'Method not allowed.')
       const body=method==='POST'?await readBody(req):null
       if(method==='POST'&&path==='/checkout/session'){auth.checkOrigin(req);sendJson(res,200,await checkout.issue(req,res));return true}
-      if(method==='POST'&&path==='/checkout/amount-review'){
-        auth.checkOrigin(req);sendJson(res,200,{admission:await service.requestAmountReview(body.wallet,body.programId,body.amountUsd,body.recoveryHash,{clientHash:await checkout.require(req),requestKey:body.requestKey})});return true
-      }
       if(method==='POST'&&path==='/checkout/recover'){
         auth.checkOrigin(req)
         const quote=await db.checkoutQuote(await checkout.require(req),body.requestKey)
@@ -92,27 +89,19 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       }else session=auth.session(req,{mutation:method==='POST',operator:path.startsWith('/admin/')})
       if(method==='POST'&&path==='/session/logout'){auth.logout(req,res);sendJson(res,200,{success:true});return true}
       if(method==='GET'&&['/deployments','/positions'].includes(path)){sendJson(res,200,await service.list(session.wallet,false,page()));return true}
-      const deployment=/^\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/(context|cancel|transactions))?$/.exec(path)
+      const deployment=/^\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/(context|transactions))?$/.exec(path)
       if(deployment){
         if(method==='POST'&&deployment[2]==='transactions'){sendJson(res,200,await service.recordUserAction(deployment[1],session.wallet,body.hash));return true}
-        if(method==='POST'&&deployment[2]==='cancel'){sendJson(res,200,await db.cancelDeployment(deployment[1],session.wallet));return true}
         if(method==='GET'&&!deployment[2]){sendJson(res,200,{deployment:await service.detail(deployment[1],session.wallet)});return true}
         if(method==='GET'&&deployment[2]==='context'){sendJson(res,200,await service.context(deployment[1],session.wallet));return true}
         throw fault(405,'Method not allowed.')
       }
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
-      if(method==='GET'&&path==='/admin/treasury'){sendJson(res,200,await service.treasuryStatus());return true}
-      if(method==='GET'&&path==='/admin/amount-reviews'){sendJson(res,200,await db.listCheckoutReviews(page()));return true}
-      const amountReview=/^\/admin\/amount-reviews\/([0-9a-f-]{36})$/.exec(path)
-      if(method==='POST'&&amountReview){sendJson(res,200,{admission:await db.decideCheckoutReview(amountReview[1],body,session.wallet)});return true}
-      if(method==='POST'&&path==='/admin/treasury'){sendJson(res,200,{allocation:await service.assignTreasury(body,session.wallet)});return true}
-      const fundingBrief=/^\/admin\/deployments\/([0-9a-f-]{36})\/funding-brief$/.exec(path)
-      if(method==='GET'&&fundingBrief){sendJson(res,200,{brief:await service.fundingBrief(fundingBrief[1],session.wallet)});return true}
+      if(method==='GET'&&path==='/admin/portfolio-capacity'){sendJson(res,200,await service.capacityAdvisory());return true}
       if(method==='POST'&&path==='/admin/intake'){
         const status=await service.operatorStatus()
         if(body.signer?.toLowerCase()!==status.signer?.toLowerCase())throw fault(400,'Intake must use the configured creation signer.')
-        if(body.enabled&&!status.readiness.treasury?.available)throw fault(409,'Verify assigned treasury inventory before opening intake.')
         sendJson(res,200,{policy:await db.saveIntake(body,session.wallet),readiness:await service.readiness()});return true
       }
       if(method==='GET'&&path==='/admin/deployments'){sendJson(res,200,await service.list(session.wallet,true,page()));return true}
@@ -120,18 +109,19 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
       if(method==='GET'&&path==='/admin/payments'){sendJson(res,200,await db.listPayments(page()));return true}
       const paymentAudit=/^\/admin\/payments\/(0x[0-9a-f]{64})\/audit$/.exec(path)
       if(method==='GET'&&paymentAudit){sendJson(res,200,{audit:(await db.query('SELECT actor,action,reason,expected_revision,evidence,result,created_at FROM saffron_incentives.payment_resolution_audit WHERE payment_hash=$1 ORDER BY id',[paymentAudit[1]])).rows});return true}
-      const paymentAction=/^\/admin\/payments\/(0x[0-9a-f]{64})\/(admit|refund-due|refund|refund-replacement)$/.exec(path)
+      const paymentAction=/^\/admin\/payments\/(0x[0-9a-f]{64})\/(admit)$/.exec(path)
       if(method==='POST'&&paymentAction){
         const resolution={operator:session.wallet,revision:body.revision,requestKey:body.requestKey,reason:body.reason}
-        if(paymentAction[2]==='refund-replacement'){sendJson(res,200,await service.replaceExternalRefund(paymentAction[1],body.originalHash,body.refundHash,resolution));return true}
-        sendJson(res,200,paymentAction[2]==='admit'?await service.admitOriginalPayment(paymentAction[1],resolution):paymentAction[2]==='refund'?await service.recordExternalRefund(paymentAction[1],body.refundHash,resolution):await db.markRefundDue(paymentAction[1],resolution));return true
+        sendJson(res,200,await service.admitOriginalPayment(paymentAction[1],resolution));return true
       }
       if(method==='POST'&&path==='/admin/pairs'){const pair=normalizePair(body);await verifyPair(pair,rpc);sendJson(res,200,{pair:await db.savePair(pair,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/programs'){sendJson(res,200,{program:await db.saveProgram(body,session.wallet)});return true}
       if(method==='POST'&&path==='/admin/budgets'){sendJson(res,200,{budget:await db.saveBudget(body,session.wallet)});return true}
+      const advisory=/^\/admin\/budgets\/([a-z0-9-]+)\/advisory$/.exec(path)
+      if(method==='POST'&&advisory){sendJson(res,200,await db.saveAdvisoryBudget(advisory[1],body,session.wallet));return true}
       const budgetAction=/^\/admin\/budgets\/([a-z0-9-]+)\/reconcile$/.exec(path)
       if(method==='POST'&&budgetAction){sendJson(res,200,{budget:await service.reconcileBudget(budgetAction[1],session.wallet)});return true}
-      const operation=/^\/admin\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(resume|retire|reconcile)$/.exec(path)
+      const operation=/^\/admin\/deployments\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(resume|reconcile)$/.exec(path)
       if(method==='POST'&&operation){
         if(operation[2]==='reconcile')await service.reconcileTransaction(operation[1],session.wallet,body.originalHash,body.hash)
         else await db.execution.approveOperation(operation[1],session.wallet,body.planHash,operation[2])

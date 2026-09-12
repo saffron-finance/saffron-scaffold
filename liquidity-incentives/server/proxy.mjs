@@ -44,7 +44,7 @@ async function requestRpc(chain, method, params) {
   if (payload.error || payload.result === undefined) throw new Error('RPC unavailable')
   return payload.result
 }
-const database = configured('SAFFRON_API_DISABLED') === '1' ? null : createIncentivesDatabase({checkoutPolicy:configured('SAFFRON_CHECKOUT_POLICY')?JSON.parse(configured('SAFFRON_CHECKOUT_POLICY')):undefined,connection:{
+const database = configured('SAFFRON_API_DISABLED') === '1' ? null : createIncentivesDatabase({connection:{
   host:configured('PGHOST'),port:Number(configured('PGPORT')||5432),user:configured('PGUSER'),
   password:configured('PGPASSWORD'),database:configured('PGDATABASE'),connectionTimeoutMillis:5000,
 }})
@@ -55,7 +55,7 @@ const signer=protocol?.signerAddress
 const rpc=(method,params)=>requestRpc('robinhood',method,params)
 const prices=createPriceService({database,root:configured('PRICE_API_ROOT')})
 const auth=createWalletAuth({operators:(configured('SAFFRON_ADMIN_WALLETS')||'').split(','),origin:configured('SAFFRON_APP_ORIGIN'),basePath:BASE_PATH})
-const service=database?createIncentivesService({database,rpc,usdQuote:prices.quote,config:protocol,signer,origin:auth.origin,feeRecipient:configured('SAFFRON_CREATION_FEE_RECIPIENT'),refundSenders:(configured('SAFFRON_REFUND_SENDERS')||'').split(',').map(s=>s.trim())}):null
+const service=database?createIncentivesService({database,rpc,usdQuote:prices.quote,config:protocol,signer,origin:auth.origin,feeRecipient:configured('SAFFRON_CREATION_FEE_RECIPIENT')}):null
 const handleIncentives=createIncentivesHandler({database,auth,service,rpc,basePath:BASE_PATH})
 const observerTimer=setInterval(()=>{void service?.poll().catch(()=>{})},5000)
 observerTimer.unref()

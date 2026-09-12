@@ -1,7 +1,7 @@
 import { it } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { readPayments,savePayment,paymentRecordsKey } from '../src/host/payment-records.mjs'
+import { readPayments,savePayment,selectPayment,paymentRecordsKey } from '../src/host/payment-records.mjs'
 const wallet='0x'+'1'.repeat(40)
 function fixture(){const values=new Map();return {getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)}}
 const payment=()=>({quote:{id:randomUUID(),wallet,planHash:'terms'},recoverySecret:'private-fixture-capability',sent:false,status:'prepared'})
@@ -13,7 +13,10 @@ it('stale tabs cannot erase submitted recovery or change committed terms',()=>{
   assert.throws(()=>savePayment(storage,wallet,stale,{...record,status:'abandoned'},{active:false}),/another tab/)
   assert.throws(()=>savePayment(storage,wallet,ledger,{...record,status:'abandoned'},{active:false}),/cannot be discarded/)
   assert.throws(()=>savePayment(storage,wallet,ledger,{...record,quote:{...record.quote,planHash:'changed'}}),/cannot be overwritten/)
-  assert.throws(()=>savePayment(storage,wallet,ledger,payment()),/saved payment/)
+  const second=payment();ledger=savePayment(storage,wallet,ledger,second)
+  assert.equal(Object.keys(ledger.records).length,2)
+  ledger=selectPayment(storage,wallet,ledger,record.quote.id)
+  assert.equal(ledger.activeId,record.quote.id)
   assert.equal(readPayments(storage,wallet).records[record.quote.id].hash,'existing-hash')
 })
 

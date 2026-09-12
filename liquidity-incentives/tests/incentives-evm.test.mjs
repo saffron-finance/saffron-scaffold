@@ -126,41 +126,25 @@ it('unknown receipt survives restart; retry delay permits unrelated work without
   }finally{await f.close()}
 })
 
-it('pause prevents new signing; retirement reconciles and recovers unused funding before releasing budget', {timeout:120000},async()=>{
+it('pause prevents new signatures while manual recovery preserves the recorded commitment',{timeout:120000},async()=>{
   const f=await fixture(),{db,chain,service}=f
   try{
-    const id=(await f.accept()).id,worker=createCreator(f.options)
+    const {id}=await f.accept(),worker=createCreator(f.options)
     await db.query('UPDATE saffron_incentives.budget_pools SET paused=TRUE')
     assert.equal((await worker.tick()).state,'waiting');assert.equal(chain.broadcasts,0)
     await db.query('UPDATE saffron_incentives.budget_pools SET paused=FALSE')
     await db.query('UPDATE saffron_incentives.vault_jobs SET next_attempt_at=NOW()')
     assert.equal((await worker.tick()).state,'created')
-    let row=await service.detail(id,chain.account.address)
-    await chain.fund(row)
-    assert.equal((await worker.tick()).state,'idle')
-    row=await service.detail(id,chain.account.address)
+    const row=await service.detail(id,chain.account.address)
+    await chain.fund(row);await service.refresh(id)
     const checkpoint=await chain.raw('evm_snapshot')
-    await db.cancelDeployment(id,chain.account.address)
-    assert.notEqual((await db.catalog(true)).budgets[0].allocatedRaw,'0')
-    await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
     await chain.send(row.plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
-    assert.equal((await worker.tick()).state,'retired')
-    row=await service.detail(id,chain.account.address);assert.equal(row.state,'retired')
-    assert.equal(row.observation.variableSupply,'0')
-    const budget=(await db.catalog(true)).budgets[0]
-    assert.equal(budget.allocatedRaw,'0');assert.equal(budget.reservedRaw,'0')
-    assert.equal((await db.auditBudget(budget.id)).valid,true)
-    // A reorganized recovery must close admission and restore the obligation
-    // before the old signed withdrawal can be reconciled again.
-    await chain.raw('evm_revert',[checkpoint])
-    assert.equal(await service.auditReleases(budget.id),false)
-    assert.equal((await db.catalog(true)).budgets[0].reconciliationRequired,true)
-    await service.reconcileBudget(budget.id,chain.account.address)
+    await service.refresh(id)
     assert.equal((await db.catalog(true)).budgets[0].reservedRaw,row.plan.premium)
-    await chain.send(row.plan.vault,encodeFunctionData({abi,functionName:'withdraw',args:[1n,'0x']}))
-    assert.equal((await worker.tick()).state,'retired')
-    assert.equal((await db.auditBudget(budget.id)).valid,true)
-    assert.equal((await db.catalog(true)).budgets[0].reservedRaw,'0')
+    await chain.raw('evm_revert',[checkpoint]);await service.refresh(id)
+    assert.equal((await db.catalog(true)).budgets[0].allocatedRaw,row.plan.premium)
+    assert.equal((await db.auditBudget('cashcat-campaign')).valid,true)
+    assert.equal((await worker.tick()).state,'idle')
   }finally{await f.close()}
 })
 
@@ -173,7 +157,6 @@ it('a distinct external treasury funds a USD campaign without worker custody and
     const treasury=privateKeyToAccount(generatePrivateKey()),wallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
     await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**19n)])
     await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,10n**26n]}))
-    await chain.allocateTreasury(db,treasury.address)
     const {id}=await chain.accept(service,'usd-campaign','500000')
     assert.equal((await createCreator(f.options).tick()).state,'created')
     const row=await service.detail(id,chain.account.address),amount=BigInt(row.plan.premium)
@@ -186,8 +169,8 @@ it('a distinct external treasury funds a USD campaign without worker custody and
     assert.equal(a.fundedBudgetCents,'500000');assert.equal(a.availableBudgetCents,'500000')
     assert.equal(a.fundedCapacityCents,'50000000');assert.equal(a.availableCapacityCents,'50000000');assert.equal(a.fixedDepositedCents,'0')
     assert.equal(chain.broadcasts,3,'only adapter, vault and initialization use worker signing')
-    await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
-    assert.equal((await createCreator(f.options).tick()).state,'failed','the creator cannot withdraw the external treasury deposit')
+    await assert.rejects(db.execution.approveOperation(id,chain.account.address,row.planHash,'retire'),/Unsupported/)
+    assert.equal((await createCreator(f.options).tick()).state,'idle','the creator never withdraws external premium')
     assert.equal((await db.catalog(true)).budgets.find(b=>b.id==='usd-campaign').accounting.fundedBudgetCents,'500000')
   }finally{await f.close()}
 })

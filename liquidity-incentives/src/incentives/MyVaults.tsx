@@ -1,3 +1,7 @@
+import { useCallback } from 'react'
+import { requestJson } from '../host/transport'
+import { usePollingResource } from '../host/usePollingResource'
+import type { Payment } from '../host/payment-records.mjs'
 import { formatUnits,type Address } from 'viem'
 import { StepTitle } from '../host/ui'
 import type { useDeployments } from '../host/useDeployments'
@@ -5,9 +9,11 @@ import { statusLabel } from './model'
 import { DeploymentPagination } from './DeploymentPagination'
 import { Action,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
 
-export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin}:{account:Address|null;positions:ReturnType<typeof useDeployments>;onConnect:()=>void;onOpen:(id:string,position?:boolean)=>void;onBack:()=>void;onAdmin:()=>void}){
+export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin,payments,onResumePayment}:{account:Address|null;positions:ReturnType<typeof useDeployments>;onConnect:()=>void;onOpen:(id:string,position?:boolean)=>void;onBack:()=>void;onAdmin:()=>void;payments:Payment[];onResumePayment:(id:string)=>void}){
   return <Stack><Row><StepTitle>My requests</StepTitle><QuietButton onClick={onBack}>Vaults</QuietButton></Row>
     {!account?<Action onClick={onConnect}>Connect wallet</Action>:<>
+      {positions.session?.operator&&<PortfolioCapacity/>}
+      {payments.map(payment=><Row key={payment.quote.id}><FinePrint>Saved creation payment · {payment.quote.id.slice(0,8)}</FinePrint><QuietButton onClick={()=>onResumePayment(payment.quote.id)}>Check saved payment</QuietButton></Row>)}
       {positions.verificationUnavailable&&<FinePrint>Showing the last known requests. Verification is temporarily unavailable.</FinePrint>}
       {positions.positionsUpdating&&<FinePrint>Checking for received positions. More vaults may appear as confirmations become available.</FinePrint>}
       {positions.loading?<FinePrint>Loading vaults…</FinePrint>:!positions.error&&!positions.rows.length&&!positions.positionsUpdating?<FinePrint>{positions.page>1||positions.hasNext?'No positions on this page.':'You have no deployments or received positions yet. Choose an incentive program to create your first vault.'}</FinePrint>:null}
@@ -23,4 +29,14 @@ export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin}:{ac
     </>}
     {positions.error&&<ErrorText role='alert'>{positions.error}</ErrorText>}
   </Stack>
+}
+
+/** Mounted only in an authenticated operator's portfolio, never in a modal or
+ * homepage. Missing data is unknown, not an assertion that capacity is free. */
+function PortfolioCapacity(){
+  const load=useCallback((signal:AbortSignal)=>requestJson('/admin/portfolio-capacity',undefined,signal),[])
+  const {data,error}=usePollingResource('portfolio-capacity',load,'saffron:catalog-updated,saffron:vault-updated')
+  return <>{error?<FinePrint>Capacity advisory is unavailable.</FinePrint>:data?.campaigns?.filter((c:any)=>c.nearCapacity).map((c:any)=><FinePrint role='status' data-capacity-advisory key={c.id} style={{padding:16,border:'1px solid #b8860b',borderRadius:8}}>
+    {c.name}: {c.overTarget?'above the planning target':'near capacity'}. This is an advisory only; requests remain open.
+  </FinePrint>)}</>
 }

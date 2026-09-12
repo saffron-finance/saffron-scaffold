@@ -11,14 +11,13 @@ import { Action,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,R
 import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
 import { DeploymentWaiting } from './DeploymentWaiting'
-import { PaymentWaiting } from './PaymentWaiting'
 
 export function IncentiveModal({offer,account,flow,price,deploymentId,openPosition=false,onClose,onConnect,preview}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;openPosition?:boolean;onClose:()=>void;onConnect:()=>void;preview?:boolean}){
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[now,setNow]=useState(Date.now)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
-  const [phase,setPhase]=useState<'amount'|'payment-review'|'waiting'|'position'>(id?(openPosition?'position':'waiting'):flow.saved?.sent?'waiting':reviewed?'payment-review':'amount')
+  const [phase,setPhase]=useState<'amount'|'payment-review'|'waiting'|'position'>(id?(openPosition?'position':'waiting'):reviewed?'payment-review':'amount')
   const busy=flow.busy||nativeBusy
-  useEffect(()=>{if(id)setPhase(openPosition?'position':'waiting');else setPhase(flow.saved?.sent?'waiting':reviewed?'payment-review':'amount')},[id,Boolean(reviewed),flow.saved?.sent,openPosition])
+  useEffect(()=>{if(id)setPhase(openPosition?'position':'waiting');else setPhase(reviewed?'payment-review':'amount')},[id,Boolean(reviewed),flow.saved?.sent,openPosition])
   const titleId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
   const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby',titleId)},[titleId])
   const focusedDeposit=useRef<HTMLInputElement|null>(null)
@@ -32,12 +31,8 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   },[])
   useEffect(()=>{if(phase!=='amount')titleRef.current?.focus()},[phase,id])
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return ()=>clearInterval(timer)},[])
-  const amount=Number(deposit),max=offer?.eligibleMaximumCents?Number(offer.eligibleMaximumCents)/100:0
-  const minimum=offer?Number(offer.minimumCents)/100:0
-  const admission=flow.draft?.admission,reviewMax=Number(offer?.reviewMaximumCents??0)/100
-  const approved=admission?.state==='approved'&&Date.parse(admission.expiresAt)>now
-  const needsReview=amount>max&&amount<=reviewMax
-  const valid=!!offer&&Number.isFinite(amount)&&amount>=minimum&&(amount<=max||needsReview||Boolean(admission))&&Boolean(price.value)&&!price.loading
+  const amount=Number(deposit)
+  const valid=!!offer&&Number.isFinite(amount)&&amount>0&&!offer.availability&&Boolean(price.value)&&!price.loading
   const tokenUsd=price.value?price.value.quotePerToken*price.value.quoteUsd:0
   const reward=offer?amount*offer.apr/100*offer.days/365:0
   const pair=offer?offer.token0.symbol+' / '+offer.token1.symbol:''
@@ -53,7 +48,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
     </RequestTitle>{phase==='amount'&&<InteractiveEmblem/>}</Header>
     <ModalContent>
       {preview&&<FinePrint>Preview only · sample prices and simulated payments. No funds move.</FinePrint>}
-      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={phase==='position'} onPosition={()=>setPhase('position')} onBusy={setNativeBusy}/>:phase==='waiting'?<PaymentWaiting flow={flow}/>:reviewed?<>
+      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={phase==='position'} onPosition={()=>setPhase('position')} onBusy={setNativeBusy}/>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li>LP value at request: <b>{usd(Number(reviewed.principalCents)/100)}</b>.</li>
           <li>Estimated LP: <b>{formatUnits(raw!.amount0,reviewed.plan.token0.decimals)} {reviewed.plan.token0.symbol}</b> and <b>{formatUnits(raw!.amount1,reviewed.plan.token1.decimals)} {reviewed.plan.token1.symbol}</b>.</li>
@@ -62,17 +57,16 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
         </>} details={<><p>The service pays creation gas. Your $2 ETH payment requests these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>LP amounts are refreshed at entry and may change with price. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range. Quote expires {new Date(reviewed.expiresAt).toLocaleTimeString()}.</p></>}/>
         {flow.saved&&<FinePrint>Your payment request is saved. Retry to recover it without paying twice.</FinePrint>}
         {expired&&!flow.saved?.sent&&<ErrorText>Quote expired. Refresh the terms before paying.</ErrorText>}
-        {flow.quote?.fee&&<FinePrint>Creation fee: $2 in ETH ({formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH), plus network gas. Payment reserves this exact vault request.</FinePrint>}
+        {flow.quote?.fee&&<FinePrint>Creation fee: $2 in ETH ({formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH), plus network gas. Each payment requests one vault with these exact terms.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
         <Action disabled={busy||flow.saved?.status==='confirmed_unpaid'||Boolean(expired&&!flow.saved?.sent)} onClick={()=>void flow.pay()}>{busy?'Confirming payment…':flow.saved?.sent?'Check payment':'Pay $2 in ETH'}</Action>
+        {flow.saved?.sent&&<QuietButton disabled={busy} onClick={()=>void flow.startNew()}>Create another vault</QuietButton>}
         {!flow.saved?.sent&&<QuietButton disabled={busy} onClick={flow.reset}>Change amount / refresh payment quote</QuietButton>}
       </>:offer?<>
         <Range aria-label='Full price range'><Row><Label>Price range: full</Label><RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch></Row><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></Range>
         <FormFieldGroup><FormLabel htmlFor='incentive-deposit'>LP deposit value</FormLabel><FormInput as={CurrencyInput} ref={attachDeposit} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal' prefix='$' groupSeparator=',' decimalSeparator='.' allowNegativeValue={false} disableAbbreviations decimalsLimit={2} value={deposit} maxLength={24} onValueChange={(value:string|undefined)=>setDeposit(value??'')}/>
-          <FinePrint>{offer.eligibleMaximumCents===null?'Live capacity unavailable':max>0?usd(minimum)+' minimum · '+usd(max)+' available per vault':'This campaign currently has no available capacity.'}</FinePrint>
-          {needsReview&&!admission&&<FinePrint>This amount requires operator admission review before payment. Review does not reserve funds or guarantee availability.</FinePrint>}
-          {amount>max&&!needsReview&&!approved&&max>0&&<ErrorText>Amount exceeds the available {usd(max)}.</ErrorText>}
+          {offer.availability&&<FinePrint>{offer.availability}</FinePrint>}
         </FormFieldGroup>
         <TokenAmounts aria-label='Estimated LP assets'>
           <Row><Token><TokenIcon symbol={offer.token0.symbol} size={24}/>{offer.token0.symbol}</Token><b>{tokenUsd?tokenAmount(amount/2/tokenUsd):'—'}</b></Row>
@@ -82,8 +76,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
         <FinePrint>Vault creation costs $2, paid in ETH on Robinhood Chain, plus network gas. No message signatures. LP assets are deposited after creation and external premium funding.</FinePrint>
         {price.error&&<Row><ErrorText role='alert'>{price.error}</ErrorText><QuietButton onClick={price.refresh}>Refresh price</QuietButton></Row>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
-        {admission&&<FinePrint>Amount review: {admission.state}. {approved?'Approved for this exact amount. Continue to recheck capacity and review a payable quote.':'No payment is due. You may close this window and resume the unpaid checkout later.'}</FinePrint>}
-        <Action disabled={busy||!valid} onClick={()=>account?void((needsReview||admission)&&!approved?flow.requestAdmission(offer,deposit):flow.review(offer,deposit)):onConnect()}>{busy?'Checking request…':!account?'Connect wallet':approved?'Continue':admission?'Check amount review':needsReview?'Request amount review':'Continue'}</Action>
+        <Action disabled={busy||!valid} onClick={()=>account?void flow.review(offer,deposit):onConnect()}>{busy?'Checking request…':!account?'Connect wallet':'Continue'}</Action>
         {flow.draft&&<QuietButton disabled={busy} onClick={()=>void flow.reset()}>Discard unpaid checkout</QuietButton>}
       </>:null}
     </ModalContent>

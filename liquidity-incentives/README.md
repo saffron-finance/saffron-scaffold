@@ -65,8 +65,9 @@ Copy `.env.example` to the ignored `.env`. Configure PostgreSQL, server-side
 Robinhood RPC, the explicit USD provider, public protocol config, operator wallets,
 the public `SAFFRON_CREATION_FEE_RECIPIENT`, and the exact browser origin. New production databases start with an empty catalog
 and no campaign allocation. Configure pairs and create campaigns at `/admin`. Enter duration and any two of
-USD budget, fixed-side target capacity, and APR; the third is calculated.
-Assign treasury inventory, supervise the keyless payment watcher, provision
+USD planning budget, fixed-side planning target, and APR; the third is calculated.
+These targets never cap paid requests.
+Supervise the keyless payment watcher, provision
 creator gas and configure an expiring intake window before offering payment.
 Reviewed one-request mode works without a continuously running signer. Automatic
 queue mode also requires the signing worker heartbeat. See [the operator runbook](ops/README.md).
@@ -102,57 +103,46 @@ and closing returns focus to the control that opened the modal.
 
 ## Domain and accounting
 
-- The exact native ETH payment binds payer, quote, chain, recipient and plan. A
-  canonical confirmed payment atomically admits one intent, reservation and job.
-  Replaying it returns the same intent. Public receipt hashes alone cannot restore
-  a browser session; the browser retains a private payment-bound recovery record.
-- The worker EOA only creates/initializes and retires vaults. It pays creation gas;
-  the API cannot sign or broadcast. External operations owns premium funds and
-  calls the vault's variable-side deposit itself.
-- Campaign creation fixes duration and any two of USD budget, target fixed-side
-  capacity and simple APR. $10,000 / $1,000,000 / 3 days gives **121.6667% APR**.
-- Quotes temporarily hold capacity; paid requests reserve it; confirmed external
-  variable deposits move the corresponding budget and capacity to funded.
-  Reservations also reduce availability, preventing concurrent over-creation.
-- $5,000 of premium funding for a $500,000 request consumes half that example's
-  budget/capacity. Actual LP entry is reported separately, never inferred from
-  premium funding. Claim and maturity do not replenish cumulative allocation.
-- Paid commitments do not automatically expire. Only verified unused-vault
-  retirement releases them. An external funder must recover unused funds itself.
-- Unpaid checkout is bounded per request, browser and campaign. Firm quotes reserve
-  campaign, raw premium, queue and creation gas before payment. Larger amounts can
-  receive an operator amount review without paying. The quote lasts 120 seconds;
-  only canonical watcher settlement releases an unpaid hold after its deadline.
-- The modal retains payment recovery and shows adapter, vault, initialization and
-  external funding progress. Elapsed time is separate from the declared operator
-  service window. Close/reload returns to the same request without another fee.
-- Received duplicate, late or blocked fees have an audited resolution queue.
-  Operators can admit the original immutable request when resources allow, or
-  verify an externally executed refund. Neither action sends money from the API.
+- Each canonical $2-equivalent ETH payment authorizes one exact vault request.
+  Users can create any number of separately paid requests. Unpaid quotes reserve
+  no capacity. There are no per-wallet, browser, queue, or campaign-size quotas.
+- Campaign budget and fixed-side target determine the premium rate. They are
+  advisory planning inputs, not admission limits. Paid commitments can exceed
+  either target. Amounts must still fit the contract and positive integer math.
+- The operator can edit a separate planning budget without changing quoted rates.
+  At 90% committed, an authenticated operator sees a near-capacity banner on
+  My requests (the portfolio). It never appears on public offers or in modals.
+  Public catalog/quote data contains the premium rate, not internal budget totals.
+- The keyless watcher discovers payments without the browser callback. The C05
+  tracker is removed. Payment review offers explicit recovery. Browser storage
+  keeps independent per-wallet records, not a single-request allowance.
+- C06 remains: adapter creation, vault creation, initialization, then premium
+  funding. PostgreSQL and canonical chain observations hold shared state. Browser
+  storage holds private recovery capabilities and transaction recovery details.
+- The creator only creates and initializes vaults. External funders deposit the
+  exact frozen premium and own variable-side rights. There is no treasury balance
+  polling, inventory allocation, funding brief, or treasury admission check.
+- Canonical vault funding still gates LP entry. Current bearer ownership controls
+  claim, recovery, and withdrawal. Request identity does not confer token ownership.
+- Refunds are handled manually outside the application. There is no refund request,
+  transfer-recording, or retirement workflow. Ordinary LP recovery is retained.
+- No daily gas/subsidy ledger or gas reservations remain. Per-signature gas bounds,
+  signer nonce checks, durable signed bytes, canonical receipts, and one-request
+  execution permits remain necessary for safe transaction recovery.
+- Portfolio and admin lists use cursor pagination (25 by default, up to 100 per
+  page). Pagination is not a request-count limit.
 
-See **[CAMPAIGNS.md](CAMPAIGNS.md)** for formulas, rounding, USD valuation, lifecycle
-accounting, payment recovery and the external-operations contract.
+[IMPLEMENTATION.md](IMPLEMENTATION.md) defines storage and migration behavior.
+Existing deprecated tables and historical records are preserved on upgrade, not
+used by new flows. Back up the database and protected permits before upgrading.
 
-- **Depositable** requires fresh canonical evidence, exact full variable bearer
-  supply, enough premium-token balance and no fixed occupant. A token transfer
-  without bearer supply cannot enable entry.
-- The front-page modal and profile share fixed entry and lifecycle actions. Current
-  claim/bearer ownership controls actions. Completed requires verified withdrawal,
-  rather than merely a zero balance.
-- Confirmed claim and fixed-bearer transfers discover received positions in the
-  holder's profile. Discovery follows bounded block ranges and checks reorganizations;
-  fresh canonical balances authorize actions. Deployment cancellation stays with
-  the original requester. Confirmed user actions preserve position history.
-- Profile and administration lists have 25 entries per page with newer/older
-  navigation. Refresh retains the current page. API clients may request 1–100
-  entries with `limit` and continue using the returned `nextCursor` as `cursor`.
-  Ordering retains timestamp precision and an ID tie-breaker as new entries arrive.
+## Maintained VNC test site
 
-The clean `saffron_incentives` bootstrap includes campaign, checkout/admission,
-treasury, payment/refund, gas, execution and canonical observation tables.
-[IMPLEMENTATION.md](IMPLEMENTATION.md) defines their roles and state contracts.
-No production seed or data migration is run. Current payment recovery, signed
-journals and accounting evidence are durable application state and must be backed up.
+The complete hosted test harness and regression tests are in [ops/vnc](ops/vnc/README.md).
+The runbook covers installation, configuration, backup, reset, browser recovery,
+and upgrades. Linux/systemd hosts VNC; Windows users can access the hosted viewer
+or use the portable local demo. Refresh reads the current test; Start fresh test
+archives it and starts a new disposable environment.
 
 ## Validation and release
 
@@ -166,6 +156,7 @@ npm run test:lifecycle
 npm run test:watcher
 npm run test:restore
 npm run test:browser
+npm run test:vnc
 npm run demo -- --smoke
 ```
 
@@ -184,8 +175,8 @@ npm run test:browser -- --grep 'approved cards'
 Unset `SAFFRON_TEST_LAB` before the normal suite and run `npm run build` to restore
 the production build.
 
-Tests cover real SQL concurrency/rollback, payment replay, campaign math/capacity holds, cumulative budgets,
-creation-stage recovery, cancellation, reorganization accounting, funding gates,
+Tests cover real SQL concurrency/rollback, payment replay, advisory targets, unlimited paid requests,
+creation-stage recovery, reorganization accounting, funding gates,
 real Uniswap mint/claim/withdrawal, early LP recovery and transferred ownership.
 Browser tests use the actual Node server/database/chain and cover lost responses,
 operator editing, mobile layout, keyboard focus and wallet layering. Protocol test

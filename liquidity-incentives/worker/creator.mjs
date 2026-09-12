@@ -17,8 +17,7 @@ const read = async (rpc, address, functionName, args = [], block = 'latest') =>
 /** Execute at most one leased job; durable signed bytes precede every broadcast.
  * The injected account lives only in this worker, never the HTTP process.
  */
-export function createCreator({ database, rpc, account, config, usdQuote, requestId=null,retirementOnly=false,beforeSign }) {
-  if(retirementOnly&&!requestId)throw new Error('Retirement requires one pinned request.')
+export function createCreator({ database, rpc, account, config, usdQuote, requestId=null,beforeSign }) {
   const owner = randomUUID()
   async function tick() {
     if(!requestId)await database.execution.heartbeat(account.address)
@@ -29,15 +28,15 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
       job = await database.execution.claim(account.address, owner, requestId)
       if (!job) return { state: 'idle' }
       if (!sameAddress(job.signer, account.address) || !sameAddress(job.factory, FACTORY) || job.chain_id !== CHAIN_ID) throw new ConfirmedFailure('Job signer, factory or chain mismatch.')
-      if(requestId&&(job.intent_id!==requestId||(retirementOnly?job.operation!=='retire':job.operation!=='create'||job.resume_version!==0))) throw new ConfirmedFailure('Pinned execution scope does not match this operation.')
+      if(requestId&&(job.intent_id!==requestId||(job.operation!=='create'||job.resume_version!==0))) throw new ConfirmedFailure('Pinned execution scope does not match this operation.')
       if (BigInt(await rpc('eth_chainId', [])) !== BigInt(CHAIN_ID)) throw new ConfirmedFailure('Wrong deployer chain.')
       if (!job.plan || digest(job.accepted_plan) !== digest(Object.fromEntries(Object.keys(job.accepted_plan).map(key => [key,job.plan[key]])))) throw new ConfirmedFailure('Accepted deployment plan changed.')
       const plan = job.plan
       // A valid payment does not authorize a different registered type or a
-      // larger premium than the worker operator reviewed.
+      // different immutable request than the user paid for.
       if(plan.factoryCodeHash!==config.factoryCodeHash||plan.vaultTypeHash!==config.vaultTypeHash||plan.adapterTypeHash!==config.adapterTypeHash
         ||String(plan.vaultTypeId)!==String(config.vaultTypeId)||String(plan.adapterTypeId)!==String(config.adapterTypeId)
-        ||BigInt(plan.premium)<=0n||BigInt(plan.premium)>BigInt(config.maxPremiumRaw))throw new ConfirmedFailure('Plan is outside the configured factory/type/premium policy.')
+        ||BigInt(plan.premium)<=0n)throw new ConfirmedFailure('Plan is outside the configured factory/type/premium policy.')
       async function guard() { await lock.assert(); await database.execution.renew(job.intent_id, owner) }
       async function savePlan() { await database.execution.setPlan(job.intent_id, owner, plan) }
       async function receiptFor(tx) {
@@ -70,7 +69,6 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           }
         }
         if (!tx) {
-          if(retirementOnly)throw new ConfirmedFailure('Retirement cannot authorize a new signature.')
           // Revalidate the payer's canonical receipt before each new gas spend.
           // Existing signed transactions still reconcile even if the fee reorgs.
           const quote=await database.quote(job.quote_id)
@@ -90,7 +88,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           if(!obligation?.execution_allowed||payment.late&&!(override?.hash===proof.hash&&override.quoteId===quote.id&&override.planHash===job.plan_hash))throw new ConfirmedFailure('Creation payment requires operator resolution before execution.')
           const head=await rpc('eth_getBlockByNumber',['latest',false]),headTime=Number(BigInt(head?.timestamp??'0'))*1000
           if(!Number.isFinite(headTime)||Date.now()-headTime>60000||headTime>Date.now()+5000)throw new Waiting('Fresh canonical chain head is required before signing.')
-          await database.execution.authorizeStep(job.intent_id,owner,{allowRetirement:job.operation==='retire'})
+          await database.execution.authorizeStep(job.intent_id,owner)
           // Verify current factory/type identity again before signing a new step.
           const code = await rpc('eth_getCode',[FACTORY,'latest'])
           const types = await Promise.all([read(rpc, FACTORY, 'vaultTypeByteCode', [BigInt(plan.vaultTypeId)]), read(rpc, FACTORY, 'adapterTypeByteCode', [BigInt(plan.adapterTypeId)])])
@@ -108,7 +106,6 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           const gas = (BigInt(await rpc('eth_estimateGas', [{ from, to, data, value: '0x0' }])) * 120n + 99n) / 100n
           if (gas > BigInt(config.maxGasPerTx) || gasPrice > BigInt(config.maxGasPriceWei)) throw new ConfirmedFailure('Gas exceeds the configured operator budget.')
           const transaction = { chainId: CHAIN_ID, type: 'legacy', nonce, to, data, value: 0n, gas, gasPrice }
-          await database.checkJobGas(database,job.intent_id,gas*gasPrice)
           if(BigInt(await rpc('eth_getBalance',[account.address,'latest']))<gas*gasPrice)throw new Waiting('Creation signer needs gas funding before this saved request can continue.')
           // An operator-scoped one-shot guard can narrow the ordinary worker to
           // one request and one attempt per factory step before any key use.
@@ -117,7 +114,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
           const raw = await account.signTransaction(transaction), hash = keccak256(raw)
           await guard()
           await database.execution.saveTransaction({ requestId: job.intent_id, step, resumeVersion: job.resume_version,
-            owner, signer: from, nonce, hash, raw, transaction: jsonSafe(transaction), maxDailyGasWei: config.maxDailyGasWei })
+            owner, signer: from, nonce, hash, raw, transaction: jsonSafe(transaction) })
           tx = { hash, raw_tx: raw, nonce, transaction_data: jsonSafe(transaction) }
         }
         await guard()
@@ -139,35 +136,6 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
         if (decoded.length !== 1 || !sameAddress(decoded[0].creator, account.address)) throw new ConfirmedFailure('Factory event identity did not match.')
         return decoded[0]
       }
-      if (job.operation === 'retire') {
-        // Resolve every previously signed transaction, including broadcasts whose
-        // response was lost. A clock or user cancellation never proves non-execution.
-        for (const tx of await database.execution.transactions(job.intent_id)) {
-          let receipt=await receiptFor(tx)
-          if(!receipt){
-            await guard()
-            const used=BigInt(await rpc('eth_getTransactionCount',[account.address,'latest']))
-            if(used>BigInt(tx.nonce))throw new Waiting('Unknown nonce outcome must be reconciled before retirement.')
-            try{await rpc('eth_sendRawTransaction',[tx.raw_tx])}catch{}
-            receipt=await receiptFor(tx)
-            if(!receipt)throw new Waiting('Waiting for the saved transaction before retirement.')
-          }
-        }
-        let evidence={transactionHashes:(await database.execution.transactions(job.intent_id)).map(tx=>tx.hash)}
-        if(plan.vault && await read(rpc,plan.vault,'initialized')) {
-          let snapshot=await readVault(job,rpc,{confirmations:config.confirmations})
-          if(snapshot.isStarted||BigInt(snapshot.claimSupply)>0n)throw new ConfirmedFailure('The fixed position must be empty and the vault unstarted before retirement.')
-          if(BigInt(snapshot.variableSupply)>0n)throw new ConfirmedFailure('External funding must be recovered by its owner before retiring this vault.')
-          if(snapshot.isStarted||BigInt(snapshot.claimSupply)!==0n||BigInt(snapshot.variableSupply)!==0n)throw new Waiting('Recovery is not yet confirmed.')
-          evidence={...evidence,blockNumber:snapshot.blockNumber,blockHash:snapshot.blockHash,vault:plan.vault}
-        }
-        // Even a partially created vault is harmless to the budget once all signed
-        // work is settled and this intent can never authorize another funding job.
-        await guard()
-        evidence.transactionHashes=(await database.execution.transactions(job.intent_id)).map(tx=>tx.hash)
-        await database.execution.retire(job.intent_id,owner,evidence)
-        return {state:'retired',deploymentId:job.intent_id}
-      }
       if (job.operation === 'create') {
         const adapterReceipt = await transact('create-adapter', FACTORY, encodeFunctionData({ abi, functionName: 'createAdapter', args: [BigInt(plan.adapterTypeId), job.snapshot.poolAddress, '0x'] }))
         const adapterEvent = event(adapterReceipt, 'AdapterCreated')
@@ -185,7 +153,7 @@ export function createCreator({ database, rpc, account, config, usdQuote, reques
         await database.execution.markCreated(job.intent_id, owner, snapshot)
         return { state: 'created', requestId: job.intent_id }
       }
-      throw new ConfirmedFailure('This worker only creates and retires vaults. Premium custody is external.')
+      throw new ConfirmedFailure('This worker only creates vaults. Premium custody is external.')
     } catch (error) {
       if (job) {
         const waiting = error instanceof Waiting || !(error instanceof ConfirmedFailure)

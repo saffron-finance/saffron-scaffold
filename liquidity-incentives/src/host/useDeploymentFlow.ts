@@ -5,15 +5,16 @@ import { robinhoodChain } from '@lab/chain/chains'
 import { digest,cents } from '../../shared/incentives.mjs'
 import { proofHash,paymentData } from '../../shared/payment.mjs'
 import { requestJson,rememberPayment,robinhoodClient } from './transport'
-import { readPayments,savePayment,saveCheckoutDraft,type Payment,type Payments,type CheckoutDraft } from './payment-records.mjs'
+import { readPayments,savePayment,saveCheckoutDraft,selectPayment,type Payment,type Payments,type CheckoutDraft } from './payment-records.mjs'
 import type { Deployment,Offer } from '../incentives/model'
 
 export function useDeploymentFlow(account:Address|null){
   const [saved,setSaved]=useState<Payment|null>(null),[deployment,setDeployment]=useState<Deployment|null>(null)
+  const [records,setRecords]=useState<Payment[]>([])
   const [draft,setDraft]=useState<CheckoutDraft|null>(null)
   const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[recoveryHash,setRecoveryHash]=useState('')
   const alive=useRef(true)
-  const update=(ledger:Payments)=>{if(alive.current){setSaved(ledger.activeId?ledger.records[ledger.activeId]:null);setDraft(ledger.draft??null)}}
+  const update=(ledger:Payments)=>{if(alive.current){setSaved(ledger.activeId?ledger.records[ledger.activeId]:null);setDraft(ledger.draft??null);setRecords(Object.values(ledger.records))}}
   function restore(){
     if(!account)return
     try{update(readPayments(localStorage,account));setDeployment(null)}catch(cause){setError((cause as Error).message)}
@@ -51,16 +52,8 @@ export function useDeploymentFlow(account:Address|null){
     const result=await requestJson('/payments/recover',{quoteId:payment.quote.id,recoverySecret:payment.recoverySecret})
     const next={...payment,hash:result.paymentHash??payment.hash}
     if(result.deployment){finish(next,persist,result);return}
-    const status=result.state==='refunded'?'refunded':['needs_attention','refund_due','confirming','reconciliation_required'].includes(result.state)?'needs_attention':payment.status
+    const status=result.state==='needs_attention'?'needs_attention':payment.status
     if(payment.resolutionState!==result.state||next.hash!==payment.hash)persist({...next,status,resolutionState:result.state})
-  })
-  const requestAdmission=(offer:Offer,amount:string)=>coordinated(async(ledger,_persist,prepare)=>{
-    if(!account||ledger.activeId)throw new Error('Resume the saved payment first.')
-    const draft=ledger.draft??{requestKey:crypto.randomUUID(),wallet:account.toLowerCase(),programId:offer.id,amountUsd:amount,recoverySecret:toHex(crypto.getRandomValues(new Uint8Array(32)))}
-    if(draft.programId!==offer.id||cents(draft.amountUsd)!==cents(amount))throw new Error('Resume or discard the original unpaid amount review before changing terms.')
-    prepare(draft);await requestJson('/checkout/session',{})
-    const {admission}=await requestJson('/checkout/amount-review',{wallet:account,programId:offer.id,amountUsd:amount,recoveryHash:proofHash(draft.recoverySecret),requestKey:draft.requestKey})
-    prepare({...draft,admission})
   })
   const review=(offer:Offer,amount:string)=>coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
@@ -81,12 +74,18 @@ export function useDeploymentFlow(account:Address|null){
     if(!account||!ledger.activeId)return
     let payment={...ledger.records[ledger.activeId]}
     const accepted=(result:any)=>finish(payment,persist,result)
-    if(payment.status==='refunded')throw new Error('This creation payment has been refunded.')
     if(payment.status==='confirmed_unpaid')throw new Error('Refresh the quote before making another explicit payment.')
+    if(payment.sent){
+      const recovered=await requestJson('/payments/recover',{quoteId:payment.quote.id,recoverySecret:payment.recoverySecret})
+      if(recovered.deployment){payment={...payment,hash:recovered.paymentHash??payment.hash};accepted(recovered);return}
+    }
     if(!payment.sent){
       if(Date.parse(payment.quote.paymentDeadline)<=Date.now())throw new Error('Payment quote expired. Refresh before paying.')
       await assertWalletAccount(account);await ensureChain(robinhoodChain)
-      const nonce=await walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'})
+      const pendingNonce=await walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'})
+      // A lost submission response must not let a second request replace the
+      // earlier fee. Retain its nonce while allowing a separate paid request.
+      const nonce=Object.values(ledger.records).reduce((next,p)=>p.sent&&p.nonce!==undefined?Math.max(next,p.nonce+1):next,pendingNonce)
       await assertWalletAccount(account)
       payment={...payment,sent:true,status:'submitting',nonce};persist(payment)
       try{
@@ -118,11 +117,6 @@ export function useDeploymentFlow(account:Address|null){
   })
   const reset=()=>coordinated(async(ledger,persist,prepare)=>{
     const current=ledger.activeId?ledger.records[ledger.activeId]:null
-    if(current?.status==='refunded'){
-      const result=await requestJson('/payments/recover',{quoteId:current.quote.id,recoverySecret:current.recoverySecret})
-      if(result.state!=='refunded')throw new Error('Refund verification changed. Keep this request for reconciliation.')
-      persist(current,false);if(alive.current)setDeployment(null);return
-    }
     if(current?.sent)throw new Error('Recover the existing payment before starting another request.')
     if(ledger.draft){
       await requestJson('/checkout/session',{})
@@ -133,5 +127,11 @@ export function useDeploymentFlow(account:Address|null){
     if(current){await requestJson('/deployment-quotes/withdraw',{quoteId:current.quote.id,recoverySecret:current.recoverySecret});persist({...current,status:'abandoned'},false)}
     if(alive.current){setDeployment(null);setRecoveryHash('')}
   })
-  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,review,requestAdmission,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
+  // Navigation changes the active checkout only. It never abandons sent fees.
+  const select=(id:string|null=null)=>coordinated(async ledger=>{
+    if(!account)return
+    update(selectPayment(localStorage,account,ledger,id))
+    setDeployment(null);setRecoveryHash('');window.dispatchEvent(new Event('saffron:payment-record'))
+  })
+  return {quote:saved?.quote??null,deployment,saved,draft,busy,error,records,startNew:()=>select(),resumePayment:(id:string)=>select(id),review,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
 }

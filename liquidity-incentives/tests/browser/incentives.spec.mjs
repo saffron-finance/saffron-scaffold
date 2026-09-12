@@ -28,7 +28,11 @@ test('production runtime: complete paid campaign cycle with watcher recovery, re
     await page.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
     await expect(page.getByText('Payment callback unavailable',{exact:true})).toBeVisible()
     await page.reload();await page.getByRole('button',{name:'Resume deployment',exact:true}).click()
+    // C05 polling is removed. Check once the independent watcher has admitted
+    // the canonical fee, not while its discovery transaction is still pending.
+    await expect.poll(async()=>(await f.database.list({wallet:f.account.address})).jobs.length,{timeout:20000}).toBe(1)
     await page.unroute('**/api/incentives/payments/recover')
+    await page.getByRole('button',{name:'Check payment',exact:true}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toBeVisible({timeout:20000})
     const id=await page.locator('[data-vault-lifecycle]').getAttribute('data-vault-lifecycle')
     expect((await f.database.list({wallet:f.account.address})).jobs).toHaveLength(1)
@@ -63,8 +67,8 @@ test('production runtime: complete paid campaign cycle with watcher recovery, re
     const row=await f.database.getIntent(id)
     expect(f.treasuryAddress.toLowerCase()).not.toBe(f.account.address.toLowerCase());expect(f.treasuryAddress.toLowerCase()).not.toBe(f.chain.account.address.toLowerCase())
     const partialFunding=await f.fund(row,BigInt(row.plan.premium)/2n)
-    const partial=(await f.operatorCall('/admin/deployments/'+id+'/funding-brief')).brief
-    expect(BigInt(partial.outstandingRaw)).toBeGreaterThan(0n)
+    const partial=(await f.operatorCall('/admin/deployments')).deployments.find(r=>r.id===id).observation
+    expect(BigInt(row.plan.premium)).toBeGreaterThan(BigInt(partial.variableSupply))
     await page.getByRole('button',{name:'Check progress',exact:true}).click()
     await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toHaveCount(0)
     const finalFunding=await f.fund(row)
@@ -187,7 +191,7 @@ test('profile and administration can page to older vaults and retain that page o
     for(let i=0;i<26;i++){
       const quote=i===0?template:await database.putQuote({offer,principalCents:'10000',wallet:account.address,origin:f.origin,plan:{...template.plan,usdCheckedAt:Date.now()},signer:chain.account.address})
       const {id}=await database.acceptDeployment({wallet:account.address,quoteId:quote.id,payment:mockPayment(quote),origin:f.origin})
-      oldest??=id;await database.cancelDeployment(id,account.address)
+      oldest??=id
     }
     await page.goto(f.origin);await connect(page)
     await page.getByRole('button',{name:'My requests',exact:true}).click()

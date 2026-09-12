@@ -1,7 +1,7 @@
 import { useEffect,useState } from 'react'
 import { formatUnits,type Address,type Hex } from 'viem'
 import { useVaultPosition } from '../host/useVaultPosition'
-import { authedJson,ensureSession } from '../host/transport'
+import { ensureSession } from '../host/transport'
 import type { Deployment } from './model'
 import { statusLabel } from './model'
 import { Action,ErrorText,FinePrint,QuietButton,Row,Stack,Disclosure } from './styles'
@@ -14,7 +14,6 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
   const flow=useVaultPosition(account,id,mode)
   useEffect(()=>{onBusy(flow.busy||cancelling)},[flow.busy,cancelling])
   const s=flow.quote?.snapshot??row?.observation
-  async function cancel(){setCancelling(true);try{await authedJson(account,'/deployments/'+id+'/cancel',{});window.dispatchEvent(new Event('saffron:vault-updated'))}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}
   return <Stack data-vault-lifecycle={id}>
     <b role='status'>{row?statusLabel(row.state):'Loading your vault…'}</b>
     {row&&<VaultReview label='Vault terms' bullets={<>
@@ -28,7 +27,6 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
     {row?.state==='active'&&s&&<FinePrint>Premium claimed. Your LP assets unlock after {new Date(Number(s.endTime)*1000).toLocaleString()}.</FinePrint>}
     {row?.state==='matured'&&row.canClaim&&<FinePrint>Your position has matured. Claim the premium first, then withdraw the LP assets.</FinePrint>}
     {row?.canRecover&&<FinePrint>Your fixed deposit was confirmed, but the vault has not started. You can recover the LP assets while it remains unstarted.</FinePrint>}
-    {row?.canRecover&&row.cancelRequested&&<FinePrint>Recover your LP assets before the operator can finish retiring this vault.</FinePrint>}
     {flow.quote&&mode!=='claim'&&<>
       <Row><span>{mode==='deposit'?'LP assets required':'Estimated LP assets returned'}</span></Row>
       {[0,1].map(i=><FinePrint key={i}>{flow.amountLabel(i)} {flow.quote.tokens[i].symbol}</FinePrint>)}
@@ -46,7 +44,6 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
       <Action disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?'Confirming wallet action…':flow.quote?.action.label??'Checking position…'}</Action>
     </>:null}
     {row?.state==='completed'&&<FinePrint>Your fixed withdrawal is confirmed and your LP assets have been returned.</FinePrint>}
-    {row?.isRequester&&!row.cancelRequested&&['queued','deploying','awaiting_funding','depositable','needs_attention'].includes(row.state)&&<Disclosure><summary>Deployment options</summary><FinePrint>Retirement releases unused capacity only after pending transactions and any funded premium have been reconciled.</FinePrint><QuietButton disabled={flow.busy||cancelling} onClick={()=>void cancel()}>Request retirement</QuietButton></Disclosure>}
     {row?.transactions.length?<Disclosure><summary>Deployment transactions</summary>{row.transactions.map(tx=><p key={tx.hash}><a target='_blank' rel='noreferrer' href={'https://robinhoodchain.blockscout.com/tx/'+tx.hash}>{tx.step.replaceAll('-',' ')} · {tx.confirmed?'confirmed':tx.reverted?'failed':'pending'} ↗</a></p>)}</Disclosure>:null}
   </Stack>
 }

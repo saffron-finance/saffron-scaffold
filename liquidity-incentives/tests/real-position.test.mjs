@@ -57,7 +57,7 @@ it('real Uniswap factory and position manager: mint, claim conversion, maturity,
   }finally{await store.close();await chain.close()}
 })
 
-it('real pre-start LP recovery follows current claim ownership and preserves the reserved premium until retirement',{timeout:120000},async()=>{
+it('real pre-start LP recovery follows current claim ownership and preserves the reserved premium without a retirement workflow',{timeout:120000},async()=>{
   const chain=await evmFixture({realPositionManager:true}),store=await incentivesFixture(),db=store.database
   try{
     const limit=10n**30n+''
@@ -75,12 +75,7 @@ it('real pre-start LP recovery follows current claim ownership and preserves the
     await service.recordUserAction(id,chain.account.address,deposited.transactionHash)
     let row=await service.detail(id,chain.account.address)
     assert.equal(row.state,'fixed_awaiting_funding');assert.equal(row.canRecover,true)
-    // Retirement can race with entry. Both the current and a subsequent owner
-    // must retain LP recovery while the operator's retirement job has failed.
-    await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
-    assert.equal((await worker.tick()).state,'failed')
-    row=await service.detail(id,chain.account.address)
-    assert.equal(row.workerState,'failed');assert.equal(row.cancelRequested,true);assert.equal(row.canRecover,true)
+    assert.equal(row.workerState,'created');assert.equal(row.canRecover,true)
     s=row.observation;assert.throws(()=>positionAction(s,'claim'),/No started claim/)
     const recipient=privateKeyToAccount(generatePrivateKey()),tokenAbi=parseAbi(['function transfer(address,uint256) returns(bool)'])
     await chain.send(s.claimToken,encodeFunctionData({abi:tokenAbi,functionName:'transfer',args:[recipient.address,1n]}))
@@ -90,7 +85,6 @@ it('real pre-start LP recovery follows current claim ownership and preserves the
     const received=(await service.list(recipient.address)).deployments.find(item=>item.id===id)
     assert.equal(received.canRecover,true);assert.equal(received.isRequester,false)
     assert.equal((await service.context(id,recipient.address)).job.wallet,recipient.address.toLowerCase())
-    await assert.rejects(db.cancelDeployment(id,recipient.address),error=>error.status===404)
     await assert.rejects(service.recordUserAction(id,recipient.address,deposited.transactionHash),error=>error.status===409)
     await chain.raw('anvil_setBalance',[recipient.address,toHex(10n**18n)])
     const other=createWalletClient({account:recipient,chain:chain.client.chain,transport:http(chain.url)})
@@ -101,11 +95,10 @@ it('real pre-start LP recovery follows current claim ownership and preserves the
     assert.equal((await service.detail(id,recipient.address)).depositable,false,'a holder does not gain deployment permissions')
     row=await service.detail(id,chain.account.address)
     assert.equal(row.observation.adapterLiquidity,'0');assert.equal(row.observation.claimBalance,'0')
-    assert.equal(row.state,'retirement_requested');assert.equal(row.canRecover,false)
+    assert.equal(row.state,'awaiting_funding');assert.equal(row.canRecover,false)
     assert.equal((await db.catalog(true)).budgets[0].reservedRaw,row.plan.premium)
-    await db.execution.approveOperation(id,chain.account.address,row.planHash,'retire')
-    assert.equal((await worker.tick()).state,'retired')
-    assert.equal((await db.catalog(true)).budgets[0].availableRaw,limit)
+    assert.equal((await worker.tick()).state,'idle')
+    assert.equal((await db.auditBudget('cashcat-campaign')).valid,true)
   }finally{await store.close();await chain.close()}
 })
 

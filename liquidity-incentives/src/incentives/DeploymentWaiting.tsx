@@ -2,7 +2,6 @@ import { useEffect,useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
 import { useDeploymentStatus } from '../host/useDeploymentStatus'
-import { authedJson } from '../host/transport'
 import { VaultLifecyclePanel } from './VaultLifecyclePanel'
 import { statusLabel } from './model'
 import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Stack } from './styles'
@@ -17,12 +16,11 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy}:{accou
   const status=useDeploymentStatus(account,id),row=status.data,progress=row?.progress
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
   useEffect(()=>onBusy(busy),[busy,onBusy])
-  async function cancel(){setBusy(true);setError('');try{await authedJson(account,'/deployments/'+id+'/cancel',{});status.refresh()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   if(position)return <VaultLifecyclePanel account={account} id={id} onBusy={onBusy} row={row} verificationError={status.error}/>
   const reason=status.error?'verification_unavailable':progress?.reason
   const label=reason==='queued'?'Your request is queued':reason==='awaiting_funding'?'Awaiting campaign funding':reason==='operator_review'?'Waiting for operator review'
     :reason==='verification_unavailable'?'Verification temporarily unavailable':reason==='ready'?(row?.state==='occupied'?'Fixed side occupied':'Your vault is ready')
-    :reason?.startsWith('payment_')?statusLabel(reason.slice(8)):reason==='retired'?'Request retired':reason==='retirement_requested'?'Retirement requested'
+    :reason?.startsWith('payment_')?statusLabel(reason.slice(8)):reason==='retired'?'Historical request':reason==='retirement_requested'?'Needs operator attention'
     :progress?.activeStage===1?'Preparing your vault':progress?.activeStage===2?'Creating your vault':progress?.activeStage===3?'Checking your vault':'Loading your request…'
   return <Stack data-vault-lifecycle={id} data-deployment-waiting>
     <b role='status' aria-live='polite'>{label}</b><Elapsed since={progress?.requestedAt??row?.createdAt}/>
@@ -40,7 +38,6 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy}:{accou
     {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<Action disabled={Boolean(status.error)||busy} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</Action>}
     <QuietButton onClick={status.refresh}>Check progress</QuietButton>
     {row?.transactions.length?<Disclosure><summary>Deployment transactions</summary>{row.transactions.map(tx=><p key={tx.hash}><a target='_blank' rel='noreferrer' href={'https://robinhoodchain.blockscout.com/tx/'+tx.hash}>{tx.step.replaceAll('-',' ')} · {tx.confirmed?'confirmed':tx.reverted?'failed':'checking'} ↗</a></p>)}</Disclosure>:null}
-    {row?.isRequester&&!row.cancelRequested&&row.workerState!=='retired'&&!row.observation?.isStarted&&<Disclosure><summary>Deployment options</summary><FinePrint>Unused capacity is released only after transaction and external funding recovery.</FinePrint><QuietButton disabled={busy||Boolean(status.error)} onClick={()=>void cancel()}>Request retirement</QuietButton></Disclosure>}
   </Stack>
 }
 const Stages=styled.ol`list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:18px;li{display:flex;align-items:center;gap:14px;font-size:14px;}small{display:block;color:#999;margin-top:4px;font-size:12px;}`

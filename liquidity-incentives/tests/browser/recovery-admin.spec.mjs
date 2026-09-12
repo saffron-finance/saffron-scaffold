@@ -20,7 +20,7 @@ test('an interrupted quote review resumes its durable checkout after reload with
   }finally{await f.close()}
 })
 
-test('a stale tab opening another offer preserves and recovers the already paid request',async({page,context})=>{
+test('a stale tab can start another paid request without deleting the previous recovery record',async({page,context})=>{
   const f=await setup(page)
   try{
     await page.goto(f.origin);await connect(page)
@@ -37,11 +37,20 @@ test('a stale tab opening another offer preserves and recovers the already paid 
     await page.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
     await expect(page.getByText('Acceptance response lost',{exact:true})).toBeVisible()
     await stale.getByRole('button',{name:'Create CASHCAT / ETH, 7 days',exact:true}).click()
-    await expect(stale.getByRole('button',{name:'Pay $2 in ETH',exact:true})).toHaveCount(0)
+    await expect(stale.getByRole('button',{name:'Continue',exact:true})).toBeEnabled()
+    await stale.getByRole('button',{name:'Continue',exact:true}).click()
+    await stale.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
     await expect(stale.locator('[data-vault-lifecycle]')).toBeVisible()
-    expect(f.state.sends).toBe(1);expect((await f.database.list({wallet:f.account.address})).jobs).toHaveLength(1)
+    expect(f.state.sends).toBe(2);expect((await f.database.list({wallet:f.account.address})).jobs).toHaveLength(2)
     const ledger=await stale.evaluate(account=>JSON.parse(localStorage.getItem('saffron.creation-payments.v1:'+account.toLowerCase())),f.account.address)
-    expect(ledger.activeId).toBeNull();expect(Object.values(ledger.records)[0].status).toBe('accepted')
+    expect(ledger.activeId).toBeNull();expect(Object.keys(ledger.records)).toHaveLength(2)
+    expect(Object.values(ledger.records).filter(p=>p.hash)).toHaveLength(2)
+    await stale.getByRole('button',{name:'Close incentive vault'}).click()
+    await stale.getByRole('button',{name:/^My requests/}).click()
+    await stale.getByRole('button',{name:'Check saved payment',exact:true}).click()
+    await stale.getByRole('button',{name:'Check payment',exact:true}).click()
+    await expect(stale.locator('[data-vault-lifecycle]')).toBeVisible()
+    expect(f.state.sends).toBe(2)
   }finally{await f.close()}
 })
 
@@ -61,6 +70,7 @@ test('lost acceptance response and lost wallet response survive reload without a
     const signs=f.state.signs
     await page.reload();await page.getByRole('button',{name:'Resume deployment',exact:true}).click()
     await page.unroute('**/api/incentives/payments/recover')
+    await page.getByRole('button',{name:'Check payment',exact:true}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toBeVisible({timeout:20000})
     expect(f.state.signs).toBe(0)
     expect(f.state.sends).toBe(1)

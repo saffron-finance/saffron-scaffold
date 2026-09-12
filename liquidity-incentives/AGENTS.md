@@ -9,8 +9,11 @@ Read README.md and server/AGENTS.md before backend edits. Public protocol and
 upstream Saffron API URLs are intentional; private deployments, credentials and
 operator records must never be committed. Follow the current campaign/payment specification in CAMPAIGNS.md: a $2 native
 ETH payment binds the exact deployment quote, without user message signatures.
-Keep atomic USD budget/capacity accounting and reviewed or automatic worker creation; treasury
-funding is external. Do not reintroduce worker funding, a USDC fee choice, legacy
+Keep atomic paid-commitment accounting and reviewed or automatic worker creation.
+Budget/capacity targets are private, advisory planning inputs, never admission
+limits. Show near-capacity notices only on the authenticated operator portfolio.
+Do not add per-user request quotas, C05 tracking, refund/retirement workflows,
+gas-spending ledgers, or treasury balance/inventory tracking. Premium funding is external. Do not reintroduce worker funding, a USDC fee choice, legacy
 receipt imports or an admin per-vault creation form. Campaign creation belongs in
 the operator interface. IMPLEMENTATION.md defines the current state contract.
 

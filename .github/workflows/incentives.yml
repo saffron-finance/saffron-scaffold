@@ -49,6 +49,7 @@ jobs:
         env:
           SAFFRON_TEST_PG_CONTAINER: ${{ job.services.postgres.id }}
       - run: npm run test:browser
+      - run: npm run test:vnc
       - run: npm run demo -- --smoke
       - run: npm run build:lab
       - run: npm run test:browser -- --grep 'approved cards'

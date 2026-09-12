@@ -36,7 +36,7 @@ function budgets(){return state.budgets.map(b=>{
     availableBudgetCents:(BigInt(b.campaign.budgetCents)-funded-reservedBudget).toString(),availableCapacityCents:(BigInt(b.campaign.capacityCents)-capacity-reserved).toString(),fixedDepositedCents:'0'}}
 })}
 function offers():Offer[]{return state.programs.map(p=>{const budget=budgets().find(b=>b.id===p.budgetPoolId);return {...pair,...p,pairRevision:1,budget,
-  capacityUsd:Number(budget.campaign.capacityCents)/100,eligibleMaximumCents:budget.paused?'0':budget.accounting.availableCapacityCents,availability:budget.paused?'Campaign paused':null}})}
+  availability:budget.paused?'Campaign paused':null}})}
 const session=()=>({wallet:PREVIEW_ACCOUNT,csrf:'preview-only',operator:true,expires:Date.now()+1800000})
 export async function readSession(){return session()}
 export async function ensureOperatorSession(){return {...session(),operator:true}}
@@ -51,20 +51,25 @@ export async function requestJson(path:string,body?:any):Promise<any>{
   if(route==='/session')return {session:session()}
   if(route==='/admin/catalog')return {pairs:[pair],programs:state.programs,budgets:budgets()}
   if(['/payments','/admin/payments'].includes(route))return {payments:[],nextCursor:null}
-  if(route==='/admin/status')return {workerOnline:false,pending:0,stalled:0,gasBalanceRaw:null,readiness:{canQuote:true,mode:'reviewed',reasons:[],policy:null}}
+  if(route==='/admin/status')return {workerOnline:false,pending:0,stalled:0,readiness:{canQuote:true,mode:'reviewed',reasons:[],policy:null}}
+  if(route==='/admin/portfolio-capacity')return {campaigns:budgets().map(b=>{
+    const committed=BigInt(b.accounting.fundedBudgetCents)+BigInt(b.accounting.reservedBudgetCents),target=BigInt(b.advisoryBudgetCents??b.campaign.budgetCents)
+    return {id:b.id,name:b.name,nearCapacity:committed*100n>=target*90n,overTarget:committed>target}
+  })}
+  const advisory=/^\/admin\/budgets\/([^/]+)\/advisory$/.exec(route)
+  if(advisory&&body){const b=state.budgets.find(b=>b.id===advisory[1]);if(!b||b.revision!==body.revision)throw Error('Reload the campaign.');b.advisoryBudgetCents=cents(body.budgetUsd);b.revision++;save();return {saved:true}}
   if(route==='/admin/campaigns'&&body){
     const campaign=campaignTerms(body)
     if(!/^[a-z0-9][a-z0-9-]{0,79}$/.test(body.id)||state.budgets.some(b=>b.id===body.id))throw new Error('Use a unique campaign ID.')
-    if(BigInt(cents(body.minimumUsd))>BigInt(campaign.capacityCents))throw new Error('Minimum request exceeds capacity.')
     state.budgets.push({id:body.id,name:body.name,revision:1,chainId:4663,rewardAsset:token0.address,decimals:18,campaign,
       limitRaw:UINT256_MAX.toString(),reservedRaw:'0',allocatedRaw:'0',availableRaw:UINT256_MAX.toString(),paused:!body.active,reconciliationRequired:false})
     state.programs.push({id:body.id,revision:1,pairId:pair.id,budgetPoolId:body.id,apr:Number(campaign.aprPercent),days:campaign.days,
-      minimumCents:cents(body.minimumUsd),maximumCents:campaign.capacityCents,sortOrder:0,isNew:true,active:true});save();return {campaign}
+      minimumCents:'1',maximumCents:UINT256_MAX.toString(),sortOrder:0,isNew:true,active:true});save();return {campaign}
   }
   if(route==='/admin/budgets'&&body){const index=state.budgets.findIndex(b=>b.id===body.id);if(index<0)throw new Error('Sample campaign missing.');state.budgets[index]={...state.budgets[index],paused:body.paused,revision:body.revision+1};save();return {budget:state.budgets[index]}}
   if(['/deployments','/positions','/admin/deployments'].includes(route))return {deployments:state.jobs,nextCursor:null,creatorOnline:true,positionsUpdating:false}
-  const match=/^\/deployments\/([^/]+)(\/cancel)?$/.exec(route)
-  if(match){const job=state.jobs.find(j=>j.id===match[1]);if(!job)throw new Error('Preview request missing.');if(match[2]){job.state='retired';job.workerState='retired';job.cancelRequested=true;save();return {retired:true}}return {deployment:job}}
+  const match=/^\/deployments\/([^/]+)$/.exec(route)
+  if(match){const job=state.jobs.find(j=>j.id===match[1]);if(!job)throw new Error('Preview request missing.');return {deployment:job}}
   throw new Error('This action is not available in the UI preview. No live request was sent.')
 }
 
@@ -76,7 +81,7 @@ export function useDeploymentFlow(account:Address|null){
   const [quote,setQuote]=useState<any>(null),[deployment,setDeployment]=useState<Deployment|null>(null),[error,setError]=useState<string>()
   async function review(offer:Offer,amount:string){try{
     const principal=cents(amount),current=offers().find(o=>o.id===offer.id)!
-    if(current.budget.paused||BigInt(principal)>BigInt(current.eligibleMaximumCents??0))throw new Error('Campaign capacity is exhausted.')
+    if(current.budget.paused)throw new Error('Campaign is paused.')
     const snapshot=snapshotFor(current,principal,account),sqrtPrice=(1n<<96n)/1000n
     const capacities=resolveCapacities({cents:principal,aprRaw:snapshot.aprRaw,duration:snapshot.durationSeconds,price0:2n*10n**15n,price1:2000n*10n**18n,variablePrice:2n*10n**15n,
       decimals0:18,decimals1:18,variableDecimals:18,sqrtPrice,minTick:-887200,maxTick:887200})
@@ -86,7 +91,7 @@ export function useDeploymentFlow(account:Address|null){
   }catch(e){setError((e as Error).message)}}
   async function pay(){if(!quote)return
     const current=offers().find(o=>o.id===quote.programId)!
-    if(current.budget.paused||BigInt(quote.principalCents)>BigInt(current.eligibleMaximumCents??0)){setError('Campaign capacity is exhausted.');return}
+    if(current.budget.paused){setError('Campaign is paused.');return}
     const row:Deployment={id:quote.id,wallet:PREVIEW_ACCOUNT,positionWallet:PREVIEW_ACCOUNT,isRequester:true,programId:quote.programId,createdAt:new Date().toISOString(),planHash:quote.planHash,
       snapshot:quote.snapshot,plan:{...quote.plan,vault:'0x3333333333333333333333333333333333333333'},signer:PREVIEW_ACCOUNT,observation:null,state:'awaiting_funding',depositable:false,canClaim:false,canWithdraw:false,canRecover:false,
       workerState:'created',fundingState:'awaiting_external',cancelRequested:false,error:null,transactions:[],nextAttemptAt:new Date().toISOString(),
@@ -95,7 +100,7 @@ export function useDeploymentFlow(account:Address|null){
     state.jobs.unshift(row);save();setDeployment(row)
   }
   function reset(){setQuote(null);setDeployment(null);setError(undefined)}
-  return {quote,deployment,saved:null,draft:null,busy:false,error,review,requestAdmission:async()=>{},pay,recover:async()=>{},reset,restore:reset,discardRejected:reset,recoveryHash:'',setRecoveryHash:()=>{}}
+  return {quote,deployment,saved:null,draft:null,busy:false,error,records:[],startNew:reset,resumePayment:async()=>{},review,pay,recover:async()=>{},reset,restore:reset,discardRejected:reset,recoveryHash:'',setRecoveryHash:()=>{}}
 }
 
 /** Lifecycle is display-only in this preview, never routed to an injected wallet. */

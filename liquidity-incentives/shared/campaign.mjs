@@ -36,5 +36,15 @@ export function campaignTerms({days,budgetUsd,capacityUsd,aprPercent}){
 
 /** The reservation is an request-time USD commitment, not a live token mark. */
 export function campaignPremiumCents(campaign,principalCents){
-  return ceil(BigInt(principalCents)*BigInt(campaign.budgetCents),BigInt(campaign.capacityCents)).toString()
+  return ceil(BigInt(principalCents)*BigInt(campaign.premiumNumerator??campaign.budgetCents),BigInt(campaign.premiumDenominator??campaign.capacityCents)).toString()
+}
+
+/** Disclose the exact premium rate, never the private campaign planning totals.
+ * Reducing the fraction preserves cent rounding for every request size. */
+export function campaignRate(campaign){
+  let a=BigInt(campaign.budgetCents),b=BigInt(campaign.capacityCents)
+  const numerator=a,denominator=b
+  while(b){const remainder=a%b;a=b;b=remainder}
+  return {days:campaign.days,aprRaw:campaign.aprRaw,aprPercent:campaign.aprPercent,basis:campaign.basis,
+    premiumNumerator:(numerator/a).toString(),premiumDenominator:(denominator/a).toString()}
 }

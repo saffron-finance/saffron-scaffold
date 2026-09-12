@@ -1,5 +1,5 @@
 import { keccak256, stringToHex } from 'viem'
-import { campaignTerms } from './campaign.mjs'
+import { campaignTerms, campaignRate } from './campaign.mjs'
 
 export const CHAIN_ID = 4663
 export const FACTORY = '0xce97ee64ad415976c465a783725014e67832be1a'
@@ -37,8 +37,7 @@ export function normalizePair(value) {
 export function normalizeProgram(value) {
   if (!value || !Number.isFinite(value.apr) || value.apr < .01 || value.apr > 100000 || Number(value.apr.toFixed(2)) !== value.apr
     || !Number.isInteger(value.days) || value.days < 1 || value.days > 3650 || !Number.isInteger(value.sortOrder) || Math.abs(value.sortOrder) > 100000) throw fault(400, 'Check the APR, duration, and ordering.')
-  const minimumCents = integer(value.minimumCents, { positive: true }), maximumCents = integer(value.maximumCents, { positive: true })
-  if (BigInt(maximumCents) > 100_000_000_000_000n || BigInt(minimumCents) > BigInt(maximumCents)) throw fault(400, 'Check the vault size limits.')
+  const minimumCents='1',maximumCents=UINT256_MAX.toString()
   return { id: id(value.id), revision: revision(value.revision), pairId: id(value.pairId), budgetPoolId: id(value.budgetPoolId), apr: value.apr,
     days: value.days, minimumCents, maximumCents, sortOrder: value.sortOrder, isNew: flag(value.isNew), active: flag(value.active) }
 }
@@ -66,5 +65,5 @@ export function snapshotFor(offer, principalCents, wallet) {
     token0: offer.token0, token1: offer.token1, token0Address: offer.token0.address, token1Address: offer.token1.address,
     fixedCapacityAmount: principalCents, durationSeconds: (offer.budget?.campaign?.days??offer.days) * 86400, targetApr: offer.apr / 100,
     aprRaw: offer.budget?.campaign?.aprRaw??(BigInt(Math.round(offer.apr * 100)) * 10n ** 14n).toString(), variableAssetAddress: offer.token0.address,
-    campaign:offer.budget?.campaign??null, adapterType: 'fullRange', programId: offer.id, pairId: offer.pairId, display: { pair: `${offer.token0.symbol} / ${offer.token1.symbol}` } }
+    campaign:offer.budget?.campaign?campaignRate(offer.budget.campaign):null, adapterType: 'fullRange', programId: offer.id, pairId: offer.pairId, display: { pair: `${offer.token0.symbol} / ${offer.token1.symbol}` } }
 }

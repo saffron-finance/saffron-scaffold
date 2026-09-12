@@ -21,10 +21,8 @@ export function savePayment(storage,wallet,expected,payment,{active=true}={}){
   if(latest.revision!==expected.revision)throw new Error('This payment changed in another tab. Resume the saved request.')
   if(!uuid.test(id)||payment.quote.wallet!==wallet.toLowerCase()||!states.includes(payment.status))throw new Error('Invalid payment record.')
   if(previous&&(JSON.stringify(previous.quote)!==JSON.stringify(payment.quote)||previous.recoverySecret!==payment.recoverySecret))throw new Error('Payment terms cannot be overwritten.')
-  if(latest.activeId&&latest.activeId!==id)throw new Error('Finish the saved payment before starting another request.')
-  if(!active&&!['accepted','abandoned','refunded'].includes(payment.status))throw new Error('An unresolved payment must remain recoverable.')
   if(previous?.sent&&payment.status==='abandoned')throw new Error('A submitted payment cannot be discarded.')
-  const next={revision:latest.revision+1,activeId:active?id:null,draft:null,records:{...latest.records,[id]:{...payment,updatedAt:Date.now()}}}
+  const next={revision:latest.revision+1,activeId:active?id:latest.activeId===id?null:latest.activeId,draft:null,records:{...latest.records,[id]:{...payment,updatedAt:Date.now()}}}
   storage.setItem(paymentRecordsKey(wallet),JSON.stringify(next))
   return next
 }
@@ -34,5 +32,15 @@ export function saveCheckoutDraft(storage,wallet,expected,draft){
   if(latest.revision!==expected.revision||latest.activeId)throw new Error('Resume the current payment before changing checkout.')
   if(draft&&(!uuid.test(draft.requestKey)||draft.wallet!==wallet.toLowerCase()))throw new Error('Invalid checkout draft.')
   const next={...latest,revision:latest.revision+1,draft}
+  storage.setItem(paymentRecordsKey(wallet),JSON.stringify(next));return next
+}
+
+/** Select a checkout without deleting any payment recovery record. This pointer
+ * is a UI focus, not a limit on simultaneous paid requests. */
+export function selectPayment(storage,wallet,expected,id=null){
+  const latest=readPayments(storage,wallet)
+  if(latest.revision!==expected.revision)throw new Error('Payment selection changed in another tab.')
+  if(id!==null&&!Object.hasOwn(latest.records,id))throw new Error('Saved payment not found.')
+  const next={...latest,revision:latest.revision+1,activeId:id,draft:null}
   storage.setItem(paymentRecordsKey(wallet),JSON.stringify(next));return next
 }

@@ -25,9 +25,9 @@ A self-transfer is not a received fee. The ETH amount is fixed by the backend qu
 does not change the amount a paid request owes. Public payment evidence alone
 cannot restore someone else's HTTP session.
 
-The browser-only preview cannot create paid jobs. Production intake reserves
-campaign, raw premium, treasury, queue and gas resources before offering a payable
-quote. Source prices must be fresh at issuance; the separate mining window is
+The browser-only preview cannot create paid jobs. Production intake freezes
+exact terms before offering a payable quote; no capacity or spending resources
+are reserved. Source prices must be fresh at issuance; the separate mining window is
 120 seconds. LP valuation and asset mix are refreshed later at fixed deposit.
 Payment exceptions retain their original terms and deadline for audited resolution;
 they never discard a received fee or automatically charge again.
@@ -157,7 +157,7 @@ because Node cannot sync a Windows directory handle. Files inherit the private
 directory ACL, and replacement failures stop execution before further signing.
 
 The worker revalidates the payment, immutable request copies, current factory/type
-hashes, fee setting, fresh head, reservation/pauses and gas limits before each new
+hashes, fee setting, fresh head, paid commitment/pauses and transaction gas limits before each new
 signature. It persists signed bytes before sending. Final verification checks
 factory registrations and creator, vault/adapter bytecode, pool/tokens/range,
 liquidity, premium, duration, protocol fee and initialized/unfunded state.
@@ -186,7 +186,7 @@ liquidity, premium, duration, protocol fee and initialized/unfunded state.
 
 Save the request/payment identifiers and immutable terms, reviewed code commit,
 factory/type hashes, fork input/result, test summaries, public nonce/balance
-before/after, the three live transaction hashes and canonical receipts, actual gas
+before/after, the three live transaction hashes and canonical receipts, canonical inclusion
 fees, and final vault/adapter/state. Keep the raw signed journal protected and out
 of shared report bundles. Clearly distinguish tests, fork simulation and live
 deployment; an initialized but unfunded vault is not a completed user LP deposit.
@@ -227,34 +227,18 @@ ephemeral local account, never loads the live signer, rejects upstream signing
 and broadcast methods, and writes its new evidence into a private temporary
 directory. It does not overwrite the historical live-test evidence.
 
-## Intake and bounded execution
+## Intake without request quotas
 
-Intake starts closed. In Administration, choose reviewed one-request or automatic
-queue execution, a window of at most 24 hours, a declared service window and a
-pending-work ceiling. Pausing or expiry stops new quotes and preserves paid work.
-A keyless watcher must report a canonical checkpoint within 32 confirmed blocks,
-checked within 15 seconds, with a current chain head. Queued work older than the
-service window closes intake. Automatic mode additionally needs the ordinary
-signing worker's heartbeat; reviewed mode does not. Running a one-request or
-retirement command does not advertise a continuously available signing worker.
+Operators choose reviewed or automatic mode and an expiring service window.
+The canonical watcher must be healthy. Automatic mode also requires the worker
+heartbeat; reviewed one-request execution does not advertise continuous signing.
+No pending-count, campaign capacity, raw premium, treasury inventory, or daily
+gas-spending limit gates requests. Each additional request needs its own fee.
 
-Supervise payment ingestion independently using `saffron-payment-watcher.service`.
-Pin its chain, watcher ID and start block. Restart after an outage using the same
-cursor identity; never advance its start to skip unprocessed payments.
+There is no retirement command or refund workflow. Handle exceptional refunds
+manually outside this application. Preserve journal, fee, and canonical evidence.
+User LP recovery/claim/withdrawal remains separate from operator creation.
 
-For a failed one-request permit, inspect/reconcile saved transaction hashes and
-approve retirement of that exact request in Administration. Use `worker:retire`
-with an operator configuration whose mode is `retire-request`, plus the exact
-`requestId` and `planHash`. Retain the original public protocol/database/RPC fields;
-no signer credential or simulation is read by this command. It can rebroadcast
-only saved bytes for the pinned request and cannot sign a new vault. Finish any
-external variable/fixed recovery first. Once retirement is proven, resolve the
-original fee through the payment queue. An exhausted creation permit remains
-terminal; the broad queue runner rejects both kinds of one-request configuration.
-
-```sh
-npm run worker:retire -- "<protected-retirement-config>"
-```
-
-Retirement does not send a fee refund. Record an externally executed refund in
-the payment queue after canonical retirement and recovery evidence is established.
+Use `maxOneShotGasWei` for the permanent permit's per-invocation signing ceiling.
+The old `maxDailyGasWei` spelling remains a compatibility alias, not a daily gas
+record. Transaction gas/price ceilings and nonce recovery still protect signatures.

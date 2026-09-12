@@ -4,19 +4,18 @@ import { privateKeyToAccount,generatePrivateKey } from 'viem/accounts'
 import { incentivesFixture,pair } from './incentives-fixture.mjs'
 import { proofHash } from '../shared/payment.mjs'
 
-it('campaign holds and accepted requests share atomic USD/capacity limits; external funding consumes half and never refills on claim',async()=>{
+it('campaign targets never limit accepted requests; external funding consumes half and never refills on claim',async()=>{
   const f=await incentivesFixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),db=f.database,a=privateKeyToAccount(generatePrivateKey()),b=privateKeyToAccount(generatePrivateKey())
   try{
     await db.savePair(pair,a.address)
     await db.saveCampaign({id:'three-day',name:'Three days',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},a.address)
     const quote=who=>f.quote(who,{programId:'three-day',principalCents:'50000000',premium:'500000'})
     const results=await Promise.allSettled([quote(a),quote(b),quote(a)])
-    assert.equal(results.filter(r=>r.status==='fulfilled').length,2)
-    assert.equal(results.find(r=>r.status==='rejected').reason.status,409)
+    assert.equal(results.filter(r=>r.status==='fulfilled').length,3)
     const qa=results[0].value??results[2].value,qb=results[1].value
     const accepted=await f.accept(a,qa)
     let accounting=(await db.catalog(true)).budgets[0].accounting
-    assert.equal(accounting.reservedCapacityCents,'50000000');assert.equal(accounting.heldCapacityCents,'50000000');assert.equal(accounting.availableCapacityCents,'0')
+    assert.equal(accounting.reservedCapacityCents,'50000000');assert.equal(accounting.heldCapacityCents,'0');assert.equal(accounting.availableCapacityCents,'50000000')
     assert.equal((await f.accept(a,qa)).id,accepted.id)
     await f.settleCheckouts()
     await db.query("UPDATE saffron_incentives.vault_jobs SET plan=plan||jsonb_build_object('vault',$2::text) WHERE intent_id=$1",[accepted.id,a.address.toLowerCase()])
@@ -44,7 +43,7 @@ it('a private withdrawal closes a hold until a canonical scan settles it; campai
     const secret='0x'+'4'.repeat(64),q=await f.quote(a,{programId:'paused',principalCents:'50000000',premium:'500000',recoveryHash:proofHash(secret)})
     await assert.rejects(db.withdrawQuote(q.id,'0x'+'5'.repeat(64)),e=>e.status===403)
     await db.withdrawQuote(q.id,secret)
-    assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'50000000')
+    assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'100000000')
     await f.settleCheckouts()
     assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'100000000')
     await assert.rejects(f.accept(a,q),e=>e.status===409,'withdrawn quote cannot create after its hold is released')

@@ -2,7 +2,7 @@ import { fault } from '../shared/incentives.mjs'
 const s='saffron_incentives'
 
 /** A clock cannot prove an unpaid checkout is safe to release. Only the keyless
- * watcher's canonical, fully processed watermark can settle its reserved slot. */
+ * watcher's canonical, fully processed watermark can settle its payment window. */
 export function createCheckoutReservations(db){
   return {
     async rawHolds(client,budgetId,excludeQuote=null){

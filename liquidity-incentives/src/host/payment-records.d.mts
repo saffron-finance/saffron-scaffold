@@ -6,3 +6,5 @@ export function paymentRecordsKey(wallet:string):string
 export function readPayments(storage:Pick<Storage,'getItem'>,wallet:string):Payments
 export function savePayment(storage:Pick<Storage,'getItem'|'setItem'>,wallet:string,expected:Payments,payment:Payment,options?:{active?:boolean}):Payments
 export function saveCheckoutDraft(storage:Pick<Storage,'getItem'|'setItem'>,wallet:string,expected:Payments,draft:CheckoutDraft|null):Payments
+
+export function selectPayment(storage:Storage,wallet:string,expected:Payments,id?:string|null):Payments

@@ -69,7 +69,6 @@ export async function setup(page,{admin=false,wrap=false,campaign=false}={}){
     treasury=privateKeyToAccount(generatePrivateKey());treasuryWallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
     await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**20n)])
     await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,10n**30n]}))
-    await operatorCall('/admin/treasury',{budgetId:'cashcat-3d',wallet:treasury.address,limitRaw:(10n**29n).toString(),revision:0,reason:'Assign complete-cycle test inventory',requestKey:randomUUID()})
     await chain.prepareIntake(database,{continuous:true})
   }
   async function fund(row,rawAmount){
