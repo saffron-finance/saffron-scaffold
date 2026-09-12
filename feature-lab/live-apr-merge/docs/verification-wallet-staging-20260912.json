@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-12",
+  "version": "0.2.4",
+  "status": "staged; public preview unchanged; intake closed",
+  "pendingConfiguration": [
+    "Robinhood native ETH creation-fee recipient",
+    "Live campaign terms instead of preview examples"
+  ],
+  "frontendUnitTests": 47,
+  "importPins": 29,
+  "mobileBackend": {
+    "ok": true,
+    "live": false,
+    "backendCommit": "cb52c93e572972455789c8d720179ebfc382187a",
+    "checks": [
+      "Two independent fees, lost callback, watcher admission and reloaded payment recovery without a duplicate fee or message signatures",
+      "Exact fork simulation, three creation transactions, C06, retained progress on API failure, partial-funding entry guard",
+      "Merged Portfolio opens the owned position; wrap/approve/deposit/claim, start/maturity dates and withdrawal complete"
+    ],
+    "requestId": "988333f8-46b6-4282-b5c7-1a8f408be585",
+    "chainId": 4663,
+    "simulation": {
+      "ok": true,
+      "upstreamBroadcasts": 0
+    },
+    "final": {
+      "claimBalance": "0",
+      "fixedBalance": "0",
+      "blockNumber": "51",
+      "blockHash": "0x62dce7caa677f61a41371b12006963ac168d5414feecdf24fee57e690a82315f"
+    },
+    "errors": []
+  },
+  "liveReadOnlyPreflight": {
+    "ok": true,
+    "paymentReady": false,
+    "walletBroadcasts": 0,
+    "checks": [
+      "Served bundle selects the real wallet and canonical API at the correct mount",
+      "Staging intake is closed; no payment-ready claim",
+      "Read-only relay reaches Robinhood Chain 4663",
+      "Broadcasts/mixed signing batches rejected; RPC methods, API routing and asset 404s preserved"
+    ]
+  },
+  "previewBrowser": {
+    "ok": true,
+    "checks": 17,
+    "unexpectedNetworkRequests": []
+  },
+  "proxyBoundaryTests": 7,
+  "stagedNginxConfigurationValid": true,
+  "isolation": {
+    "vncBrowserRestarted": false,
+    "vncDatabaseReset": false,
+    "vncWebRestarted": false,
+    "vncRouteChanged": false,
+    "publishedPreviewChanged": false
+  },
+  "mainnetTransactions": 0,
+  "signingWorkerActivated": false,
+  "scope": "Existing mobile Home and desktop appearance retained. Live styling controls remain independent of the wallet/payment adapter.",
+  "backendUnitTests": 37
+}

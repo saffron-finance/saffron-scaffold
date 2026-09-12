@@ -54,6 +54,14 @@ it('serves the built asset and both route variants', async () => {
   assert.equal((await fetch(`${origin}${base}/review/`)).status, 200)
   assert.equal((await fetch(`${origin}/outside-app`)).status, 404)
 })
+it('does not disguise missing assets or downloads as successful SPA responses', async () => {
+  for (const path of ['/assets/missing-release.js', '/assets/missing-release.css', '/missing-source.zip', '/missing.json']) {
+    const response = await fetch(origin + base + path)
+    assert.equal(response.status, 404, path)
+    assert.doesNotMatch(response.headers.get('content-type'), /text\/html/)
+  }
+  assert.equal((await fetch(origin + base + '/portfolio/vaults')).status, 200)
+})
 it('relays canonical reads but rejects every disallowed member of a batch', async () => {
   const read = { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }
   assert.equal((await (await post(read)).json()).result, '0x1237')

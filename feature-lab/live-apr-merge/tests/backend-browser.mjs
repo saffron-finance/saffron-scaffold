@@ -22,7 +22,9 @@ process.env.DIST_DIR=resolve(frontend,'dist-live')
 process.chdir(backend)
 await mkdir(evidence,{recursive:true})
 const browser=await chromium.launch({headless:true})
-const context=await browser.newContext({viewport:{width:1440,height:1100}})
+// The approved mobile Home must connect a real injected-wallet boundary and
+// submit to the canonical backend, not just pass browser-only preview tests.
+const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
 const page=await context.newPage();page.setDefaultTimeout(20000)
 const errors=[];page.on('pageerror',error=>errors.push(error.message))
 let f,files
@@ -57,7 +59,7 @@ try{
   await page.getByRole('button',{name:'Claim $2.00',exact:true}).click()
   await expect(page.locator('[data-vault-lifecycle]')).toBeVisible()
   await page.getByRole('button',{name:'Close incentive vault',exact:true}).click()
-  await page.getByRole('navigation',{name:'Main navigation',exact:true}).getByRole('link',{name:'Portfolio',exact:true}).click()
+  await page.getByRole('link',{name:'Portfolio',exact:true}).click()
   await page.getByRole('button',{name:'Check saved payment',exact:true}).click()
   await page.unroute('**/api/incentives/payments/recover')
   await page.getByRole('button',{name:'Check payment',exact:true}).click()
@@ -93,7 +95,7 @@ try{
   await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toBeEnabled()
   report.checks.push('Exact fork simulation, three creation transactions, C06, retained progress on API failure, partial-funding entry guard')
   await page.getByRole('button',{name:'Close incentive vault',exact:true}).click()
-  await page.getByRole('navigation',{name:'Main navigation',exact:true}).getByRole('link',{name:'Portfolio',exact:true}).click()
+  await page.getByRole('link',{name:'Portfolio',exact:true}).click()
   await page.locator('[data-deployment-id="'+id+'"]').getByRole('button',{name:'Deposit',exact:true}).click()
   await expect(page.locator('[data-vault-lifecycle]')).toHaveAttribute('data-vault-lifecycle',id)
   for(const name of ['Wrap ETH','Approve CASHCAT','Approve ETH','Deposit','Claim premium']){

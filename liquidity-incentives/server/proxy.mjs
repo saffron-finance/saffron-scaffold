@@ -191,6 +191,9 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': MIME[extname(filePath)] || 'application/octet-stream' })
     res.end(data)
   } catch {
+    // Only application routes receive the SPA document. Missing hashed assets
+    // and downloads must remain real 404s behind an API-wide reverse proxy.
+    if (extname(filePath)) return end(res, 404, 'not found')
     try {
       const data = await readFileAsync(join(DIST, 'index.html'))
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })

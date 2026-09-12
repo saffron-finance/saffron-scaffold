@@ -1,6 +1,6 @@
 # Saffron Live APR merge
 
-Version 0.2.3 integrates watcher-app product changes through `19ad0e9` into the
+Version 0.2.4 integrates watcher-app product changes through `19ad0e9` into the
 approved merged frontend. The standalone incentives baseline was `93fcab6`.
 The Live APR feature remains pinned to `b8eb411`.
 
@@ -10,12 +10,16 @@ The Live APR feature remains pinned to `b8eb411`.
 | --- | --- | --- | --- |
 | `npm run build` | `dist/` | Browser-only samples | No |
 | `npm run build:lab` | `dist/` | Browser-only samples | Yes |
-| `npm run build:live` | `dist-live/` | Actual wallet and canonical API | No |
+| `npm run build:live` | `dist-live/` | Actual wallet and canonical API | Optional |
 
 The published Feature Lab page uses **build:lab**. Its APR observations are live
 read-only data. Its vault requests use no real funds. Live mode is explicit at
 build time, never a query-string switch or an error fallback. It requires the
 separate canonical backend; copying its files onto a static host is insufficient.
+Set the public `VITE_UI_TWEAKS=true` setting to retain the approved appearance
+controls in an explicit live build. This never selects the simulation adapter.
+Every build emits `deployment-mode.json` so operations can verify the served
+adapter, wallet mode and base path. An active API is not evidence of open intake.
 
 ## Product changes
 
@@ -104,6 +108,11 @@ The preview has no deadline; this is not a promise of unlimited quote validity
 on the backend. Back permits a fresh unpaid review; submitted payments retain
 recovery. See [creation and deposit confirmation](docs/CLAIM-FLOW.md).
 
+Before switching the published preview to live mode, configure a dedicated
+production database, verified live offers and the correct Robinhood fee recipient.
+Do not import preview requests or assume an older Arbitrum fee service is the
+canonical Robinhood API. See [live cutover](docs/LIVE-CUTOVER.md).
+
 ## Routes
 
 - `/`: Home and incentive offers.
@@ -141,11 +150,18 @@ For the API integration test, first build live mode at base `/`. Install the
 canonical backend's test dependencies and provide its disposable PostgreSQL
 fixture settings as documented there. Set `SAFFRON_BACKEND_SOURCE` to its
 `liquidity-incentives` package, then run `npm run test:backend-browser`.
-The test starts generated wallets and a local EVM. It tests an exact fork
+The test starts generated wallets and a local EVM at a 390px mobile viewport.
+It connects through the actual mobile Home wallet control and tests an exact fork
 simulation before creation, then payment recovery, C06, premium funding, LP
 entry, claim, start/maturity and withdrawal. It does not use the VNC browser,
 production keys or mainnet funds. This release's checks ran on Linux; do not
 infer a new Windows end-to-end run from the portable build instructions.
+
+Run `node scripts/check_live.mjs http://127.0.0.1:3201/` against the mounted
+live server. Add `--expect-closed` only for staging with payment intake closed.
+The check makes no quotes or wallet transactions. It checks the served mode,
+catalog readiness, chain ID, blocked signing methods, SPA routing and asset 404s.
+Do not put authentication credentials in its URL.
 
 ## Source and maintenance
 
