@@ -1,5 +1,5 @@
 import { verifyPayment, paymentData,proofHash } from './payment-proof.mjs'
-import { ceilDiv } from '../shared/liquidity-math.mjs'
+import { creationFeeRecipient,quoteCreationFee } from './creation-fee.mjs'
 import { WETH } from '../shared/vault-lifecycle.mjs'
 import { resolvePlan } from '../shared/deployment-plan.mjs'
 import { readVault,readPosition } from '../shared/vault-reader.mjs'
@@ -110,18 +110,16 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         return {...existing,paymentData:paymentData(existing)}
       }
       requireConfigured()
+      const recipient=creationFeeRecipient(feeRecipient)
       await service.auditCheckoutSettlements()
       const readiness=await service.readiness()
       if(!readiness.canQuote)throw fault(503,'New requests are paused: '+readiness.reasons.join(', ').replaceAll('_',' ')+'. Your saved payments remain available.')
       const principalCents=cents(amount),offer=await db.offer(programId)
       const plan=await size(offer,principalCents,wallet)
-      if(!validAddress(feeRecipient))throw fault(503,'The ETH creation-fee recipient is not configured.')
-      if(sameAddress(wallet,feeRecipient))throw fault(400,'The creation fee receiver cannot request a vault by paying itself.')
+      if(sameAddress(wallet,recipient))throw fault(400,'The creation fee receiver cannot request a vault by paying itself.')
       if(typeof recoveryHash!=='string'||!/^0x[0-9a-f]{64}$/i.test(recoveryHash))throw fault(400,'A request recovery commitment is required.')
       const eth=await usdQuote(WETH)
-      if(!eth?.priceRaw||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)||now()-eth.checkedAt>60_000||eth.checkedAt>now()+5000)throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
-      const fee={usdCents:'200',asset:'ETH',recipient:feeRecipient.toLowerCase(),
-        amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
+      const fee=quoteCreationFee(recipient,eth,now())
       // Retain a nonce checkpoint for backup/restore reconciliation, without
       // collecting signer balances, fees, or gas-spending totals.
       const signerNonce=BigInt(await rpc('eth_getTransactionCount',[signer,plan.sizingBlock])).toString()
