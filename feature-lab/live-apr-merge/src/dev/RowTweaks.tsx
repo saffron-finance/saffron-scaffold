@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import styled, { createGlobalStyle } from 'styled-components'
 import SidebarTweaks from './SidebarTweaks'
+import { mobileHomeMaxWidth } from '../host/MobileHomeNavigation'
 import { aprAnimations, aprAnimationCss, newOfferBadgeCss, validAprAnimation, type AprAnimation } from './aprAnimations'
 import funnelLight from './fonts/FunnelDisplay-Light.ttf'
 import funnelSemibold from './fonts/FunnelDisplay-SemiBold.ttf'
@@ -81,7 +82,9 @@ export default function RowTweaks() {
   ` : ''
 
   return <>
-    <TableTypography $rules={headingCss + fontCss + speedCss + badgeCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)} />
+    {/* Desktop appearance preferences remain saved, but do not restyle the
+        approved phone cards. The mobile layout has its own fixed hierarchy. */}
+    <TableTypography $rules={`@media(min-width:${mobileHomeMaxWidth + 1}px){${headingCss + fontCss + badgeCss}}${speedCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)}`} />
     <Control>
       <summary>
         <svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' aria-hidden='true'>

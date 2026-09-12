@@ -3,6 +3,8 @@ import styled, { css, ThemeProvider } from 'styled-components'
 import { Link, useLocation } from 'react-router-dom'
 import type { Address } from 'viem'
 import { Sidebar } from './Sidebar'
+import { MobileHomeNavigation, mobileHomeMaxWidth } from './MobileHomeNavigation'
+import { sidebarDestinations } from './sidebarNavigation'
 import { AprNavigationLabel } from './aprTextStyle'
 import { rowSurface } from './rowSurface'
 import { sidebarCollapsedWidth, sidebarMobileWidth } from './sidebarTheme'
@@ -22,6 +24,7 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
   pageLabel?: string; sampleMode?: boolean;
 }) {
   const path = useLocation().pathname
+  const mobileHome = (path.replace(/\/+$/, '') || '/') === '/'
   // Menus close on navigation; sidebar state belongs to this stable dark shell.
   useEffect(() => setMenu(false), [path])
   const labHref = import.meta.env.VITE_FEATURE_LAB_HREF
@@ -29,11 +32,11 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   return <ThemeProvider theme={darkTheme}>
     <GlobalStyles />
-    {RowTweaks && <Suspense fallback={null}><RowTweaks /></Suspense>}
-    <Frame $sidebarCollapsed={sidebarCollapsed}>
+    {RowTweaks && <DesktopTweaks $mobileHome={mobileHome}><Suspense fallback={null}><RowTweaks /></Suspense></DesktopTweaks>}
+    <Frame $sidebarCollapsed={sidebarCollapsed} $mobileHome={mobileHome} data-mobile-home={mobileHome || undefined}>
       <Sidebar home='/' collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)} />
       <Content>
-        <Nav aria-label='Account controls'><Controls>
+        <Nav aria-label='Account controls'><MobileBrand to='/' aria-label='Saffron home'><img src={`${mount}emblem.png`} alt='' />SAFFRON</MobileBrand><Controls>
           <Connect aria-label={liveApr ? 'About live data' : account ? 'Manage wallet' : 'Connect wallet'} onClick={onConnect}>
             {liveApr ? 'Live data' : account ? `${account.slice(0, 6)}…${account.slice(-4)}` : 'Connect'}
           </Connect>
@@ -43,6 +46,7 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
         <Body id='main-content' tabIndex={-1} aria-label={pageLabel}>{children}</Body>
         <Footer>{labHref && <a href={labHref}>Saffron Feature Lab</a>}{(liveApr || sampleMode) && <p>{liveApr ? 'Live onchain pool data · read-only' : 'Sample data · no wallet or transactions'}</p>}<a href={`${mount}install.html`}>Source & installation</a></Footer>
       </Content>
+      {mobileHome && <MobileHomeNavigation onMore={() => setMenu(true)} menuOpen={menu} />}
     </Frame>
     {overlays}
     <Modal isOpen={menu} onRequestClose={() => setMenu(false)}>
@@ -52,6 +56,12 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
         <NavLink to='/campaigns'>Campaigns</NavLink>
         <NavLink to='/admin'>Administration</NavLink>
         <NavLink to='/live-apr'><AprNavigationLabel>Live APR</AprNavigationLabel></NavLink>
+        {mobileHome && <MobileMenuExtras>
+          {sidebarDestinations('/').filter(item => !['Home', 'Live APR'].includes(item.label)).map(item =>
+            <NavLink key={item.href} to={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>{item.label}</NavLink>)}
+          <NavLink as='a' href={`${mount}install.html`}>Source & installation</NavLink>
+          {sampleMode && <p>Sample data · no wallet or transactions</p>}
+        </MobileMenuExtras>}
         {/* This destination is outside the router's mount, so use a native link. */}
         {labHref && <NavLink as='a' href={labHref}>Feature Lab</NavLink>}
         {previewControls}
@@ -63,7 +73,7 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
 
 // The shell owns navigation only. A wider mobile cutoff leaves enough room for
 // the feature's existing five-column vault rows without altering their layout.
-const Frame = styled.div<{ $sidebarCollapsed: boolean }>`
+const Frame = styled.div<{ $sidebarCollapsed: boolean; $mobileHome: boolean }>`
   min-height:100vh;color:${p => p.theme.colors.text.primary};display:grid;grid-template-columns:252px minmax(0,1fr);align-items:start;
   /* Clip offscreen sidebar paint without creating a nested scroll container.
      Its vertical growth must not lengthen the document on hover. */
@@ -71,7 +81,29 @@ const Frame = styled.div<{ $sidebarCollapsed: boolean }>`
   @media(max-width:1100px){grid-template-columns:220px minmax(0,1fr);}
   @media(max-width:${sidebarMobileWidth}px){grid-template-columns:minmax(0,1fr);}
   ${p => p.$sidebarCollapsed ? `&&{grid-template-columns:${sidebarCollapsedWidth}px minmax(0,1fr);}` : ''}
+  /* Phone Home owns its compact chrome. Keep the sidebar mounted so resizing
+     or visiting an existing destination never discards navigation state. */
+  ${p => p.$mobileHome && css`@media(max-width:${mobileHomeMaxWidth}px){
+    &&{grid-template-columns:minmax(0,1fr);background:#000;}
+    > [data-saffron-sidebar]{display:none;}
+    header[aria-label='Account controls']{height:60px;max-width:none;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:#050505;border-bottom:1px solid #171717;}
+    [data-mobile-brand]{display:flex;}
+    header[aria-label='Account controls'] button{height:44px;min-width:86px;padding:8px 12px;border:1px solid #262329;border-radius:10px;letter-spacing:.03em;font-size:12px;font-weight:400;}
+    header[aria-label='Account controls'] div[aria-label='Network: Robinhood'],header[aria-label='Account controls'] button[aria-label='Open menu']{display:none;}
+    #main-content{max-width:none;flex:none;padding:22px max(16px,env(safe-area-inset-right,0px)) calc(24px + 78px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));}
+    footer{display:none;}
+  }@media(max-width:345px){#main-content{padding-left:12px;padding-right:12px;padding-top:18px;}}
+  `}
 `
+const MobileBrand = styled(Link).attrs({ 'data-mobile-brand': '' })`
+  display:none;align-items:center;gap:7px;color:#f2f0ea;min-height:44px;
+  font:600 13px/1.45 "Funnel Display",sans-serif;letter-spacing:.12em;text-decoration:none;
+  img{width:28px;height:32px;object-fit:contain;}
+  &:focus-visible{outline:2px solid #d286ff;outline-offset:2px;}
+`
+const MobileMenuExtras = styled.div`display:none;@media(max-width:${mobileHomeMaxWidth}px){display:flex;flex-direction:column;gap:12px;}`
+// The floating desktop styling panel must not cover the approved bottom bar.
+const DesktopTweaks = styled.div<{ $mobileHome: boolean }>`${p => p.$mobileHome && css`@media(max-width:${mobileHomeMaxWidth}px){display:none;}`}`
 const Content = styled.div`min-width:0;min-height:100vh;display:flex;flex-direction:column;`
 const Nav = styled.header`display:flex;align-items:center;gap:12px;width:100%;max-width:var(--page-max-width);padding:var(--page-padding-x);margin:0 auto;`
 const NavLink = styled(Link)<{ $active?: boolean }>`padding:0 20px;height:44px;font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;white-space:nowrap;color:${p => p.$active ? p.theme.colors.text.primary : p.theme.colors.text.tertiary};&:hover{color:${p => p.theme.colors.text.primary}}`

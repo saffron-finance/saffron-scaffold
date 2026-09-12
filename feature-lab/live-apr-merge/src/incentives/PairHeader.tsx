@@ -3,12 +3,13 @@ import type { Offer } from './model'
 import { TokenIcon } from './TokenIcon'
 import uniswapLogo from './assets/uniswap.svg'
 import robinhoodLogo from './assets/robinhood.svg'
+import { mobileHomeMaxWidth } from '../host/MobileHomeNavigation'
 
 /** Presentational header extracted from scaffold live-pool-apr/LivePoolAprPage.
  * Keeps its original artwork, copy and typography without importing the live
  * monitor, subscriptions or host shell. Offer metadata owns the pair/fee. */
 export function PairHeader({ pair: { token0, token1, feeTier } }: { pair: Offer }) {
-  return <Header>
+  return <><Header>
     <Title><PairHeading data-testid='pool-pair-heading'>
       <PairLogos aria-hidden='true'><PairLogo><TokenIcon {...token0} size={48} /></PairLogo><PairLogo><TokenIcon {...token1} size={48} /></PairLogo></PairLogos>
       <PairHeadingText>
@@ -20,10 +21,28 @@ export function PairHeader({ pair: { token0, token1, feeTier } }: { pair: Offer 
       <DescriptionItem><DescriptionLogo src={robinhoodLogo} alt='' aria-hidden='true' />Robinhood Chain</DescriptionItem>
     </PoolDescription></Description>
   </Header>
+    {/* This compact Home-only header matches the approved concept. The larger
+        desktop header above retains its fee-tier and venue description. */}
+    <PhoneHeader data-mobile-pair>
+      <h2><span aria-hidden='true'><TokenIcon {...token0} size={26} compact /><TokenIcon {...token1} size={26} compact /></span>{token0.symbol} / {token1.symbol}</h2>
+      <span><img src={robinhoodLogo} alt='' />Robinhood</span>
+    </PhoneHeader>
+  </>
 }
 
 // AppPageShell's header text geometry, without its app surface or navigation.
-const Header = styled.header`max-width:760px;`
+const Header = styled.header`max-width:760px;@media(max-width:${mobileHomeMaxWidth}px){display:none;}`
+const PhoneHeader = styled.header`
+  display:none;
+  @media(max-width:${mobileHomeMaxWidth}px){
+    display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0;
+    h2{display:flex;align-items:center;gap:8px;margin:0 0 10px;min-width:0;font:400 16px/1.45 "Funnel Display",sans-serif;}
+    h2>span{display:inline-flex;align-items:center;flex-shrink:0;}
+    h2 img+img{margin-left:-6px;background:#191919;border:2px solid #000;}
+    >span{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px;color:#a09ca5;}
+    >span img{width:13px;height:13px;}
+  }
+`
 const Title = styled.h2`margin:0;line-height:1;`
 const Description = styled.p`max-width:680px;margin:18px 0 0;color:${({ theme }) => theme.colors.text.secondary};font-size:16px;line-height:1.55;`
 // Exact LivePoolAprPage header styles. Assets are local, with no lookup calls.

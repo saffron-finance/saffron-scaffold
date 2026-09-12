@@ -1,13 +1,13 @@
 {
   "title": "Saffron · Live APR merge\nPortable installation guide",
-  "eyebrow": "Saffron Feature Lab · Version 0.2.2 · 12 September 2026",
+  "eyebrow": "Saffron Feature Lab · Version 0.2.3 · 12 September 2026",
   "description": "The complete Live APR page inside the latest Liquidity Incentives shell, delivered as a third independent Feature Lab app.",
   "meta": "Live APR · Product updates through 19ad0e9 · Explicit preview/API build modes",
   "sections": [
     {
       "id": "overview",
       "title": "1. The merged edition",
-      "body_html": "<p class=\"lead\">Home, Portfolio and Live APR share the approved Saffron shell.</p><p><a href=\"./\">Open the updated app</a> · <a href=\"./live-apr\">Open Live APR</a> · <a href=\"live-apr-merge-source.zip\" download>Download portable source ZIP</a></p><p>The published page uses browser-only vault samples and no real payments. APR uses the existing read-only live gateway. An explicit API-connected build is also included.</p>"
+      "body_html": "<p>Version 0.2.3 implements the approved mobile Home screen below 600px: compact branding/Connect, short introduction with How it works, APR-first cards with Duration and TVL, and fixed Home/Portfolio/Live APR/More navigation. More opens the existing menu. Desktop, tablet, other destinations and modals retain their layouts. Safe-area and bottom padding keep the final offer reachable. Saved requests and desktop appearance preferences are preserved.</p><p class=\"lead\">Home, Portfolio and Live APR share the approved Saffron shell.</p><p><a href=\"./\">Open the updated app</a> · <a href=\"./live-apr\">Open Live APR</a> · <a href=\"live-apr-merge-source.zip\" download>Download portable source ZIP</a></p><p>The published page uses browser-only vault samples and no real payments. APR uses the existing read-only live gateway. An explicit API-connected build is also included.</p>"
     },
     {
       "id": "changes",

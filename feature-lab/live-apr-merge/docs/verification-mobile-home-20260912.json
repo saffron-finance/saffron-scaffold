@@ -1,0 +1,159 @@
+{
+  "version": "0.2.3",
+  "scope": "Mobile Home below 600px only; existing destinations and modals retained",
+  "unitTests": 47,
+  "upstreamExactFiles": 29,
+  "buildModes": [
+    "normal",
+    "lab",
+    "live"
+  ],
+  "labBrowserChecks": [
+    "Unchanged tablet/desktop header surface, border, gold hover and CONNECT font at 640/800/1440px",
+    "390px compiled Home card geometry and typography match the approved independent HTML concept (excluding mock OS chrome)",
+    "Phone Home: 320\u2013599px geometry, final-card clearance, real touch offers, More/focus, routes, Connect, Back, canonical preview request persistence and collapsed-desktop resize pass",
+    "Vaults default and no APR admission/chunk or wallet request",
+    "Four public metrics including placeholder TVL stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states",
+    "NEW-left toggle: defaults, validation, preference preservation, reload, reset, storage denial and ten responsive widths",
+    "Home/Portfolio labels and order; unchanged Live APR font with matching paint; both offers/modal stages match selected sidebar, including custom preset, disabled/hover and reduced motion",
+    "LP disclosure and first-page copy/Funnel font; amount-only tooltip with token icons, copy and aligned caret; hover/focus/touch dismissal; green title reward and white button amount",
+    "New sidebar order, external Saffron pro, local Stats/Community, responsive scaffolds and dark-only theme",
+    "Default live pair, route-scoped labels, table-corner PNG and history",
+    "Expanded/collapsed responsive layouts and Tokens bounds",
+    "Comparisons preserve sessions; selected Live APR stays white, inactive gradient returns on Home; fresh back-navigation baseline",
+    "Creation claim survives former expiry; dynamic premium, token logos, Back, fee copy and mobile layout pass",
+    "Above-target request and a second independent payment work; advisory appears only in the operator portfolio",
+    "Calculator modes, local paid requests, saved C06 progress and isolated preview reset",
+    "Legacy campaigns/aliases preserve query+fragment; unknown routes admit nothing",
+    "Keyboard Tokens, narrow dark PNG, private budget advisory, storage denial and direct scaffold reloads"
+  ],
+  "referenceComparison": {
+    "section": "approved-mobile-home-reference",
+    "actual": [
+      {
+        "x": 16,
+        "y": 268.78125,
+        "width": 358,
+        "height": 117.828125,
+        "aprFont": "29px",
+        "valueFont": "20px",
+        "valueFamily": "\"Funnel Display\", sans-serif",
+        "aprFamily": "\"Funnel Display\", serif",
+        "radius": "10px"
+      },
+      {
+        "x": 16,
+        "y": 396.609375,
+        "width": 358,
+        "height": 117.828125,
+        "aprFont": "29px",
+        "valueFont": "20px",
+        "valueFamily": "\"Funnel Display\", sans-serif",
+        "aprFamily": "\"Funnel Display\", serif",
+        "radius": "10px"
+      },
+      {
+        "x": 16,
+        "y": 524.4375,
+        "width": 358,
+        "height": 117.828125,
+        "aprFont": "29px",
+        "valueFont": "20px",
+        "valueFamily": "\"Funnel Display\", sans-serif",
+        "aprFamily": "\"Funnel Display\", serif",
+        "radius": "10px"
+      }
+    ],
+    "approved": [
+      {
+        "x": 16,
+        "y": 268.78125,
+        "width": 358,
+        "height": 117.828125,
+        "aprFont": "29px",
+        "valueFont": "20px",
+        "radius": "10px"
+      },
+      {
+        "x": 16,
+        "y": 396.609375,
+        "width": 358,
+        "height": 117.828125,
+        "aprFont": "29px",
+        "valueFont": "20px",
+        "radius": "10px"
+      },
+      {
+        "x": 16,
+        "y": 524.4375,
+        "width": 358,
+        "height": 117.828125,
+        "aprFont": "29px",
+        "valueFont": "20px",
+        "radius": "10px"
+      }
+    ]
+  },
+  "desktopComparison": {
+    "ok": true,
+    "baseline": "325e948",
+    "results": [
+      {
+        "width": 600,
+        "collapsed": false,
+        "matched": true
+      },
+      {
+        "width": 600,
+        "collapsed": true,
+        "matched": true
+      },
+      {
+        "width": 800,
+        "collapsed": false,
+        "matched": true
+      },
+      {
+        "width": 800,
+        "collapsed": true,
+        "matched": true
+      },
+      {
+        "width": 1440,
+        "collapsed": false,
+        "matched": true
+      },
+      {
+        "width": 1440,
+        "collapsed": true,
+        "matched": true
+      }
+    ]
+  },
+  "errors": [],
+  "unexpectedRequests": [],
+  "realMobileDevices": "Not tested; touch/browser viewport emulation used",
+  "onchainTransactions": "None; browser request tests use isolated preview state",
+  "publicInteraction": "Authenticated public session not exercised; exact deployment artifacts verified separately",
+  "normalBrowserChecks": [
+    "Unchanged tablet/desktop header surface, border, gold hover and CONNECT font at 640/800/1440px",
+    "390px compiled Home card geometry and typography match the approved independent HTML concept (excluding mock OS chrome)",
+    "Phone Home: 320\u2013599px geometry, final-card clearance, real touch offers, More/focus, routes, Connect, Back, canonical preview request persistence and collapsed-desktop resize pass",
+    "Vaults default and no APR admission/chunk or wallet request",
+    "Four public metrics including placeholder TVL stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states",
+    "Normal build excludes lab controls and table-preference persistence",
+    "Home/Portfolio labels and order; unchanged Live APR font with matching paint; both offers/modal stages match selected sidebar, including custom preset, disabled/hover and reduced motion",
+    "LP disclosure and first-page copy/Funnel font; amount-only tooltip with token icons, copy and aligned caret; hover/focus/touch dismissal; green title reward and white button amount",
+    "New sidebar order, external Saffron pro, local Stats/Community, responsive scaffolds and dark-only theme",
+    "Default live pair, route-scoped labels, table-corner PNG and history",
+    "Expanded/collapsed responsive layouts and Tokens bounds",
+    "Comparisons preserve sessions; selected Live APR stays white, inactive gradient returns on Home; fresh back-navigation baseline",
+    "Creation claim survives former expiry; dynamic premium, token logos, Back, fee copy and mobile layout pass",
+    "Above-target request and a second independent payment work; advisory appears only in the operator portfolio",
+    "Calculator modes, local paid requests, saved C06 progress and isolated preview reset",
+    "Legacy campaigns/aliases preserve query+fragment; unknown routes admit nothing",
+    "Keyboard Tokens, narrow dark PNG, private budget advisory, storage denial and direct scaffold reloads"
+  ],
+  "normalErrors": [],
+  "normalUnexpectedRequests": []
+}

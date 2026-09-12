@@ -1,6 +1,6 @@
 # Saffron Live APR merge
 
-Version 0.2.2 integrates watcher-app product changes through `19ad0e9` into the
+Version 0.2.3 integrates watcher-app product changes through `19ad0e9` into the
 approved merged frontend. The standalone incentives baseline was `93fcab6`.
 The Live APR feature remains pinned to `b8eb411`.
 
@@ -18,6 +18,18 @@ build time, never a query-string switch or an error fallback. It requires the
 separate canonical backend; copying its files onto a static host is insufficient.
 
 ## Product changes
+
+Version 0.2.3 implements the approved mobile **Home** concept below 600px:
+compact Saffron/Connect header, short introduction with How it works, compact
+pair/network heading, APR-first cards, side-by-side Duration/TVL and a fixed
+Home/Portfolio/Live APR/More bar with safe-area spacing. More uses the existing
+menu and includes secondary destinations, source links and preview controls.
+
+Only Home is redesigned. Other destinations and incentive modals keep their
+current layouts; desktop/tablet geometry at 600px and above is unchanged.
+Desktop Tweak preferences stay saved but do not alter the phone cards or cover
+the bottom navigation. Payment recovery, loading/empty/error messages and
+Refresh offers remain available. There is no imitation phone status bar.
 
 The front page now has TVL after Duration, with identical cell typography.
 Preview rows show $500,000, $700,000 and $900,000 for the 3-, 5- and 7-day

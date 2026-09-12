@@ -4,6 +4,7 @@ import path from 'node:path'
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
 import { fixtureTransport } from './fixture-transport.mjs'
+import { checkMobileHome } from './mobile-home-checks.mjs'
 
 const root=path.resolve(process.env.MERGE_WEBROOT || 'dist')
 const output=path.resolve(process.env.MERGE_EVIDENCE || 'validation/browser')
@@ -148,11 +149,12 @@ try {
   await expect(nav().getByRole('link',{name:'Home',exact:true})).toHaveAttribute('aria-current','page')
   assert.deepEqual(await nav().getByRole('link').allTextContents(),['Home','Portfolio','Saffron pro','Live APR','Stats','Audits','Community'])
   await checkAprNavigation(page)
-  for(const width of [320,390,1440]){
+  for(const width of [640,800,1440]){
     await page.setViewportSize({width,height:1100})
     await checkHeaderControls(page)
   }
-  report.checks.push('Header controls match row gray surface/border and gold hover; CONNECT Funnel Display at 320/390/1440px')
+  report.checks.push('Unchanged tablet/desktop header surface, border, gold hover and CONNECT font at 640/800/1440px')
+  await checkMobileHome({browser,origin,base,output,report,wire})
   await expect(nav().getByRole('link',{name:'Saffron pro',exact:true})).toHaveAttribute('href','https://app.saffron.finance/')
   await expect(nav().getByRole('link',{name:'Saffron pro',exact:true})).toHaveAttribute('target','_blank')
   assert.equal(await page.getByText('UI preview · sample campaigns · no transactions',{exact:true}).count(),0)
@@ -172,7 +174,7 @@ try {
   await page.evaluate(()=>document.fonts.ready)
   for(const width of [320,390,480,640,800,801,1001,1100,1440,1600]){
     await page.setViewportSize({width,height:1100})
-    for(const collapsed of [false,true]){
+    for(const collapsed of width<600?[false]:[false,true]){
       if(collapsed)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
       const geometry=await page.locator('[data-incentive-offer]').evaluateAll(rows=>rows.map(row=>({
         newLabels:row.querySelectorAll('[data-incentive-new]').length,
@@ -228,14 +230,14 @@ try {
     await preview.evaluate(()=>document.fonts.ready)
     for(const width of [320,390,480,640,800,801,1001,1100,1440,1600]){
       await preview.setViewportSize({width,height:1100})
-      for(const collapsed of [false,true]){
+      for(const collapsed of width<600?[false]:[false,true]){
         if(collapsed)await preview.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
         const layout=await preview.locator('[data-incentive-programs]').evaluate(table=>{
           const bounds=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}}
           const rows=[...table.querySelectorAll('[data-incentive-offer]')]
-          return {badge:bounds(table.querySelector('[data-incentive-new]')),headers:[...table.firstElementChild.children].map(bounds),rows:rows.map(row=>({row:bounds(row),cells:[...row.children].map(bounds)}))}
+          return {badge:bounds(table.querySelector('[data-incentive-new]')),headers:[...table.firstElementChild.children].map(bounds),rows:rows.map(row=>({row:bounds(row),cells:[...row.children].filter(el=>el.getClientRects().length).map(bounds)}))}
         })
-        assert(layout.badge.right<=layout.rows[0].cells[0].left,`NEW before Yield ${width}/${collapsed}`)
+        if(width>=600)assert(layout.badge.right<=layout.rows[0].cells[0].left,`NEW before Yield ${width}/${collapsed}`)
         assert.equal(await preview.locator('[data-incentive-new]').count(),1)
         for(const row of layout.rows){
           assert(row.cells.every(cell=>cell.left>=row.row.left&&cell.right<=row.row.right),`left-badge containment ${width}/${collapsed}`)
