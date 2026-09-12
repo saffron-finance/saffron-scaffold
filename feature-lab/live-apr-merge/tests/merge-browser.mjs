@@ -83,7 +83,8 @@ async function checkAprNavigation(target){
   assert.deepEqual(result.font,result.parentFont,'Live APR preserves navigation typography')
   assert.equal(result.font.fontSize,'14px');assert.equal(result.font.fontWeight,'500')
   assert.deepEqual(result.nav,result.apr,'Live APR uses the column APR paint/motion')
-  assert.equal(result.clip,'text')
+  assert.match(result.nav.backgroundImage,/gradient\(/,'APR paint retains its gradient')
+  assert.ok(result.clip.split(',').every(value=>value.trim()==='text'),'Every APR paint layer clips to text')
 }
 
 /** Header chrome must match the real row, including its settled hover paint.
@@ -650,6 +651,7 @@ try {
   await page.screenshot({path:path.join(output,'campaigns.png'),fullPage:true})
   await page.getByRole('button',{name:'Open menu',exact:true}).click()
   await page.getByRole('button',{name:'Reset preview',exact:true}).click()
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('saffron.live-apr-merge.campaign-preview.v1')).programs.length),3,'Reset persists only the three seed campaigns')
   await expect(page.locator('[data-incentive-offer]')).toHaveCount(3)
   assert.equal(await page.evaluate(()=>localStorage.getItem('saffron.campaign-ui-preview.v1')),'original-preview-sentinel')
   report.checks.push('Calculator modes, local paid requests, saved C06 progress and isolated preview reset')

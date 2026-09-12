@@ -1,10 +1,10 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, normalizePath } from 'vite'
 import react from '@vitejs/plugin-react'
 import svgr from 'vite-plugin-svgr'
 import { fileURLToPath } from 'node:url'
 import { dirname,resolve } from 'node:path'
 
-const here = (file: string) => fileURLToPath(new URL(file, import.meta.url))
+const here = (file: string) => normalizePath(fileURLToPath(new URL(file, import.meta.url)))
 /** Compile-time separation: default/lab builds keep no-funds sample adapters.
  * The explicit live build uses the current wallet/API recovery implementation. */
 export default defineConfig(({ mode }) => {
@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
       },null,2)+'\n'})
     },
   }, {name:'separate-incentive-mode',enforce:'pre',resolveId(source,importer){
-    if(!live&&importer&&source.startsWith('.')&&replaced.has(resolve(dirname(importer),source).replace(/\.tsx?$/,'')))return here('./src/preview/runtime.ts')
+    if(!live&&importer&&source.startsWith('.')&&replaced.has(normalizePath(resolve(dirname(importer),source)).replace(/\.tsx?$/,'')))return here('./src/preview/runtime.ts')
   }}, {
     name: 'omit-disabled-dev-tools', enforce: 'pre',
     resolveId(source) {
