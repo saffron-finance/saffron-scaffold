@@ -13,7 +13,8 @@
     "build:live": "tsc --noEmit && vite build --mode live",
     "check:upstream": "node scripts/check_upstream.mjs",
     "test:backend-browser": "node tests/backend-browser.mjs",
-    "test:source": "node --test tests/source-sync.test.mjs"
+    "test:source": "node --test tests/source-sync.test.mjs",
+    "test:apr-http": "node tests/apr-http-browser.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

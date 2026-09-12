@@ -159,6 +159,7 @@ export function PoolCard({
     baseline,
     paused,
     valuationUnavailable,
+    transportUnavailable,
     quoteUsd,
     pageElapsed,
     coverageAge,
@@ -179,7 +180,7 @@ export function PoolCard({
   } = historyState
   const detailsId = `pool-details-${config.id}`,
     historyId = `swap-history-${config.id}`
-  const samplingPlaceholder = paused ? '—' : <Calculating now={now} />
+  const samplingPlaceholder = transportUnavailable ? 'Unavailable' : paused ? '—' : <Calculating now={now} />
   const [token0, token1] = config.tokens
   const [display0, display1] = (config.displayOrder ?? [0, 1]).map((index) => config.tokens[index])
   const quoteToken = config.tokens[config.quoteTokenIndex ?? 1]
@@ -256,14 +257,18 @@ export function PoolCard({
         <Metric>
           <Label>Live APR</Label>
           <Apr data-testid='live-apr'>
-            {valuationUnavailable
+            {transportUnavailable && !valuationUnavailable
+              ? 'APR unavailable'
+              : valuationUnavailable
               ? 'Unavailable'
               : visibleApr != null
               ? aprLabel(visibleApr)
               : samplingPlaceholder}
           </Apr>
           <Secondary>
-            {valuationUnavailable
+            {transportUnavailable && !valuationUnavailable
+              ? visibleApr !== null ? `Last observation (stale): ${aprLabel(visibleApr)}` : 'Waiting for service recovery'
+              : valuationUnavailable
               ? summary?.valuationReason === 'no_active_liquidity'
                 ? 'No active liquidity'
                 : 'Pool price unavailable'
@@ -280,7 +285,7 @@ export function PoolCard({
           <Label>Swaps watched</Label>
           <SwapCounter key={metrics?.epoch ?? 'pending'} count={metrics?.count ?? '0'} />
           <Secondary>
-            {valuationUnavailable ? 'Last priced observation' : 'This page observation'}
+            {transportUnavailable ? 'Last observation (stale)' : valuationUnavailable ? 'Last priced observation' : 'This page observation'}
           </Secondary>
         </Metric>
         <MetricDivider aria-hidden='true' data-testid='metric-row-divider' />
@@ -293,7 +298,7 @@ export function PoolCard({
               ? dollars(metrics.tvlUsd, 0)
               : samplingPlaceholder}
           </Value>
-          <Secondary>Total pool TVL</Secondary>
+          <Secondary>{transportUnavailable ? 'Last pool TVL (stale)' : 'Total pool TVL'}</Secondary>
         </Metric>
         <Metric>
           <Label>Estimated fees earned</Label>
@@ -304,7 +309,7 @@ export function PoolCard({
               ? dollars(metrics.feesUsd)
               : samplingPlaceholder}
           </Value>
-          <Secondary>Protocol share excluded</Secondary>
+          <Secondary>{transportUnavailable ? 'Last fee observation (stale)' : 'Protocol share excluded'}</Secondary>
         </Metric>
       </Metrics>
       {/* Hiding status is visual only: timers, streams and pause warnings stay active. */}

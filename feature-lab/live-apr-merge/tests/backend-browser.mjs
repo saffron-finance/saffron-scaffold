@@ -35,6 +35,13 @@ try{
   await f.chain.prepareIntake(f.database,{mode:'automatic',continuous:true})
   heartbeat=setInterval(()=>void f.database.execution.heartbeat(f.chain.account.address).catch(()=>{}),5000)
   await page.goto(f.origin);await connect(page)
+  // APR transport does not supply campaign economics or checkout readiness.
+  // Keep its gateway unavailable throughout the successful payment/deposit flow.
+  await page.route('**/api/live-apr/**',route=>route.fulfill({status:503,json:{code:'service_unavailable'}}))
+  await page.getByRole('link',{name:'Live APR',exact:true}).click()
+  await expect(page.getByTestId('live-apr').first()).toHaveText('APR unavailable')
+  await page.getByRole('link',{name:'Home',exact:true}).click()
+  report.checks.push('APR-only outage is explicit and leaves independent vault payment and deposit actions available')
   await expect(page.locator('[data-incentive-offer]')).toHaveCount(1)
   await expect(page.getByText(/capacity remaining|near capacity|Sample request/i)).toHaveCount(0)
   await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()

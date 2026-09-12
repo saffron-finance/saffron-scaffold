@@ -32,6 +32,20 @@ describe('live page aggregate browser contract', () => {
     vi.useRealTimers()
   })
 
+  it('shows APR unavailable during admission failure without inventing zero or another load identity', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(60_000)
+    const api=vi.fn(async()=>new Response('{"code":"unavailable"}',{status:503,headers:{'content-type':'application/json'}}))
+    vi.stubGlobal('fetch',api)
+    const dom=render(<MemoryRouter><ThemeProvider theme={darkTheme}><LivePoolAprPage/></ThemeProvider></MemoryRouter>)
+    await act(async()=>{await vi.advanceTimersByTimeAsync(5000)})
+    expect(dom.getByTestId('live-apr')).toHaveTextContent('APR unavailable')
+    expect(dom.getByTestId('pool-tvl')).toHaveTextContent('Unavailable')
+    expect(api.mock.calls.length).toBeGreaterThan(1)
+    const admissions=(api.mock.calls as unknown as [string,RequestInit][]).filter(([url])=>url.endsWith('/sessions'))
+    expect(new Set(admissions.map(([,options])=>JSON.parse(String(options.body)).loadId)).size).toBe(1)
+  })
+
   it.each([true, false])(
     'hides unpriced values with existing baseline=%s and restores a fresh priced epoch',
     async (hasBaseline) => {

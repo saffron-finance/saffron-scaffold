@@ -40,7 +40,8 @@ export function fixtureTransport(fixture) {
       const {poolId,first}=receipts.get(options.headers['X-Session-ID'])
       return new Response(new ReadableStream({start(channel){
         streams.set(poolId,{channel,first});channel.enqueue(encode('snapshot',{...first,poolId}))
-        options.signal?.addEventListener('abort',()=>{streams.delete(poolId);channel.close()},{once:true})
+        const heartbeat=setInterval(()=>channel.enqueue(encode('status',{serverTimeMs:Date.now()})),1000)
+        options.signal?.addEventListener('abort',()=>{clearInterval(heartbeat);streams.delete(poolId);channel.close()},{once:true})
       }}),{headers:{'content-type':'text/event-stream'}})
     }
     histories++

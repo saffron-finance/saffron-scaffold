@@ -49,12 +49,15 @@ export function usePoolObservation(poolId: string, observationKey: string) {
   const snapshot = summary?.latest
   const baseline = summary?.baseline
   const paused = Boolean(summary && summaryPaused(summary))
+  const transportUnavailable = Boolean(view && (summary?.controlUnavailable ||
+    view.health.transportFailedAt !== null || view.health.rpcFailedAt !== null ||
+    connectionStatus(view.health, now) === 'Disconnected'))
   const valuationUnavailable = Boolean(summary?.valuationReason)
   const quoteUsd = valuationUnavailable ? null : metrics?.quoteUsd ?? null
   const pageElapsed = client ? Math.max(0, (now - client.openedAt) / 1000) : 0
   const serverNow = now + (view?.serverOffsetMs ?? 0)
   const coverageAge = metrics ? Math.max(0, serverNow - metrics.observedAtMs) : null
-  const stale = !paused && !valuationUnavailable && coverageAge !== null && coverageAge > 30_000
+  const stale = !valuationUnavailable && coverageAge !== null && (transportUnavailable || (!paused && coverageAge > 30_000))
   const rpcStatus = paused ? 'Paused' : view ? connectionStatus(view.health, now) : 'Connecting'
   const rpcTone: 'connected' | 'offline' | 'pending' =
     rpcStatus === 'Connected' ? 'connected' : rpcStatus === 'Disconnected' ? 'offline' : 'pending'
@@ -92,7 +95,7 @@ export function usePoolObservation(poolId: string, observationKey: string) {
   }, [poolId, observationKey, paused, view?.message, summary?.notice, summary?.waitingForBaseline])
 
   useEffect(() => {
-    const active = !paused && !stale && !summary?.waitingForBaseline && !valuationUnavailable
+    const active = !paused && !stale && !transportUnavailable && !summary?.waitingForBaseline && !valuationUnavailable
     const anchor = aprAnchor.current
     if (!anchor || anchor.metrics !== metrics || anchor.active !== active)
       aprAnchor.current = { metrics, at: Date.now(), active }
@@ -100,7 +103,7 @@ export function usePoolObservation(poolId: string, observationKey: string) {
       setDisplayApr(null)
       return
     }
-    if (paused || stale) return
+    if (paused || stale || transportUnavailable) return
     if (summary?.waitingForBaseline) {
       if (hasAprSignal) setDisplayApr((current) => current ?? 0)
       return
@@ -110,7 +113,7 @@ export function usePoolObservation(poolId: string, observationKey: string) {
         ? interpolateApr(metrics.apr, metrics.observedSeconds, (now - aprAnchor.current!.at) / 1000)
         : metrics?.apr ?? (hasAprSignal ? 0 : null)
     )
-  }, [metrics, now, paused, stale, summary?.waitingForBaseline, hasAprSignal, valuationUnavailable])
+  }, [metrics, now, paused, stale, summary?.waitingForBaseline, hasAprSignal, valuationUnavailable, transportUnavailable])
   useEffect(() => {
     const entry = acquirePageEntry(poolId, observationKey)
     setClient(entry.client)
@@ -129,6 +132,7 @@ export function usePoolObservation(poolId: string, observationKey: string) {
     baseline,
     paused,
     valuationUnavailable,
+    transportUnavailable,
     quoteUsd,
     pageElapsed,
     coverageAge,

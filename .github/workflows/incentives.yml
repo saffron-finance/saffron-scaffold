@@ -90,6 +90,8 @@ jobs:
         env:
           SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
           MERGE_DEVICE: desktop
+      - run: npm run test:apr-http
+        working-directory: feature-lab/live-apr-merge
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -100,6 +102,7 @@ jobs:
             feature-lab/live-apr-merge/validation/browser/*.png
             feature-lab/live-apr-merge/validation/backend-browser-*/*.json
             feature-lab/live-apr-merge/validation/backend-browser-*/*.png
+            feature-lab/live-apr-merge/validation/apr-http/*.json
   frontend-portable:
     strategy:
       fail-fast: false
