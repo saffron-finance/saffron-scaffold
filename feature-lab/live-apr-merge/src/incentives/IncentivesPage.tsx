@@ -45,11 +45,13 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
       {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
       {groups.map(offers=><ProgramGroup key={offers[0].pairId}><PairHeader pair={offers[0]}/><Programs data-incentive-programs aria-label={offers[0].token0.symbol+' / '+offers[0].token1.symbol+' liquidity incentive offers'}>
-        <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration'].map(label=><ColumnTitle as='span' $column={label.toLowerCase()} key={label}>{label}</ColumnTitle>)}</ProgramHeading>
+        <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','TVL'].map(label=><ColumnTitle as='span' $column={label.toLowerCase()} key={label}>{label}</ColumnTitle>)}</ProgramHeading>
         {offers.map(offer=><ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={flow.busy} onClick={(event:MouseEvent<HTMLButtonElement>)=>void openOffer(offer,event.currentTarget)}>
           <Metric $column='yield'><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
           <Metric $column='apr'><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</OfferApr></Metric>
-          <Metric $column='duration'><MobileLabel>Duration</MobileLabel><Value>{offer.days} days</Value></Metric>
+          <Metric $column='duration'><MobileLabel>Duration</MobileLabel><Value data-incentive-duration>{offer.days} days</Value></Metric>
+          {/* TVL placeholders are preview metadata, never inferred from capacity. */}
+          <Metric $column='tvl'><MobileLabel>TVL</MobileLabel><Value data-incentive-tvl title={preview&&offer.previewTvlUsd!=null?'Placeholder TVL':'TVL unavailable'}>{preview&&offer.previewTvlUsd!=null?'$'+offer.previewTvlUsd.toLocaleString('en-US'):'—'}</Value></Metric>
           {/* Only the first visible offer can carry the catalog's NEW label. */}
           {offer.isNew&&offer.id===catalog.offers[0]?.id&&<NewTag data-incentive-new>NEW</NewTag>}
         </ProgramRow>)}
@@ -66,10 +68,10 @@ const TitleRow = styled(Row)`flex-wrap:wrap;button{white-space:nowrap;flex-shrin
 const Introduction = styled.div`display:flex;flex-direction:column;gap:18px;max-width:860px;`
 const Programs = styled.div`display:flex;flex-direction:column;gap:28px;margin-top:8px;`
 const ProgramGroup = styled.div`display:flex;flex-direction:column;gap:28px;min-width:0;`
-// Three public metrics remain. Internal planning amounts never appear here.
-const dataColumns = '[yield] minmax(92px,1fr) [apr] minmax(92px,1fr) [duration] minmax(92px,1fr)'
+// TVL uses the same Value typography as Duration, not capacity or APR styling.
+const dataColumns = '[yield] minmax(92px,1fr) [apr] minmax(92px,1fr) [duration] minmax(92px,1fr) [tvl] minmax(116px,1fr)'
 const programColumns = `var(--incentive-leading-badge,) ${dataColumns} var(--incentive-trailing-badge,[new] 56px)`
-const mobileColumns = 'var(--incentive-mobile-columns,[yield] 40px [apr] minmax(0,1fr) [duration] minmax(0,1fr) [new] 38px)'
+const mobileColumns = 'var(--incentive-mobile-columns,[yield] 40px [apr] minmax(0,1fr) [duration] minmax(0,1fr) [tvl] minmax(0,1fr) [new] 38px)'
 const ProgramHeading = styled.div`
   /* Reduce only the heading gap: offer-to-offer spacing remains 28px. */
   margin-bottom:-24px;background:none;
@@ -88,8 +90,9 @@ const ProgramRow = styled.button`
      Named public metrics and the NEW badge retain their mobile positions. */
   @media(max-width:800px){padding:24px 12px;grid-template-columns:${mobileColumns};gap:24px 10px}
   @media(max-width:480px){
-    > :nth-child(2){grid-column:apr / span 2;grid-row:1;}
-    > :nth-child(3){grid-column:apr / span 2;grid-row:2;}
+    > :nth-child(2){grid-column:apr / span 3;grid-row:1;}
+    > :nth-child(3){grid-column:apr / span 3;grid-row:2;}
+    > :nth-child(4){grid-column:apr / span 3;grid-row:3;}
   }
 `
 const Metric = styled.span<{$column?:string}>`grid-column:${p=>p.$column??'auto'};display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;font-size:20px;
@@ -104,7 +107,7 @@ const OfferApr = styled(Premium)`
   ${aprTextPaint}
   @media(max-width:480px){font-size:clamp(20px,6.5vw,28px)}
 `
-const Value = styled.span`font-size:22px;font-variant-numeric:tabular-nums;`
+const Value = styled.span`font-size:22px;white-space:nowrap;font-variant-numeric:tabular-nums;`
 const NewTag = styled.span`grid-column:new;grid-row:1;justify-self:var(--incentive-badge-align,end);padding:7px 10px;border-radius:var(--radius-md);
   background:linear-gradient(110deg,#ffbc09 10%,#e47e01 65%,#fa3f06 100%);color:#0f1621;
   font:500 13px ${({ theme }) => theme.fonts.mono};line-height:1;letter-spacing:.02em;

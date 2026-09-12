@@ -1,6 +1,6 @@
 # Saffron Live APR merge
 
-Version 0.2.0 integrates watcher-app product changes through `19ad0e9` into the
+Version 0.2.1 integrates watcher-app product changes through `19ad0e9` into the
 approved merged frontend. The standalone incentives baseline was `93fcab6`.
 The Live APR feature remains pinned to `b8eb411`.
 
@@ -18,6 +18,16 @@ build time, never a query-string switch or an error fallback. It requires the
 separate canonical backend; copying its files onto a static host is insufficient.
 
 ## Product changes
+
+The front page now has TVL after Duration, with identical cell typography.
+Preview rows show $500,000, $700,000 and $900,000 for the 3-, 5- and 7-day
+samples. These are display placeholders, not private budget amounts or live
+TVL readings. The API build shows unavailable TVL until real data is connected.
+The third sample is added without resetting existing requests or campaign edits.
+
+Enabled incentive-modal buttons brighten by 6% on mouse hover, replacing the
+shared 60%-opacity dim. Disabled controls and navigation styles are unchanged.
+
 
 - C06 shows four creation stages, elapsed time and verified progress. An API
   failure keeps the last known state and disables dependent position actions.

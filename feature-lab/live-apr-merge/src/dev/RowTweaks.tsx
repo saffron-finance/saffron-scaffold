@@ -64,7 +64,7 @@ export default function RowTweaks() {
       --incentive-leading-badge:[new] 56px;
       --incentive-trailing-badge:[end];
       --incentive-badge-align:start;
-      --incentive-mobile-columns:[new] 38px [yield] 40px [apr] minmax(0,1fr) [duration] minmax(0,1fr);
+      --incentive-mobile-columns:[new] 38px [yield] 40px [apr] minmax(0,1fr) [duration] minmax(0,1fr) [tvl] minmax(0,1fr);
     }
   ` : ''
   // The feature owns the transparent heading and 4px gap in every build.

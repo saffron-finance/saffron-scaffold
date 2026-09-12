@@ -141,7 +141,8 @@ async function checkModalSurface(target){
 try {
   await mkdir(output,{recursive:true})
   await page.goto(origin+base)
-  await expect(page.locator('[data-incentive-offer]')).toHaveCount(2)
+  await expect(page.locator('[data-incentive-offer]')).toHaveCount(3)
+  await expect(page.locator('[data-incentive-tvl]')).toHaveText(['$500,000','$700,000','$900,000'])
   await expect(page.locator('[data-incentive-capacity], [data-incentive-utilization]')).toHaveCount(0)
   await expect(page.getByText(/near capacity|capacity remaining/i)).toHaveCount(0)
   await expect(nav().getByRole('link',{name:'Home',exact:true})).toHaveAttribute('aria-current','page')
@@ -175,20 +176,23 @@ try {
       if(collapsed)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
       const geometry=await page.locator('[data-incentive-offer]').evaluateAll(rows=>rows.map(row=>({
         newLabels:row.querySelectorAll('[data-incentive-new]').length,
+        durationFont:getComputedStyle(row.querySelector('[data-incentive-duration]')).font,
+        tvlFont:getComputedStyle(row.querySelector('[data-incentive-tvl]')).font,
         publicCapacity:row.querySelectorAll('[data-incentive-capacity], [data-incentive-utilization]').length,
       })))
       report.layouts.push({section:'vaults-metrics',width,collapsed,geometry})
-      assert.deepEqual(geometry.map(row=>row.newLabels),[1,0],'NEW belongs only to the top offer')
+      assert.deepEqual(geometry.map(row=>row.newLabels),[1,0,0],'NEW belongs only to the top offer')
       assert(geometry.every(row=>row.publicCapacity===0),'No public budget utilization')
+      assert(geometry.every(row=>row.durationFont===row.tvlFont),'TVL matches Duration typography')
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`vaults overflow ${width}/${collapsed}`)
       if(width>800){
         const spacing=await page.locator('[data-incentive-programs]').evaluate(table=>{
           const headers=[...table.firstElementChild.children].map(el=>el.getBoundingClientRect().left)
-          const rows=[...table.querySelectorAll('[data-incentive-offer]')].map(row=>({starts:[...row.children].slice(0,3).map(el=>el.getBoundingClientRect().left),aprRight:row.querySelector('[data-incentive-apr]').getBoundingClientRect().right}))
+          const rows=[...table.querySelectorAll('[data-incentive-offer]')].map(row=>({starts:[...row.children].slice(0,4).map(el=>el.getBoundingClientRect().left),aprRight:row.querySelector('[data-incentive-apr]').getBoundingClientRect().right}))
           return {headers,rows}
         })
         const step=spacing.headers[1]-spacing.headers[0]
-        for(let i=1;i<3;i++)assert(Math.abs(spacing.headers[i]-spacing.headers[i-1]-step)<.5,`equal column spacing ${width}/${collapsed}`)
+        for(let i=1;i<4;i++)assert(Math.abs(spacing.headers[i]-spacing.headers[i-1]-step)<.5,`equal column spacing ${width}/${collapsed}`)
         for(const row of spacing.rows){
           row.starts.forEach((left,i)=>assert(Math.abs(left-spacing.headers[i])<.5,`heading/value alignment ${width}/${collapsed}`))
           assert(row.aprRight<row.starts[2],`APR and Duration remain separate ${width}/${collapsed}`)
@@ -199,7 +203,7 @@ try {
     }
   }
   await page.setViewportSize({width:1440,height:1100})
-  report.checks.push('Three public metrics stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states')
+  report.checks.push('Four public metrics including placeholder TVL stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states')
 
   // Exercise the real lab control in its own page so reloads do not disturb
   // the main suite's persistent-shell and APR-session identity assertions.
@@ -238,7 +242,7 @@ try {
           if(width>800){
             layout.headers.forEach((header,i)=>assert(Math.abs(header.left-row.cells[i].left)<.5,`left-badge heading alignment ${width}/${collapsed}`))
             const step=layout.headers[1].left-layout.headers[0].left
-            for(let i=1;i<3;i++)assert(Math.abs(layout.headers[i].left-layout.headers[i-1].left-step)<.5,`left-badge equal column spacing ${width}/${collapsed}`)
+            for(let i=1;i<4;i++)assert(Math.abs(layout.headers[i].left-layout.headers[i-1].left-step)<.5,`left-badge equal column spacing ${width}/${collapsed}`)
           }
         }
         assert.equal(await preview.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`left-badge overflow ${width}/${collapsed}`)
@@ -268,7 +272,7 @@ try {
   const appearance=await context.newPage()
   appearance.on('pageerror',error=>report.errors.push(error.message))
   await appearance.goto(origin+base)
-  await expect(appearance.locator('[data-incentive-offer]')).toHaveCount(2)
+  await expect(appearance.locator('[data-incentive-offer]')).toHaveCount(3)
   const tweaks=appearance.locator('summary').filter({hasText:'Tweak'})
   const lab=await tweaks.count()>0
   if(lab){
@@ -384,6 +388,8 @@ try {
       await checkModalSurface(appearance)
       await appearance.getByRole('button',{name:`Claim ${claim}`,exact:true}).hover()
       await checkModalSurface(appearance)
+      await expect.poll(()=>appearance.locator('[data-incentive-primary-action]').evaluate(el=>getComputedStyle(el).filter)).toBe('brightness(1.06)')
+      await expect.poll(()=>appearance.locator('[data-incentive-primary-action]').evaluate(el=>getComputedStyle(el).opacity)).toBe('1')
       // Short mobile screens must keep Back, Close and Claim reachable without
       // horizontal overflow; the modal may use its existing vertical scrolling.
       for(const width of [320,390,1440]){
@@ -642,7 +648,7 @@ try {
   await page.screenshot({path:path.join(output,'campaigns.png'),fullPage:true})
   await page.getByRole('button',{name:'Open menu',exact:true}).click()
   await page.getByRole('button',{name:'Reset preview',exact:true}).click()
-  await expect(page.locator('[data-incentive-offer]')).toHaveCount(2)
+  await expect(page.locator('[data-incentive-offer]')).toHaveCount(3)
   assert.equal(await page.evaluate(()=>localStorage.getItem('saffron.campaign-ui-preview.v1')),'original-preview-sentinel')
   report.checks.push('Calculator modes, local paid requests, saved C06 progress and isolated preview reset')
 

@@ -1,7 +1,7 @@
 import { useCallback,useEffect,useId,useRef,useState } from 'react'
 import CurrencyInput from 'react-currency-input-field'
 import { formatUnits,type Address } from 'viem'
-import styled,{css} from 'styled-components'
+import styled,{css,createGlobalStyle} from 'styled-components'
 import { FormFieldGroup,FormInput,FormLabel,Modal,ModalTitle,InteractiveEmblem } from '../host/ui'
 import { aprTextPaint } from '../host/aprTextStyle'
 import { sidebarDefaults, sidebarSelectedSurface, sidebarVariables } from '../host/sidebarTheme'
@@ -23,7 +23,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   useEffect(()=>setPosition(openPosition),[openPosition,id])
   const second=Boolean(id||reviewed),busy=flow.busy||nativeBusy
   const titleId=useId(),rangeId=useId(),tokensId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
-  const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;node?.closest('[role="dialog"]')?.setAttribute('aria-labelledby',titleId)},[titleId])
+  const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;const dialog=node?.closest('[role="dialog"]');dialog?.setAttribute('aria-labelledby',titleId);dialog?.setAttribute('data-incentive-modal','')},[titleId])
   const focusedDeposit=useRef<HTMLInputElement|null>(null)
   const attachDeposit=useCallback((node:HTMLInputElement|null)=>{
     // The formatter reattaches its ref on updates. Focus only a newly mounted
@@ -54,6 +54,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const raw=reviewed?amountsForLiquidity(reviewed.plan.liquidity,reviewed.plan.sqrtPrice,reviewed.plan.minTick,reviewed.plan.maxTick):null
   const close=()=>{if(!busy)onClose()}
   return <Modal isOpen onRequestClose={close} shouldCloseOnOverlayClick={!busy} contentStyle={{padding:'10px 28px 26px 28px'}}>
+    <ModalButtonHover/>
     <Close aria-label='Close incentive vault' disabled={busy} onClick={close}>×</Close>
     {reviewed&&!id&&!flow.saved?.sent&&<BackButton disabled={busy} onClick={flow.reset}>← Back</BackButton>}
     <Header $hasLogo={!second}><RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
@@ -97,6 +98,16 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   </Modal>
 }
 
+/** The shared base Button dims to 60% opacity on hover. Override only this
+ * portal's enabled buttons: a 6% brightness lift is intentionally much gentler.
+ * No disabled-state, outside navigation or touchscreen hover behavior changes. */
+const ModalButtonHover=createGlobalStyle`
+  [data-incentive-modal] button:not(:disabled):not([aria-disabled='true']){transition:filter 160ms ease,background-color 160ms ease,border-color 160ms ease;}
+  @media(hover:hover) and (pointer:fine){
+    [data-incentive-modal] button:not(:disabled):not([aria-disabled='true']):hover{opacity:1;filter:brightness(1.06);}
+  }
+  @media(prefers-reduced-motion:reduce){[data-incentive-modal] button{transition:none;}}
+`
 const Close = styled.button`position:absolute;right:12px;top:10px;background:none;border:0;color:inherit;font-size:24px;cursor:pointer;&:disabled{opacity:.5}`
 // Normal flow reserves space for Back above the title, including narrow phones;
 // the existing close control remains at the independent top-right corner.

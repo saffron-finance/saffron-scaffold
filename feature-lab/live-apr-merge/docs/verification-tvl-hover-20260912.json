@@ -1,0 +1,71 @@
+{
+  "version": "0.2.1",
+  "date": "2026-09-12",
+  "unitTests": 47,
+  "builds": [
+    "normal",
+    "lab",
+    "live"
+  ],
+  "sourcePins": 29,
+  "browserSuites": [
+    {
+      "mode": "browser",
+      "ok": true,
+      "checks": [
+        "Header controls match row gray surface/border and gold hover; CONNECT Funnel Display at 320/390/1440px",
+        "Vaults default and no APR admission/chunk or wallet request",
+        "Four public metrics including placeholder TVL stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states",
+        "NEW-left toggle: defaults, validation, preference preservation, reload, reset, storage denial and ten responsive widths",
+        "Home/Portfolio labels and order; unchanged Live APR font with matching paint; both offers/modal stages match selected sidebar, including custom preset, disabled/hover and reduced motion",
+        "LP disclosure and first-page copy/Funnel font; amount-only tooltip with token icons, copy and aligned caret; hover/focus/touch dismissal; green title reward and white button amount",
+        "New sidebar order, external Saffron pro, local Stats/Community, responsive scaffolds and dark-only theme",
+        "Default live pair, route-scoped labels, table-corner PNG and history",
+        "Expanded/collapsed responsive layouts and Tokens bounds",
+        "Comparisons preserve sessions; selected Live APR stays white, inactive gradient returns on Home; fresh back-navigation baseline",
+        "Creation claim survives former expiry; dynamic premium, token logos, Back, fee copy and mobile layout pass",
+        "Above-target request and a second independent payment work; advisory appears only in the operator portfolio",
+        "Calculator modes, local paid requests, saved C06 progress and isolated preview reset",
+        "Legacy campaigns/aliases preserve query+fragment; unknown routes admit nothing",
+        "Keyboard Tokens, narrow dark PNG, private budget advisory, storage denial and direct scaffold reloads"
+      ],
+      "errors": []
+    },
+    {
+      "mode": "browser-normal",
+      "ok": true,
+      "checks": [
+        "Header controls match row gray surface/border and gold hover; CONNECT Funnel Display at 320/390/1440px",
+        "Vaults default and no APR admission/chunk or wallet request",
+        "Four public metrics including placeholder TVL stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states",
+        "Normal build excludes lab controls and table-preference persistence",
+        "Home/Portfolio labels and order; unchanged Live APR font with matching paint; both offers/modal stages match selected sidebar, including custom preset, disabled/hover and reduced motion",
+        "LP disclosure and first-page copy/Funnel font; amount-only tooltip with token icons, copy and aligned caret; hover/focus/touch dismissal; green title reward and white button amount",
+        "New sidebar order, external Saffron pro, local Stats/Community, responsive scaffolds and dark-only theme",
+        "Default live pair, route-scoped labels, table-corner PNG and history",
+        "Expanded/collapsed responsive layouts and Tokens bounds",
+        "Comparisons preserve sessions; selected Live APR stays white, inactive gradient returns on Home; fresh back-navigation baseline",
+        "Creation claim survives former expiry; dynamic premium, token logos, Back, fee copy and mobile layout pass",
+        "Above-target request and a second independent payment work; advisory appears only in the operator portfolio",
+        "Calculator modes, local paid requests, saved C06 progress and isolated preview reset",
+        "Legacy campaigns/aliases preserve query+fragment; unknown routes admit nothing",
+        "Keyboard Tokens, narrow dark PNG, private budget advisory, storage denial and direct scaffold reloads"
+      ],
+      "errors": []
+    }
+  ],
+  "tvlPlaceholders": [
+    500000,
+    700000,
+    900000
+  ],
+  "thirdRowDays": 7,
+  "hover": {
+    "previousOpacity": 0.6,
+    "newOpacity": 1,
+    "brightness": 1.06,
+    "transitionMilliseconds": 160
+  },
+  "liveTransactions": 0,
+  "notes": "Presentation/sample update only. No new full backend lifecycle run was required; prior evidence is unchanged."
+}

@@ -1,6 +1,6 @@
 {
   "title": "Saffron · Live APR merge\nPortable installation guide",
-  "eyebrow": "Saffron Feature Lab · Version 0.2.0 · 12 September 2026",
+  "eyebrow": "Saffron Feature Lab · Version 0.2.1 · 12 September 2026",
   "description": "The complete Live APR page inside the latest Liquidity Incentives shell, delivered as a third independent Feature Lab app.",
   "meta": "Live APR · Product updates through 19ad0e9 · Explicit preview/API build modes",
   "sections": [
@@ -12,7 +12,7 @@
     {
       "id": "changes",
       "title": "2. Latest incentives changes and the plan",
-      "body_html": "<p>Version 0.2.0 integrates applicable product changes from all 26 commits between <code>93fcab6</code> and <code>19ad0e9</code>. The earlier watcher/VNC release did not update this separate frontend.</p><ul><li>C06 shows four stages, elapsed time and recoverable progress.</li><li>Live mode uses canonical payment recovery and current position ownership.</li><li>Public capacity meters and request limits are removed. The planning advisory appears only in admin Portfolio.</li><li>C05, refund/retirement controls, gas-spending records and treasury tracking are absent.</li><li>Approved navigation, modal styling, Live APR observations and PNG export remain.</li></ul><p>The source includes a commit-by-commit integration map in <code>docs/PRODUCT-SYNC.md</code>.</p>"
+      "body_html": "<p>Version 0.2.1 adds TVL after Duration, using the same cell font. The three preview rows show $500,000, $700,000 and $900,000. These are placeholders, not live TVL or capacity limits. Existing saved requests survive the added 7-day sample.</p><p>Enabled modal buttons brighten by 6% on mouse hover. The previous shared style reduced opacity to 60%. Disabled controls keep their existing appearance.</p><p>Version 0.2.0 integrates applicable product changes from all 26 commits between <code>93fcab6</code> and <code>19ad0e9</code>. The earlier watcher/VNC release did not update this separate frontend.</p><ul><li>C06 shows four stages, elapsed time and recoverable progress.</li><li>Live mode uses canonical payment recovery and current position ownership.</li><li>Public capacity meters and request limits are removed. The planning advisory appears only in admin Portfolio.</li><li>C05, refund/retirement controls, gas-spending records and treasury tracking are absent.</li><li>Approved navigation, modal styling, Live APR observations and PNG export remain.</li></ul><p>The source includes a commit-by-commit integration map in <code>docs/PRODUCT-SYNC.md</code>.</p>"
     },
     {
       "id": "quickstart",

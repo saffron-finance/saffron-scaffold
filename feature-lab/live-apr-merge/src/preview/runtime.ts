@@ -16,6 +16,9 @@ const pair={id:'cashcat-eth',revision:1,chainId:4663,pool:'0xa70fc67c9f69da90b63
 const demoTerms=campaignTerms({days:3,budgetUsd:'10000',capacityUsd:'1000000'})
 // Match the original target capacity; derive the five-day budget from its APR.
 const fiveDayTerms=campaignTerms({days:5,capacityUsd:'1000000',aprPercent:'256.27'})
+const sevenDayTerms=campaignTerms({days:7,capacityUsd:'1000000',aprPercent:'256.27'})
+// Display-only placeholders: neither live TVL nor the private planning budget.
+const sampleTvl:Record<string,number>={'three-day-campaign':500000,'five-day-campaign':700000,'seven-day-campaign':900000}
 type PreviewState={budgets:any[];programs:any[];jobs:Deployment[];intake?:any}
 
 /** Build fresh records for the five-day sample with no simulated commitments.
@@ -28,21 +31,28 @@ function fiveDayDemo(){return {
     minimumCents:'1',maximumCents:UINT256_MAX.toString(),sortOrder:1,isNew:true,active:true},
 }}
 
-/** Seed both examples, retaining the original three-day campaign's half funding. */
-function seed():PreviewState{const extra=fiveDayDemo();return {budgets:[{id:'three-day-campaign',revision:1,name:'3-day campaign · sample',chainId:4663,rewardAsset:token0.address,decimals:18,
+/** Third sample uses the same rate as the five-day example, with a longer lock.
+ * Its fresh objects are independent of edits and sample-budget accounting. */
+function sevenDayDemo(){const demo=fiveDayDemo();return {
+  budget:{...demo.budget,id:'seven-day-campaign',name:'7-day campaign · sample',campaign:sevenDayTerms},
+  program:{...demo.program,id:'seven-day-campaign',budgetPoolId:'seven-day-campaign',days:7,sortOrder:2,isNew:false},
+}}
+
+/** Seed three examples, retaining the original three-day campaign's half funding. */
+function seed():PreviewState{const extra=fiveDayDemo(),third=sevenDayDemo();return {budgets:[{id:'three-day-campaign',revision:1,name:'3-day campaign · sample',chainId:4663,rewardAsset:token0.address,decimals:18,
   campaign:demoTerms,limitRaw:UINT256_MAX.toString(),reservedRaw:'0',allocatedRaw:'0',availableRaw:UINT256_MAX.toString(),paused:false,reconciliationRequired:false,
-  fundedCents:'500000',fundedCapacity:'50000000'},extra.budget],programs:[{id:'three-day-campaign',revision:1,pairId:pair.id,budgetPoolId:'three-day-campaign',apr:Number(demoTerms.aprPercent),days:3,
-  minimumCents:'1',maximumCents:UINT256_MAX.toString(),sortOrder:0,isNew:true,active:true},extra.program],jobs:[]}}
+  fundedCents:'500000',fundedCapacity:'50000000'},extra.budget,third.budget],programs:[{id:'three-day-campaign',revision:1,pairId:pair.id,budgetPoolId:'three-day-campaign',apr:Number(demoTerms.aprPercent),days:3,
+  minimumCents:'1',maximumCents:UINT256_MAX.toString(),sortOrder:0,isNew:true,active:true},extra.program,third.program],jobs:[]}}
 let storageWarning:string|null=null
 const storageEvent='saffron:merge-preview-storage'
 
 /** Add the new sample to existing browsers without replacing saved work.
  * Existing IDs win (including paused samples); repeat loads do not duplicate it.
  * If persistence is denied, retain the user's restored data and upgrade in memory. */
-function addFiveDayDemo(saved:PreviewState):PreviewState{
-  const extra=fiveDayDemo()
-  if(saved.budgets.some(b=>b.id===extra.budget.id)||saved.programs.some(p=>p.id===extra.program.id))return saved
-  const upgraded={...saved,budgets:[...saved.budgets,extra.budget],programs:[...saved.programs,extra.program]}
+function addMissingDemos(saved:PreviewState):PreviewState{
+  const missing=[fiveDayDemo(),sevenDayDemo()].filter(extra=>!saved.budgets.some(b=>b.id===extra.budget.id)&&!saved.programs.some(p=>p.id===extra.program.id))
+  if(!missing.length)return saved
+  const upgraded={...saved,budgets:[...saved.budgets,...missing.map(demo=>demo.budget)],programs:[...saved.programs,...missing.map(demo=>demo.program)]}
   try {localStorage.setItem(key,JSON.stringify(upgraded))}
   catch {storageWarning='Browser storage is unavailable. Preview changes will last only until this page is reloaded.'}
   return upgraded
@@ -54,7 +64,7 @@ function restore(){
     const raw=localStorage.getItem(key)
     if(raw===null)return seed()
     const saved=JSON.parse(raw)
-    if(Array.isArray(saved?.budgets)&&saved.budgets.length&&Array.isArray(saved.programs)&&Array.isArray(saved.jobs)&&saved.budgets.every((b:any)=>b?.campaign?.capacityCents&&b?.campaign?.budgetCents))return addFiveDayDemo(saved as PreviewState)
+    if(Array.isArray(saved?.budgets)&&saved.budgets.length&&Array.isArray(saved.programs)&&Array.isArray(saved.jobs)&&saved.budgets.every((b:any)=>b?.campaign?.capacityCents&&b?.campaign?.budgetCents))return addMissingDemos(saved as PreviewState)
     storageWarning='Saved preview data could not be read. Fresh sample campaigns are shown.'
   } catch {storageWarning='Browser storage is unavailable. Preview changes will last only until this page is reloaded.'}
   return seed()
@@ -83,7 +93,7 @@ function budgets(){return state.budgets.map(b=>{
     reservedBudgetCents:reservedBudget.toString(),reservedCapacityCents:reserved.toString(),heldBudgetCents:'0',heldCapacityCents:'0',
     availableBudgetCents:(BigInt(b.campaign.budgetCents)-funded-reservedBudget).toString(),availableCapacityCents:(BigInt(b.campaign.capacityCents)-capacity-reserved).toString(),fixedDepositedCents:'0'}}
 })}
-function offers():Offer[]{return state.programs.map(p=>{const budget=budgets().find(b=>b.id===p.budgetPoolId);return {...pair,...p,pairRevision:1,budget,
+function offers():Offer[]{return state.programs.map(p=>{const budget=budgets().find(b=>b.id===p.budgetPoolId);return {...pair,...p,pairRevision:1,budget,previewTvlUsd:sampleTvl[p.id],
   availability:budget.paused?'Campaign paused':null}})}
 const session=()=>({wallet:PREVIEW_ACCOUNT,csrf:'preview-only',operator:true,expires:Date.now()+1800000})
 export async function readSession(_account?:Address|null,_signal?:AbortSignal){return session()}

@@ -21,15 +21,17 @@ async function saveLegacyBrowser(){
   return saved
 }
 
-it('keeps both APRs while excluding private planning budgets and request limits from the public catalog',async()=>{
+it('keeps sample APRs while excluding private planning budgets and request limits from the public catalog',async()=>{
   const {requestJson}=await import('./runtime')
   const {offers}=await requestJson('/programs')
-  expect(offers).toHaveLength(2)
+  expect(offers).toHaveLength(3)
   const original=offers.find((offer:any)=>offer.id==='three-day-campaign')
   expect(original.eligibleMaximumCents).toBeUndefined()
   expect(original.minimumCents).toBeUndefined()
   expect(original.maximumCents).toBeUndefined()
   expect(original.budget.accounting).toBeUndefined()
+  expect(offers.map((offer:any)=>offer.previewTvlUsd)).toEqual([500000,700000,900000])
+  expect(offers[2].days).toBe(7)
   const added=offers.find((offer:any)=>offer.id==='five-day-campaign')
   expect(added.days).toBe(5)
   expect(added.apr.toFixed(2)).toBe('256.27')
@@ -48,15 +50,15 @@ it('upgrades existing storage once without losing requests, custom campaigns, or
   expect(upgraded.budgets.slice(0,2)).toEqual(saved.budgets)
   expect(upgraded.programs.slice(0,2)).toEqual(saved.programs)
   expect(upgraded.jobs).toEqual(saved.jobs)
-  expect(upgraded.budgets).toHaveLength(3)
-  expect(upgraded.programs).toHaveLength(3)
+  expect(upgraded.budgets).toHaveLength(4)
+  expect(upgraded.programs).toHaveLength(4)
   // Admin edits to the new sample must survive subsequent imports/reloads.
   await runtime.requestJson('/admin/budgets',{id:'five-day-campaign',paused:true,revision:1})
   const paused=localStorage.getItem(key)
   vi.resetModules()
   const reloaded=await import('./runtime')
   const {offers}=await reloaded.requestJson('/programs')
-  expect(offers).toHaveLength(3)
+  expect(offers).toHaveLength(4)
   expect(offers.find((offer:any)=>offer.id==='five-day-campaign').availability).toBe('Campaign paused')
   expect(localStorage.getItem(key)).toBe(paused)
   expect(localStorage.getItem('saffron.campaign-ui-preview.v1')).toBe('original-preview-sentinel')
@@ -67,7 +69,7 @@ it('keeps saved work in memory when writing the additive upgrade is denied',asyn
   vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new DOMException('Denied','SecurityError')})
   const {requestJson}=await import('./runtime')
   const catalog=await requestJson('/admin/catalog')
-  expect(catalog.budgets).toHaveLength(3)
+  expect(catalog.budgets).toHaveLength(4)
   expect(catalog.budgets[0].name).toBe('My edited campaign')
   expect(catalog.budgets[0].paused).toBe(true)
   expect((await requestJson('/deployments')).deployments).toEqual(saved.jobs)
