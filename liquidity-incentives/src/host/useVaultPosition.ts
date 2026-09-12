@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { decodeEventLog, encodeAbiParameters, encodeFunctionData, formatUnits, type Address, type Hex } from 'viem'
 import { walletClient, walletPublicClient, assertWalletAccount, ensureChain } from '@lab/wallet/wallet'
 import { robinhoodChain } from '@lab/chain/chains'
@@ -26,6 +26,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [completed, setCompleted] = useState(false)
+  const foregroundState = useRef<() => void>(() => {})
   const [pending, setPending] = useState<Intent | null>(() => {
     try {
       const value = JSON.parse(localStorage.getItem(key) ?? 'null')
@@ -84,10 +85,21 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     return fresh
   }
   async function refresh() {
-    setError(null)
+    setError(null);setQuote(null)
     try { await load() } catch(cause) { setQuote(null);setError(cause instanceof Error?cause.message:'Deposit unavailable.') }
   }
   useEffect(()=>{ void refresh() },[account,deploymentId,mode])
+  foregroundState.current=()=>{
+    if(busy||completed||document.hidden)return
+    // A return is permission to read evidence, never to submit a wallet action.
+    if(pending?.hash)void recover()
+    else void refresh()
+  }
+  useEffect(()=>{
+    const resume=()=>foregroundState.current()
+    window.addEventListener('focus',resume);window.addEventListener('pageshow',resume);document.addEventListener('visibilitychange',resume)
+    return()=>{window.removeEventListener('focus',resume);window.removeEventListener('pageshow',resume);document.removeEventListener('visibilitychange',resume)}
+  },[])
 
   async function confirm(intent: Intent) {
     if (!intent.hash || !/^0x[0-9a-fA-F]{64}$/.test(intent.hash)) throw new Error('Enter the transaction hash from your wallet to recover.')
@@ -123,11 +135,15 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     finally{setBusy(false)}
   }
   async function sendAction() {
-    const stored=localStorage.getItem(key)
-    if(pending){await recover();return}
-    if(stored){setPending(JSON.parse(stored));return}
     setBusy(true);setError(null)
     try {
+      const stored=localStorage.getItem(key)
+      if(pending){await recover();return}
+      if(stored){
+        const intent=JSON.parse(stored)
+        if(!sameAddress(intent?.account,account)||intent.deploymentId!==deploymentId||!Number.isSafeInteger(intent.nonce)||intent.nonce<0)throw new Error('Saved wallet action cannot be read. Preserve its record and recover the original transaction before continuing.')
+        setPending(intent);return
+      }
       await assertWalletAccount(account);await ensureChain(robinhoodChain)
       const fresh=await load()
       if(!fresh?.action)throw new Error('This position has no available wallet action.')

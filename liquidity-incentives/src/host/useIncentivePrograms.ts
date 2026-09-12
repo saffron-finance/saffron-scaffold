@@ -15,6 +15,10 @@ export function useIncentivePrograms(){
     void load();const timer=setInterval(()=>void load(),15_000)
     return ()=>{controller.abort();clearInterval(timer)}
   },[revision])
-  useEffect(()=>{window.addEventListener('saffron:catalog-updated',refresh);return ()=>window.removeEventListener('saffron:catalog-updated',refresh)},[])
+  useEffect(()=>{
+    const resume=()=>{if(!document.hidden)refresh()}
+    window.addEventListener('saffron:catalog-updated',refresh);window.addEventListener('focus',resume);window.addEventListener('pageshow',resume);document.addEventListener('visibilitychange',resume)
+    return ()=>{window.removeEventListener('saffron:catalog-updated',refresh);window.removeEventListener('focus',resume);window.removeEventListener('pageshow',resume);document.removeEventListener('visibilitychange',resume)}
+  },[])
   return {...state,refresh}
 }

@@ -19,8 +19,8 @@ export function usePollingResource<T>(key:string,load:(signal:AbortSignal)=>Prom
     trigger.current=()=>void poll();void poll()
     const names=events.split(',').filter(Boolean)
     for(const name of names)window.addEventListener(name,foreground)
-    window.addEventListener('focus',foreground);document.addEventListener('visibilitychange',foreground)
-    return()=>{controller.abort();clearTimeout(timer);for(const name of names)window.removeEventListener(name,foreground);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',foreground)}
+    window.addEventListener('focus',foreground);window.addEventListener('pageshow',foreground);document.addEventListener('visibilitychange',foreground)
+    return()=>{controller.abort();clearTimeout(timer);for(const name of names)window.removeEventListener(name,foreground);window.removeEventListener('focus',foreground);window.removeEventListener('pageshow',foreground);document.removeEventListener('visibilitychange',foreground)}
   },[key,load,events])
   const current=state.key===key?state:{key,data:null}
   return {...current,refresh,loading:!current.data&&!current.error}

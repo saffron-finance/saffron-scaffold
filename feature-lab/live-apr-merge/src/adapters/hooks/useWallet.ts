@@ -76,6 +76,23 @@ export function useWallet() {
     return onWalletChange(() => void readState())
   }, [activeProviderId, providers, readState])
 
+  useEffect(() => {
+    const resume = () => {
+      if (document.hidden) return
+      refreshProviders()
+      void readState()
+    }
+    window.addEventListener('focus', resume)
+    window.addEventListener('pageshow', resume)
+    document.addEventListener('visibilitychange', resume)
+    return () => {
+      readVersion.current++
+      window.removeEventListener('focus', resume)
+      window.removeEventListener('pageshow', resume)
+      document.removeEventListener('visibilitychange', resume)
+    }
+  }, [readState, refreshProviders])
+
   const openModal = useCallback(() => {
     setError(null)
     setModalOpen(true)
@@ -134,6 +151,7 @@ export function useWallet() {
   }, [])
 
   const disconnectWallet = useCallback(() => {
+    readVersion.current++
     disconnect()
     setAccount(null)
     setChainId(undefined)

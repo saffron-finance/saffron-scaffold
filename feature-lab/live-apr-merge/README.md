@@ -113,6 +113,17 @@ production database, verified live offers and the correct Robinhood fee recipien
 Do not import preview requests or assume an older Arbitrum fee service is the
 canonical Robinhood API. See [live cutover](docs/LIVE-CUTOVER.md).
 
+## Mobile wallet support
+
+For the initial release, mobile users should open the application inside their
+wallet's built-in browser. The live connection uses the wallet's injected
+provider and requires Robinhood Chain (4663) support. Qualify each advertised
+wallet and phone platform on a real device.
+
+- [ ] Add WalletConnect support for ordinary mobile Safari and Chrome in a
+  future release, including wallet-app switching and payment recovery on return.
+  This is desired follow-up work, not an initial-release requirement.
+
 ## Routes
 
 - `/`: Home and incentive offers.

@@ -14,13 +14,15 @@ export function useDeploymentFlow(account:Address|null){
   const [draft,setDraft]=useState<CheckoutDraft|null>(null)
   const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[recoveryHash,setRecoveryHash]=useState('')
   const alive=useRef(true)
-  const update=(ledger:Payments)=>{if(alive.current){setSaved(ledger.activeId?ledger.records[ledger.activeId]:null);setDraft(ledger.draft??null);setRecords(Object.values(ledger.records))}}
+  const owner=useRef(account);owner.current=account
+  const isCurrent=()=>alive.current&&owner.current===account
+  const update=(ledger:Payments)=>{if(isCurrent()){setSaved(ledger.activeId?ledger.records[ledger.activeId]:null);setDraft(ledger.draft??null);setRecords(Object.values(ledger.records))}}
   function restore(){
     if(!account)return
     try{update(readPayments(localStorage,account));setDeployment(null)}catch(cause){setError((cause as Error).message)}
   }
   useEffect(()=>{
-    alive.current=true;restore()
+    alive.current=true;setSaved(null);setDraft(null);setRecords([]);setDeployment(null);setError(undefined);setRecoveryHash('');setBusy(false);restore()
     const changed=()=>{try{if(account)update(readPayments(localStorage,account))}catch(cause){setError((cause as Error).message)}}
     window.addEventListener('storage',changed);window.addEventListener('saffron:payment-record',changed)
     return()=>{alive.current=false;window.removeEventListener('storage',changed);window.removeEventListener('saffron:payment-record',changed)}
@@ -36,14 +38,14 @@ export function useDeploymentFlow(account:Address|null){
         ledger=savePayment(localStorage,account,ledger,payment,{active});update(ledger)
         window.dispatchEvent(new Event('saffron:payment-record'))
       },draft=>{ledger=saveCheckoutDraft(localStorage,account,ledger,draft);update(ledger);window.dispatchEvent(new Event('saffron:payment-record'))})
-    })}catch(cause){if(alive.current)setError((cause as Error).message)}finally{if(alive.current)setBusy(false)}
+    })}catch(cause){if(isCurrent())setError((cause as Error).message)}finally{if(isCurrent())setBusy(false)}
   }
   function finish(payment:Payment,persist:(payment:Payment,active?:boolean)=>void,result:any){
     if(!account)return
     payment={...payment,status:'accepted',deploymentId:result.deployment.id};persist(payment)
     rememberPayment(account,{quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret},result.session)
     persist(payment,false)
-    if(alive.current)setDeployment(result.deployment)
+    if(isCurrent())setDeployment(result.deployment)
     window.dispatchEvent(new Event('saffron:vault-updated'))
   }
   const recover=()=>coordinated(async(ledger,persist)=>{
@@ -130,7 +132,7 @@ export function useDeploymentFlow(account:Address|null){
       prepare(null)
     }
     if(current){await requestJson('/deployment-quotes/withdraw',{quoteId:current.quote.id,recoverySecret:current.recoverySecret});persist({...current,status:'abandoned'},false)}
-    if(alive.current){setDeployment(null);setRecoveryHash('')}
+    if(isCurrent()){setDeployment(null);setRecoveryHash('')}
   })
   // Navigation changes the active checkout only. It never abandons sent fees.
   const select=(id:string|null=null)=>coordinated(async ledger=>{
