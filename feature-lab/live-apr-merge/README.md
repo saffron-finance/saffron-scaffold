@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.5.2 provides Home, Portfolio, Live APR and the full fixed-side vault
+Version 0.5.3 provides Home, Portfolio, Live APR and the full fixed-side vault
 journey in one standalone interface. Its canonical API, database, watcher and
 creator are maintained in this repository's `liquidity-incentives` package.
 Vendored sources and licenses are included; no other application is a build or
@@ -178,3 +178,6 @@ controls have persistent gray outlines; USDG uses its bundled, address-bound ico
 
 Campaign Range selection is displayed as a read-only `Infinite range` field;
 the current full-range adapter and campaign API payload are unchanged.
+
+Homepage pair headers, yield icons, and token tooltips also resolve USDG by its
+Robinhood address to the bundled icon, without external API access.

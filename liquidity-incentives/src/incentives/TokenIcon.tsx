@@ -6,6 +6,8 @@ export function TokenIcon({ symbol, address, size = 30 }: { symbol: string; addr
   const known: Record<string, string> = {
     '0x020bfc650a365f8bb26819deaabf3e21291018b4': cashcatLogo,
     '0x0bd7d308f8e1639fab988df18a8011f41eacad73': ethLogo,
+    // Catalog cards pass addresses; USDG must not depend on the legacy symbol lookup.
+    '0x5fc5360d0400a0fd4f2af552add042d716f1d168': `${import.meta.env.BASE_URL}usdg.png`,
   }
   const legacy: Record<string, string> = { CASHCAT: 'cashcat.png', ETH: 'eth.svg', USDC: 'usdc.svg', USDG: 'usdg.png' }
   const src = address ? known[address.toLowerCase()] : Object.hasOwn(legacy, symbol) ? `${import.meta.env.BASE_URL}${legacy[symbol]}` : undefined
