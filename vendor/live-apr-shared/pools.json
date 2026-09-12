@@ -1,0 +1,3453 @@
+[
+  {
+    "id": "cashcat-eth-1",
+    "path": "/apps/live-pool-apr",
+    "listed": true,
+    "name": "Cash Cat | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa70fc67c9f69da90b63a0e4c05d229954574e313",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+        "symbol": "CASHCAT",
+        "displaySymbol": "CASHCAT",
+        "decimals": 18,
+        "logo": "cashcat"
+      },
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "displaySymbol": "ETH",
+        "decimals": 18,
+        "logo": "eth"
+      }
+    ],
+    "usdReference": "ETH",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "cashcat-usdg-1",
+    "path": "/apps/live-pool-apr/cashcat-usdg-1",
+    "listed": false,
+    "name": "Cash Cat / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x4b0c312ffbb068f6a0bea128759e35d94b94d0e1",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+        "symbol": "CASHCAT",
+        "displaySymbol": "CASHCAT",
+        "decimals": 18,
+        "logo": "cashcat"
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "displaySymbol": "USDG",
+        "decimals": 6,
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "nvda-usdg-005",
+    "path": "/apps/live-pool-apr/nvda-usdg-005",
+    "listed": false,
+    "name": "NVDA / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "displaySymbol": "USDG",
+        "decimals": 6,
+        "logo": "usdg"
+      },
+      {
+        "address": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "symbol": "NVDA",
+        "displaySymbol": "NVDA",
+        "decimals": 18,
+        "logo": "nvda"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000,
+    "onDemand": true
+  },
+  {
+    "id": "hood-usdg-1",
+    "path": "/apps/live-pool-apr/hood-usdg-1",
+    "listed": false,
+    "name": "HOOD / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x1c1f6e283a72a68c15c816324363c794151cf913",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x32ac8c1d7672667d5ebdea22935f7b06fc8d496f",
+        "symbol": "HOOD",
+        "displaySymbol": "HOOD",
+        "decimals": 18,
+        "logo": "hood"
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "displaySymbol": "USDG",
+        "decimals": 6,
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pons-weth-03",
+    "path": "/apps/live-pool-apr/pons-weth-03",
+    "listed": false,
+    "name": "PONS / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xed50bdeea8adc232f159486192a4157281d722ff",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "displaySymbol": "WETH",
+        "decimals": 18,
+        "logo": "eth"
+      },
+      {
+        "address": "0x39dbed3a2bd333467115de45665cc57f813c4571",
+        "symbol": "PONS",
+        "displaySymbol": "PONS",
+        "decimals": 18,
+        "logo": "pons"
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000,
+    "identitySource": "factory",
+    "onDemand": true
+  },
+  {
+    "id": "shroom-usdg-06",
+    "path": "/apps/live-pool-apr/shroom-usdg-06",
+    "listed": false,
+    "name": "SHROOM / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "protocol": "v4",
+    "poolManager": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+    "pool": "0x55e8a24fbe5309af830d40b5787aa95dce3b5776384ccc51fbeabed5924719c0",
+    "feePips": 6000,
+    "tickSpacing": 60,
+    "hooks": "0x0000000000000000000000000000000000000000",
+    "initializedAtBlock": 54268669,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "displaySymbol": "USDG",
+        "decimals": 6,
+        "logo": "usdg"
+      },
+      {
+        "address": "0xab093def657f15df31b33922a95e047add645b29",
+        "symbol": "SHROOM",
+        "displaySymbol": "SHROOM",
+        "decimals": 18,
+        "logo": "shroom"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000,
+    "onDemand": true
+  },
+  {
+    "id": "lly-usdg-005",
+    "path": "/apps/live-pool-apr/lly-usdg-005",
+    "listed": false,
+    "name": "LLY / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xf212d02146a897f5f686e9d629f6a73da534324a",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x8005d266423c7ea827372c9c864491e5786600ea",
+        "symbol": "LLY",
+        "decimals": 18,
+        "displaySymbol": "LLY",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "gld-usdg-005",
+    "path": "/apps/live-pool-apr/gld-usdg-005",
+    "listed": false,
+    "name": "GLD / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xba2f1ed4ceb2169d538d1e614d847e83c5a55913",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e",
+        "symbol": "GLD",
+        "decimals": 18,
+        "displaySymbol": "GLD",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "qqq-usdg-005",
+    "path": "/apps/live-pool-apr/qqq-usdg-005",
+    "listed": false,
+    "name": "QQQ / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd60a5d14db690b7afad71f76b108071d7175597d",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
+        "symbol": "QQQ",
+        "decimals": 18,
+        "displaySymbol": "QQQ",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "googl-usdg-005",
+    "path": "/apps/live-pool-apr/googl-usdg-005",
+    "listed": false,
+    "name": "GOOGL / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x34d0dc122cf9a8eb296fc5e0d3a233625d7d19b7",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3",
+        "symbol": "GOOGL",
+        "decimals": 18,
+        "displaySymbol": "GOOGL",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "spcx-usdg-005",
+    "path": "/apps/live-pool-apr/spcx-usdg-005",
+    "listed": false,
+    "name": "SPCX / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xc61284332117c3fb23a2a56cceffd07f7af60029",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea",
+        "symbol": "SPCX",
+        "decimals": 18,
+        "displaySymbol": "SPCX",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "weth-usdg-005",
+    "path": "/apps/live-pool-apr/weth-usdg-005",
+    "listed": false,
+    "name": "WETH / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x69bfaf19c9f377bb306a89aed9f6b07e2c1a8d9a",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "spy-usdg-005",
+    "path": "/apps/live-pool-apr/spy-usdg-005",
+    "listed": false,
+    "name": "SPY / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa7bb1ac63bbab0c44316e6c8c455213441689167",
+    "feePips": 500,
+    "tokens": [
+      {
+        "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+        "symbol": "SPY",
+        "decimals": 18,
+        "displaySymbol": "SPY",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "lly-usdg-03",
+    "path": "/apps/live-pool-apr/lly-usdg-03",
+    "listed": false,
+    "name": "LLY / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd2038788ebe1e0bfd7c0a6112f09778f3aeaeca6",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x8005d266423c7ea827372c9c864491e5786600ea",
+        "symbol": "LLY",
+        "decimals": 18,
+        "displaySymbol": "LLY",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "weth-usdg-03",
+    "path": "/apps/live-pool-apr/weth-usdg-03",
+    "listed": false,
+    "name": "WETH / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa9188730fe85be88ad499d7d52b099e800fb0334",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pfe-usdg-03",
+    "path": "/apps/live-pool-apr/pfe-usdg-03",
+    "listed": false,
+    "name": "PFE / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xc7d573fcda6d2107c97fb582ae18411f9db32e7f",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x7066a64c24e4206cd62e83bf198c1e7eb361f51e",
+        "symbol": "PFE",
+        "decimals": 18,
+        "displaySymbol": "PFE",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "wyfi-usdg-03",
+    "path": "/apps/live-pool-apr/wyfi-usdg-03",
+    "listed": false,
+    "name": "WYFI / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x2a3063e34c60253abb23c2442f4cdfbc5cbd02c2",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x9e7abd3c9139d14e4c86dce0e455aab7a0c2fb3e",
+        "symbol": "WYFI",
+        "decimals": 18,
+        "displaySymbol": "WYFI",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "mu-usdg-03",
+    "path": "/apps/live-pool-apr/mu-usdg-03",
+    "listed": false,
+    "name": "MU / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd057b1bc54917855bbee58ead58647f47cab35e5",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xff080c8ce2e5feadaca0da81314ae59d232d4afd",
+        "symbol": "MU",
+        "decimals": 18,
+        "displaySymbol": "MU",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "sfi-weth-03",
+    "path": "/apps/live-pool-apr/sfi-weth-03",
+    "listed": false,
+    "name": "SFI / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xf6256d8ea90cc8322d4ad42f02777f132dce29db",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xe77d354898a44808ff3999947002785cd727bed5",
+        "symbol": "SFI",
+        "decimals": 18,
+        "displaySymbol": "SFI",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "aapl-usdg-03",
+    "path": "/apps/live-pool-apr/aapl-usdg-03",
+    "listed": false,
+    "name": "AAPL / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x783c9bbb765047cfdd2b84b92b2ca9f11d34b7ed",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+        "symbol": "AAPL",
+        "decimals": 18,
+        "displaySymbol": "AAPL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "crcl-usdg-03",
+    "path": "/apps/live-pool-apr/crcl-usdg-03",
+    "listed": false,
+    "name": "CRCL / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x654e4143e82a5824445ade0824351c2a9acd95a8",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5",
+        "symbol": "CRCL",
+        "decimals": 18,
+        "displaySymbol": "CRCL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "nvda-usdg-03",
+    "path": "/apps/live-pool-apr/nvda-usdg-03",
+    "listed": false,
+    "name": "NVDA / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb944cec30bd4175855215d767adc81f39e5f7e2b",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "symbol": "NVDA",
+        "decimals": 18,
+        "displaySymbol": "NVDA",
+        "logo": "nvda"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "slv-usdg-03",
+    "path": "/apps/live-pool-apr/slv-usdg-03",
+    "listed": false,
+    "name": "SLV / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x8cb787e6c315d464775289bad00fdd67d53ecb3d",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x411efb0e7f985935daec3d4c3ebaea0d0ad7d89f",
+        "symbol": "SLV",
+        "decimals": 18,
+        "displaySymbol": "SLV",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "meta-usdg-03",
+    "path": "/apps/live-pool-apr/meta-usdg-03",
+    "listed": false,
+    "name": "META / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x107a7cb40d8665360ba10e59471af06150a50922",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xc0d6457c16cc70d6790dd43521c899c87ce02f35",
+        "symbol": "META",
+        "decimals": 18,
+        "displaySymbol": "META",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "sgov-usdg-03",
+    "path": "/apps/live-pool-apr/sgov-usdg-03",
+    "listed": false,
+    "name": "SGOV / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xfab520051f96f4d2a32c22b6a3dd7fffdf231bfe",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x92fd66527192e3e61d4ddd13322aa222de86f9b5",
+        "symbol": "SGOV",
+        "decimals": 18,
+        "displaySymbol": "SGOV",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "mrvl-usdg-03",
+    "path": "/apps/live-pool-apr/mrvl-usdg-03",
+    "listed": false,
+    "name": "MRVL / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb5e892f0fc6daadda5b927266fe7907e623e4843",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x62fd0668e10d8b72339be2dcf7643001688ff13b",
+        "symbol": "MRVL",
+        "decimals": 18,
+        "displaySymbol": "MRVL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "uso-usdg-03",
+    "path": "/apps/live-pool-apr/uso-usdg-03",
+    "listed": false,
+    "name": "USO / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x02175608f1b5e6b5ed221ccfdc7be197d111d915",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344",
+        "symbol": "USO",
+        "decimals": 18,
+        "displaySymbol": "USO",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "jnj-usdg-03",
+    "path": "/apps/live-pool-apr/jnj-usdg-03",
+    "listed": false,
+    "name": "JNJ / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x7f0ace18d1dced47063cf26e649bc8ab14d09e67",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80",
+        "symbol": "JNJ",
+        "decimals": 18,
+        "displaySymbol": "JNJ",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "virtual-weth-03",
+    "path": "/apps/live-pool-apr/virtual-weth-03",
+    "listed": false,
+    "name": "VIRTUAL / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x7a11bc7f32aea2f81e83da399c70315d9662869c",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xc6911796042b15d7fa4f6cde69e245ddcd3d9c31",
+        "symbol": "VIRTUAL",
+        "decimals": 18,
+        "displaySymbol": "VIRTUAL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "amc-usdg-03",
+    "path": "/apps/live-pool-apr/amc-usdg-03",
+    "listed": false,
+    "name": "AMC / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xaa34fea710a1a737840329051d81d3b0b7c564d5",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x05a3d1cd21d0c88145e82600e62e7e496e0f222b",
+        "symbol": "AMC",
+        "decimals": 18,
+        "displaySymbol": "AMC",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "qqq-usdg-03",
+    "path": "/apps/live-pool-apr/qqq-usdg-03",
+    "listed": false,
+    "name": "QQQ / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xebd78dcfc8a6b3a696f1e191ad1ff321f9579f79",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
+        "symbol": "QQQ",
+        "decimals": 18,
+        "displaySymbol": "QQQ",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "spcx-usdg-03",
+    "path": "/apps/live-pool-apr/spcx-usdg-03",
+    "listed": false,
+    "name": "SPCX / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xeb07d9587efd1778dfb9c385ec43ef6d5f9fe401",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea",
+        "symbol": "SPCX",
+        "decimals": 18,
+        "displaySymbol": "SPCX",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "cost-usdg-03",
+    "path": "/apps/live-pool-apr/cost-usdg-03",
+    "listed": false,
+    "name": "COST / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x0a2121a50a09ed0796ae81f9c53ff9398355a398",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x4ea005168d7f09a7a0ba9d1def21a479950e44c2",
+        "symbol": "COST",
+        "decimals": 18,
+        "displaySymbol": "COST",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "cashcat-weth-03",
+    "path": "/apps/live-pool-apr/cashcat-weth-03",
+    "listed": false,
+    "name": "CASHCAT / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd42a491087a15e5afd51feb3606066cc152d2b09",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+        "symbol": "CASHCAT",
+        "decimals": 18,
+        "displaySymbol": "CASHCAT",
+        "logo": "cashcat"
+      },
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "ttwo-usdg-03",
+    "path": "/apps/live-pool-apr/ttwo-usdg-03",
+    "listed": false,
+    "name": "TTWO / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd9ab4b7fae6dc2f7020134ec744a8f53ef3e5e24",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5e81213613b6b86eab4c6c50d718d34359459786",
+        "symbol": "TTWO",
+        "decimals": 18,
+        "displaySymbol": "TTWO",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "stonkbroker-weth-03",
+    "path": "/apps/live-pool-apr/stonkbroker-weth-03",
+    "listed": false,
+    "name": "STONKBROKER / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa9d49caa5e906558dacdc66d563ac78f0c26d4ef",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xe934e36a439c94017b64a3fece66af12099abf50",
+        "symbol": "STONKBROKER",
+        "decimals": 18,
+        "displaySymbol": "STONKBROKER",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pltr-usdg-03",
+    "path": "/apps/live-pool-apr/pltr-usdg-03",
+    "listed": false,
+    "name": "PLTR / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x851680416a4f4e1c463d45171d61acddbc8554c0",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a",
+        "symbol": "PLTR",
+        "decimals": 18,
+        "displaySymbol": "PLTR",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "gld-usdg-03",
+    "path": "/apps/live-pool-apr/gld-usdg-03",
+    "listed": false,
+    "name": "GLD / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x7a6a053eccf1446a2633e05aa6d40d09381997ec",
+    "feePips": 3000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e",
+        "symbol": "GLD",
+        "decimals": 18,
+        "displaySymbol": "GLD",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "sndk-usdg-1",
+    "path": "/apps/live-pool-apr/sndk-usdg-1",
+    "listed": false,
+    "name": "SNDK / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa1e1c9519cd5ae47e9a935645e1a7b935b944559",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xb90a19ff0af67f7779aff50a882a9cff42446400",
+        "symbol": "SNDK",
+        "decimals": 18,
+        "displaySymbol": "SNDK",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "lly-usdg-1",
+    "path": "/apps/live-pool-apr/lly-usdg-1",
+    "listed": false,
+    "name": "LLY / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xf4274130137eee20bad928b593d992716516ceb9",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x8005d266423c7ea827372c9c864491e5786600ea",
+        "symbol": "LLY",
+        "decimals": 18,
+        "displaySymbol": "LLY",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "mrna-usdg-1",
+    "path": "/apps/live-pool-apr/mrna-usdg-1",
+    "listed": false,
+    "name": "MRNA / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa34d0667334074df2d5bfd259e79e6b9cf1fa8bf",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x43b07d15ce533bec5476d70c22a78a1b2b662155",
+        "symbol": "MRNA",
+        "decimals": 18,
+        "displaySymbol": "MRNA",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pons-weth-1",
+    "path": "/apps/live-pool-apr/pons-weth-1",
+    "listed": false,
+    "name": "PONS / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x10cc6bd38112cac182db90b6a71d8bb5939526ba",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x39dbed3a2bd333467115de45665cc57f813c4571",
+        "symbol": "PONS",
+        "decimals": 18,
+        "displaySymbol": "PONS",
+        "logo": "pons"
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "gme-weth-1",
+    "path": "/apps/live-pool-apr/gme-weth-1",
+    "listed": false,
+    "name": "GME / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x90c8c09dd4a6bf3b0a2dcf179c72a2c8c6e09fee",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x7e86381a763f0ecca2bdf27c54eac403ddd48123",
+        "symbol": "GME",
+        "decimals": 18,
+        "displaySymbol": "GME",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "gme-usdg-1",
+    "path": "/apps/live-pool-apr/gme-usdg-1",
+    "listed": false,
+    "name": "GME / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xe9713f453adb9245b19559790c96f470a18f2fdf",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x1b0e319c6a659f002271b69db8a7df2f911c153e",
+        "symbol": "GME",
+        "decimals": 18,
+        "displaySymbol": "GME",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "marian-weth-1",
+    "path": "/apps/live-pool-apr/marian-weth-1",
+    "listed": false,
+    "name": "MARIAN / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xfe331fd29b54bce09d52988fa691e3b18b0a4081",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x01637b14b7378b99de75a64d50656d98488d9a4d",
+        "symbol": "MARIAN",
+        "decimals": 18,
+        "displaySymbol": "MARIAN",
+        "logo": ""
+      },
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "hookr-weth-1",
+    "path": "/apps/live-pool-apr/hookr-weth-1",
+    "listed": false,
+    "name": "HOOKR / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x42b19e5e3f28c4148c518444546f102f6ba87ab1",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x18e674231a58c239dc7daedcffe15ec3a24cff5c",
+        "symbol": "HOOKR",
+        "decimals": 18,
+        "displaySymbol": "HOOKR",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "fidel-weth-1",
+    "path": "/apps/live-pool-apr/fidel-weth-1",
+    "listed": false,
+    "name": "FIDEL / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x26c5d0ac31070f67c82cf92d043c86244587a626",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xdca6da2adcebe397c15f348f6ee38ee0ebe6b867",
+        "symbol": "FIDEL",
+        "decimals": 18,
+        "displaySymbol": "FIDEL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pepe-weth-1",
+    "path": "/apps/live-pool-apr/pepe-weth-1",
+    "listed": false,
+    "name": "PEPE / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xfaa19c495e593f7b519a7d9ac75ed47f951ab16a",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xa4bd8def4b887fd1851defe10acdcf7a84437a88",
+        "symbol": "PEPE",
+        "decimals": 18,
+        "displaySymbol": "PEPE",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "sfi-weth-1",
+    "path": "/apps/live-pool-apr/sfi-weth-1",
+    "listed": false,
+    "name": "SFI / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x9190da1ae15a854aa4710a23ff04ef7482c335a6",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xe77d354898a44808ff3999947002785cd727bed5",
+        "symbol": "SFI",
+        "decimals": 18,
+        "displaySymbol": "SFI",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "ups-usdg-1",
+    "path": "/apps/live-pool-apr/ups-usdg-1",
+    "listed": false,
+    "name": "UPS / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x3ab74c45dcecc6a62898204dd42143a816b44cb1",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xf23250dac154d05bb671cb0d0ebef3c635c79ce2",
+        "symbol": "UPS",
+        "decimals": 18,
+        "displaySymbol": "UPS",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "dih-weth-1",
+    "path": "/apps/live-pool-apr/dih-weth-1",
+    "listed": false,
+    "name": "DIH / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x21c37681013d088789c6aed0c0a665cc7b7c1bfb",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x17bb0c898254406b1ea2e8e99b0c263e26c9e4a4",
+        "symbol": "DIH",
+        "decimals": 18,
+        "displaySymbol": "DIH",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "boner-weth-1",
+    "path": "/apps/live-pool-apr/boner-weth-1",
+    "listed": false,
+    "name": "BONER / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xbd5cd6515ca6285941fbc177381dc8ed4844e6b8",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x98096d17e191b3da1d5f99a6d7b3584351b11e18",
+        "symbol": "BONER",
+        "decimals": 18,
+        "displaySymbol": "BONER",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "virtual-weth-1",
+    "path": "/apps/live-pool-apr/virtual-weth-1",
+    "listed": false,
+    "name": "VIRTUAL / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x1fb312c6eabfece638009a64d7688b6b44a382c0",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xc6911796042b15d7fa4f6cde69e245ddcd3d9c31",
+        "symbol": "VIRTUAL",
+        "decimals": 18,
+        "displaySymbol": "VIRTUAL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "stonks-weth-1",
+    "path": "/apps/live-pool-apr/stonks-weth-1",
+    "listed": false,
+    "name": "STONKS / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xfc6dc4a73a34d2739fb164b72e322de6c09fe1a0",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xbf72347bacefe747eaf48b8a66e38babad3020a0",
+        "symbol": "STONKS",
+        "decimals": 18,
+        "displaySymbol": "STONKS",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "hodl-weth-1",
+    "path": "/apps/live-pool-apr/hodl-weth-1",
+    "listed": false,
+    "name": "HODL / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xdd839007f5a548c57a0acaa64642be8bf10f2a33",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xf4c450c1570c2dbda91de1ed2e39995a15028c97",
+        "symbol": "HODL",
+        "decimals": 18,
+        "displaySymbol": "HODL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "hood-weth-1",
+    "path": "/apps/live-pool-apr/hood-weth-1",
+    "listed": false,
+    "name": "HOOD / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb2aa4fe6277da198a8e59258918bbf9801e77cca",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x3f5e952b29be5d70846fc2ba472bea05761a769e",
+        "symbol": "HOOD",
+        "decimals": 18,
+        "displaySymbol": "HOOD",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "asml-usdg-1",
+    "path": "/apps/live-pool-apr/asml-usdg-1",
+    "listed": false,
+    "name": "ASML / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xedb22516b14eb2d1c86927db373b0e8bf70f5cd1",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x47f93d52cbec7c6d2cfc080e154002370a60daea",
+        "symbol": "ASML",
+        "decimals": 18,
+        "displaySymbol": "ASML",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "rblx-usdg-1",
+    "path": "/apps/live-pool-apr/rblx-usdg-1",
+    "listed": false,
+    "name": "RBLX / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x2ef5945cd5664876b6481fdacfaa2942995a4da8",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8",
+        "symbol": "RBLX",
+        "decimals": 18,
+        "displaySymbol": "RBLX",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "rivn-usdg-1",
+    "path": "/apps/live-pool-apr/rivn-usdg-1",
+    "listed": false,
+    "name": "RIVN / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb30a75b200d98a600a3766869344928e35823e23",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xb1bf26c1d20ff267a4f93550d1e0d06ac40a114b",
+        "symbol": "RIVN",
+        "decimals": 18,
+        "displaySymbol": "RIVN",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "vlad-weth-1",
+    "path": "/apps/live-pool-apr/vlad-weth-1",
+    "listed": false,
+    "name": "VLAD / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x8f450b8ee34f07681b68bbb97729fcd4e8778417",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x31be8f7485e36928c9de86566c62da82d4b6bf81",
+        "symbol": "VLAD",
+        "decimals": 18,
+        "displaySymbol": "VLAD",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "on-usdg-1",
+    "path": "/apps/live-pool-apr/on-usdg-1",
+    "listed": false,
+    "name": "ON / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xfce637eead7d62d9ed27f81d9767de03e9e534cf",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xbbd09f72b025360fee5c928053dca6248d35be54",
+        "symbol": "ON",
+        "decimals": 18,
+        "displaySymbol": "ON",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "grass-weth-1",
+    "path": "/apps/live-pool-apr/grass-weth-1",
+    "listed": false,
+    "name": "GRASS / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xfbe80ebd2b7eb86e8263155cf2c6b6c3b14cd236",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x16391c40e85fb2246a2c8c17bfa2594c5d3ef84b",
+        "symbol": "GRASS",
+        "decimals": 18,
+        "displaySymbol": "GRASS",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "4663-weth-1",
+    "path": "/apps/live-pool-apr/4663-weth-1",
+    "listed": false,
+    "name": "4663 / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa427ad72db4227910805162ffae9d9b0c87bd1b5",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xd4052415613b34af236024b895574c467f65b6dd",
+        "symbol": "4663",
+        "decimals": 18,
+        "displaySymbol": "4663",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "tendies-weth-1",
+    "path": "/apps/live-pool-apr/tendies-weth-1",
+    "listed": false,
+    "name": "TENDIES / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x237609918f330add285b8bc5f8f2922283d1c4c5",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x45242320dbb855eea8fd36804c6487e10e97fcf9",
+        "symbol": "TENDIES",
+        "decimals": 18,
+        "displaySymbol": "TENDIES",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "robincat-usdg-1",
+    "path": "/apps/live-pool-apr/robincat-usdg-1",
+    "listed": false,
+    "name": "ROBINCAT / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb67259525e4e5f1526b3a008848a6fe3c9744321",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xded852de9fe9ba9b6f27f39e8e81cf851a5c79cc",
+        "symbol": "ROBINCAT",
+        "decimals": 18,
+        "displaySymbol": "ROBINCAT",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "microduck-weth-1",
+    "path": "/apps/live-pool-apr/microduck-weth-1",
+    "listed": false,
+    "name": "microduck / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb87c3c63b53d19984f3b4a927e26b667e32087e8",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xd5f1afea47b1a9eab414d2ee740cf1d6d039e725",
+        "symbol": "microduck",
+        "decimals": 18,
+        "displaySymbol": "microduck",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "mstr-usdg-1",
+    "path": "/apps/live-pool-apr/mstr-usdg-1",
+    "listed": false,
+    "name": "MSTR / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x17578c0e0d15da44f31677263114f71ae76653ea",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xec262a75e413fafd0df80480274532c79d42da09",
+        "symbol": "MSTR",
+        "decimals": 18,
+        "displaySymbol": "MSTR",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "ai-weth-1",
+    "path": "/apps/live-pool-apr/ai-weth-1",
+    "listed": false,
+    "name": "AI / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xc4a21f9d6485fc5893dd4a491b320a83daf4da1d",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x2e8c31162b855a2ffa90f6f8634643ad6f111e18",
+        "symbol": "AI",
+        "decimals": 18,
+        "displaySymbol": "AI",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pare-weth-1",
+    "path": "/apps/live-pool-apr/pare-weth-1",
+    "listed": false,
+    "name": "PARE / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xef3063a407599e3181e57bdf75dc2aebdd0ce40a",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x15d36b6a28d8327abc7afabf0f106ae2c9af5c4d",
+        "symbol": "PARE",
+        "decimals": 18,
+        "displaySymbol": "PARE",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "juggernaut-weth-1",
+    "path": "/apps/live-pool-apr/juggernaut-weth-1",
+    "listed": false,
+    "name": "JUGGERNAUT / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x588b0785f50063260003b7790c42f1ef74902746",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xd7321801caae694090694ff55a9323139f043b88",
+        "symbol": "JUGGERNAUT",
+        "decimals": 18,
+        "displaySymbol": "JUGGERNAUT",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "moo-weth-1",
+    "path": "/apps/live-pool-apr/moo-weth-1",
+    "listed": false,
+    "name": "MOO / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x9036a9406dac1c252c364d037f489e5f0a752f54",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xd9db30bb0d2b8d2eae3826a1372117e058791e18",
+        "symbol": "MOO",
+        "decimals": 18,
+        "displaySymbol": "MOO",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "nu-usdg-1",
+    "path": "/apps/live-pool-apr/nu-usdg-1",
+    "listed": false,
+    "name": "NU / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb6d047637151f6de1d02028acdd187aa9cb7afe3",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x408c14038a04f7bd235329e26d2bf569ee20e250",
+        "symbol": "NU",
+        "decimals": 18,
+        "displaySymbol": "NU",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "hood-weth-1-9fb0c197",
+    "path": "/apps/live-pool-apr/hood-weth-1-9fb0c197",
+    "listed": false,
+    "name": "HOOD / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x9fb0c1975c04507c9e26adec033188a38db6784b",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x79d2234ed4ee24880835f261df9a98fcefc7600e",
+        "symbol": "HOOD",
+        "decimals": 18,
+        "displaySymbol": "HOOD",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "meme-weth-1",
+    "path": "/apps/live-pool-apr/meme-weth-1",
+    "listed": false,
+    "name": "MEME / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x97bcdd384fc144899545deb749b6daf2aa52a2c5",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x385f4f8ae47651ce5f58f5265395a669f8281e18",
+        "symbol": "MEME",
+        "decimals": 18,
+        "displaySymbol": "MEME",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "gld-weth-1",
+    "path": "/apps/live-pool-apr/gld-weth-1",
+    "listed": false,
+    "name": "GLD / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x98996e833ea35ec17c3645ca7b6dd40d188564c4",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e",
+        "symbol": "GLD",
+        "decimals": 18,
+        "displaySymbol": "GLD",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "ibm-usdg-1",
+    "path": "/apps/live-pool-apr/ibm-usdg-1",
+    "listed": false,
+    "name": "IBM / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa0a79bc62fc822f3bcdf0ebbc586031781c53a5b",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619",
+        "symbol": "IBM",
+        "decimals": 18,
+        "displaySymbol": "IBM",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "uso-usdg-1",
+    "path": "/apps/live-pool-apr/uso-usdg-1",
+    "listed": false,
+    "name": "USO / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x6ed11c7dfd8e2ca5620eed29a7b9b53ae90dd0d2",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344",
+        "symbol": "USO",
+        "decimals": 18,
+        "displaySymbol": "USO",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "yolo-weth-1",
+    "path": "/apps/live-pool-apr/yolo-weth-1",
+    "listed": false,
+    "name": "YOLO / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x52fcb1d83191e06ef2d2d9f460609ca22a923558",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x62c71cd34a52c30d894419cbcc55db2afa8032ea",
+        "symbol": "YOLO",
+        "decimals": 18,
+        "displaySymbol": "YOLO",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "kitsu-weth-1",
+    "path": "/apps/live-pool-apr/kitsu-weth-1",
+    "listed": false,
+    "name": "KITSU / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xff4ba5ff0a3fc2eff177f1c6ee09825bf2111434",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x8d4dfaaa4198b6486e0293fec914c2b6a821d4dc",
+        "symbol": "KITSU",
+        "decimals": 18,
+        "displaySymbol": "KITSU",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "dell-usdg-1",
+    "path": "/apps/live-pool-apr/dell-usdg-1",
+    "listed": false,
+    "name": "DELL / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xc30c89cb7815a1488b7998d15eec73961707fc5a",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x941ae714ec6d8130c7b75d67160ca08f1e7d11dd",
+        "symbol": "DELL",
+        "decimals": 18,
+        "displaySymbol": "DELL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "wishbone-weth-1",
+    "path": "/apps/live-pool-apr/wishbone-weth-1",
+    "listed": false,
+    "name": "WISHBONE / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x6ec89bff5e684c2561d0a88e185d8d4eb4b3aa30",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x77581054581b9c525e7dd7a0155de43867532d03",
+        "symbol": "WISHBONE",
+        "decimals": 18,
+        "displaySymbol": "WISHBONE",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "delta-weth-1",
+    "path": "/apps/live-pool-apr/delta-weth-1",
+    "listed": false,
+    "name": "DELTA / WETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xd64fbda67e1015df43fa5e49f02ca844729e5f94",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "WETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0xe8ffd7e24187f72afb08d75b1bb13088a989a791",
+        "symbol": "DELTA",
+        "decimals": 18,
+        "displaySymbol": "DELTA",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "rddt-usdg-1",
+    "path": "/apps/live-pool-apr/rddt-usdg-1",
+    "listed": false,
+    "name": "RDDT / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xa8744e76aed23b05f0126335e7bd38f7935d19fe",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x05b37fb53a299a1b874a619e1c4c404d52c36f4c",
+        "symbol": "RDDT",
+        "decimals": 18,
+        "displaySymbol": "RDDT",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "mrvl-usdg-1",
+    "path": "/apps/live-pool-apr/mrvl-usdg-1",
+    "listed": false,
+    "name": "MRVL / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x06cc0b96be1fa1d754ce2e1228f5d8c616f795b0",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      },
+      {
+        "address": "0x62fd0668e10d8b72339be2dcf7643001688ff13b",
+        "symbol": "MRVL",
+        "decimals": 18,
+        "displaySymbol": "MRVL",
+        "logo": ""
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "djt-usdg-1",
+    "path": "/apps/live-pool-apr/djt-usdg-1",
+    "listed": false,
+    "name": "DJT / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x31a89afd92f9397465649ad03226c52292fc1ae5",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x1d11f0496982706c5e14a514d4e79f2e6bde4516",
+        "symbol": "DJT",
+        "decimals": 18,
+        "displaySymbol": "DJT",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "jnj-usdg-1",
+    "path": "/apps/live-pool-apr/jnj-usdg-1",
+    "listed": false,
+    "name": "JNJ / USDG | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://robinhoodchain.blockscout.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x8d39388ef11bb78843130bd74ab0e5d89fa76b30",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80",
+        "symbol": "JNJ",
+        "decimals": 18,
+        "displaySymbol": "JNJ",
+        "logo": ""
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "symbol": "USDG",
+        "decimals": 6,
+        "displaySymbol": "USDG",
+        "logo": "usdg"
+      }
+    ],
+    "usdReference": "USDG",
+    "quoteTokenIndex": 1,
+    "displayOrder": [
+      0,
+      1
+    ],
+    "identitySource": "umami",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "swole-hood-1",
+    "path": "/apps/live-pool-apr/swole-hood-1",
+    "listed": false,
+    "name": "SWOLE / HOOD | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0x09df115d3bb42c7af3864b75769f9c301623ccb6",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x2f36ba966bf29f702bb290245406a5b0e3e1a66e",
+        "symbol": "SWOLE",
+        "decimals": 18,
+        "displaySymbol": "SWOLE",
+        "logo": ""
+      },
+      {
+        "address": "0x32ac8c1d7672667d5ebdea22935f7b06fc8d496f",
+        "symbol": "HOOD",
+        "decimals": 18,
+        "displaySymbol": "HOOD",
+        "logo": "hood"
+      }
+    ],
+    "usdReference": "HOOD",
+    "quoteTokenIndex": 1,
+    "identitySource": "factory",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "zzz-eth-1",
+    "path": "/apps/live-pool-apr/zzz-eth-1",
+    "listed": false,
+    "name": "ZZZ / ETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xdd3c8aa6551bf5049310399c124cbb699b7d1c5c",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "ETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x7dbf38976f6d3b9c529e7d9484a71898b409ee6a",
+        "symbol": "ZZZ",
+        "decimals": 18,
+        "displaySymbol": "ZZZ",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "factory",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  },
+  {
+    "id": "pipedog-eth-1",
+    "path": "/apps/live-pool-apr/pipedog-eth-1",
+    "listed": false,
+    "name": "PIPEDOG / ETH | Live APR",
+    "network": "robinhood",
+    "chainId": 4663,
+    "chainLabel": "Robinhood Chain",
+    "explorer": "https://explorer.robinhood.com",
+    "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "pool": "0xb7f10f74b39291b9290b779978e19a7637c742d6",
+    "feePips": 10000,
+    "tokens": [
+      {
+        "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+        "symbol": "WETH",
+        "decimals": 18,
+        "displaySymbol": "ETH",
+        "logo": "eth"
+      },
+      {
+        "address": "0x5cb6f181081301b44905f3ae15419112ecabd8a6",
+        "symbol": "PIPEDOG",
+        "decimals": 18,
+        "displaySymbol": "PIPEDOG",
+        "logo": ""
+      }
+    ],
+    "usdReference": "ETH",
+    "quoteTokenIndex": 0,
+    "displayOrder": [
+      1,
+      0
+    ],
+    "identitySource": "factory",
+    "onDemand": true,
+    "collectionMode": "batched",
+    "pollIntervalMs": 15000
+  }
+]

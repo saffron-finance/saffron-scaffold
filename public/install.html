@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="generator" content="clawbee-reports">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Saffron · Live APR merge Portable installation guide</title>
+<style>
+:root{color-scheme:light;--ink:#1c2430;--muted:#566273;--line:#dce1e7;--accent:#563592;--paper:#fff;--wash:#f5f6f9}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--accent)}a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.skip{position:absolute;left:16px;top:-80px;background:white;padding:8px}.skip:focus{top:8px}header{max-width:1180px;margin:auto;padding:64px 28px 32px;border-bottom:1px solid var(--line)}h1{font-size:clamp(30px,4vw,48px);line-height:1.15;letter-spacing:-.035em;max-width:900px;margin:10px 0 20px}.eyebrow{color:var(--accent);font-weight:650;letter-spacing:.08em;text-transform:uppercase;font-size:12px}.meta,.small{color:var(--muted);font-size:13px}.layout{max-width:1180px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px;padding:32px 28px 80px}nav{align-self:start;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;font-size:13px}nav a{display:block;text-decoration:none;padding:8px 0;border-bottom:1px solid var(--line)}main{min-width:0}section{scroll-margin-top:20px;margin-bottom:54px}h2{font-size:26px;line-height:1.25;margin:0 0 20px;letter-spacing:-.025em}h3{font-size:18px;line-height:1.4;margin:24px 0 12px}p{margin:12px 0}li{margin:9px 0}ul,ol{padding-left:23px}.lead{font-size:20px;line-height:1.5}.callout{padding:16px 20px;background:var(--wash);border-left:3px solid var(--accent);margin:22px 0}.table-wrap{overflow:auto;margin:20px 0;border:1px solid var(--line);border-radius:4px}table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.55}th{background:var(--wash);text-align:left;font-weight:650}td,th{padding:12px 14px;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}tbody tr:last-child td{border-bottom:0}th:first-child{min-width:145px}code{font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--wash);padding:2px 4px;overflow-wrap:anywhere}pre{white-space:pre;overflow:auto;font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--wash);padding:18px;border:1px solid var(--line)}.finding{border-top:1px solid var(--line);padding:10px 0 18px;scroll-margin-top:20px}.tag{display:block;color:var(--accent);font-size:11px;letter-spacing:.035em;font-weight:650;margin-bottom:8px}.finding p{font-size:15px}.finding strong{font-weight:650}footer{border-top:1px solid var(--line);padding:24px 28px;color:var(--muted);font-size:13px;max-width:1180px;margin:auto}@media(max-width:800px){header{padding:36px 20px 24px}.layout{display:block;padding:24px 20px 40px}nav{position:static;max-height:none;margin-bottom:36px;display:grid;grid-template-columns:1fr 1fr;gap:0 16px}h2{font-size:23px}td,th{padding:10px}section{margin-bottom:40px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{nav,.skip{display:none}.layout{display:block;padding:20px 0}header{padding:10px 0}body{font-size:11px}h1{font-size:26px}h2{font-size:18px}h3{font-size:14px}p,.finding p{font-size:11px}.finding{break-inside:avoid}table{font-size:10px}.table-wrap{overflow:visible}pre{white-space:pre-wrap}a{color:inherit;text-decoration:none}footer{padding:12px 0}}
+
+.checks{list-style:none;padding-left:0}.checks li{padding-left:25px;position:relative}.checks li:before{content:"□";position:absolute;left:0;color:var(--accent)}header p{max-width:900px}details summary{cursor:pointer}h1 code{font:inherit}body{overflow-wrap:break-word}
+</style>
+<style id="report-disclosures">
+/* Native disclosures; the reference typography remains unchanged. */
+details.section{scroll-margin-top:20px;margin-bottom:28px;border-bottom:1px solid var(--line);padding-bottom:16px}
+summary{cursor:pointer}
+summary::marker{color:var(--accent)}
+summary h2,summary h3{display:inline;margin:0}
+summary h2{font-size:26px}
+summary h3{font-size:18px}
+summary .tag{display:inline;margin-right:8px}
+details[open]>summary{margin-bottom:20px}
+summary:hover{color:var(--accent)}
+:where(a,button,summary):focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tools[hidden]{display:none}
+button{font:inherit;color:var(--accent);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:6px 9px;cursor:pointer}
+button:hover{background:var(--wash)}
+@media(max-width:800px){summary h2{font-size:23px}.tools{grid-column:1/-1}details.section{margin-bottom:22px}}
+@media print{.tools{display:none}details.section{margin-bottom:18px}summary h2{font-size:18px}summary h3{font-size:14px}summary{break-after:avoid}details{break-inside:auto}details::details-content{display:block;content-visibility:visible}summary::marker{content:""}}
+</style>
+</head><body>
+<a class="skip" href="#main">Skip to report</a>
+<header>
+<div class="eyebrow">Saffron Feature Lab · Standalone edition · 12 September 2026</div>
+<h1>Saffron · Live APR merge<br>Portable installation guide</h1>
+<p>The complete Live APR page inside the latest Liquidity Incentives shell, delivered as a third independent Feature Lab app.</p>
+<p class="meta">One shared shell · NVDA / USDG 0.05% default · Version 0.2.0 · Preview and explicit API build</p>
+</header>
+<div class="layout">
+<nav aria-label="Contents"><div class="tools" data-report-tools hidden><button type="button" data-open="true">Expand all</button><button type="button" data-open="false">Collapse all</button></div>
+<a href="#overview">1. The merged edition</a>
+<a href="#changes">2. Latest incentives changes and the plan</a>
+<a href="#quickstart">3. Install and run</a>
+<a href="#hosting">4. Hosting, base paths and live data</a>
+<a href="#routes">5. Routes and persistent state</a>
+<a href="#reuse">6. Component reuse and dependencies</a>
+<a href="#testing">7. Reproducible checks</a>
+<a href="#files">8. Source map and provenance</a>
+<a href="#rollback">9. Deployment boundary and rollback</a></nav>
+<main id="main">
+<details class="section" id="overview" open><summary><h2 id="h-overview">1. The merged edition</h2></summary>
+<p class="lead">Home, Portfolio and Live APR share the approved Saffron shell.</p><p><a href="./">Open the updated app</a> · <a href="./live-apr">Open Live APR</a> · <a href="live-apr-merge-source.zip" download>Download portable source ZIP</a></p><p>The published page uses browser-only vault samples and no real payments. APR uses the existing read-only live gateway. An explicit API-connected build is also included.</p>
+</details>
+<details class="section" id="changes"><summary><h2 id="h-changes">2. Latest incentives changes and the plan</h2></summary>
+<p>Version 0.2.0 integrates applicable product changes from all 26 commits between <code>93fcab6</code> and <code>19ad0e9</code>. The earlier watcher/VNC release did not update this separate frontend.</p><ul><li>C06 shows four stages, elapsed time and recoverable progress.</li><li>Live mode uses canonical payment recovery and current position ownership.</li><li>Public capacity meters and request limits are removed. The planning advisory appears only in admin Portfolio.</li><li>C05, refund/retirement controls, gas-spending records and treasury tracking are absent.</li><li>Approved navigation, modal styling, Live APR observations and PNG export remain.</li></ul><p>The source includes a commit-by-commit integration map in <code>docs/PRODUCT-SYNC.md</code>.</p>
+</details>
+<details class="section" id="quickstart"><summary><h2 id="h-quickstart">3. Install and run</h2></summary>
+<p>Use Node 22.9 or newer and npm. Extract the source ZIP, enter its folder, and run:</p><pre><code>npm ci
+npm run dev</code></pre><p>Preview builds need no backend checkout. Run <code>npm run build</code> for the normal preview, or <code>npm run build:lab</code> for Tweak controls. Serve <code>dist/</code> through HTTP(S), not a file URL.</p>
+</details>
+<details class="section" id="hosting"><summary><h2 id="h-hosting">4. Hosting, base paths and live data</h2></summary>
+<p>For this nested preview, set these public values in <code>.env.local</code>, then run <code>npm run build:lab</code>. The same instructions apply on Windows.</p><pre><code>VITE_BASE_PATH=/saffron/apps/feature-lab/live-apr-merge/
+VITE_LIVE_APR_API_BASE=/saffron/api/live-apr/v2
+VITE_FEATURE_LAB_HREF=/saffron/apps/feature-lab/</code></pre><p>For a root install, use <code>VITE_BASE_PATH=/</code>. Preserve authentication, SPA fallback for extensionless routes and genuine 404s for missing files. API paths must not fall through to HTML. Clipboard PNG requires HTTPS or localhost.</p><p><strong>API mode:</strong> <code>npm run build:live</code> writes <code>dist-live/</code>. Serve it through the canonical liquidity-incentives backend with matching base path and <code>DIST_DIR</code>. This mode enables real wallet actions; the default preview cannot switch into it at runtime. Backend services and credentials are not included in this ZIP. See <code>docs/DEPLOYMENT.md</code>.</p>
+</details>
+<details class="section" id="routes"><summary><h2 id="h-routes">5. Routes and persistent state</h2></summary>
+<p>Sidebar order: Home, Portfolio, Saffron pro, Live APR, Stats, Audits, Community.</p><ul><li><code>/</code>: incentive offers.</li><li><code>/portfolio/vaults</code>: saved requests and owned positions.</li><li><code>/campaigns</code> and <code>/admin</code>: operator controls.</li><li><code>/live-apr</code>: NVDA / USDG 0.05% default; pool and comparison routes remain supported.</li><li><code>/stats</code> and <code>/community</code>: scaffold pages without invented live statistics.</li></ul><p>Existing sample storage stays under <code>saffron.live-apr-merge.campaign-preview.v1</code>. Requests and edits survive this update. Reset preview affects only this key. Sample C06 is labelled and has no chain receipts. API mode uses shared backend state and durable local payment-recovery records; no preview reset is offered.</p><p>APR observations release on section exit and restart with fresh baselines on return. Sidebar preferences, dark styling, collapsed-rail behavior and the lab NEW-on-left toggle remain.</p>
+</details>
+<details class="section" id="reuse"><summary><h2 id="h-reuse">6. Component reuse and dependencies</h2></summary>
+<p>One router, shell, theme and modal layer serve both sections. APR and PNG code remain lazy. The preview build excludes wallet discovery and actual request transport. The live build uses the canonical wallet adapters and payment hooks.</p><p>Nine runtime dependencies remain; no new package was needed. Backend PostgreSQL, watcher, creator and recovery tools stay in the canonical repository.</p>
+</details>
+<details class="section" id="testing"><summary><h2 id="h-testing">7. Reproducible checks</h2></summary>
+<pre><code>npm test
+npm run check:upstream
+npx playwright install chromium
+npm run build</code></pre><p>For a root build, set <code>MERGE_BASE=/</code> and run <code>npm run test:browser</code>. The suite checks actual compiled layouts, APR wire fixtures, PNG pixels, multiple requests, private advisories and storage preservation. Use the nested build without this override.</p><p><code>npm run test:backend-browser</code> requires <code>build:live</code> at base / and <code>SAFFRON_BACKEND_SOURCE</code> pointing to the canonical package. Configure its disposable PostgreSQL test fixture as documented there. It uses generated wallets and a local EVM, with a separate fork simulation before reviewed creation. It exercises payment recovery, C06, premium funding, LP deposit, claim, dates and withdrawal. No live funds or VNC reset are involved.</p><p>This release was checked on Linux. Portable Windows build instructions are not a claim of a new Windows end-to-end test. Fixture tests are not mainnet tests.</p>
+</details>
+<details class="section" id="files"><summary><h2 id="h-files">8. Source map and provenance</h2></summary>
+<p><code>src/merge</code> owns routing and build-mode entry. <code>src/host</code> owns the shell and canonical hooks. <code>src/incentives</code> owns product screens. <code>src/preview</code> is local-only; <code>src/adapters</code> serves API mode. <code>src/livePoolApr</code> remains the pinned APR module.</p><p>Current incentives compatibility: <code>19ad0e90af221e86fd13014b5d7e7aceb9a05cc9</code>. APR source: <code>b8eb411f435a1e0d0529dd77f15e117fb6be2f7f</code>. Original source hashes are retained. <code>docs/upstream-sync.json</code> pins exact imports; the ZIP manifest hashes the final package. Credentials, installed dependencies, build outputs and backend services are excluded.</p>
+</details>
+<details class="section" id="rollback"><summary><h2 id="h-rollback">9. Deployment boundary and rollback</h2></summary>
+<p>Back up the current published static files and route configuration before replacing them. A Git rollback alone does not restore a deployed build. Publish hashed assets before the entrypoint; retain old assets for open tabs.</p><p>Restore the previous entrypoint and static manifest to roll back. Keep authentication and APR routes unchanged. Do not clear browser storage, reset VNC or restore databases for a static frontend rollback.</p><p>See <code>README.md</code> and <code>docs/DEPLOYMENT.md</code> in the source ZIP for the maintained procedure. Rebuild this HTML from <code>docs/install-guide.json</code> with <code>scripts/render_install.py</code>.</p>
+</details>
+</main>
+</div>
+<p>Navigation: Home, Portfolio, Saffron pro, Live APR. Live APR uses the APR text effect without changing its font. Amount/review primary buttons share the selected sidebar background, including browser-local appearance settings.</p>
+<footer>Saffron live-apr-merge · Source and installation · No external report assets</footer>
+<script id="report-enhancement">
+(() => {
+  const panels = [...document.querySelectorAll("main details")];
+  document.querySelectorAll("[data-report-tools]").forEach(bar => {
+    bar.hidden = false;
+    bar.addEventListener("click", event => {
+      const button = event.target.closest("button[data-open]");
+      if (button) panels.forEach(panel => panel.open = button.dataset.open === "true");
+    });
+  });
+  function reveal(hash) {
+    let target;
+    try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch { return; }
+    if (!target) return;
+    for (let node = target; node; node = node.parentElement)
+      if (node.tagName === "DETAILS") node.open = true;
+    requestAnimationFrame(() => target.scrollIntoView({block: "start"}));
+  }
+  addEventListener("hashchange", () => reveal(location.hash));
+  document.addEventListener("click", event => {
+    const link = event.target.closest("a[href^='#']");
+    if (link) reveal(link.hash);
+  });
+  let printState;
+  addEventListener("beforeprint", () => {
+    if (printState) return;
+    printState = panels.map(panel => panel.open);
+    panels.forEach(panel => panel.open = true);
+  });
+  addEventListener("afterprint", () => {
+    if (!printState) return;
+    panels.forEach((panel, index) => panel.open = printState[index]);
+    printState = undefined;
+  });
+  reveal(location.hash);
+})();
+</script>
+</body></html>

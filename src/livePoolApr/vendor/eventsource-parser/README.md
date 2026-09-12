@@ -1,0 +1,1 @@
+Vendored eventsource-parser 3.0.6 from its published npm source; MIT license retained. Parser implementation is unmodified except local TypeScript import extensions are removed for this repository module resolver. Used for the WHATWG event-stream framing protocol; application code separately enforces an 8 KiB snapshot bound and bounded incomplete frames.

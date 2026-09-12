@@ -1,0 +1,88 @@
+{
+  "source": "b8eb411f435a1e0d0529dd77f15e117fb6be2f7f",
+  "generator": "canonical reduceBatch + baselineFor; synthetic input, no RPC",
+  "now": 1800000000000,
+  "control": {
+    "state": "watching",
+    "runGeneration": "1",
+    "statusVersion": "1",
+    "loadDeadlineMs": 1800001200000
+  },
+  "first": {
+    "schemaVersion": 2,
+    "poolId": "nvda-usdg-005",
+    "chainId": "4663",
+    "datasetGeneration": "merge-fixture",
+    "protocol": "v3",
+    "feePips": 500,
+    "usdReference": "USDG",
+    "epoch": "1",
+    "sequence": "1",
+    "lastSwap": null,
+    "coverage": {
+      "fromBlock": "100",
+      "throughBlock": "100",
+      "blockHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainTimeMs": 1799999970000,
+      "headSelectedAtMs": 1799999999000,
+      "committedAtMs": 1789045902423,
+      "provisional": true
+    },
+    "cumulative": {
+      "swapCount": "0",
+      "lpFeeQuoteQ36": "0",
+      "feeReturnQ36": "0"
+    },
+    "valuation": {
+      "tvlQuoteQ36": "35000000000000000000000000000000000000000",
+      "block": "100",
+      "poolPriceValid": true,
+      "reasonCode": null,
+      "activeLiquidity": "1000",
+      "method": "batch-balances-excludes-protocol-fees",
+      "quoteUsdQ36": "1000000000000000000000000000000000000",
+      "quoteTimeMs": 1800000000000,
+      "quoteValid": true
+    },
+    "observationAvailable": true,
+    "history": {
+      "latestCursor": null,
+      "retainedFromMs": 1788959502423
+    },
+    "quality": {
+      "state": "fresh",
+      "lagMs": 0,
+      "reasonCode": null
+    },
+    "watcher": {
+      "state": "watching",
+      "runGeneration": "1",
+      "loadDeadlineMs": 1800001200000,
+      "pausedAtMs": null,
+      "pauseReason": null,
+      "statusVersion": "1"
+    }
+  },
+  "baseline": {
+    "baselineId": "merge-fixture:1:1:fixture",
+    "poolId": "nvda-usdg-005",
+    "datasetGeneration": "merge-fixture",
+    "epoch": "1",
+    "sequence": "1",
+    "coverage": {
+      "fromBlock": "100",
+      "throughBlock": "100",
+      "blockHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainTimeMs": 1799999970000,
+      "headSelectedAtMs": 1799999999000,
+      "committedAtMs": 1789045902423,
+      "provisional": true
+    },
+    "cumulative": {
+      "swapCount": "0",
+      "lpFeeQuoteQ36": "0",
+      "feeReturnQ36": "0"
+    },
+    "joinedAtMs": 1799999969000
+  }
+}

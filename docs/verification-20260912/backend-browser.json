@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "live": false,
+  "backendCommit": "19ad0e90af221e86fd13014b5d7e7aceb9a05cc9",
+  "checks": [
+    "Two independent fees, lost callback, watcher admission and reloaded payment recovery without a duplicate fee or message signatures",
+    "Exact fork simulation, three creation transactions, C06, retained progress on API failure, partial-funding entry guard",
+    "Merged Portfolio opens the owned position; wrap/approve/deposit/claim, start/maturity dates and withdrawal complete"
+  ],
+  "requestId": "f3a486b9-b2b9-44bb-8fd7-2ebb387512ac",
+  "chainId": 4663,
+  "simulation": {
+    "ok": true,
+    "upstreamBroadcasts": 0
+  },
+  "final": {
+    "claimBalance": "0",
+    "fixedBalance": "0",
+    "blockNumber": "51",
+    "blockHash": "0x16a8709a6b2aa90a957ed763ea9c70f89f0de4c348830dbb0318c92ae0d16098"
+  },
+  "errors": []
+}
