@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.6.0 adds visible configuration warnings to Admin and Campaigns.
+Version 0.6.1 adds visible configuration warnings to Admin and Campaigns.
 Missing/invalid server settings show their names, impact, and corrective action
 after wallet-signed operator login; secret values are never returned. Optional
 WalletConnect and automatic network setup are labeled separately. PostgreSQL

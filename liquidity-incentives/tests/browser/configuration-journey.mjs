@@ -8,7 +8,9 @@ export async function configurationJourney(page,{expect,missingFeeRecipient,base
   try{
     const anonymous=await page.request.get(f.origin+'/api/incentives/admin/configuration')
     expect(anonymous.status()).toBe(401)
-    await page.goto(f.origin+'/admin');await connect(page)
+    await page.goto(f.origin+'/admin')
+    await expect(page.getByText('Sign in with an admin wallet to check server settings.',{exact:false})).toBeVisible()
+    await connect(page)
     // A status outage must not hide diagnostics or force an authentication bypass.
     await page.route('**/api/incentives/admin/status',route=>route.fulfill({status:503,json:{error:'Operations unavailable'}}))
     await page.getByRole('button',{name:'Sign in as operator',exact:true}).click()

@@ -35,7 +35,7 @@
     "vendor/fixed-income-ui/shared/components/Modal.tsx": "308c54a2445444ea7791408e844ebc7a72cf7c73546c730bfb8e60a15690c92a",
     "src/incentives/TokenPicker.tsx": "59d1da1db72d4b5844b7a2274f58237be8523ad168349e82dd9a31ba9baa8485",
     "src/incentives/PairEditor.tsx": "ff30a3ea7aa365b2e69dfc3e6b1a38aaac57dd7331cb5cc8a0b926ffcb55b5aa",
-    "src/incentives/ConfigurationWarnings.tsx": "49acf0c3f83bae5857d56c4f120c5080eb9c390c47b040164510fd52fb86f14a"
+    "src/incentives/ConfigurationWarnings.tsx": "deef4281bff0661f41b43fd9f3f8cac902610fe5718a2948f68c68a04145aea3"
   },
   "adaptedFiles": [
     "src/incentives/IncentivesPage.tsx",

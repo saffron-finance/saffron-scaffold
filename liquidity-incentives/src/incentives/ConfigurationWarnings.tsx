@@ -20,18 +20,18 @@ const browserSettings:Setting[]=[
  * so an outage cannot hide the configuration warning or imply a healthy state.
  */
 export function ConfigurationWarnings({account}:{account:Address|null}){
-  const load=useCallback(async(signal:AbortSignal):Promise<Report|null>=>{
-    if(!account)return null
+  const load=useCallback(async(signal:AbortSignal):Promise<{report:Report|null}>=>{
+    if(!account)return {report:null}
     const session=await readSession(account,signal)
-    if(!session?.operator)return null
+    if(!session?.operator)return {report:null}
     const report=await requestJson('/admin/configuration',undefined,signal)
     if(!Array.isArray(report.settings)||!report.checkedAt)throw new Error('Invalid configuration report')
-    return report
+    return {report}
   },[account])
   const poll=usePollingResource('configuration:'+account,load,'saffron:session')
-  const settings=[...(poll.data?.settings??[]),...browserSettings]
+  const settings=[...(poll.data?.report?.settings??[]),...browserSettings]
   const issues=settings.filter(setting=>['missing','invalid'].includes(setting.status))
-  const unavailable=Boolean(poll.error),unverified=!poll.data
+  const unavailable=Boolean(poll.error),unverified=!poll.data?.report
   return <Panel aria-label='Application configuration' role={issues.length||unavailable?'alert':'region'}>
     <strong>{issues.length?'Configuration needs attention':unavailable?'Configuration check unavailable':unverified?'Configuration not verified':'Configuration settings checked'}</strong>
     {unavailable?<p>Cannot verify the current server settings. Check the API connection and sign in again if your session expired. Any previous results below may be out of date.</p>
