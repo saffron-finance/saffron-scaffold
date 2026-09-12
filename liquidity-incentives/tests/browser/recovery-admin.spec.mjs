@@ -1,3 +1,4 @@
+import { exercisePairPicker } from './admin-pair-journey.mjs'
 import { test,expect } from '@playwright/test'
 import { setup,connect } from './fixture.mjs'
 
@@ -103,8 +104,6 @@ test('campaign form derives APR, budget or capacity and stores a paused campaign
     await page.getByRole('button',{name:'Sign in as operator',exact:true}).click()
     await page.getByText('Programs and campaign budgets',{exact:true}).click()
     await page.getByRole('button',{name:'Load incentive catalog',exact:true}).click()
-    await page.getByLabel('Campaign ID',{exact:true}).fill('new-campaign')
-    await page.getByLabel('Campaign name',{exact:true}).fill('New campaign')
     await page.getByLabel('Campaign request fee ETH').fill('0.001')
     await expect(page.getByLabel('Campaign APR percent')).toHaveValue('121.666667')
     await expect(page.getByLabel('Campaign APR percent')).toHaveAttribute('readonly','')
@@ -116,13 +115,17 @@ test('campaign form derives APR, budget or capacity and stores a paused campaign
     await page.getByLabel('Calculate campaign field').selectOption('apr')
     await page.getByRole('button',{name:'Create campaign',exact:true}).click()
     await expect(page.getByText('Campaign configuration saved.',{exact:true})).toBeVisible()
-    const catalog=await f.database.catalog(true),campaign=catalog.budgets.find(b=>b.id==='new-campaign')
+    const catalog=await f.database.catalog(true),campaign=catalog.budgets.find(b=>b.id.startsWith('campaign-'))
+    expect(campaign.name).toBe('CASHCAT / ETH')
+    await expect(page.getByLabel('Campaign ID',{exact:true})).toHaveCount(0)
+    await expect(page.getByLabel('Campaign name',{exact:true})).toHaveCount(0)
     expect(campaign.campaign.budgetCents).toBe('1000000')
     expect(campaign.campaign.capacityCents).toBe('100000000')
     expect(campaign.paused).toBe(true)
     expect(f.state.sends).toBe(0)
     await page.setViewportSize({width:390,height:844})
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+    await exercisePairPicker(page,f,expect)
     await page.screenshot({path:'validation/admin-budgets-mobile.png',fullPage:true,animations:'disabled'})
   }finally{await f.close()}
 })

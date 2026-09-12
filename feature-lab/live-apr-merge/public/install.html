@@ -32,10 +32,10 @@ button:hover{background:var(--wash)}
 </head><body>
 <a class="skip" href="#main">Skip to report</a>
 <header>
-<div class="eyebrow">Saffron · Version 0.4.0</div>
+<div class="eyebrow">Saffron · Version 0.5.0</div>
 <h1>Saffron liquidity incentives<br>Portable installation guide</h1>
 <p>Home, Portfolio and Live APR with an independent incentives API and automatic vault lifecycle.</p>
-<p class="meta">Version 0.4.0 · Wallet required for transactions · Fixed ETH campaign fees</p>
+<p class="meta">Version 0.5.0 · Wallet required for transactions · Fixed ETH campaign fees</p>
 </header>
 <div class="layout">
 <nav aria-label="Contents"><div class="tools" data-report-tools hidden><button type="button" data-open="true">Expand all</button><button type="button" data-open="false">Collapse all</button></div>
@@ -53,7 +53,7 @@ button:hover{background:var(--wash)}
 <p>The combined Home, Portfolio and Live APR interface includes mobile navigation and transaction dialogs. Production uses the canonical incentives API maintained in this repository. Configure real campaigns and operating owners before paid intake.</p><p><a href="./">Open the app</a> · <a href="./live-apr">Live APR</a> · <a href="live-apr-merge-source.zip" download>Portable source ZIP</a></p>
 </details>
 <details class="section" id="changes"><summary><h2 id="h-changes">2. Current lifecycle</h2></summary>
-<p><strong>Claim $X</strong> retains the incentive wording. A separate fixed native ETH fee configured per campaign on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p><p>Operators must set a positive fixed ETH request fee for each campaign. Fee edits apply to new quotes only; existing payment and refund amounts remain unchanged. No ETH/USD fee calculation is used.</p>
+<p><strong>Claim $X</strong> retains the incentive wording. A separate fixed native ETH fee configured per campaign on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p><p>Operators must set a positive fixed ETH request fee for each campaign. Fee edits apply to new quotes only; existing payment and refund amounts remain unchanged. No ETH/USD fee calculation is used.</p><p>Campaign IDs are assigned automatically. Pool token names replace custom campaign headings. Add pair uses two searchable token selectors, a swap control and verified existing fee tiers. The first token is the reward token. Token discovery uses the public CoinGecko list, a canonical fallback and read-only chain RPC; no CoinGecko key is required.</p>
 </details>
 <details class="section" id="quickstart"><summary><h2 id="h-quickstart">3. Install and run</h2></summary>
 <p>Use Node 22.9 or newer and npm. Extract the source ZIP, enter its folder and run:</p><pre><code>npm ci

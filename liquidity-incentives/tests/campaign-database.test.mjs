@@ -62,3 +62,21 @@ it('program fees are required and a concurrent fee edit cannot issue stale new t
     assert.equal((await db.query('SELECT count(*)::int AS n FROM saffron_incentives.deployment_quotes')).rows[0].n,0)
   }finally{await f.close()}
 })
+
+it('campaign IDs and pool names are automatic; concurrent retries create one campaign and reject changed terms',async()=>{
+  const f=await incentivesFixture(),db=f.database,a=privateKeyToAccount(generatePrivateKey())
+  try{
+    await db.savePair(pair,a.address)
+    const input={creationKey:crypto.randomUUID(),name:'Do not display this',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:false,requestFeeWei:'7'}
+    const [first,retry]=await Promise.all([db.saveCampaign(input,a.address),db.saveCampaign(input,a.address)])
+    assert.equal(first.program.id,retry.program.id)
+    assert.match(first.program.id,/^campaign-[0-9a-f-]{36}$/)
+    assert.equal([first,retry].filter(r=>r.replayed).length,1)
+    const catalog=await db.catalog(true)
+    assert.equal(catalog.programs.length,1);assert.equal(catalog.budgets[0].name,'CASHCAT / ETH')
+    await assert.rejects(db.saveCampaign({...input,requestFeeWei:'8'},a.address),e=>e.status===409)
+    await assert.rejects(db.saveCampaign(input,privateKeyToAccount(generatePrivateKey()).address),e=>e.status===409)
+    const second=await db.saveCampaign({...input,creationKey:undefined},a.address)
+    assert.notEqual(second.program.id,first.program.id)
+  }finally{await f.close()}
+})

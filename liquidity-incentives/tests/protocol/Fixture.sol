@@ -6,7 +6,7 @@ import "./vendor/@uniswap/v3-core/contracts/libraries/TickMath.sol";
 
 /// Test-only token. Never deployed by the application worker.
 contract FixtureToken is ERC20 {
-  constructor() ERC20("Fixture token", "FIX") {}
+  constructor(string memory name_,string memory symbol_) ERC20(name_,symbol_) {}
   function mint(address to, uint256 amount) external { _mint(to, amount); }
   function deposit() external payable { _mint(msg.sender, msg.value); }
 }

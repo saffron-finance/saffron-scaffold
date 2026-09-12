@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.4.0 provides Home, Portfolio, Live APR and the full fixed-side vault
+Version 0.5.0 provides Home, Portfolio, Live APR and the full fixed-side vault
 journey in one standalone interface. Its canonical API, database, watcher and
 creator are maintained in this repository's `liquidity-incentives` package.
 Vendored sources and licenses are included; no other application is a build or
@@ -153,3 +153,21 @@ See [deployment](docs/DEPLOYMENT.md), [cutover](docs/LIVE-CUTOVER.md), the
 [historical adoption map](docs/PRODUCT-SYNC.md) and the included installation
 page. The release marker and source manifest identify a candidate; they do not
 activate intake, publish files, qualify a real phone or perform live transfers.
+
+## Campaign and pair setup
+
+In Admin → Campaigns, choose a pool, enter its fixed ETH request fee, duration
+and economics, then create the campaign. IDs are assigned automatically, and
+headings show pool tokens and fee tier. A stable creation key prevents duplicates
+when a save response is lost. Existing campaign IDs and quotes do not change.
+
+Add pair follows the fixed-income Create Vault token-step interaction: two
+searchable modal selectors, a swap button, and existing Uniswap fee tiers. The
+first token is the reward token; ETH pools use the WETH contract. Search names
+or symbols, or paste an ERC-20 contract address. Token addresses distinguish
+duplicate symbols. Saving reads and verifies pool and token metadata on Robinhood.
+
+No paid CoinGecko API or key is required. The API uses the public Robinhood token
+list with a bundled WETH/USDG/SFI fallback and supports direct RPC address lookup.
+An unavailable token list does not enable sample data or bypass wallet login.
+All discovery endpoints require a wallet-authenticated operator session.

@@ -1,0 +1,27 @@
+{
+  "name": "Robinhood Chain Canonical Tokens",
+  "timestamp": "2026-07-03T00:00:00.000Z",
+  "tokens": [
+    {
+      "chainId": 4663,
+      "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18
+    },
+    {
+      "chainId": 4663,
+      "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "name": "Global Dollar",
+      "symbol": "USDG",
+      "decimals": 6
+    },
+    {
+      "chainId": 4663,
+      "address": "0xe77d354898a44808ff3999947002785cd727bed5",
+      "name": "Saffron Finance",
+      "symbol": "SFI",
+      "decimals": 18
+    }
+  ]
+}

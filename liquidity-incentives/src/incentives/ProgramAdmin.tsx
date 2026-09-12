@@ -1,6 +1,7 @@
 import { useEffect,useState,type FormEvent } from 'react'
 import { formatUnits,type Address } from 'viem'
 import styled from 'styled-components'
+import { PairEditor } from './PairEditor'
 import { requestFeeFromEth } from '../../shared/incentives.mjs'
 import { campaignTerms } from '../../shared/campaign.mjs'
 import { authedJson } from '../host/transport'
@@ -25,7 +26,7 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
     <QuietButton disabled={busy} onClick={()=>void load()}>{catalog?'Reload campaigns':'Load incentive catalog'}</QuietButton>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}{saved&&<FinePrint role='status'>{saved}</FinePrint>}
     {catalog&&account&&<>
-      {catalog.budgets.map(b=><Card key={b.id}><Row><b>{b.name}</b><QuietButton disabled={busy} onClick={()=>void pause(b)}>{b.paused?'Resume campaign':'Pause campaign'}</QuietButton></Row>
+      {catalog.budgets.map(b=><Card key={b.id}><Row><b>{poolHeading(catalog.pairs.find(p=>p.id===catalog.programs.find(p=>p.budgetPoolId===b.id)?.pairId))}</b><QuietButton disabled={busy} onClick={()=>void pause(b)}>{b.paused?'Resume campaign':'Pause campaign'}</QuietButton></Row>
         {b.campaign&&b.accounting?<>
           <FinePrint>{b.campaign.days} days · {Number(b.campaign.aprPercent).toLocaleString('en-US',{maximumFractionDigits:4})}% APR · {usd(Number(b.campaign.capacityCents)/100)} target fixed-side capacity</FinePrint>
           <Stats><div>Budget<Strong>{usd(Number(b.accounting.budgetCents)/100)}</Strong></div><div>Premium funded<Strong>{usd(Number(b.accounting.fundedBudgetCents)/100)}</Strong></div><div>Budget reserved<Strong>{usd(Number(b.accounting.reservedBudgetCents)/100)}</Strong></div><div>Capacity funded<Strong>{usd(Number(b.accounting.fundedCapacityCents)/100)}</Strong></div><div>Target difference<Strong>{usd(Number(b.accounting.availableCapacityCents)/100)}</Strong></div></Stats>
@@ -34,11 +35,11 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
         {b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}
         {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
       </Card>)}
-      {catalog.programs.map(program=><RequestFeeEditor key={program.id+':'+program.revision} account={account} program={program} onSaved={changed}/>)}
+      {catalog.programs.map(program=><RequestFeeEditor key={program.id+':'+program.revision} account={account} program={program} heading={poolHeading(catalog.pairs.find(p=>p.id===program.pairId))} onSaved={changed}/>)}
       <CampaignEditor account={account} pairs={catalog.pairs} onSaved={changed}/>
       <Row><b>Pairs</b><QuietButton onClick={()=>setShowPair(!showPair)}>{showPair?'Close pair form':'Add pair'}</QuietButton></Row>
       {catalog.pairs.map(pair=><FinePrint key={pair.id}>{pair.token0.symbol} / {pair.token1.symbol} · {pair.pool}</FinePrint>)}
-      {showPair&&<PairEditor account={account} onSaved={async()=>{setShowPair(false);await changed()}}/>}
+      {showPair&&<PairEditor key={account} account={account} pairs={catalog.pairs} onSaved={async()=>{setShowPair(false);await changed()}}/>}
     </>}
   </Stack>
 }
@@ -47,7 +48,8 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
  * the server's exact budget/capacity ratio. Duration is always an explicit input.
  */
 function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];onSaved:()=>Promise<void>}){
-  const [id,setId]=useState(''),[name,setName]=useState(''),[pairId,setPairId]=useState(pairs[0]?.id??'')
+  const [creationKey,setCreationKey]=useState(()=>crypto.randomUUID()),[pairId,setPairId]=useState(pairs[0]?.id??'')
+  useEffect(()=>{if(!pairId&&pairs.length)setPairId(pairs[0].id)},[pairId,pairs])
   const [days,setDays]=useState('3'),[budget,setBudget]=useState('10000'),[capacity,setCapacity]=useState('1000000'),[apr,setApr]=useState('121.66666667')
   const [computed,setComputed]=useState('apr'),[active,setActive]=useState(false),[requestFee,setRequestFee]=useState('')
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
@@ -55,12 +57,10 @@ function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];on
   let terms:any=null,validation=''
   try{terms=campaignTerms(economics)}catch(e){validation=(e as Error).message}
   async function submit(event:FormEvent){event.preventDefault();if(!terms)return;setBusy(true);setError('')
-    try{await authedJson(account,'/admin/campaigns',{id,name,pairId,active,requestFeeWei:requestFeeFromEth(requestFee),...economics});setId('');setName('');await onSaved()}
+    try{await authedJson(account,'/admin/campaigns',{creationKey,pairId,active,requestFeeWei:requestFeeFromEth(requestFee),...economics});setCreationKey(crypto.randomUUID());await onSaved()}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Editor onSubmit={submit} aria-label='Create campaign'><b>Create campaign</b><Fields>
-    <Field>Campaign ID<input aria-label='Campaign ID' required pattern={'[a-z0-9][a-z0-9\\-]{0,79}'} value={id} onChange={e=>setId(e.target.value)}/></Field>
-    <Field>Campaign name<input aria-label='Campaign name' required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></Field>
-    <Field>Pair<select aria-label='Campaign pair' required value={pairId} onChange={e=>setPairId(e.target.value)}><option value='' disabled>Select pair</option>{pairs.map(p=><option key={p.id} value={p.id}>{p.token0.symbol} / {p.token1.symbol}</option>)}</select></Field>
+    <Field>Pair<select aria-label='Campaign pair' required value={pairId} onChange={e=>setPairId(e.target.value)}><option value='' disabled>Select pair</option>{pairs.map(p=><option key={p.id} value={p.id}>{poolHeading(p)}</option>)}</select></Field>
     <Field>Request fee (ETH)<input aria-label='Campaign request fee ETH' required inputMode='decimal' placeholder='Enter a fixed ETH amount' value={requestFee} onChange={e=>setRequestFee(e.target.value)}/></Field>
     <Field>Duration (days)<input aria-label='Campaign duration' required type='number' min={1} max={3650} step={1} value={days} onChange={e=>setDays(e.target.value)}/></Field>
     <Field>Calculate<select aria-label='Calculate campaign field' value={computed} onChange={e=>setComputed(e.target.value)}><option value='apr'>APR from budget + capacity</option><option value='capacity'>Capacity from budget + APR</option><option value='budget'>Budget from capacity + APR</option></select></Field>
@@ -77,13 +77,13 @@ function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];on
 
 /** Fee revisions affect only new quotes. A stored payment/refund keeps its exact
  * original wei amount; operators must not reprice an in-flight request. */
-function RequestFeeEditor({account,program,onSaved}:{account:Address;program:Program;onSaved:()=>Promise<void>}){
+function RequestFeeEditor({account,program,heading,onSaved}:{account:Address;program:Program;heading:string;onSaved:()=>Promise<void>}){
   const [value,setValue]=useState(program.requestFeeWei?formatUnits(BigInt(program.requestFeeWei),18):'')
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
   async function save(event:FormEvent){event.preventDefault();setBusy(true);setError('')
     try{await authedJson(account,'/admin/programs',{...program,requestFeeWei:requestFeeFromEth(value)});await onSaved()}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <Editor onSubmit={save} aria-label={'Request fee for '+program.id}><b>{program.id} · Request fee</b>
+  return <Editor onSubmit={save} aria-label={'Request fee for '+program.id}><b>{heading} · {program.days} days · Request fee</b>
     <Field>Fixed request fee (ETH)<input required aria-label={'Request fee ETH for '+program.id} inputMode='decimal' value={value} onChange={e=>setValue(e.target.value)}/></Field>
     <FinePrint>Each new request costs this ETH amount plus wallet network gas. Previously issued payment terms and refunds do not change.</FinePrint>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}<Action disabled={busy}>Save request fee</Action>
@@ -98,18 +98,8 @@ function AdvisoryTarget({account,budget,onSaved}:{account:Address;budget:Budget;
     <QuietButton disabled={busy} onClick={()=>void save()}>Update planning target</QuietButton>{error&&<ErrorText role='alert'>{error}</ErrorText>}</>
 }
 
-/** Pool metadata is verified against the chain by the API before it is saved. */
-function PairEditor({account,onSaved}:{account:Address;onSaved:()=>Promise<void>}){
-  const [body,setBody]=useState({id:'',revision:0,chainId:4663,pool:'',feeTier:10000,active:true,token0:{address:'',symbol:'',decimals:18},token1:{address:'',symbol:'',decimals:18}})
-  const [busy,setBusy]=useState(false),[error,setError]=useState('')
-  async function submit(e:FormEvent){e.preventDefault();setBusy(true);try{await authedJson(account,'/admin/pairs',body);await onSaved()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <Editor onSubmit={submit}><b>Add pair</b><Fields>
-    <Field>Pair ID<input required value={body.id} onChange={e=>setBody({...body,id:e.target.value})}/></Field>
-    <Field>Pool address<input required value={body.pool} onChange={e=>setBody({...body,pool:e.target.value})}/></Field>
-    <Field>Fee tier<select value={body.feeTier} onChange={e=>setBody({...body,feeTier:Number(e.target.value)})}>{[100,500,3000,10000].map(f=><option key={f} value={f}>{f/10000}%</option>)}</select></Field>
-    {(['token0','token1'] as const).map((key,i)=><div key={key}><b>{i===0?'Reward token':'Quote token'}</b>{(['address','symbol','decimals'] as const).map(field=><Field key={field}>{field}<input required value={body[key][field]} onChange={e=>setBody({...body,[key]:{...body[key],[field]:field==='decimals'?Number(e.target.value):e.target.value}})}/></Field>)}</div>)}
-  </Fields>{error&&<ErrorText role='alert'>{error}</ErrorText>}<Action disabled={busy}>Save pair</Action></Editor>
-}
+/** Pool-derived headings also apply to campaigns created before this UI change. */
+function poolHeading(pair?:Pair){return pair?`${pair.token0.symbol} / ${pair.token1.symbol} · ${pair.feeTier/10000}%`:'Pool unavailable'}
 const Card=styled.div`display:flex;flex-direction:column;gap:20px;padding:28px 32px;background:#0a0a0a;border:1px solid #1d1d1d;border-radius:var(--radius-md);>div:first-child{flex-wrap:wrap}b{font-family:${p=>p.theme.fonts.display};font-size:22px;font-weight:400}@media(max-width:650px){padding:24px 16px}`
 const Editor=styled(Card).attrs({as:'form'})`gap:24px;>label{font-size:13px;color:${p=>p.theme.colors.text.secondary}}`
 const Fields=styled.div`display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;@media(max-width:650px){grid-template-columns:minmax(0,1fr)}`

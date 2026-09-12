@@ -2,6 +2,7 @@ import { decodeFunctionResult,encodeFunctionData,parseAbi } from 'viem'
 import { fault,normalizePair,validAddress } from '../shared/incentives.mjs'
 import { proofHash,paymentData } from '../shared/payment.mjs'
 import { createCheckoutAdmission } from './checkout-admission.mjs'
+import { createPairDiscovery } from './pair-discovery.mjs'
 
 export function sendJson(res,status,value){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(value))}
 async function readBody(req){
@@ -22,6 +23,7 @@ export async function verifyPair(pair,rpc){
 export function createIncentivesHandler({database:db,auth,service,rpc,basePath='',now=Date.now}){
   const root=basePath+'/api/incentives',windows=new Map()
   const checkout=createCheckoutAdmission({database:db,origin:auth.origin,basePath,now})
+  const discovery=createPairDiscovery({rpc,now})
   return async(req,res,pathname)=>{
     if(pathname!==root&&!pathname.startsWith(root+'/'))return false
     try{
@@ -97,6 +99,14 @@ export function createIncentivesHandler({database:db,auth,service,rpc,basePath='
         throw fault(405,'Method not allowed.')
       }
       if(method==='GET'&&path==='/admin/catalog'){sendJson(res,200,await db.catalog(true));return true}
+      // These reads still require a wallet-authenticated operator session above.
+      if(method==='GET'&&path==='/admin/tokens'){sendJson(res,200,await discovery.tokens());return true}
+      const tokenAddress=/^\/admin\/tokens\/(0x[0-9a-fA-F]{40})$/.exec(path)
+      if(method==='GET'&&tokenAddress){sendJson(res,200,await discovery.token(tokenAddress[1]));return true}
+      if(method==='GET'&&path==='/admin/pools'){
+        const params=new URL(req.url,'http://localhost').searchParams
+        sendJson(res,200,await discovery.pools(params.get('token0'),params.get('token1')));return true
+      }
       if(method==='GET'&&path==='/admin/status'){sendJson(res,200,await service.operatorStatus());return true}
       if(method==='GET'&&path==='/admin/portfolio-capacity'){sendJson(res,200,await service.capacityAdvisory());return true}
       if(method==='POST'&&path==='/admin/intake'){

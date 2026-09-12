@@ -241,3 +241,31 @@ and TVL are separate and unchanged.
 ## Verified operator deployment
 
 [Vault #2 live test, 11 September 2026](ops/live-tests/2026-09-11-vault-2/README.md): exact pre-signing factory fork, three successful live receipts, canonical state verification and recovery regressions. Creation/initialization succeeded; premium funding and LP entry were not performed. The normal payment watcher remains a separate path.
+
+## Operator token discovery and campaign IDs
+
+The campaign form no longer accepts an ID or a custom name. The API assigns
+`campaign-<UUID>` and derives the heading from the selected pool's token symbols.
+The UI sends a hidden `creationKey`; retries with the same operator and terms
+return the existing campaign. Changed terms or another operator conflict.
+Legacy explicit IDs remain accepted for existing integrations. No schema or
+existing campaign/quote migration is needed.
+
+Add pair uses the fixed-income Create Vault interaction: two searchable token
+modals, swap and fee tiers. The first token is the reward asset. The authenticated
+read-only endpoints are `GET /admin/tokens`, `GET /admin/tokens/:address`, and
+`GET /admin/pools?token0=<address>&token1=<address>`, beneath `/api/incentives`.
+The public CoinGecko Robinhood token list needs no API key; it is bounded and
+cached for one hour. On failure, canonical WETH/USDG/SFI discovery remains, with
+a one-minute retry. Tokens can also be entered by contract address. Lists are
+discovery hints, not campaign catalogs or authoritative token metadata.
+
+The API reads ERC-20 metadata and discovers pools through the Uniswap factory
+returned by Saffron's position manager. All reads use one block on chain 4663,
+so the same behavior works on a wallet-connected local fork. The save endpoint
+independently checks token addresses, decimals and pool fee. No transaction,
+price oracle, new signer, or operator credential is added by this feature.
+
+The token list fallback and selector interaction are adapted from
+`saffron-finance/fixed-income`: `web3/assets/files/robinhood-tokens.json`,
+`TokenStepFields.tsx`, `SelectTokenModal.tsx`, and `SelectTokenButton.tsx`.

@@ -1,8 +1,8 @@
 {
   "title": "Saffron liquidity incentives\nPortable installation guide",
-  "eyebrow": "Saffron \u00b7 Version 0.4.0",
+  "eyebrow": "Saffron \u00b7 Version 0.5.0",
   "description": "Home, Portfolio and Live APR with an independent incentives API and automatic vault lifecycle.",
-  "meta": "Version 0.4.0 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
+  "meta": "Version 0.5.0 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
   "sections": [
     {
       "id": "overview",
@@ -12,7 +12,7 @@
     {
       "id": "changes",
       "title": "2. Current lifecycle",
-      "body_html": "<p><strong>Claim $X</strong> retains the incentive wording. A separate fixed native ETH fee configured per campaign on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p><p>Operators must set a positive fixed ETH request fee for each campaign. Fee edits apply to new quotes only; existing payment and refund amounts remain unchanged. No ETH/USD fee calculation is used.</p>"
+      "body_html": "<p><strong>Claim $X</strong> retains the incentive wording. A separate fixed native ETH fee configured per campaign on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p><p>Operators must set a positive fixed ETH request fee for each campaign. Fee edits apply to new quotes only; existing payment and refund amounts remain unchanged. No ETH/USD fee calculation is used.</p><p>Campaign IDs are assigned automatically. Pool token names replace custom campaign headings. Add pair uses two searchable token selectors, a swap control and verified existing fee tiers. The first token is the reward token. Token discovery uses the public CoinGecko list, a canonical fallback and read-only chain RPC; no CoinGecko key is required.</p>"
     },
     {
       "id": "quickstart",

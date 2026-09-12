@@ -55,8 +55,13 @@ export async function evmFixture({account=privateKeyToAccount(generatePrivateKey
     const artifacts=contracts()
     async function send(to,data,value=0n) {const hash=await wallet.sendTransaction({to,data,value});const receipt=await client.waitForTransactionReceipt({hash});await raw('evm_mine');return receipt}
     async function deploy(file,name,args=[]) {const c=artifacts[file][name];const hash=await wallet.deployContract({abi:c.abi,bytecode:'0x'+c.evm.bytecode.object,args});return(await client.waitForTransactionReceipt({hash})).contractAddress}
-    const token=await deploy('Fixture.sol','FixtureToken'),tokenCode=await client.getCode({address:token})
-    await raw('anvil_setCode',[CASHCAT,tokenCode]);await raw('anvil_setCode',[WETH,tokenCode])
+    // Preserve real ERC-20 name/symbol storage when placing test code at the
+    // fork's canonical token addresses. Discovery must read actual metadata.
+    for(const [address,name,symbol] of [[CASHCAT,'Cash Cat','CASHCAT'],[WETH,'Wrapped Ether','WETH']]){
+      const token=await deploy('Fixture.sol','FixtureToken',[name,symbol])
+      await raw('anvil_setCode',[address,await client.getCode({address:token})])
+      for(const slot of [3,4])await raw('anvil_setStorageAt',[address,toHex(slot,{size:32}),await raw('eth_getStorageAt',[token,toHex(slot),'latest'])])
+    }
     let poolAddress=POOL,manager
     if(realPositionManager){
       async function deployArtifact(path,args){const artifact=JSON.parse(readFileSync(new URL('../node_modules/'+path,import.meta.url),'utf8'))

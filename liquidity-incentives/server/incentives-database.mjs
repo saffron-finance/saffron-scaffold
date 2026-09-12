@@ -166,19 +166,31 @@ export function createIncentivesDatabase({ connection, now = Date.now,
     },
     /** Create campaign economics and its offer together, before admitting payments. */
     async saveCampaign(input,actor){
+      // A hidden creation key makes retries stable, without asking for an ID.
+      // Explicit legacy IDs remain accepted for existing operator integrations.
+      if(input.creationKey!==undefined&&(typeof input.creationKey!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(input.creationKey)))throw fault(400,'Invalid campaign creation key.')
+      const id=input.id??'campaign-'+(input.creationKey??randomUUID())
       let campaign
       try{campaign=campaignTerms(input)}catch(error){throw fault(400,error.message)}
       return transaction(async client=>{
         const pair=(await client.query(`SELECT body FROM ${schema}.pairs WHERE id=$1 FOR SHARE`,[input.pairId])).rows[0]?.body
         if(!pair)throw fault(400,'Choose a configured pair.')
-        const budget=normalizeBudget({id:input.id,revision:0,name:input.name,chainId:4663,rewardAsset:pair.token0.address,decimals:pair.token0.decimals,
+        const budget=normalizeBudget({id,revision:0,name:`${pair.token0.symbol} / ${pair.token1.symbol}`,chainId:4663,rewardAsset:pair.token0.address,decimals:pair.token0.decimals,
           limitRaw:UINT256_MAX.toString(),paused:!input.active,campaign})
-        const program=normalizeProgram({id:input.id,revision:0,pairId:pair.id,budgetPoolId:budget.id,apr:Number(Number(campaign.aprPercent).toFixed(2)),days:campaign.days,
+        const program=normalizeProgram({id,revision:0,pairId:pair.id,budgetPoolId:budget.id,apr:Number(Number(campaign.aprPercent).toFixed(2)),days:campaign.days,
           requestFeeWei:input.requestFeeWei,minimumCents:cents(input.minimumUsd??'1'),maximumCents:UINT256_MAX.toString(),sortOrder:0,isNew:true,active:true})
         const inserted=await client.query(`INSERT INTO ${schema}.budget_pools(id,revision,name,chain_id,reward_asset,decimals,limit_raw,paused,updated_by,campaign)
           VALUES($1,1,$2,4663,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING id`,[budget.id,budget.name,budget.rewardAsset,budget.decimals,budget.limitRaw,budget.paused,actor,campaign])
-        if(!inserted.rowCount)throw fault(409,'Campaign ID already exists. Choose a new ID.')
-        await entry(client,{key:'budget:'+budget.id+':1',budgetId:budget.id,kind:'create-campaign',limit:budget.limitRaw,actor,evidence:{campaign}})
+        const creationHash=digest({budget,program})
+        if(!inserted.rowCount){
+          const previous=(await client.query(`SELECT actor,evidence FROM ${schema}.budget_entries WHERE event_key=$1`,['budget:'+budget.id+':1'])).rows[0]
+          if(input.creationKey&&previous?.actor===actor&&previous.evidence?.creationHash===creationHash){
+            const saved=(await client.query(`SELECT body FROM ${schema}.programs WHERE id=$1`,[id])).rows[0].body
+            return {campaign,budgetId:id,program:saved,replayed:true}
+          }
+          throw fault(409,'Campaign already exists. Reload campaigns before creating another.')
+        }
+        await entry(client,{key:'budget:'+budget.id+':1',budgetId:budget.id,kind:'create-campaign',limit:budget.limitRaw,actor,evidence:{campaign,creationHash}})
         const body={...program,revision:1}
         await client.query(`INSERT INTO ${schema}.programs(id,revision,pair_id,budget_pool_id,body,updated_by) VALUES($1,1,$2,$3,$4,$5)`,[program.id,pair.id,budget.id,body,actor])
         return {campaign,budgetId:budget.id,program:body}

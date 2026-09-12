@@ -32,7 +32,9 @@
     "src/host/payment-records.d.mts": "dbadab8767c4029eed51dc2fedad0d6c175167c468d6ace434c0be0af2caef30",
     "src/adapters/wallet/walletconnect.ts": "cdcaacfb65265c146929db0fe0e1cea07ca51992408de62e47e4bd5c89fda87d",
     "src/adapters/wallet/walletconnect-sdk.ts": "bbb71a238e3e10db8ced2eb5cc3d7f300e8e69ce589394573e66246adef435b5",
-    "vendor/fixed-income-ui/shared/components/Modal.tsx": "308c54a2445444ea7791408e844ebc7a72cf7c73546c730bfb8e60a15690c92a"
+    "vendor/fixed-income-ui/shared/components/Modal.tsx": "308c54a2445444ea7791408e844ebc7a72cf7c73546c730bfb8e60a15690c92a",
+    "src/incentives/TokenPicker.tsx": "4b2babd76f68d30f4a9d14ca45dbc087a60bf7c2dcba586d694a670a4151af1b",
+    "src/incentives/PairEditor.tsx": "f87f06489c7c44f0992ee1501ee650c26817b43b3370622bdcb4f925b4fb9328"
   },
   "adaptedFiles": [
     "src/incentives/IncentivesPage.tsx",
