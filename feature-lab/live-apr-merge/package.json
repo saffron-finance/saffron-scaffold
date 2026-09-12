@@ -1,7 +1,7 @@
 {
   "name": "saffron-live-apr-merge",
   "private": true,
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -18,7 +18,8 @@
     "test:release": "node --test tests/release-check.test.mjs",
     "test:release-browser": "node tests/release-browser.mjs",
     "test:walletconnect": "node tests/run-walletconnect.mjs",
-    "test:configuration": "node tests/configuration-browser.mjs"
+    "test:configuration": "node tests/configuration-browser.mjs",
+    "test:status": "node tests/status-browser.mjs"
   },
   "dependencies": {
     "@reown/appkit": "1.8.19",

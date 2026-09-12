@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "build:lab": "node scripts/build-lab.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/admin-configuration.test.mjs tests/proxy.test.mjs tests/dev-proxy.test.mjs tests/lifecycle-unit.test.mjs tests/incentives-auth.test.mjs tests/campaign-payment.test.mjs tests/gas-policy.test.mjs tests/live-deployment-regressions.test.mjs tests/protected-files.test.mjs tests/payment-records.test.mjs tests/creation-fee.test.mjs tests/checkout-readiness.test.mjs tests/vault-tvl.test.mjs tests/refund-proof.test.mjs",
+    "test": "node --test tests/admin-health.test.mjs tests/admin-configuration.test.mjs tests/proxy.test.mjs tests/dev-proxy.test.mjs tests/lifecycle-unit.test.mjs tests/incentives-auth.test.mjs tests/campaign-payment.test.mjs tests/gas-policy.test.mjs tests/live-deployment-regressions.test.mjs tests/protected-files.test.mjs tests/payment-records.test.mjs tests/creation-fee.test.mjs tests/checkout-readiness.test.mjs tests/vault-tvl.test.mjs tests/refund-proof.test.mjs",
     "serve": "node server/proxy.mjs",
     "test:browser": "playwright test",
     "test:database": "node --test tests/incentives-database.test.mjs tests/incentives-api.test.mjs tests/campaign-database.test.mjs tests/payment-resolutions.test.mjs tests/advisory-capacity.test.mjs tests/refunds-database.test.mjs",

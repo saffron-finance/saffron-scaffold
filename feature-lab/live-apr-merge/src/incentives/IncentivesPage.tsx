@@ -18,6 +18,8 @@ import robinhoodLogo from './assets/robinhood.svg'
 import { IncentiveModal } from './IncentiveModal'
 import { MyVaults } from './MyVaults'
 import { ProgramAdmin } from './ProgramAdmin'
+import { OperatorStatus } from './OperatorStatus'
+import { JourneyGuide } from './JourneyGuide'
 import { IncentivesAdmin } from './IncentivesAdmin'
 
 export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void}){
@@ -37,7 +39,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   async function openOffer(offer:Offer,target:HTMLElement){opener.current=target;await flow.startNew();setSelected(offer);setVaultId(null);setResume(false);setOpenPosition(false)}
   function close(){const target=opener.current;opener.current=null;requestAnimationFrame(()=>{if(target?.isConnected)target.focus()});setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
   return <Page $home={route==='/'}>
-    {route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Home</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={(id,position=false)=>{setVaultId(id);setOpenPosition(position)}} payments={flow.records.filter(p=>p.sent&&!p.deploymentId)} onResumePayment={async(id)=>{await flow.resumePayment(id);setSelected(null);setVaultId(null);setResume(true)}} onAdmin={()=>navigate('/admin')}/>:<>
+    {route==='/status'?<OperatorStatus account={account} onConnect={onConnect} onNavigate={navigate}/>:route==='/journey'?<JourneyGuide onNavigate={navigate}/>:route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Home</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onNavigate={navigate} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={(id,position=false)=>{setVaultId(id);setOpenPosition(position)}} payments={flow.records.filter(p=>p.sent&&!p.deploymentId)} onResumePayment={async(id)=>{await flow.resumePayment(id);setSelected(null);setVaultId(null);setResume(true)}} onAdmin={()=>navigate('/admin')}/>:<>
       <TitleRow data-desktop-home-copy><StepTitle>Liquidity Incentives</StepTitle></TitleRow>
       <Introduction data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration and target APR. Review your position and premium before paying the campaign’s fixed ETH request fee.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></Introduction>
       <MobileIntroduction>

@@ -17,7 +17,7 @@ export async function configurationJourney(page,{expect,missingFeeRecipient,base
     const panel=page.getByRole('alert').filter({has:page.getByText('Configuration needs attention',{exact:true})})
     const fee=panel.locator('li').filter({hasText:'SAFFRON_CREATION_FEE_RECIPIENT'})
     if(missingFeeRecipient){await expect(fee).toContainText('Required setting · missing');await expect(fee).toContainText('New paid requests are blocked')}
-    else{await expect.poll(async()=>await panel.locator('details').textContent()).toContain('SAFFRON_CREATION_FEE_RECIPIENT — configured');await expect(fee).toHaveCount(0)}
+    else{await expect.poll(async()=>await panel.locator('details').filter({has:page.getByText('Configuration checklist',{exact:true})}).textContent()).toContain('SAFFRON_CREATION_FEE_RECIPIENT — configured');await expect(fee).toHaveCount(0)}
     const report=await f.operatorCall('/admin/configuration')
     expect(report.settings.find(row=>row.name==='SAFFRON_CREATION_FEE_RECIPIENT').status).toBe(missingFeeRecipient?'missing':'configured')
     expect(report.settings.find(row=>row.name==='PGPASSWORD').status).toBe('default')

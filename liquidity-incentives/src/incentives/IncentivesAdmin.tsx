@@ -1,6 +1,9 @@
 import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { RefundAdmin } from './RefundAdmin'
 import { useState } from 'react'
+import { useAdminHealth } from '../host/useAdminHealth'
+import { IntakeSummary,OperationMetrics } from './OperatorOverview'
+import { OpsButtons,OpsCard,OpsNote,OpsRow,OpsTabs } from './operator-styles'
 import { formatUnits,type Address } from 'viem'
 import { StepTitle } from '../host/ui'
 import { authedJson } from '../host/transport'
@@ -10,23 +13,42 @@ import { DeploymentPagination } from './DeploymentPagination'
 import { statusLabel,type Deployment } from './model'
 import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
 
-export function IncentivesAdmin({account,onConnect,onBack}:{account:Address|null;onConnect:()=>void;onBack:()=>void}){
-  const data=useDeployments(account,true)
-  return <Stack><Row><StepTitle>Administration</StepTitle><QuietButton onClick={onBack}>Vaults</QuietButton></Row>
-    <ConfigurationWarnings account={account}/>
-    {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!data.session?<Action disabled={data.busy} onClick={()=>void data.signIn()}>Sign in as operator</Action>:!data.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
-      <FinePrint>{data.operatorStatus?.readiness.mode==='reviewed'?'Reviewed request execution':'Automatic request execution'} · {data.rows.length} deployments on this page. Confirmed ETH request-fee payments queue creation. Premium funding is managed externally.</FinePrint>
-      {data.operatorStatus&&<FinePrint>{data.operatorStatus.pending} pending operations · {data.operatorStatus.stalled} awaiting attention for over 24 hours.</FinePrint>}
-      {data.operatorStatus&&<IntakePolicy account={account} status={data.operatorStatus} onUpdate={data.refresh}/>}
-      {data.operatorStatus?.metrics&&<Disclosure><summary>Operational alerts · {data.operatorStatus.alerts.length}</summary><FinePrint>Oldest undelivered request without progress: {Math.floor(data.operatorStatus.metrics.oldestWithoutProgressSeconds/60)} minutes · premium funding pending: {data.operatorStatus.metrics.fundingBacklog} · unresolved payments: {data.operatorStatus.metrics.unresolvedPayments} · stale vault observations: {data.operatorStatus.metrics.staleVaultObservations}.</FinePrint>{data.operatorStatus.alerts.map((alert,index)=><FinePrint key={index}>{alert.severity}: {statusLabel(alert.code)}</FinePrint>)}</Disclosure>}
-      <Disclosure><summary>Programs and campaign budgets</summary><ProgramAdmin account={account} onConnect={onConnect}/></Disclosure>
-      <PaymentAttention account={account}/><RefundAdmin account={account}/>
-      <QuietButton onClick={data.refresh}>Refresh operations</QuietButton>
-      {data.rows.map(row=><AdminVault key={row.id} account={account} row={row} onUpdate={data.refresh}/>)}
-      <DeploymentPagination data={data}/>
-    </>}{data.error&&<ErrorText role='alert'>{data.error}</ErrorText>}
+/** Administration owns operations; Status owns diagnosis. All totals come from
+ * live operator responses, and filters explicitly apply to the current page. */
+export function IncentivesAdmin({account,onConnect,onBack,onNavigate}:{account:Address|null;onConnect:()=>void;onBack:()=>void;onNavigate:(path:string)=>void}){
+  const data=useDeployments(account,true),health=useAdminHealth(account)
+  const report=health.unavailable?null:health.report
+  const [tab,setTab]=useState('Overview'),[filter,setFilter]=useState('All requests')
+  const rows=data.rows.filter(row=>filter==='All requests'||filter==='Needs attention'&&['needs_attention','failed','waiting'].includes(row.state)||filter==='Awaiting premium'&&row.workerState==='created'&&['partial','awaiting_external'].includes(row.fundingState))
+  function editIntake(){setTab('Overview');setTimeout(()=>{const node=document.getElementById('intake-controls') as HTMLDetailsElement|null;if(node){node.open=true;node.scrollIntoView({block:'center',behavior:'smooth'})}},0)}
+  return <Stack>
+    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><QuietButton onClick={()=>onNavigate('/campaigns')}>New campaign</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
+    <OpsNote>Manage real requests, review exceptions, and give each vault a clear next step.</OpsNote>
+    <ConfigurationWarnings account={account} compact/>
+    {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!health.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
+      <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Campaigns','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
+      {health.unavailable&&<ErrorText role='alert'>Operational status is unavailable. Counts and readiness are not assumed. Open Status for independent checks.</ErrorText>}
+      {(tab==='Overview'||tab==='Requests')&&<>
+        <IntakeSummary report={report} onStatus={()=>onNavigate('/status')} onEdit={editIntake}/>
+        <OperationMetrics report={report}/>
+        {tab==='Overview'&&report?.readiness&&report.signer&&<IntakePolicy account={account} status={report} onUpdate={()=>{data.refresh();health.refresh();window.dispatchEvent(new Event('saffron:intake-updated'))}}/>}
+        {tab==='Overview'&&report?.checks.some(c=>['blocked','unknown','warning'].includes(c.state))&&<OpsCard><h2>Needs attention</h2>{report.checks.filter(c=>['blocked','unknown','warning'].includes(c.state)).map(c=><p key={c.id}><b>{c.title}</b> — {c.detail}<br/><b>{c.owner}:</b> {c.action}</p>)}<QuietButton onClick={()=>onNavigate('/status')}>View all Status checks</QuietButton></OpsCard>}
+        <OpsCard aria-label='Deployment queue'><OpsRow><h2>Deployment queue</h2><QuietButton onClick={()=>{data.refresh();health.refresh()}}>Refresh operations</QuietButton></OpsRow><OpsNote>Saved requests and their current chain-verified progress. Filters apply to this page.</OpsNote>
+          <OpsTabs aria-label='Request filters'>{['All requests','Needs attention','Awaiting premium'].map(name=><button key={name} aria-pressed={filter===name} onClick={()=>setFilter(name)}>{name}</button>)}</OpsTabs>
+          {data.loading&&<OpsNote>Loading requests…</OpsNote>}
+          {!data.loading&&!data.error&&!rows.length&&<OpsNote>{filter==='All requests'?'No deployment requests on this page.':'No requests match this filter on this page.'}</OpsNote>}
+          {rows.map(row=><Disclosure key={row.id}><summary>{row.snapshot.display.pair} · {row.id.slice(0,8)} · {statusLabel(row.state)}</summary><AdminVault account={account} row={row} onUpdate={()=>{data.refresh();health.refresh()}}/></Disclosure>)}
+          <DeploymentPagination data={data}/>
+        </OpsCard>
+      </>}
+      {tab==='Campaigns'&&<ProgramAdmin account={account} onConnect={onConnect}/>}
+      {tab==='Payments'&&<PaymentAttention account={account}/>}
+      {tab==='Refunds'&&<RefundAdmin account={account}/>}
+    </>}
+    {health.signError&&<ErrorText role='alert'>{health.signError}</ErrorText>}{data.error&&<ErrorText role='alert'>{data.error}</ErrorText>}
   </Stack>
 }
+
 function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpdate:()=>void}){
   const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[original,setOriginal]=useState(''),[hash,setHash]=useState('')
   const s=row.observation
@@ -75,7 +97,7 @@ function IntakePolicy({account,status,onUpdate}:{account:Address;status:any;onUp
     await authedJson(account,'/admin/intake',{signer:status.signer,revision:policy?.revision??0,mode:enabled?mode:policy?.mode??mode,enabled,
       expiresAt:new Date(Date.now()+Number(minutes)*60000).toISOString(),serviceMinutes:enabled?Number(serviceMinutes):policy?.service_minutes??240,watcherId:enabled?watcher:policy?.watcher_id??watcher});onUpdate()
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <Disclosure><summary>Request intake · {readiness?.canQuote?'open':'paused'}</summary>
+  return <Disclosure id='intake-controls'><summary>Edit intake window</summary>
     <FinePrint>{readiness?.mode==='reviewed'?'Reviewed one-request execution':'Automatic queue execution'}. {readiness?.reasons.map(statusLabel).join(' · ')}. Signer process: {readiness?.workerOnline?'online':'offline'}. Watcher lag: {readiness?.watcher?.lagBlocks??'unavailable'} blocks.</FinePrint>
     {policy&&<FinePrint>Intake expires {new Date(policy.expires_at).toLocaleString()}. Declared service window: {policy.service_minutes} minutes.</FinePrint>}
     <label>Execution mode<select value={mode} onChange={e=>setMode(e.target.value)}><option value='automatic'>Automatic queue</option><option value='reviewed'>Reviewed one-request</option></select></label>

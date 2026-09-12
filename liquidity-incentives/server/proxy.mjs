@@ -16,6 +16,7 @@ import { createIncentivesService } from './incentives-service.mjs'
 import { createIncentivesHandler } from './incentives-api.mjs'
 import { createPriceService } from './price-service.mjs'
 import { adminConfiguration } from './admin-configuration.mjs'
+import { createAdminHealth } from './admin-health.mjs'
 
 const readFileAsync = promisify(readFile)
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -57,7 +58,9 @@ const rpc=(method,params)=>requestRpc('robinhood',method,params)
 const prices=createPriceService({database,root:configured('PRICE_API_ROOT')})
 const auth=createWalletAuth({operators:(configured('SAFFRON_ADMIN_WALLETS')||'').split(','),origin:configured('SAFFRON_APP_ORIGIN'),basePath:BASE_PATH})
 const service=database?createIncentivesService({database,rpc,usdQuote:prices.quote,config:protocol,signer,origin:auth.origin,feeRecipient:configured('SAFFRON_CREATION_FEE_RECIPIENT')}):null
-const handleIncentives=createIncentivesHandler({database,auth,service,rpc,basePath:BASE_PATH,configuration:()=>adminConfiguration(configured,protocol)})
+const configuration=()=>adminConfiguration(configured,protocol)
+const health=createAdminHealth({database,rpc,service,configuration,config:protocol,signer,feeRecipient:configured('SAFFRON_CREATION_FEE_RECIPIENT')})
+const handleIncentives=createIncentivesHandler({database,auth,service,rpc,basePath:BASE_PATH,configuration,health})
 const observerTimer=setInterval(()=>{void service?.poll().catch(()=>{})},5000)
 observerTimer.unref()
 

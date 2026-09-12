@@ -6,6 +6,9 @@ export function sidebarDestinations(vaultsHref: string): SidebarDestination[] {
   return [
     { label: 'Vaults', href: vaultsHref, icon: 'vaults' },
     { label: 'My requests', href: vaultsHref.replace(/\/$/,'')+'/portfolio/vaults', icon: 'positions' },
+    { label: 'Administration', href: vaultsHref.replace(/\/$/,'')+'/admin', icon: 'positions' },
+    { label: 'Status', href: vaultsHref.replace(/\/$/,'')+'/status', icon: 'positions' },
+    { label: 'Journey Guide', href: vaultsHref.replace(/\/$/,'')+'/journey', icon: 'positions' },
     { label: 'Audits', href: 'https://docs.saffron.finance/security/audits', icon: 'audits', external: true },
     { label: 'Community', href: 'https://discord.com/invite/pDXpXKY', icon: 'community', external: true },
   ]

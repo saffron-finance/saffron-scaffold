@@ -55,9 +55,11 @@ export function AppShell({ account, onConnect, children, overlays, liveApr = fal
         <NavLink to='/'>Home</NavLink>
         <NavLink to='/campaigns'>Campaigns</NavLink>
         <NavLink to='/admin'>Administration</NavLink>
+        <NavLink to='/status'>Status</NavLink>
+        <NavLink to='/journey'>Journey Guide</NavLink>
         <NavLink to='/live-apr'><AprNavigationLabel>Live APR</AprNavigationLabel></NavLink>
         {mobileHome && <MobileMenuExtras>
-          {sidebarDestinations('/').filter(item => !['Home', 'Live APR'].includes(item.label)).map(item =>
+          {sidebarDestinations('/').filter(item => !['Home', 'Live APR', 'Administration', 'Status', 'Journey Guide'].includes(item.label)).map(item =>
             <NavLink key={item.href} to={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>{item.label}</NavLink>)}
           <NavLink as='a' href={`${mount}install.html`}>Source & installation</NavLink>
         </MobileMenuExtras>}

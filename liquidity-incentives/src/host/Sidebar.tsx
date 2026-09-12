@@ -39,7 +39,7 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
       </Collapse>
     </Heading>
     <Navigation id={navigationId} aria-label='Main navigation' aria-hidden={collapsed || undefined}>
-      {sidebarDestinations(home).map(item => <NavItem key={item.icon} href={item.href}
+      {sidebarDestinations(home).map(item => <NavItem key={item.href} href={item.href}
         tabIndex={collapsed ? -1 : undefined}
         aria-current={!item.external&&path.replace(/\/$/,'')===item.href.replace(/\/$/,'')?'page':undefined}
         target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>

@@ -1,6 +1,19 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.6.1 adds visible configuration warnings to Admin and Campaigns.
+Version 0.7.0 adds an operational Status page, startup/Journey Guide, and a focused
+Administration console with intake summary, metric cards, request filters, and
+separate campaign/payment/refund sections. Operator navigation orders
+**Administration → Status → Journey Guide**, on desktop and mobile.
+
+Status uses the wallet-gated canonical `/admin/health` endpoint. It distinguishes
+an enabled intake switch from effective checkout readiness, displays individual
+subsystem failures and next actions, and keeps unverifiable items unknown.
+Creator gas, external premium coverage, backups and staffed support are manual
+checks, never an automatic green light. The API cannot start or provision a signer.
+Use `npm run test:status` after a root build with the canonical backend's disposable
+database test environment; `MERGE_BASE_PATH` also exercises a nested build.
+
+Visible configuration warnings remain on Admin and Campaigns.
 Missing/invalid server settings show their names, impact, and corrective action
 after wallet-signed operator login; secret values are never returned. Optional
 WalletConnect and automatic network setup are labeled separately. PostgreSQL

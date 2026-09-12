@@ -45,6 +45,8 @@ export function AppShell({ account, onConnect, children, overlays }: {
         <NavLink href={mount + 'portfolio/vaults/'}>My requests</NavLink>
         <NavLink href={mount + 'campaigns/'}>Campaigns</NavLink>
         <NavLink href={mount + 'admin/'}>Administration</NavLink>
+        <NavLink href={mount + 'status/'}>Status</NavLink>
+        <NavLink href={mount + 'journey/'}>Journey Guide</NavLink>
         <WalletButton onClick={() => setLight(value => !value)}>{light ? 'Dark' : 'Light'} theme</WalletButton>
         <WalletButton onClick={() => setMenu(false)}>Close</WalletButton>
       </WalletList>

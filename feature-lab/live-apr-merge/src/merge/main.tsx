@@ -10,10 +10,10 @@ import { StatsPage, CommunityPage } from './SectionPages'
 
 // APR does not load or create observations while the user browses Vaults.
 const AprSection = lazy(() => import('./AprSection'))
-const incentivePaths = new Set(['/', '/campaigns', '/portfolio/vaults', '/admin'])
+const incentivePaths = new Set(['/', '/campaigns', '/portfolio/vaults', '/admin', '/status', '/journey'])
 const pageLabels: Record<string, string> = {
   '/': 'Home', '/campaigns': 'Campaigns', '/portfolio/vaults': 'Portfolio',
-  '/admin': 'Administration', '/stats': 'Stats', '/community': 'Community',
+  '/admin': 'Administration', '/status': 'Status', '/journey': 'Journey Guide', '/stats': 'Stats', '/community': 'Community',
 }
 const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
 

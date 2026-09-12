@@ -19,7 +19,7 @@ const browserSettings:Setting[]=[
  * sign-in owns authentication. Keep this independent of catalog/status reads
  * so an outage cannot hide the configuration warning or imply a healthy state.
  */
-export function ConfigurationWarnings({account}:{account:Address|null}){
+export function ConfigurationWarnings({account,compact=false}:{account:Address|null;compact?:boolean}){
   const load=useCallback(async(signal:AbortSignal):Promise<{report:Report|null}>=>{
     if(!account)return {report:null}
     const session=await readSession(account,signal)
@@ -36,10 +36,10 @@ export function ConfigurationWarnings({account}:{account:Address|null}){
     <strong>{issues.length?'Configuration needs attention':unavailable?'Configuration check unavailable':unverified?'Configuration not verified':'Configuration settings checked'}</strong>
     {unavailable?<p>Cannot verify the current server settings. Check the API connection and sign in again if your session expired. Any previous results below may be out of date.</p>
       :unverified?<p>{poll.loading?'Checking configuration…':'Sign in with an admin wallet to check server settings. If sign-in is unavailable, check SAFFRON_APP_ORIGIN and SAFFRON_ADMIN_WALLETS on the server.'}</p>:null}
-    {issues.length>0&&<ul>{issues.map(setting=><li key={setting.name}><b>{setting.required?'Required setting':'Optional feature'} · {setting.status}</b><code>{setting.name}</code><p>{setting.impact}</p></li>)}</ul>}
+    {issues.length>0&&(compact&&!issues.some(s=>s.required)?<details><summary>{issues.length} optional features not configured</summary><ul>{issues.map(setting=><li key={setting.name}><code>{setting.name}</code><p>{setting.impact}</p></li>)}</ul></details>:<ul>{issues.map(setting=><li key={setting.name}><b>{setting.required?'Required setting':'Optional feature'} · {setting.status}</b><code>{setting.name}</code><p>{setting.impact}</p></li>)}</ul>)}
     <details><summary>Configuration checklist</summary>{settings.map(setting=><p key={setting.name}><code>{setting.name}</code> — {setting.status==='default'?'default / not required':setting.status}</p>)}</details>
-    <FinePrint>Setting values are never shown. These checks do not open request intake or prove that the database, RPC, or signer is online.</FinePrint>
-    <QuietButton onClick={poll.refresh}>Recheck configuration</QuietButton>
+    {!compact&&<FinePrint>Setting values are never shown. These checks do not open request intake or prove that the database, RPC, or signer is online.</FinePrint>}
+    <QuietButton style={{alignSelf:'flex-start'}} onClick={poll.refresh}>Recheck configuration</QuietButton>
   </Panel>
 }
 

@@ -20,7 +20,7 @@ export async function verifyPair(pair,rpc){
   const [a,b,fee,decimals0,decimals1]=await Promise.all([read(pair.pool,'token0'),read(pair.pool,'token1'),read(pair.pool,'fee'),read(pair.token0.address,'decimals'),read(pair.token1.address,'decimals')])
   if(![a.toLowerCase(),b.toLowerCase()].every(address=>[pair.token0.address,pair.token1.address].includes(address))||Number(fee)!==pair.feeTier||Number(decimals0)!==pair.token0.decimals||Number(decimals1)!==pair.token1.decimals)throw fault(400,'Pool and token metadata do not match the chain.')
 }
-export function createIncentivesHandler({database:db,auth,service,rpc,configuration,basePath='',now=Date.now}){
+export function createIncentivesHandler({database:db,auth,service,rpc,configuration,health,basePath='',now=Date.now}){
   const root=basePath+'/api/incentives',windows=new Map()
   const checkout=createCheckoutAdmission({database:db,origin:auth.origin,basePath,now})
   const discovery=createPairDiscovery({rpc,now})
@@ -104,6 +104,10 @@ export function createIncentivesHandler({database:db,auth,service,rpc,configurat
       if(method==='GET'&&path==='/admin/configuration'){
         if(!configuration)throw fault(503,'Configuration checks are unavailable.')
         sendJson(res,200,configuration());return true
+      }
+      if(method==='GET'&&path==='/admin/health'){
+        if(!health)throw fault(503,'Operational checks are unavailable.')
+        sendJson(res,200,await health());return true
       }
       // These reads still require a wallet-authenticated operator session above.
       if(method==='GET'&&path==='/admin/tokens'){sendJson(res,200,await discovery.tokens());return true}

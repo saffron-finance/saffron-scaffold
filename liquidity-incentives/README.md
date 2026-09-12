@@ -244,6 +244,48 @@ and TVL are separate and unchanged.
 
 ## Admin configuration warnings
 
+### Status, startup, and Administration
+
+Open `/status` from the operator navigation between Administration and Journey
+Guide. Sign in with an allowlisted wallet to see independently checked API,
+settings, database, Robinhood head, factory/type hashes, creator heartbeat,
+payment checkpoint, intake policy, campaign fee, pool/price/sizing, nonce reads,
+vault observations, and payment exception status. Each item includes its owner,
+evidence and corrective action. `/journey` explains the real startup and user
+journeys; it contains no sample campaign state or simulated wallet actions.
+
+`GET /api/incentives/admin/health` is operator-only and read-only. Independent
+reads have six-second timeouts, five-second result caching and shared in-flight
+work. A failed subsystem does not erase other results; unavailable metrics stay
+unknown, never zero. The API returns bounded status text, not raw exceptions,
+service logs, credentials, connection strings, or signed transaction journals.
+Public signer/recipient addresses identify wallet roles; configuration setting
+values still remain hidden. No new environment variables are required.
+
+Administration uses an intake summary, metric cards, paginated request filters
+and expandable original request details. Campaigns, payments and refunds have
+separate sections. Filters apply only to the current page; counts retain their
+actual server-wide meaning. The intake switch is not the same as effective
+checkout readiness. Opening a window does not start either service.
+
+Automatic creation requires the separate keyless watcher and signing creator.
+Use the [operator runbook](ops/README.md) and [fulfillment responsibilities](ops/FULFILLMENT.md).
+The API cannot start services, read creator credentials, or prove signer gas,
+external premium coverage, backups or incident staffing; Status labels those
+manual checks explicitly. A heartbeat is liveness evidence, not proof that a
+vault can be created. Reviewed mode still needs an explicit execution per request.
+The fee-recipient wallet cannot pay itself; use a different payer for checkout.
+
+Focused local validation after building:
+
+```sh
+node --test tests/admin-health.test.mjs
+npx playwright test tests/browser/status.spec.mjs tests/browser/configuration.spec.mjs
+```
+
+These browser checks use the disposable database and local EVM setup documented
+above. They never activate a production watcher or signer.
+
 Admin shows an expanded warning for missing or invalid effective server settings.
 The merged app also shows it on Campaigns. Each warning names the setting and
 explains the affected action and restart/rebuild step. It never shows values.
