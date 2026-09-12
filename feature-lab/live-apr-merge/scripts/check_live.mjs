@@ -32,12 +32,21 @@ checks.push('Served bundle selects the real wallet and canonical API at the corr
 const programs = await json('api/incentives/programs')
 assert(Array.isArray(programs.offers) && typeof programs.readiness?.canQuote === 'boolean')
 assert.equal(programs.readiness.canQuote, !expectClosed)
-if (!expectClosed) assert(programs.offers.some(offer => !offer.availability), 'No payable live offer is configured')
+if (!expectClosed) {
+  assert(programs.readiness.intakeReady, 'Payment intake is closed')
+  for(const check of ['configuration','recipient','rpc','feeQuote','sizing'])assert.equal(programs.readiness.checks?.[check],true,'Checkout prerequisite failed: '+check)
+  assert(Number.isFinite(programs.readiness.checkedAt)&&Date.now()-programs.readiness.checkedAt<30_000,'Checkout readiness is stale')
+  assert(programs.offers.some(offer => !offer.availability), 'No payable live offer is configured')
+}
 checks.push(expectClosed ? 'Staging intake is closed; no payment-ready claim' : 'Canonical catalog has an available offer and open intake')
 const chain = await rpc(call('eth_chainId'))
 assert.equal(chain.status, 200)
 assert.equal(BigInt((await chain.json()).result), 4663n)
 checks.push('Read-only relay reaches Robinhood Chain 4663')
+for(const tag of ['latest','pending']){
+  const nonce=await rpc({...call('eth_getTransactionCount'),params:['0x0000000000000000000000000000000000000001',tag]})
+  assert.equal(nonce.status,200);assert.match((await nonce.json()).result,/^0x[0-9a-f]+$/i)
+}
 // Deliberately invalid bytes ensure the negative check cannot transfer funds
 // even if an incorrectly configured relay were to forward the request.
 assert.equal((await rpc({...call('eth_sendRawTransaction'), params:['0x']})).status, 403)

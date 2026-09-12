@@ -12,6 +12,7 @@ import { abi } from '../shared/vault-lifecycle.mjs'
 import { intakeReadiness } from './intake-policy.mjs'
 import { deploymentProgress } from './deployment-progress.mjs'
 import { operationalStatus } from './operational-status.mjs'
+import { createCheckoutProbe } from './checkout-readiness.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -51,12 +52,16 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     const plan=await resolvePlan({snapshot},rpc,usdQuote,config)
     return plan
   }
+  const checkoutProbe=createCheckoutProbe({rpc,usdQuote,feeRecipient,signer,requireConfigured,size,now})
   const service={
     refresh,
-    async readiness(){
+    async readiness(offers){
       // Operator enablement and canonical payment discovery remain. Neither
       // campaign targets nor wallet inventory determine whether a user can pay.
-      return intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now})
+      const intake=await intakeReadiness({db,rpc,signer,confirmations:config?.confirmations??2,now})
+      const checkout=await checkoutProbe(offers??(await db.catalog()).offers)
+      return {...intake,intakeReady:intake.canQuote,canQuote:intake.canQuote&&checkout.ready,
+        checks:checkout.checks,offerReady:checkout.offerReady,checkedAt:checkout.checkedAt,reasons:[...intake.reasons,...checkout.reasons]}
     },
     async auditCheckoutSettlements(){
       for(const cursor of await db.checkoutWatermarks()){
@@ -84,15 +89,15 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       return (await db.catalog(true)).budgets.find(row=>row.id===id)
     },
     async programs(){
-      const {offers}=await db.catalog(),readiness=await service.readiness()
+      const {offers}=await db.catalog(),readiness=await service.readiness(offers)
       // Expose offer terms only. Planning amounts, usage and readiness internals
       // are administrator data, never front-page or payment-modal payloads.
       return {offers:offers.map(offer=>({id:offer.id,revision:offer.revision,pairId:offer.pairId,pairRevision:offer.pairRevision,
         chainId:offer.chainId,pool:offer.pool,feeTier:offer.feeTier,token0:offer.token0,token1:offer.token1,
         budgetPoolId:offer.budgetPoolId,apr:offer.apr,days:offer.days,sortOrder:offer.sortOrder,isNew:offer.isNew,active:offer.active,
         budget:{id:offer.budget.id,revision:offer.budget.revision,paused:offer.budget.paused},
-        availability:offer.budget.paused||offer.budget.reconciliationRequired||!readiness.canQuote?'New requests are temporarily paused.':null})),
-        creatorOnline:readiness.workerOnline,readiness:{canQuote:readiness.canQuote}}
+        availability:offer.budget.paused||offer.budget.reconciliationRequired||!readiness.canQuote||!readiness.offerReady[offer.id]?'New requests are temporarily paused.':null})),
+        creatorOnline:readiness.workerOnline,readiness:{canQuote:readiness.canQuote,intakeReady:readiness.intakeReady,checks:readiness.checks,checkedAt:readiness.checkedAt}}
     },
     /** Admin-only advisory for the portfolio. It never changes admission. */
     async capacityAdvisory(){
