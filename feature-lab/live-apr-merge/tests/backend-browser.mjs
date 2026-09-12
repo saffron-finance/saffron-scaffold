@@ -10,7 +10,9 @@ import { pathToFileURL } from 'node:url'
 const expect=baseExpect.configure({timeout:20000})
 const frontend=process.cwd(),source=process.env.SAFFRON_BACKEND_SOURCE
 if(!source)throw new Error('Set SAFFRON_BACKEND_SOURCE to the liquidity-incentives package with its test dependencies installed.')
-const backend=resolve(source),evidence=resolve(frontend,process.env.MERGE_EVIDENCE||'validation/backend-browser')
+const device=process.env.MERGE_DEVICE??'mobile'
+if(!['mobile','desktop'].includes(device))throw new Error('MERGE_DEVICE must be mobile or desktop.')
+const backend=resolve(source),evidence=resolve(frontend,process.env.MERGE_EVIDENCE||'validation/backend-browser-'+device)
 const backendCommit=execFileSync('git',['-C',backend,'rev-parse','HEAD'],{encoding:'utf8'}).trim()
 const moduleAt=relative=>import(pathToFileURL(resolve(backend,relative)).href)
 const {setup,connect}=await moduleAt('tests/browser/fixture.mjs')
@@ -24,11 +26,11 @@ await mkdir(evidence,{recursive:true})
 const browser=await chromium.launch({headless:true})
 // The approved mobile Home must connect a real injected-wallet boundary and
 // submit to the canonical backend, not just pass browser-only preview tests.
-const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
+const context=await browser.newContext(device==='mobile'?{viewport:{width:390,height:844},isMobile:true,hasTouch:true}:{viewport:{width:1440,height:1000}})
 const page=await context.newPage();page.setDefaultTimeout(20000)
 const errors=[];page.on('pageerror',error=>errors.push(error.message))
 let f,files
-const report={ok:false,live:false,backendCommit,checks:[]}
+const report={ok:false,live:false,backendCommit,device,checks:[]}
 try{
   f=await setup(page,{wrap:true,campaign:true})
   files=await privateFilesFixture('saffron-merge-cycle-')
@@ -84,7 +86,7 @@ try{
   await expect(page.getByRole('button',{name:'Deposit LP assets',exact:true})).toHaveCount(0)
   await page.setViewportSize({width:390,height:844})
   expect(await page.getByRole('dialog').evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
-  await page.screenshot({path:resolve(evidence,'c06-mobile.png'),fullPage:true})
+  await page.screenshot({path:resolve(evidence,'c06-'+device+'.png'),fullPage:true})
   await page.unroute('**/api/incentives/deployments/'+id+'?*')
   await page.getByRole('button',{name:'Check progress',exact:true}).click()
   const row=await f.database.getIntent(id)

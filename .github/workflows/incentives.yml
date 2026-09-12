@@ -2,9 +2,9 @@ name: Independent liquidity incentives
 
 on:
   push:
-    paths: ['liquidity-incentives/**', '.github/workflows/incentives.yml']
+    paths: ['liquidity-incentives/**', 'feature-lab/**', '.github/workflows/incentives.yml']
   pull_request:
-    paths: ['liquidity-incentives/**', '.github/workflows/incentives.yml']
+    paths: ['liquidity-incentives/**', 'feature-lab/**', '.github/workflows/incentives.yml']
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   lifecycle:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: liquidity-incentives
@@ -59,11 +59,71 @@ jobs:
         env:
           VITE_BASE_PATH: /saffron/apps/feature-lab/liquidity-incentives/
       - run: node tests/preview-ui.mjs
+      - run: npm ci
+        working-directory: feature-lab/live-apr-merge
+      - run: npx playwright install --with-deps chromium
+        working-directory: feature-lab/live-apr-merge
+      - run: npm run check:upstream && npm run test:source && npm test
+        working-directory: feature-lab/live-apr-merge
+      - run: npm run build:lab && npm run test:browser
+        working-directory: feature-lab/live-apr-merge
+        env:
+          VITE_BASE_PATH: /
+          MERGE_BASE: /
+      - run: npm run build:live
+        working-directory: feature-lab/live-apr-merge
+        env:
+          VITE_BASE_PATH: /
+          VITE_UI_TWEAKS: 'true'
+      - run: npm run build:live
+        working-directory: feature-lab/live-apr-merge
+        env:
+          VITE_BASE_PATH: /
+          VITE_UI_TWEAKS: 'false'
+      - run: npm run test:backend-browser
+        working-directory: feature-lab/live-apr-merge
+        env:
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
+          MERGE_DEVICE: mobile
+      - run: npm run test:backend-browser
+        working-directory: feature-lab/live-apr-merge
+        env:
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
+          MERGE_DEVICE: desktop
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: incentives-public-acceptance
-          path: liquidity-incentives/validation/complete-cycle.json
+          path: |
+            liquidity-incentives/validation/complete-cycle.json
+            feature-lab/live-apr-merge/validation/browser/*.json
+            feature-lab/live-apr-merge/validation/browser/*.png
+            feature-lab/live-apr-merge/validation/backend-browser-*/*.json
+            feature-lab/live-apr-merge/validation/backend-browser-*/*.png
+  frontend-portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: feature-lab/live-apr-merge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: feature-lab/live-apr-merge/package-lock.json
+      - run: npm ci
+      - run: npm run check:upstream
+      - run: npm run test:source
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:live
   windows:
     runs-on: windows-latest
     timeout-minutes: 10
