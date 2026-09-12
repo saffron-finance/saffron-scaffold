@@ -8,7 +8,7 @@ it('campaign targets never limit accepted requests; external funding consumes ha
   const f=await incentivesFixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),db=f.database,a=privateKeyToAccount(generatePrivateKey()),b=privateKeyToAccount(generatePrivateKey())
   try{
     await db.savePair(pair,a.address)
-    await db.saveCampaign({id:'three-day',name:'Three days',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},a.address)
+    await db.saveCampaign({requestFeeWei:'1000000000000000',id:'three-day',name:'Three days',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},a.address)
     const quote=who=>f.quote(who,{programId:'three-day',principalCents:'50000000',premium:'500000'})
     const results=await Promise.allSettled([quote(a),quote(b),quote(a)])
     assert.equal(results.filter(r=>r.status==='fulfilled').length,3)
@@ -36,7 +36,7 @@ it('a private withdrawal closes a hold until a canonical scan settles it; campai
   const f=await incentivesFixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),db=f.database,a=privateKeyToAccount(generatePrivateKey())
   try{
     await db.savePair(pair,a.address)
-    await db.saveCampaign({id:'paused',name:'Paused',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:false},a.address)
+    await db.saveCampaign({requestFeeWei:'1000000000000000',id:'paused',name:'Paused',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:false},a.address)
     let budget=(await db.catalog(true)).budgets[0]
     assert.equal((await db.offer('paused')).budget.paused,true)
     await db.saveBudget({...budget,paused:false},a.address)
@@ -47,5 +47,18 @@ it('a private withdrawal closes a hold until a canonical scan settles it; campai
     await f.settleCheckouts()
     assert.equal((await db.catalog(true)).budgets[0].accounting.availableCapacityCents,'100000000')
     await assert.rejects(f.accept(a,q),e=>e.status===409,'withdrawn quote cannot create after its hold is released')
+  }finally{await f.close()}
+})
+
+it('program fees are required and a concurrent fee edit cannot issue stale new terms',async()=>{
+  const f=await incentivesFixture(),db=f.database,a=privateKeyToAccount(generatePrivateKey())
+  try{
+    await f.seed(a.address)
+    const program=(await db.catalog(true)).programs[0],offer=await db.offer(program.id)
+    for(const requestFeeWei of [undefined,null,'0','1e15',1])await assert.rejects(db.saveProgram({...program,requestFeeWei},a.address),e=>e.status===400)
+    await db.saveProgram({...program,requestFeeWei:'7'},a.address)
+    await assert.rejects(db.putQuote({offer,principalCents:'10000',wallet:a.address,origin:'http://localhost',signer:a.address,
+      plan:{premium:'1000',liquidity:'1234',usdCheckedAt:Date.now(),sizingBlock:'0x10'}}),/Campaign changed/)
+    assert.equal((await db.query('SELECT count(*)::int AS n FROM saffron_incentives.deployment_quotes')).rows[0].n,0)
   }finally{await f.close()}
 })

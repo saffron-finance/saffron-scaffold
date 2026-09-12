@@ -1,3 +1,4 @@
+import { walletConnectConfigured } from '@lab/wallet/walletconnect'
 import { useWallet } from '@lab/hooks/useWallet'
 import IncentivesPage from '../incentives/IncentivesPage'
 import { AppShell, WalletList, WalletButton } from './AppShell'
@@ -13,6 +14,7 @@ export function StandaloneHost() {
       <WalletList>
         {wallet.providers.map(provider => <WalletButton key={provider.id} disabled={wallet.connecting}
           onClick={() => void wallet.connectProvider(provider.id)}>{provider.name}{wallet.connectingProviderId === provider.id ? ', connecting…' : ''}</WalletButton>)}
+        {!walletConnectConfigured&&<><WalletButton disabled>WalletConnect unavailable</WalletButton><p>Use a wallet extension or open this page in your wallet’s browser to connect.</p></>}
         {wallet.providers.some(provider => provider.kind === 'walletconnect') && <p>WalletConnect opens your mobile wallet or shows a QR code. Choose a wallet that supports Robinhood Chain.</p>}
         {!wallet.available && <p>Open this page in your wallet browser or enable a browser wallet extension.</p>}
         {wallet.error && <p role='alert'>{wallet.error}</p>}

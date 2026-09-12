@@ -151,7 +151,7 @@ it('pause prevents new signatures while manual recovery preserves the recorded c
 it('a distinct external treasury funds a USD campaign without worker custody and consumes matching capacity',{timeout:120000},async()=>{
   const f=await fixture({checkoutPolicy:{maxQuoteBps:5000,maxHeldBps:10000}}),{chain,db,service}=f
   try{
-    await db.saveCampaign({id:'usd-campaign',name:'USD campaign',pairId:'cashcat-eth',days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},chain.account.address)
+    await db.saveCampaign({requestFeeWei:'1000000000000000',id:'usd-campaign',name:'USD campaign',pairId:'cashcat-eth',days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},chain.account.address)
     const {generatePrivateKey,privateKeyToAccount}=await import('viem/accounts')
     const {createWalletClient,http,toHex}=await import('viem')
     const treasury=privateKeyToAccount(generatePrivateKey()),wallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
@@ -184,5 +184,40 @@ it('an orphaned creation payment cannot authorize a new worker transaction or re
     assert.equal(f.chain.broadcasts,0)
     assert.notEqual((await f.db.catalog(true)).budgets[0].reservedRaw,'0')
     assert.equal((await f.db.execution.transactions(id)).length,0)
+  }finally{await f.close()}
+})
+
+it('campaign fees stay fixed across price changes, revisions and actual wallet payments',{timeout:120000},async()=>{
+  const f=await fixture(),{db,chain,service}=f
+  try{
+    const {proofHash,paymentData}=await import('../shared/payment.mjs')
+    const program=(await db.catalog(true)).programs[0],secret=chain.recoverySecret
+    const first=await service.quote(chain.account.address,program.id,'100',proofHash(secret))
+    assert.equal(first.fee.amountWei,program.requestFeeWei)
+    assert.deepEqual(Object.keys(first.fee).sort(),['amountWei','asset','recipient'])
+    // LP sizing still uses live prices. Changing every valuation cannot reprice
+    // the campaign's ETH charge or add a separate ETH/USD fee oracle dependency.
+    const changedPrices=createIncentivesService({database:db,rpc:chain.rpc,config:chain.config,
+      usdQuote:async address=>{const q=await chain.usdQuote(address);return {...q,priceRaw:(BigInt(q.priceRaw)*2n).toString()}},
+      signer:chain.account.address,feeRecipient:chain.feeRecipient,origin:ORIGIN})
+    assert.equal((await changedPrices.quote(chain.account.address,program.id,'100',proofHash(secret))).fee.amountWei,first.fee.amountWei)
+    await db.saveProgram({...program,requestFeeWei:'1234567890123456'},chain.account.address)
+    const next=await service.quote(chain.account.address,program.id,'100',proofHash(secret))
+    assert.equal(next.fee.amountWei,'1234567890123456')
+    assert.deepEqual((await db.quote(first.id)).fee,first.fee)
+    // An already-issued fee remains payable after configuration changes. Verify
+    // real chain value and idempotent acceptance, not a mocked browser result.
+    const receipt=await chain.send(first.fee.recipient,paymentData(first),BigInt(first.fee.amountWei))
+    const tx=await chain.client.getTransaction({hash:receipt.transactionHash})
+    assert.equal(tx.value,BigInt(first.fee.amountWei))
+    const accepted=await service.acceptPayment(first.id,receipt.transactionHash,secret)
+    assert.equal((await service.acceptPayment(first.id,receipt.transactionHash,secret)).id,accepted.id)
+    assert.equal((await db.list({wallet:chain.account.address})).jobs.length,1)
+    const other=await db.saveProgram({...program,id:'second-fee',revision:0,requestFeeWei:'7'},chain.account.address)
+    assert.equal((await service.quote(chain.account.address,other.id,'100',proofHash(secret))).fee.amountWei,'7')
+    // Existing catalogs receive no guessed fee on upgrade; other configured
+    // campaigns can continue, but the legacy program cannot issue a quote.
+    await db.query("UPDATE saffron_incentives.programs SET body=body-'requestFeeWei' WHERE id=$1",[other.id])
+    await assert.rejects(service.quote(chain.account.address,other.id,'100',proofHash(secret)),/fixed ETH request fee/)
   }finally{await f.close()}
 })

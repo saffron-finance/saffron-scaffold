@@ -1,7 +1,7 @@
 import type { Address,Hex } from 'viem'
 export interface Token {address:Address;symbol:string;decimals:number}
 export interface Pair {id:string;revision:number;chainId:number;pool:Address;feeTier:number;token0:Token;token1:Token;active:boolean}
-export interface Program {id:string;revision:number;pairId:string;budgetPoolId:string;apr:number;days:number;minimumCents:string;maximumCents:string;sortOrder:number;isNew:boolean;active:boolean}
+export interface Program {id:string;revision:number;pairId:string;budgetPoolId:string;apr:number;days:number;requestFeeWei:string|null;minimumCents:string;maximumCents:string;sortOrder:number;isNew:boolean;active:boolean}
 export interface Budget {advisoryBudgetCents?:string;campaign?:any;accounting?:any;id:string;revision:number;name:string;chainId:number;rewardAsset:Address;decimals:number;limitRaw:string;reservedRaw:string;allocatedRaw:string;availableRaw:string;paused:boolean;reconciliationRequired:boolean}
 export interface Offer extends Pair,Program {pairRevision:number;budget:Budget;availability:string|null;vaultTvl?:{status:string;usdRaw:string|null;checkedAt:number|null;block:{number:string;hash:string}|null;priceCheckedAt:number|null}}
 export interface PriceSnapshot {quotePerToken:number;quoteUsd:number;observedAt:string;block:string}

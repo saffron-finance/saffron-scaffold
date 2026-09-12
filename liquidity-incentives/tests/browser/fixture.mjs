@@ -66,7 +66,7 @@ export async function setup(page,{admin=false,wrap=false,campaign=false,basePath
   if(campaign){
     if((await operatorCall('/admin/catalog')).programs.length)throw new Error('Production bootstrap must start empty')
     await operatorCall('/admin/pairs',{...pair,pool:chain.pool})
-    await operatorCall('/admin/campaigns',{id:'cashcat-3d',name:'Complete-cycle campaign',pairId:pair.id,days:3,budgetUsd:'1000',capacityUsd:'100000',active:true})
+    await operatorCall('/admin/campaigns',{requestFeeWei:'1000000000000000',id:'cashcat-3d',name:'Complete-cycle campaign',pairId:pair.id,days:3,budgetUsd:'1000',capacityUsd:'100000',active:true})
     treasury=privateKeyToAccount(generatePrivateKey());treasuryWallet=createWalletClient({account:treasury,chain:chain.client.chain,transport:http(chain.url)})
     await chain.raw('anvil_setBalance',[treasury.address,toHex(10n**20n)])
     await chain.send(CASHCAT,encodeFunctionData({abi:chain.tokenAbi,functionName:'mint',args:[treasury.address,10n**30n]}))

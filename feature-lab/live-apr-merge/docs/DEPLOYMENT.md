@@ -1,12 +1,12 @@
 # Deployment and rollback
 
-## Preview publication
+## Wallet/API publication
 
 1. Back up the current static directory, its manifest and route configuration.
    Create and verify a Git bundle. Preserve browser storage and any VNC test state.
 2. Run the unit, source-pin and compiled-browser checks. Build with the intended
-   base and APR API settings. `build:lab` is explicitly a simulation; its output
-   does not establish the currently published mode.
+   base and APR API settings. `build:lab` adds appearance controls only; all builds
+   use wallets and the canonical API.
 3. Stage only `dist/`, the source ZIP and installation guide. Keep authentication,
    extensionless SPA fallback and real 404 responses for missing asset files.
    Do not change the existing APR gateway, collector, databases or VNC services.
@@ -37,7 +37,7 @@ restore it, run the nginx validator separately, then reload the exact service.
 Record whether the route changed for the actual publication.
 
 Do not clear browser storage, reset VNC, restore a database, or replace live APR
-services to roll back a frontend update. The preview storage key is unchanged.
+services to roll back a frontend update. Never restore a wallet-free simulation as a payment UI.
 Git rollback alone does not replace already published files.
 
 ## Source package

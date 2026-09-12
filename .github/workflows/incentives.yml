@@ -55,10 +55,6 @@ jobs:
       - run: npm run test:browser -- --grep 'approved cards'
         env:
           SAFFRON_TEST_LAB: '1'
-      - run: npm run build:preview
-        env:
-          VITE_BASE_PATH: /saffron/apps/feature-lab/liquidity-incentives/
-      - run: node tests/preview-ui.mjs
       - run: npm ci
         working-directory: feature-lab/live-apr-merge
       - run: npx playwright install --with-deps chromium
@@ -70,6 +66,7 @@ jobs:
         env:
           VITE_BASE_PATH: /
           MERGE_BASE: /
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
           VITE_WALLETCONNECT_PROJECT_ID: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       - run: npm run build:live
         working-directory: feature-lab/live-apr-merge

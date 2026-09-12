@@ -22,7 +22,6 @@
     "test:restore": "node --test tests/restore-database.test.mjs",
     "worker:restore-check": "node worker/check-restore.mjs",
     "demo": "node tests/demo.mjs",
-    "build:preview": "node scripts/build-preview.mjs",
     "test:operator-fork": "node ops/live-tests/2026-09-11-vault-2/recovery-fork.mjs",
     "test:vnc": "node --test ops/vnc/tests/*.test.mjs"
   },

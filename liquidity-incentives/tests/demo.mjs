@@ -18,7 +18,7 @@ try{
     console.log('Production UI, API, PostgreSQL and local protocol are ready.')
   }else{
     console.log('Use Connect wallet → Uniswap Extension. This generated wallet is also the demo operator.')
-    console.log('Pay $2 in test ETH; creation runs automatically. Type fund here to simulate external treasury deposits.')
+    console.log('Pay the campaign’s fixed fee in test ETH; creation runs automatically. Type fund here to simulate external treasury deposits.')
     console.log('Return to My requests to deposit and claim. Type mature here to advance the local chain, or quit to stop and remove the fixture.')
     const tick=()=>{
       if(running||stopping)return

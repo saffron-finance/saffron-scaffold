@@ -39,7 +39,7 @@ at `PRICE_API_ROOT/<quote-token-address>/price?symbol=<symbol>` returns:
 Use an actual current timestamp and exact token address. Quotes require positive
 prices no older than 60 seconds and no more than five seconds in the future.
 Reward-token price derives from the verified pool and quote-token price; addresses
-and decimals govern sizing. ETH/USD separately determines the immutable $2 fee.
+and decimals govern sizing. Each program stores an explicit positive `requestFeeWei` decimal integer. Fees use no ETH/USD price. LP sizing and TVL still use token prices.
 The worker uses accepted frozen terms and does not call the price service.
 `VITE_WALLET_RPC_ROBINHOOD`, if used for add-chain, must be an explicitly public URL.
 

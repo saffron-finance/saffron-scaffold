@@ -1,33 +1,33 @@
 {
   "title": "Saffron liquidity incentives\nPortable installation guide",
-  "eyebrow": "Saffron · Version 0.3.0",
+  "eyebrow": "Saffron \u00b7 Version 0.4.0",
   "description": "Home, Portfolio and Live APR with an independent incentives API and automatic vault lifecycle.",
-  "meta": "Version 0.3.0 · Explicit simulation and live builds · Source identity in the archive manifest",
+  "meta": "Version 0.4.0 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
   "sections": [
     {
       "id": "overview",
       "title": "1. Standalone application",
-      "body_html": "<p>The combined Home, Portfolio and Live APR interface includes mobile navigation and transaction dialogs. Production uses the canonical incentives API maintained in this repository. Configure real campaigns and operating owners before paid intake.</p><p><a href=\"./\">Open the app</a> · <a href=\"./live-apr\">Live APR</a> · <a href=\"live-apr-merge-source.zip\" download>Portable source ZIP</a></p>"
+      "body_html": "<p>The combined Home, Portfolio and Live APR interface includes mobile navigation and transaction dialogs. Production uses the canonical incentives API maintained in this repository. Configure real campaigns and operating owners before paid intake.</p><p><a href=\"./\">Open the app</a> \u00b7 <a href=\"./live-apr\">Live APR</a> \u00b7 <a href=\"live-apr-merge-source.zip\" download>Portable source ZIP</a></p>"
     },
     {
       "id": "changes",
       "title": "2. Current lifecycle",
-      "body_html": "<p><strong>Claim $X</strong> retains the incentive wording. A separate $2-equivalent native ETH fee on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p>"
+      "body_html": "<p><strong>Claim $X</strong> retains the incentive wording. A separate fixed native ETH fee configured per campaign on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p><p>Operators must set a positive fixed ETH request fee for each campaign. Fee edits apply to new quotes only; existing payment and refund amounts remain unchanged. No ETH/USD fee calculation is used.</p>"
     },
     {
       "id": "quickstart",
       "title": "3. Install and run",
-      "body_html": "<p>Use Node 22.9 or newer and npm. Extract the source ZIP, enter its folder and run:</p><pre><code>npm ci\nnpm run dev</code></pre><p><code>npm run build</code> writes an explicit simulation to <code>dist/</code>. <code>build:lab</code> adds appearance controls. Serve output through HTTP(S). No backend checkout is required to build the archive.</p>"
+      "body_html": "<p>Use Node 22.9 or newer and npm. Extract the source ZIP, enter its folder and run:</p><pre><code>npm ci\nnpm run dev</code></pre><p><code>npm run build</code> writes the wallet/API application to <code>dist/</code>. <code>build:lab</code> adds appearance controls. Serve output through HTTP(S). No backend checkout is required to build the archive.</p>"
     },
     {
       "id": "hosting",
       "title": "4. Live mode and routing",
-      "body_html": "<p>Put public settings in <code>.env.local</code>:</p><pre><code>VITE_BASE_PATH=/\nVITE_LIVE_APR_API_BASE=/api/live-apr/v2\nVITE_UI_TWEAKS=false</code></pre><p><code>npm run build:live</code> writes <code>dist-live/</code>. Serve through the canonical backend with matching <code>BASE_PATH</code> and <code>DIST_DIR</code>. Configure its independent database, watcher and creator. Backend services and credentials are excluded from this frontend ZIP.</p><p>Preserve same-origin API/RPC/prices, cookies, unbuffered APR SSE, SPA routes and real missing-file 404s. Hosting provides staging access. Appearance controls never select the payment adapter; live mode never falls back to samples.</p>"
+      "body_html": "<p>Put public settings in <code>.env.local</code>:</p><pre><code>VITE_BASE_PATH=/\nVITE_LIVE_APR_API_BASE=/api/live-apr/v2\nVITE_UI_TWEAKS=false</code></pre><p><code>npm run build:live</code> writes <code>dist-live/</code>. Serve through the canonical backend with matching <code>BASE_PATH</code> and <code>DIST_DIR</code>. Configure its independent database, watcher and creator. Backend services and credentials are excluded from this frontend ZIP.</p><p>Preserve same-origin API/RPC/prices, cookies, unbuffered APR SSE, SPA routes and real missing-file 404s. Hosting provides staging access. Appearance controls never select the payment adapter; all builds require wallets for transactions and never fall back to samples.</p>"
     },
     {
       "id": "routes",
       "title": "5. Navigation and recovery",
-      "body_html": "<p>Home: <code>/</code>; Portfolio: <code>/portfolio/vaults</code>; operators: <code>/campaigns</code> and <code>/admin</code>; pool observations: <code>/live-apr</code>. Up to four pools can be compared.</p><p>Payment and position recovery survives reloads without automatic wallet sends. Full premium funding and actual ownership govern safe entry and later actions. APR outages remain explicitly unavailable while independently ready vault actions remain usable. Preview reset affects only its simulation.</p><p>WalletConnect enables mobile wallet links and desktop QR pairing when VITE_WALLETCONNECT_PROJECT_ID is configured before the live build. Configure Reown allowed HTTPS origins. Wallet browsers remain available. Qualify the real relay and supported phones before launch.</p>"
+      "body_html": "<p>Home: <code>/</code>; Portfolio: <code>/portfolio/vaults</code>; operators: <code>/campaigns</code> and <code>/admin</code>; pool observations: <code>/live-apr</code>. Up to four pools can be compared.</p><p>Payment and position recovery survives reloads without automatic wallet sends. Full premium funding and actual ownership govern safe entry and later actions. APR outages remain explicitly unavailable while independently ready vault actions remain usable. There is no wallet-free preview or sample-data fallback.</p><p>WalletConnect enables mobile wallet links and desktop QR pairing when VITE_WALLETCONNECT_PROJECT_ID is configured before the live build. Configure Reown allowed HTTPS origins. Wallet browsers remain available. Qualify the real relay and supported phones before launch.</p>"
     },
     {
       "id": "reuse",
@@ -37,7 +37,7 @@
     {
       "id": "testing",
       "title": "7. Verification",
-      "body_html": "<pre><code>npm run check:upstream\nnpm run test:source\nnpm run test:release\nnpm test\nnpm run typecheck\nnpx playwright install chromium\nnpm run build:live\nnpm run test:apr-http</code></pre><p>For preview checks, run <code>build:lab</code>, set <code>MERGE_BASE=/</code> for a root mount and run <code>test:browser</code>. Follow <code>docs/LIFECYCLE-ACCEPTANCE.md</code> for the disposable backend tests on mobile and desktop.</p><p>Controlled HTTP/SSE tests qualify client behavior, not the deployed gateway. Hosted-browser, real phone, normal HTTPS clipboard and explicitly operated live-funds acceptance remain launch gates. Disposable time advancement does not establish real maturity.</p>"
+      "body_html": "<pre><code>npm run check:upstream\nnpm run test:source\nnpm run test:release\nnpm test\nnpm run typecheck\nnpx playwright install chromium\nnpm run build:live\nnpm run test:apr-http</code></pre><p>For wallet/API UI checks, run <code>build:lab</code>, set <code>SAFFRON_BACKEND_SOURCE</code> and disposable <code>SAFFRON_TEST_DB_*</code> for a root mount and run <code>test:browser</code>. Follow <code>docs/LIFECYCLE-ACCEPTANCE.md</code> for the disposable backend tests on mobile and desktop.</p><p>Controlled HTTP/SSE tests qualify client behavior, not the deployed gateway. Hosted-browser, real phone, normal HTTPS clipboard and explicitly operated live-funds acceptance remain launch gates. Disposable time advancement does not establish real maturity.</p>"
     },
     {
       "id": "files",
@@ -50,5 +50,5 @@
       "body_html": "<p>Follow <code>docs/DEPLOYMENT.md</code> and <code>docs/LIVE-CUTOVER.md</code>. Build identity does not establish publication or enabled intake. Verify the intended candidate through existing hosting access before cutover.</p><p>Publish hashed assets before the entrypoint and retain old assets for open tabs. Preserve database/WAL, received fees, watcher cursors, journals, permits and browser recovery. Use a backend compatible with advisory commitments and refund closure. Do not restore the old hard-cap schema or reset QA for a frontend release.</p>"
     }
   ],
-  "footer": "Saffron · Version 0.3.0 · Source and installation"
+  "footer": "Saffron \u00b7 Version 0.4.0 \u00b7 Source and installation"
 }

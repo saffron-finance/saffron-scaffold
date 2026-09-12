@@ -19,6 +19,13 @@ export function cents(value) {
   if (result <= 0n) throw fault(400, 'Enter a positive USD amount.')
   return result.toString()
 }
+/** Convert an operator's ETH decimal to exact wei. Never round excess precision
+ * or use floating point: this amount becomes immutable wallet payment terms. */
+export function requestFeeFromEth(value) {
+  if(typeof value!=='string'||!/^(0|[1-9][0-9]*)(\.[0-9]{1,18})?$/.test(value))throw fault(400,'Enter a positive ETH request fee with at most 18 decimal places.')
+  const [whole,fraction='']=value.split('.')
+  return integer((BigInt(whole)*10n**18n+BigInt(fraction.padEnd(18,'0'))).toString(),{positive:true})
+}
 function revision(value) { if (!Number.isSafeInteger(value) || value < 0) throw fault(400, 'Invalid revision.'); return value }
 function id(value) { if (!validId(value)) throw fault(400, 'Use a lowercase identifier with letters, numbers, and hyphens.'); return value }
 function address(value) { if (!validAddress(value)) throw fault(400, 'Invalid token, wallet, or pool address.'); return value.toLowerCase() }
@@ -39,7 +46,7 @@ export function normalizeProgram(value) {
     || !Number.isInteger(value.days) || value.days < 1 || value.days > 3650 || !Number.isInteger(value.sortOrder) || Math.abs(value.sortOrder) > 100000) throw fault(400, 'Check the APR, duration, and ordering.')
   const minimumCents='1',maximumCents=UINT256_MAX.toString()
   return { id: id(value.id), revision: revision(value.revision), pairId: id(value.pairId), budgetPoolId: id(value.budgetPoolId), apr: value.apr,
-    days: value.days, minimumCents, maximumCents, sortOrder: value.sortOrder, isNew: flag(value.isNew), active: flag(value.active) }
+    days: value.days, requestFeeWei:integer(value.requestFeeWei,{positive:true}), minimumCents, maximumCents, sortOrder: value.sortOrder, isNew: flag(value.isNew), active: flag(value.active) }
 }
 export function normalizeBudget(value) {
   if (!value || value.chainId !== CHAIN_ID || !Number.isInteger(value.decimals) || value.decimals < 0 || value.decimals > 18

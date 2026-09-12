@@ -44,7 +44,7 @@ export async function checkDeployment(target, { expectClosed = false, expectedRe
   assert.equal(programs.readiness.canQuote, !expectClosed, 'Checkout readiness differs from the expected intake state')
   if (!expectClosed) {
     assert(programs.readiness.intakeReady, 'Payment intake is closed')
-    for (const check of ['configuration', 'recipient', 'rpc', 'feeQuote', 'sizing'])
+    for (const check of ['configuration', 'recipient', 'rpc', 'campaignFee', 'sizing'])
       assert.equal(programs.readiness.checks?.[check], true, 'Checkout prerequisite failed: ' + check)
     const age = Date.now() - programs.readiness.checkedAt
     assert(Number.isFinite(age) && age >= -5000 && age < 30000, 'Checkout readiness is stale')

@@ -11,11 +11,11 @@ const RowTweaks = import.meta.env.VITE_DEV_TWEAKS === 'true'
   ? lazy(() => import('../dev/RowTweaks')) : null
 
 /** One approved navigation/theme shell for every page and both entry points.
- * Wallet custody stays with the caller; preview controls never load a wallet.
+ * Wallet custody stays with the caller; all entries use actual wallet providers.
  * Extra menu controls and overlays remain inside the same theme/modal owner. */
-export function AppShell({ account, onConnect, children, overlays, previewControls }: {
+export function AppShell({ account, onConnect, children, overlays }: {
   account: Address | null; onConnect: () => void; children: ReactNode;
-  overlays?: ReactNode; previewControls?: ReactNode;
+  overlays?: ReactNode;
 }) {
   const [light, setLight] = useState(false)
   const [menu, setMenu] = useState(false)
@@ -34,7 +34,7 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
           <MenuButton aria-label='Open menu' onClick={() => setMenu(true)}>☰</MenuButton>
         </Controls></Nav>
         <Body id='main-content'>{children}</Body>
-        <Footer>{previewControls ? <><a href='/saffron/apps/feature-lab/'>Saffron Feature Lab</a><p>Sample data · no wallet or transactions</p></> : <a href={mount}>Saffron Liquidity Incentives</a>}</Footer>
+        <Footer><a href={mount}>Saffron Liquidity Incentives</a></Footer>
       </Content>
     </Frame>
     {overlays}
@@ -45,8 +45,6 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
         <NavLink href={mount + 'portfolio/vaults/'}>My requests</NavLink>
         <NavLink href={mount + 'campaigns/'}>Campaigns</NavLink>
         <NavLink href={mount + 'admin/'}>Administration</NavLink>
-        {previewControls && <NavLink href='/saffron/apps/feature-lab/'>Feature Lab</NavLink>}
-        {previewControls}
         <WalletButton onClick={() => setLight(value => !value)}>{light ? 'Dark' : 'Light'} theme</WalletButton>
         <WalletButton onClick={() => setMenu(false)}>Close</WalletButton>
       </WalletList>

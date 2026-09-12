@@ -7,7 +7,7 @@ these components as application-owned build, test and runtime infrastructure.
 
 Read README.md and server/AGENTS.md before backend edits. Public protocol and
 upstream Saffron API URLs are intentional; private deployments, credentials and
-operator records must never be committed. Follow the current campaign/payment specification in CAMPAIGNS.md: a $2 native
+operator records must never be committed. Follow the current campaign/payment specification in CAMPAIGNS.md: a fixed campaign native
 ETH payment binds the exact deployment quote, without user message signatures.
 Keep atomic paid-commitment accounting and reviewed or automatic worker creation.
 Budget/capacity targets are private, advisory planning inputs, never admission

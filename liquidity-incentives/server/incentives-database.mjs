@@ -174,7 +174,7 @@ export function createIncentivesDatabase({ connection, now = Date.now,
         const budget=normalizeBudget({id:input.id,revision:0,name:input.name,chainId:4663,rewardAsset:pair.token0.address,decimals:pair.token0.decimals,
           limitRaw:UINT256_MAX.toString(),paused:!input.active,campaign})
         const program=normalizeProgram({id:input.id,revision:0,pairId:pair.id,budgetPoolId:budget.id,apr:Number(Number(campaign.aprPercent).toFixed(2)),days:campaign.days,
-          minimumCents:cents(input.minimumUsd??'1'),maximumCents:UINT256_MAX.toString(),sortOrder:0,isNew:true,active:true})
+          requestFeeWei:input.requestFeeWei,minimumCents:cents(input.minimumUsd??'1'),maximumCents:UINT256_MAX.toString(),sortOrder:0,isNew:true,active:true})
         const inserted=await client.query(`INSERT INTO ${schema}.budget_pools(id,revision,name,chain_id,reward_asset,decimals,limit_raw,paused,updated_by,campaign)
           VALUES($1,1,$2,4663,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING id`,[budget.id,budget.name,budget.rewardAsset,budget.decimals,budget.limitRaw,budget.paused,actor,campaign])
         if(!inserted.rowCount)throw fault(409,'Campaign ID already exists. Choose a new ID.')
@@ -214,8 +214,7 @@ export function createIncentivesDatabase({ connection, now = Date.now,
       integer(principalCents,{positive:true}); integer(plan.premium,{positive:true}); integer(plan.liquidity,{positive:true})
       if (!validAddress(wallet) || !validAddress(signer) || new URL(origin).origin !== origin) throw fault(400,'Invalid deployment identity.')
       if (offer.budget.paused || offer.budget.reconciliationRequired) throw fault(409,'This campaign is paused. Refresh offers.')
-      if(!Number.isFinite(plan.usdCheckedAt)||now()-plan.usdCheckedAt>60_000||plan.usdCheckedAt>now()+5000
-        ||fee?.checkedAt&&(now()-fee.checkedAt>60_000||fee.checkedAt>now()+5000))throw fault(409,'Fresh prices are required before issuing payment terms.')
+      if(!Number.isFinite(plan.usdCheckedAt)||now()-plan.usdCheckedAt>60_000||plan.usdCheckedAt>now()+5000)throw fault(409,'Fresh LP prices are required before issuing payment terms.')
       const expiresAt = new Date(now()+quoteMs).toISOString()
       if (Date.parse(expiresAt)<=now()) throw fault(409,'Prices expired. Request a fresh quote.')
       const snapshot = snapshotFor(offer,principalCents,wallet)
@@ -236,6 +235,10 @@ export function createIncentivesDatabase({ connection, now = Date.now,
         if(intakeRevision!==null)await db.requireIntake(client,body.signer,intakeRevision)
         const locked=await lockBudget(client,body.budgetPoolId)
         if(locked.paused||locked.reconciliation_required||locked.revision!==body.budgetRevision)throw fault(409,'Campaign changed. Refresh before paying.')
+        // Fee edits and quote issuance share the same budget/program lock order.
+        // Do not issue stale terms if an operator edits the fee during sizing.
+        const current=(await client.query(`SELECT body FROM ${schema}.programs WHERE id=$1 FOR SHARE`,[offer.id])).rows[0]?.body
+        if(!current||current.revision!==offer.revision||current.requestFeeWei!==offer.requestFeeWei)throw fault(409,'Campaign changed. Refresh before paying.')
         // Targets are advisory. Distinct requests from the same wallet/browser
         // can exceed campaign targets; the request key alone prevents replay.
         await client.query(`INSERT INTO ${schema}.deployment_quotes (id,wallet,program_id,budget_pool_id,body,expires_at,payment_commitment,client_hash,request_key,hold_raw,sizing_block) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,

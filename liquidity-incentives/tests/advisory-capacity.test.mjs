@@ -11,7 +11,7 @@ import { campaignPremiumCents } from '../shared/campaign.mjs'
 async function fixture(){
   const f=await incentivesFixture(),account=privateKeyToAccount(generatePrivateKey()),db=f.database
   await db.savePair(pair,account.address)
-  await db.saveCampaign({id:'planning',name:'Planning',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},account.address)
+  await db.saveCampaign({requestFeeWei:'1000000000000000',id:'planning',name:'Planning',pairId:pair.id,days:3,budgetUsd:'10000',capacityUsd:'1000000',active:true},account.address)
   const service=createIncentivesService({database:db,signer:account.address})
   return {...f,db,account,service}
 }

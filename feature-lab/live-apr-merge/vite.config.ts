@@ -2,21 +2,20 @@ import { defineConfig, loadEnv, normalizePath } from 'vite'
 import react from '@vitejs/plugin-react'
 import svgr from 'vite-plugin-svgr'
 import { fileURLToPath } from 'node:url'
-import { dirname,resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { sourceIdentity } from './scripts/release-source.mjs'
 import { mountPath,writeReleaseMarker } from './scripts/release-artifact.mjs'
 
 const here = (file: string) => normalizePath(fileURLToPath(new URL(file, import.meta.url)))
-/** Compile-time separation: default/lab builds keep no-funds sample adapters.
- * The explicit live build uses the current wallet/API recovery implementation. */
+/** All builds use the same wallet/API application. Modes select appearance and
+ * output directories only; local-chain tests use an actual wallet provider. */
 export default defineConfig(({ mode }) => {
   // Load public .env settings too, so Windows installs need no POSIX syntax.
   const live=mode==='live'
-  const replaced=new Set(['transport','useOfferPrice','useDeploymentFlow','useVaultPosition'].map(name=>here('./src/host/'+name)))
   const settings = loadEnv(mode, process.cwd(), 'VITE_')
   // Appearance controls do not select the payment adapter. An explicit live
   // release can retain the approved lab styling without simulating requests.
-  const tweaks=mode==='lab'||(live&&settings.VITE_UI_TWEAKS==='true')
+  const tweaks=mode==='lab'||settings.VITE_UI_TWEAKS==='true'
   const basePath=mountPath(settings.VITE_BASE_PATH||'/')
   return {
   base: basePath,
@@ -25,13 +24,11 @@ export default defineConfig(({ mode }) => {
     // Operations can reject a preview bundle before enabling a payment route.
     name:'deployment-mode',writeBundle(options){
       writeReleaseMarker(resolve(options.dir!),{
-        incentives:live?'canonical-api':'browser-simulation',wallet:live,appearanceControls:tweaks,
+        incentives:'canonical-api',wallet:true,appearanceControls:tweaks,
         basePath,release:sourceIdentity(here('.')),
       })
     },
-  }, {name:'separate-incentive-mode',enforce:'pre',resolveId(source,importer){
-    if(!live&&importer&&source.startsWith('.')&&replaced.has(normalizePath(resolve(dirname(importer),source)).replace(/\.tsx?$/,'')))return here('./src/preview/runtime.ts')
-  }}, {
+  }, {
     name: 'omit-disabled-dev-tools', enforce: 'pre',
     resolveId(source) {
       if (!tweaks && source === '../dev/RowTweaks') return '\0no-tweaks'
@@ -43,7 +40,7 @@ export default defineConfig(({ mode }) => {
     alias: {
       '@fixed': here('./vendor/fixed-income-ui'),
       '@lab': here('./src/adapters'),
-      '@merge/session':here(live?'./src/merge/live-session.tsx':'./src/preview/runtime.ts'),
+      '@merge/session':here('./src/merge/live-session.tsx'),
       '@packages/onchain-config/live-pool-apr/pools.json': here('./vendor/live-apr-shared/pools.json'),
       '@packages/api-types/live-pool-apr.mjs': here('./vendor/live-apr-shared/live-pool-apr.mjs'),
     },

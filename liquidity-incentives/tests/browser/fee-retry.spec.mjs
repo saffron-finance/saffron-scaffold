@@ -9,7 +9,7 @@ test('a missing response before broadcast explicitly retries the same fee nonce 
     await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
     await page.getByRole('button',{name:'Continue',exact:true}).click()
     f.state.failBeforeSend=true
-    await page.getByRole('dialog').getByRole('button',{name:/^(Pay \$2 in ETH|Claim \$[0-9.,]+)$/}).click()
+    await page.getByRole('dialog').getByRole('button',{name:/^(Pay request fee|Claim \$[0-9.,]+)$/}).click()
     await expect(page.getByRole('button',{name:'Check payment',exact:true})).toBeVisible()
     const records=()=>page.evaluate(account=>JSON.parse(localStorage.getItem('saffron.creation-payments.v1:'+account.toLowerCase())),f.account.address)
     const saved=Object.values((await records()).records)[0]

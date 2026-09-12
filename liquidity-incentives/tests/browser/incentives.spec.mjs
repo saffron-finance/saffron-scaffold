@@ -25,7 +25,7 @@ test('production runtime: complete paid campaign cycle with watcher recovery, re
     // Lose the acceptance callback entirely. Only the keyless watcher can admit.
     await page.route('**/api/incentives/deployments',async route=>route.request().method()==='POST'?route.fulfill({status:503,json:{error:'Payment callback unavailable'}}):route.continue())
     await page.route('**/api/incentives/payments/recover',route=>route.fulfill({json:{state:'discovering'}}))
-    await page.getByRole('button',{name:'Pay $2 in ETH',exact:true}).click()
+    await page.getByRole('button',{name:'Pay request fee',exact:true}).click()
     await expect(page.getByText('Payment callback unavailable',{exact:true})).toBeVisible()
     await page.reload();await page.getByRole('button',{name:'Resume deployment',exact:true}).click()
     // C05 polling is removed. Check once the independent watcher has admitted

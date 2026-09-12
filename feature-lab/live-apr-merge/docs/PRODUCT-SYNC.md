@@ -1,5 +1,9 @@
 # Historical source adoption — 12 September 2026
 
+> Historical 0.3.0 acceptance/adoption record. Version 0.4.0 removes the browser
+> simulation and requires wallet/API flows in every build. See README.md and
+> WALLET-ONLY-FIXED-FEES.md for the current behavior.
+
 The watcher/VNC release did not update this separately built frontend. Version
 0.2.0 closes that source/deployment gap while retaining its approved UI and APR
 feature. The old source was `93fcab6`; the reviewed backend head is `19ad0e9`.

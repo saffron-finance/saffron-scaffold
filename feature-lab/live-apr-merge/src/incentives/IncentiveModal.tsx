@@ -16,7 +16,7 @@ import { VaultReview } from './VaultReview'
 import { DeploymentWaiting } from './DeploymentWaiting'
 import { DepositTooltip } from './DepositTooltip'
 
-export function IncentiveModal({offer,account,flow,price,deploymentId,openPosition=false,onClose,onConnect}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;openPosition?:boolean;onClose:()=>void;onConnect:()=>void;preview?:boolean}){
+export function IncentiveModal({offer,account,flow,price,deploymentId,openPosition=false,onClose,onConnect}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;openPosition?:boolean;onClose:()=>void;onConnect:()=>void}){
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[lpDetailsOpen,setLpDetailsOpen]=useState(false)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
   const [position,setPosition]=useState(openPosition)
@@ -38,7 +38,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const valid=!!offer&&Number.isFinite(amount)&&amount>0&&!offer.availability&&Boolean(price.value)&&!price.loading
   const tokenUsd=price.value?price.value.quotePerToken*price.value.quoteUsd:0
   // Use campaign-cent rounding on both screens; never relabel the LP principal
-  // or the $2 fee as the incentive. The accepted plan owns the reviewed amount.
+  // or the ETH request fee as the incentive. The accepted plan owns the reviewed amount.
   const principalCents=Number.isFinite(amount)&&amount>0?Math.round(amount*100):0
   const reward=offer?.budget.campaign&&Number.isSafeInteger(principalCents)
     ?Number(campaignPremiumCents(offer.budget.campaign,String(principalCents)))/100
@@ -52,8 +52,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const claimLabel=<>Claim <ClaimAmount data-claim-amount>{usd(claimUsd)}</ClaimAmount></>
   const depositTokens=reviewed?[reviewed.plan.token0,reviewed.plan.token1]:offer?[offer.token0,offer.token1]:null
   const pair=offer?offer.token0.symbol+' / '+offer.token1.symbol:''
-  // Keep the approved review layout. The preview has no payment deadline;
-  // the live hook independently enforces the API's exact fee and quote expiry.
+  // The wallet hook enforces the API's exact fee and quote expiry.
   // Back creates a fresh quote without discarding a submitted payment record.
   const raw=reviewed?amountsForLiquidity(reviewed.plan.liquidity,reviewed.plan.sqrtPrice,reviewed.plan.minTick,reviewed.plan.maxTick):null
   const close=()=>{if(!busy)onClose()}
@@ -75,9 +74,9 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           ]}/></li>
           <li>You get: <b>{tokenAmount(formatUnits(BigInt(reviewed.plan.premium),reviewed.plan.variableDecimals))} {reviewed.plan.variableSymbol}</b>, claimable after the vault starts.</li>
           <li>Lock time: <b>{reviewed.snapshot.durationSeconds/86400} days</b>.</li>
-        </>} details={<><p>The service pays creation gas. Your $2 ETH payment requests these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>LP amounts and deposit value are refreshed for your confirmation before you deposit. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
+        </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>LP amounts and deposit value are refreshed for your confirmation before you deposit. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
         {flow.saved&&<FinePrint>Your payment request is saved. Retry to recover it without paying twice.</FinePrint>}
-        {flow.quote?.fee&&<FinePrint>{flow.quote.fee.recipient?<>Creation fee: $2 ({formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH), plus wallet network gas, on Robinhood Chain. Recipient: <span style={{overflowWrap:'anywhere'}}>{flow.quote.fee.recipient}</span>. The premium is claimed after funding, LP deposit, and vault start.</>:'Creation fee: $2 in ETH plus gas.'}</FinePrint>}
+        {flow.quote?.fee&&<FinePrint>{<>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus wallet network gas, on Robinhood Chain. Recipient: <span style={{overflowWrap:'anywhere'}}>{flow.quote.fee.recipient}</span>. The premium is claimed after funding, LP deposit, and vault start.</>}</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.saved?.sent&&!flow.saved.hash&&flow.saved.nonce!==undefined&&<Disclosure><summary>Recover a missing transaction response</summary><p>Check payment first. If your wallet never returned a hash, retry the exact same fee at nonce {flow.saved.nonce}. Your wallet will ask for confirmation. If the quote expired, resolve or cancel that nonce in your wallet and enter the resulting hash here.</p><QuietButton disabled={busy} onClick={()=>void flow.pay(true)}>Retry same payment</QuietButton></Disclosure>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
@@ -95,9 +94,10 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <Row><Token><TokenIcon symbol={offer.token1.symbol} size={24}/>{offer.token1.symbol}</Token><b>{price.value?tokenAmount(amount/2/price.value.quoteUsd):'—'}</b></Row>
         </TokenAmounts></FormFieldGroup>
         <QuoteSummary aria-label='Position and premium estimate'><div><Label as='dt'>YOU DEPOSIT</Label><dd data-testid='position-value'>{usd(amount||0)}</dd></div><div><Label as='dt'>YOU GET</Label><dd data-testid='upfront-premium'>{tokenUsd?<><Token>{tokenAmount(reward/tokenUsd)}<TokenIcon symbol={offer.token0.symbol} size={20}/></Token><RewardValue>+{usd(reward)}</RewardValue></>:'—'}</dd></div></QuoteSummary>
+        <FinePrint>{offer.requestFeeWei?<>Request fee: {formatUnits(BigInt(offer.requestFeeWei),18)} ETH, plus wallet network gas.</>:'Request fee is not configured.'}</FinePrint>
         {price.error&&<Row><ErrorText role='alert'>{price.error}</ErrorText><QuietButton onClick={price.refresh}>Refresh price</QuietButton></Row>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
-        <ModalAction disabled={busy||!valid} onClick={()=>account?void flow.review(offer,deposit):onConnect()}>{busy?'Preparing deployment…':!account?'Connect wallet':'Continue'}</ModalAction>
+        <ModalAction disabled={busy||Boolean(account)&&!valid} onClick={()=>account?void flow.review(offer,deposit):onConnect()}>{busy?'Preparing deployment…':!account?'Connect wallet':'Continue'}</ModalAction>
       </>:null}
     </ModalContent>
   </Modal>

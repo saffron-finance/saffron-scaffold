@@ -9,7 +9,7 @@ test('operator prepares an exact external refund and observes verified closure w
     await page.goto(f.origin);await connect(page)
     await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
     await page.getByRole('button',{name:'Continue',exact:true}).click()
-    await page.getByRole('dialog').getByRole('button',{name:/^(Pay \$2 in ETH|Claim \$[0-9.,]+)$/}).click()
+    await page.getByRole('dialog').getByRole('button',{name:/^(Pay request fee|Claim \$[0-9.,]+)$/}).click()
     await expect(page.locator('[data-vault-lifecycle]')).toBeVisible()
     const job=(await f.database.list({wallet:f.account.address})).jobs[0]
     const payment=(await f.database.query('SELECT * FROM saffron_incentives.payment_obligations WHERE quote_id=$1',[job.quote_id])).rows[0]

@@ -5,7 +5,7 @@ storage and [ops/README.md](ops/README.md) for deployment procedures.
 
 ## Responsibilities
 
-The application defines incentive terms, verifies canonical $2 ETH payments,
+The application defines incentive terms, verifies canonical fixed ETH payments,
 creates matching vaults, observes vault funding, and exposes user LP actions.
 The isolated creator pays creation gas and never funds premiums. External
 funders deposit premiums and own the variable-side bearer rights. Users make
@@ -57,6 +57,13 @@ it does not establish treasury inventory. Withdrawals do not replenish spent
 premium accounting. Reorgs restore the relevant canonical accounting state.
 
 ## Quotes, payments, and recovery
+
+Each program requires a fixed positive `requestFeeWei`, stored as an exact
+bounded decimal integer. The campaign form accepts ETH with up to 18 decimals.
+No fee default or dollar peg is allowed. A legacy program without this setting
+cannot issue new quotes until an operator supplies it. Fee revisions affect new
+quotes only; existing payments and full refunds preserve their original amount.
+An edit during sizing rejects the stale quote. LP valuation prices are separate.
 
 Freeze the pool, verified decimals, price snapshot, LP liquidity, and exact raw
 premium for each quote. Pay exactly its native ETH fee to its recipient with its

@@ -20,11 +20,11 @@ import { MyVaults } from './MyVaults'
 import { ProgramAdmin } from './ProgramAdmin'
 import { IncentivesAdmin } from './IncentivesAdmin'
 
-export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void;preview?:boolean}){
+export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void}){
   const [selected,setSelected]=useState<Offer|null>(null)
   return <WalletPage key={props.account??'guest'} {...props} selected={selected} setSelected={setSelected}/>
 }
-function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void;preview?:boolean}){
+function WalletPage({account,onConnect,selected,setSelected}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void}){
   const flow=useDeploymentFlow(account),positions=useDeployments(account),catalog=useIncentivePrograms()
   const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false),[openPosition,setOpenPosition]=useState(false)
   // The shared router owns paths; the feature keeps its existing flow state.
@@ -39,13 +39,12 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
   return <Page $home={route==='/'}>
     {route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Home</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onBack={()=>navigate('/')}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={(id,position=false)=>{setVaultId(id);setOpenPosition(position)}} payments={flow.records.filter(p=>p.sent&&!p.deploymentId)} onResumePayment={async(id)=>{await flow.resumePayment(id);setSelected(null);setVaultId(null);setResume(true)}} onAdmin={()=>navigate('/admin')}/>:<>
       <TitleRow data-desktop-home-copy><StepTitle>Liquidity Incentives</StepTitle></TitleRow>
-      <Introduction data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration and target APR. Review your position and premium before paying the $2 creation fee in ETH.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></Introduction>
+      <Introduction data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration and target APR. Review your position and premium before paying the campaign’s fixed ETH request fee.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></Introduction>
       <MobileIntroduction>
         <h1>Liquidity incentives</h1>
         <p>Create a vault. Deposit LP assets when it is ready. Claim your incentive after it starts.</p>
         <details><summary>How it works</summary>
-          <p>Pay the $2 request fee in ETH. We fund the premium after creation. Your LP is locked for the chosen duration after start. Each paid request creates a separate vault.</p>
-          {preview && <p>TVL values are placeholders. Payments on this preview are simulated.</p>}
+          <p>Pay the campaign’s fixed ETH request fee. We fund the premium after creation. Your LP is locked for the chosen duration after start. Each paid request creates a separate vault.</p>
           <QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton>
         </details>
       </MobileIntroduction>
@@ -60,8 +59,7 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
           <Metric $column='yield' data-offer-metric='yield'><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
           <Metric $column='apr' data-offer-metric='apr'><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</OfferApr><PhoneAprLabel>APR</PhoneAprLabel></Metric>
           <Metric $column='duration' data-offer-metric='duration'><MobileLabel>Duration</MobileLabel><Value data-incentive-duration>{offer.days} days</Value></Metric>
-          {/* TVL placeholders are preview metadata, never inferred from capacity. */}
-          <Metric $column='tvl' data-offer-metric='tvl'><MobileLabel>Vault TVL</MobileLabel><Value data-incentive-tvl title={preview?'Sample Vault TVL':offer.vaultTvl?.status==='available'?'Confirmed LP principal in campaign vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')}>{preview&&offer.previewTvlUsd!=null?'$'+offer.previewTvlUsd.toLocaleString('en-US'):offer.vaultTvl?.status==='available'&&offer.vaultTvl.usdRaw!==null?'$'+(Number(offer.vaultTvl.usdRaw)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}):'—'}</Value></Metric>
+          <Metric $column='tvl' data-offer-metric='tvl'><MobileLabel>Vault TVL</MobileLabel><Value data-incentive-tvl title={offer.vaultTvl?.status==='available'?'Confirmed LP principal in campaign vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')}>{offer.vaultTvl?.status==='available'&&offer.vaultTvl.usdRaw!==null?'$'+(Number(offer.vaultTvl.usdRaw)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}):'—'}</Value></Metric>
           {/* Only the first visible offer can carry the catalog's NEW label. */}
           {offer.isNew&&offer.id===catalog.offers[0]?.id&&<NewTag data-incentive-new>NEW</NewTag>}
           {!(offer.isNew&&offer.id===catalog.offers[0]?.id)&&<PhoneArrow aria-hidden='true'>↗</PhoneArrow>}
@@ -69,7 +67,7 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
       </Programs></ProgramGroup>)}
       <Row data-desktop-home-copy><FinePrint>Each paid request creates a separate vault.</FinePrint><QuietButton onClick={catalog.refresh} disabled={catalog.loading}>Refresh offers</QuietButton></Row>
     </>}
-    {(selected||vaultId||resume)&&<IncentiveModal preview={preview} offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} openPosition={openPosition} onClose={close} onConnect={onConnect}/>}
+    {(selected||vaultId||resume)&&<IncentiveModal offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} openPosition={openPosition} onClose={close} onConnect={onConnect}/>}
   </Page>
 }
 

@@ -7,7 +7,6 @@ export function fixtureTransport(fixture) {
     : typeof value === 'number' && value > 1e12 ? value + delta : value
   const actual = window.fetch.bind(window), streams = new Map(), receipts = new Map()
   let sequence = 1, admissions = 0, closes = 0, histories = 0, walletCalls = 0
-  window.ethereum = { request: () => { walletCalls++; throw new Error('Wallet request in preview') } }
   window.__documentId = crypto.randomUUID()
   const encode = (event, data) => new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
   window.__aprFixture = {

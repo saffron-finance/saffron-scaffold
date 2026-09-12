@@ -1,6 +1,7 @@
 import { useEffect,useState,type FormEvent } from 'react'
 import { formatUnits,type Address } from 'viem'
 import styled from 'styled-components'
+import { requestFeeFromEth } from '../../shared/incentives.mjs'
 import { campaignTerms } from '../../shared/campaign.mjs'
 import { authedJson } from '../host/transport'
 import { usd,type Pair,type Budget,type Program } from './model'
@@ -33,6 +34,7 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
         {b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}
         {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
       </Card>)}
+      {catalog.programs.map(program=><RequestFeeEditor key={program.id+':'+program.revision} account={account} program={program} onSaved={changed}/>)}
       <CampaignEditor account={account} pairs={catalog.pairs} onSaved={changed}/>
       <Row><b>Pairs</b><QuietButton onClick={()=>setShowPair(!showPair)}>{showPair?'Close pair form':'Add pair'}</QuietButton></Row>
       {catalog.pairs.map(pair=><FinePrint key={pair.id}>{pair.token0.symbol} / {pair.token1.symbol} · {pair.pool}</FinePrint>)}
@@ -47,28 +49,44 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
 function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];onSaved:()=>Promise<void>}){
   const [id,setId]=useState(''),[name,setName]=useState(''),[pairId,setPairId]=useState(pairs[0]?.id??'')
   const [days,setDays]=useState('3'),[budget,setBudget]=useState('10000'),[capacity,setCapacity]=useState('1000000'),[apr,setApr]=useState('121.66666667')
-  const [computed,setComputed]=useState('apr'),[active,setActive]=useState(false)
+  const [computed,setComputed]=useState('apr'),[active,setActive]=useState(false),[requestFee,setRequestFee]=useState('')
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
   const economics={days:Number(days),...(computed!=='budget'?{budgetUsd:budget}:{}),...(computed!=='capacity'?{capacityUsd:capacity}:{}),...(computed!=='apr'?{aprPercent:apr}:{})}
   let terms:any=null,validation=''
   try{terms=campaignTerms(economics)}catch(e){validation=(e as Error).message}
   async function submit(event:FormEvent){event.preventDefault();if(!terms)return;setBusy(true);setError('')
-    try{await authedJson(account,'/admin/campaigns',{id,name,pairId,active,...economics});setId('');setName('');await onSaved()}
+    try{await authedJson(account,'/admin/campaigns',{id,name,pairId,active,requestFeeWei:requestFeeFromEth(requestFee),...economics});setId('');setName('');await onSaved()}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Editor onSubmit={submit} aria-label='Create campaign'><b>Create campaign</b><Fields>
     <Field>Campaign ID<input aria-label='Campaign ID' required pattern={'[a-z0-9][a-z0-9\\-]{0,79}'} value={id} onChange={e=>setId(e.target.value)}/></Field>
     <Field>Campaign name<input aria-label='Campaign name' required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></Field>
     <Field>Pair<select aria-label='Campaign pair' required value={pairId} onChange={e=>setPairId(e.target.value)}><option value='' disabled>Select pair</option>{pairs.map(p=><option key={p.id} value={p.id}>{p.token0.symbol} / {p.token1.symbol}</option>)}</select></Field>
+    <Field>Request fee (ETH)<input aria-label='Campaign request fee ETH' required inputMode='decimal' placeholder='Enter a fixed ETH amount' value={requestFee} onChange={e=>setRequestFee(e.target.value)}/></Field>
     <Field>Duration (days)<input aria-label='Campaign duration' required type='number' min={1} max={3650} step={1} value={days} onChange={e=>setDays(e.target.value)}/></Field>
     <Field>Calculate<select aria-label='Calculate campaign field' value={computed} onChange={e=>setComputed(e.target.value)}><option value='apr'>APR from budget + capacity</option><option value='capacity'>Capacity from budget + APR</option><option value='budget'>Budget from capacity + APR</option></select></Field>
     <Field>Budget (USD)<input aria-label='Campaign budget USD' inputMode='decimal' readOnly={computed==='budget'} value={computed==='budget'?(terms?formatUnits(BigInt(terms.budgetCents),2):''):budget} onChange={e=>setBudget(e.target.value)}/></Field>
     <Field>Target fixed-side capacity (USD)<input aria-label='Campaign capacity USD' inputMode='decimal' readOnly={computed==='capacity'} value={computed==='capacity'?(terms?formatUnits(BigInt(terms.capacityCents),2):''):capacity} onChange={e=>setCapacity(e.target.value)}/></Field>
     <Field>Target APR (%)<input aria-label='Campaign APR percent' inputMode='decimal' readOnly={computed==='apr'} value={computed==='apr'?(terms?Number(terms.aprPercent).toFixed(6):''):apr} onChange={e=>setApr(e.target.value)}/></Field>
   </Fields>
-    <FinePrint>Enter duration and any two economics inputs. APR uses a 365-day year, without compounding. Targets do not restrict request count or size. The premium rate stays fixed after quoting; the internal planning budget can change independently.</FinePrint>
+    <FinePrint>Enter a fixed ETH request fee, duration, and any two economics inputs. The fee is not linked to a dollar price. APR uses a 365-day year, without compounding. Targets do not restrict request count or size. The premium rate stays fixed after quoting; the internal planning budget can change independently.</FinePrint>
     <label><input type='checkbox' checked={active} onChange={e=>setActive(e.target.checked)}/> Accept paid vault requests when this campaign is created</label>
     {validation&&<FinePrint>{validation}</FinePrint>}{error&&<ErrorText role='alert'>{error}</ErrorText>}
     <Action disabled={busy||!terms||!pairId}>{busy?'Saving campaign…':'Create campaign'}</Action>
+  </Editor>
+}
+
+/** Fee revisions affect only new quotes. A stored payment/refund keeps its exact
+ * original wei amount; operators must not reprice an in-flight request. */
+function RequestFeeEditor({account,program,onSaved}:{account:Address;program:Program;onSaved:()=>Promise<void>}){
+  const [value,setValue]=useState(program.requestFeeWei?formatUnits(BigInt(program.requestFeeWei),18):'')
+  const [busy,setBusy]=useState(false),[error,setError]=useState('')
+  async function save(event:FormEvent){event.preventDefault();setBusy(true);setError('')
+    try{await authedJson(account,'/admin/programs',{...program,requestFeeWei:requestFeeFromEth(value)});await onSaved()}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  return <Editor onSubmit={save} aria-label={'Request fee for '+program.id}><b>{program.id} · Request fee</b>
+    <Field>Fixed request fee (ETH)<input required aria-label={'Request fee ETH for '+program.id} inputMode='decimal' value={value} onChange={e=>setValue(e.target.value)}/></Field>
+    <FinePrint>Each new request costs this ETH amount plus wallet network gas. Previously issued payment terms and refunds do not change.</FinePrint>
+    {error&&<ErrorText role='alert'>{error}</ErrorText>}<Action disabled={busy}>Save request fee</Action>
   </Editor>
 }
 

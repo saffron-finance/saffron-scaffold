@@ -16,12 +16,12 @@ const RowTweaks = import.meta.env.VITE_DEV_TWEAKS === 'true'
   ? lazy(() => import('../dev/RowTweaks')) : null
 
 /** One approved navigation/theme shell for every page and both entry points.
- * Wallet custody stays with the caller; preview controls never load a wallet.
+ * Wallet custody stays with the caller; all entries use actual wallet providers.
  * Extra menu controls and overlays remain inside the same theme/modal owner. */
-export function AppShell({ account, onConnect, children, overlays, previewControls, liveApr = false, pageLabel = 'Home', sampleMode = false }: {
+export function AppShell({ account, onConnect, children, overlays, liveApr = false, pageLabel = 'Home' }: {
   account: Address | null; onConnect: () => void; children: ReactNode;
-  overlays?: ReactNode; previewControls?: ReactNode; liveApr?: boolean;
-  pageLabel?: string; sampleMode?: boolean;
+  overlays?: ReactNode; liveApr?: boolean;
+  pageLabel?: string;
 }) {
   const path = useLocation().pathname
   const mobileHome = true
@@ -37,14 +37,14 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
       <Sidebar home='/' collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)} />
       <Content>
         <Nav aria-label='Account controls'><MobileBrand to='/' aria-label='Saffron home'><img src={`${mount}emblem.png`} alt='' />SAFFRON</MobileBrand><Controls>
-          <Connect aria-label={liveApr ? 'About live data' : account ? 'Manage wallet' : 'Connect wallet'} onClick={onConnect}>
-            {liveApr ? 'Live data' : account ? `${account.slice(0, 6)}…${account.slice(-4)}` : 'Connect'}
+          <Connect aria-label={account ? 'Manage wallet' : 'Connect wallet'} onClick={onConnect}>
+            {account ? `${account.slice(0, 6)}…${account.slice(-4)}` : 'Connect'}
           </Connect>
           <Chain aria-label='Network: Robinhood' title='Robinhood Chain'><img src={`${mount}robinhood.svg`} width='20' height='20' alt='' /></Chain>
           <MenuButton aria-label='Open menu' onClick={() => setMenu(true)}>☰</MenuButton>
         </Controls></Nav>
         <Body id='main-content' tabIndex={-1} aria-label={pageLabel}>{children}</Body>
-        <Footer>{labHref && <a href={labHref}>Saffron Feature Lab</a>}{(liveApr || sampleMode) && <p>{liveApr ? 'Live onchain pool data · read-only' : 'Sample data · no wallet or transactions'}</p>}<a href={`${mount}install.html`}>Source & installation</a></Footer>
+        <Footer>{labHref && <a href={labHref}>Saffron Feature Lab</a>}{liveApr && <p>Live onchain pool data · read-only</p>}<a href={`${mount}install.html`}>Source & installation</a></Footer>
       </Content>
       {mobileHome && <MobileHomeNavigation onMore={() => setMenu(true)} menuOpen={menu} />}
     </Frame>
@@ -60,11 +60,9 @@ export function AppShell({ account, onConnect, children, overlays, previewContro
           {sidebarDestinations('/').filter(item => !['Home', 'Live APR'].includes(item.label)).map(item =>
             <NavLink key={item.href} to={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>{item.label}</NavLink>)}
           <NavLink as='a' href={`${mount}install.html`}>Source & installation</NavLink>
-          {sampleMode && <p>Sample data · no wallet or transactions</p>}
         </MobileMenuExtras>}
         {/* This destination is outside the router's mount, so use a native link. */}
         {labHref && <NavLink as='a' href={labHref}>Feature Lab</NavLink>}
-        {previewControls}
         <WalletButton onClick={() => setMenu(false)}>Close</WalletButton>
       </WalletList>
     </Modal>

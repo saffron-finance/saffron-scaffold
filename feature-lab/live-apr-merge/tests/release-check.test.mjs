@@ -18,7 +18,7 @@ test('served releases verify root/nested live variants and reject partial public
     if (path === 'api/incentives/programs') {
       if (htmlApi) { res.writeHead(200, { 'content-type': 'text/html' }); return res.end('<html>fallback</html>') }
       return json({ offers: [{}], readiness: { canQuote: !closed, intakeReady: !closed, checkedAt: Date.now(),
-        checks: { configuration: true, recipient, rpc: true, feeQuote: true, sizing: true } } })
+        checks: { configuration: true, recipient, rpc: true, campaignFee: true, sizing: true } } })
     }
     if (path === 'api/incentives/admin/status') return json({}, inheritedOperator ? 200 : 401)
     if (path === 'api/incentives/checkout/session') return json({}, 403)
@@ -56,7 +56,7 @@ test('served releases verify root/nested live variants and reject partial public
       marker.wallet = true; marker.incentives = 'browser-simulation'
       await assert.rejects(() => verifyRelease(origin + base), /Wrong incentive adapter/)
       marker.wallet = false
-      await verifyRelease(origin + base, { expectedMode: 'browser-simulation' })
+      await assert.rejects(() => verifyRelease(origin + base, { expectedMode: 'browser-simulation' }), /Wrong incentive adapter/)
       marker.incentives = 'canonical-api'; marker.wallet = true
       for (corrupt of ['index.html', 'assets/lazy.js']) await assert.rejects(() => verifyRelease(origin + base), /Served asset differs/)
       corrupt = undefined

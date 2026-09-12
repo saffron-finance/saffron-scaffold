@@ -1,6 +1,5 @@
 import { verifyPayment, paymentData,proofHash } from './payment-proof.mjs'
 import { creationFeeRecipient,quoteCreationFee } from './creation-fee.mjs'
-import { WETH } from '../shared/vault-lifecycle.mjs'
 import { resolvePlan } from '../shared/deployment-plan.mjs'
 import { readVault,readPosition } from '../shared/vault-reader.mjs'
 import { discoverPositionOwners } from './position-discovery.mjs'
@@ -54,7 +53,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     const plan=await resolvePlan({snapshot},rpc,usdQuote,config)
     return plan
   }
-  const checkoutProbe=createCheckoutProbe({rpc,usdQuote,feeRecipient,signer,requireConfigured,size,now})
+  const checkoutProbe=createCheckoutProbe({rpc,feeRecipient,signer,requireConfigured,size,now})
   const vaultTvl=createVaultTvl({db,rpc,usdQuote,confirmations:config?.confirmations??2,now})
   const refunds=createRefunds({db,rpc,confirmations:config?.confirmations??2,now})
   const service={
@@ -100,7 +99,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       // are administrator data, never front-page or payment-modal payloads.
       return {offers:offers.map(offer=>({id:offer.id,revision:offer.revision,pairId:offer.pairId,pairRevision:offer.pairRevision,
         chainId:offer.chainId,pool:offer.pool,feeTier:offer.feeTier,token0:offer.token0,token1:offer.token1,vaultTvl:tvl[offer.id],
-        budgetPoolId:offer.budgetPoolId,apr:offer.apr,days:offer.days,sortOrder:offer.sortOrder,isNew:offer.isNew,active:offer.active,
+        budgetPoolId:offer.budgetPoolId,apr:offer.apr,days:offer.days,requestFeeWei:offer.requestFeeWei??null,sortOrder:offer.sortOrder,isNew:offer.isNew,active:offer.active,
         budget:{id:offer.budget.id,revision:offer.budget.revision,paused:offer.budget.paused},
         availability:offer.budget.paused||offer.budget.reconciliationRequired||!readiness.canQuote||!readiness.offerReady[offer.id]?'New requests are temporarily paused.':null})),
         creatorOnline:readiness.workerOnline,readiness:{canQuote:readiness.canQuote,intakeReady:readiness.intakeReady,checks:readiness.checks,checkedAt:readiness.checkedAt}}
@@ -129,8 +128,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
       const plan=await size(offer,principalCents,wallet)
       if(sameAddress(wallet,recipient))throw fault(400,'The creation fee receiver cannot request a vault by paying itself.')
       if(typeof recoveryHash!=='string'||!/^0x[0-9a-f]{64}$/i.test(recoveryHash))throw fault(400,'A request recovery commitment is required.')
-      const eth=await usdQuote(WETH)
-      const fee=quoteCreationFee(recipient,eth,now())
+      const fee=quoteCreationFee(recipient,offer.requestFeeWei)
       // Retain a nonce checkpoint for backup/restore reconciliation, without
       // collecting signer balances, fees, or gas-spending totals.
       const signerNonce=BigInt(await rpc('eth_getTransactionCount',[signer,plan.sizingBlock])).toString()

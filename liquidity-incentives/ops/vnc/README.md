@@ -52,7 +52,7 @@ Local commands are `node ops/vnc/qa.mjs` followed by `status`, `fund-half`,
 `fund`, `mature`, or `screenshot`.
 
 Connect Uniswap Extension in the viewer, select a campaign, and pay the local
-$2-equivalent fee. Follow C06 progress, fund the premium, deposit LP assets,
+fixed campaign fee. Follow C06 progress, fund the premium, deposit LP assets,
 claim, advance time, and withdraw. Start fresh before new post-time-travel quotes.
 
 ## Backup, reset, and upgrade

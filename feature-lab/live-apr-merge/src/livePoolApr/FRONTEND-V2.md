@@ -69,7 +69,7 @@ that expired table rows do not reduce cumulative observation totals.
 Run `npm test` and `npm run typecheck` from this frontend package. After
 `npm run build:live`, run `npm run test:apr-http` for real browser HTTP/SSE
 transport against a controlled gateway contract fixture. After `build:lab`, the
-compiled preview suite is `npm run test:browser` with `MERGE_BASE` matching its
+compiled wallet/API suite is `npm run test:browser` with a disposable backend and a root
 build mount. It checks layouts, wire contracts and real PNG pixels.
 
 The bounded session/reducer tests are included in the normal suite. No monorepo

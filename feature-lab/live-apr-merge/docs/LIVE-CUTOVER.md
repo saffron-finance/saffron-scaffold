@@ -7,7 +7,7 @@ incentives frontend remains an internal validation interface.
 ## Release identity
 
 `npm run build:live` writes `dist-live/`. Default and lab builds write `dist/`
-and simulate incentive requests. Live appearance controls can be enabled with
+and use the same wallet/API implementation. Live appearance controls can be enabled with
 `VITE_UI_TWEAKS=true`; they never choose the payment adapter.
 
 Every build writes `deployment-mode.json` after its HTML, Vite manifest and lazy
@@ -29,7 +29,7 @@ changing source identity; preserve the actual build and its marker together.
   configuration, protected RPC access and an independent database. Use the
   existing Campaigns UI for catalog changes, including programs added after launch.
 - Configure `SAFFRON_CREATION_FEE_RECIPIENT` in the backend environment for the
-  $2-equivalent Robinhood native ETH fee. A missing or invalid recipient prevents
+  fixed campaign Robinhood native ETH fee. A missing or invalid recipient prevents
   checkout. Already-issued quotes retain their recipient and exact wei amount.
 - Supervise the payment watcher and automatic creator. Accepted canonical fees
   enter automatic creation without per-vault approval. External premium funding
@@ -123,7 +123,7 @@ APR HTTP contracts, and fresh source extraction/builds. See
 Pause new intake before changing routes or runtime versions. A frontend rollback
 must retain the live recovery UI for accepted payments, pending transactions and
 refund states. Never replace it with the simulation UI for wallets with paid work.
-Keep the qualified 0.3.0 bundle as the initial recovery UI with intake closed;
+Keep the qualified 0.3.0 bundle as the historical recovery UI with intake closed;
 there is no earlier qualified public live release to assume as a fallback.
 
 Backend commit `903205e` is the earliest eligible code baseline from this batch:

@@ -10,7 +10,7 @@ export const ORIGIN='http://127.0.0.1:13218'
 export const pair={id:'cashcat-eth',revision:0,chainId:4663,pool:POOL,feeTier:10000,
   token0:{address:TOKEN,symbol:'CASHCAT',decimals:18},token1:{address:QUOTE_TOKEN,symbol:'ETH',decimals:18},active:true}
 export const program={id:'cashcat-3d',revision:0,pairId:pair.id,budgetPoolId:'cashcat-campaign',apr:1000,days:3,
-  minimumCents:'100',maximumCents:'10000000',sortOrder:0,isNew:true,active:true}
+  requestFeeWei:'1000000000000000',minimumCents:'100',maximumCents:'10000000',sortOrder:0,isNew:true,active:true}
 
 export async function incentivesFixture(options={}) {
   const connection={host:process.env.SAFFRON_TEST_DB_HOST||process.env.PGHOST||'127.0.0.1',

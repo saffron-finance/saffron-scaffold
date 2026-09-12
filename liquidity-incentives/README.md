@@ -1,7 +1,7 @@
 # Saffron Scaffold — liquidity incentives
 
 An independent application for campaign-budgeted Saffron LP vault deployment on
-Robinhood Chain (4663). Users select a campaign and USD size, pay $2 in native ETH
+Robinhood Chain (4663). Users select a campaign and USD size, pay the campaign’s fixed fee in native ETH
 for creation, and enter the fixed side after external operations funds the premium.
 There is no user sign-in message, EIP-712 authorization, or USDC payment option. Deposit, claim, maturity and withdrawal stay in this interface.
 The package owns its UI, API, sessions and database. The root scaffold application
@@ -46,7 +46,7 @@ boundary are substituted. No live wallet or RPC is used.
 
 1. Connect **Uniswap Extension** in the demo. This generated wallet is also the
    demo operator; the worker uses a separate generated EOA.
-2. Select a program and USD size, then pay the quoted $2 in test ETH. The worker creates
+2. Select a program and USD size, then pay the quoted the campaign’s fixed fee in test ETH. The worker creates
    the adapter and vault and initializes it automatically.
 3. Type `fund` in the demo terminal to simulate external treasury variable-side
    deposits. This test-only helper is not part of the production creator.
@@ -122,7 +122,7 @@ the relay continues to reject those methods, including in mixed batches.
 
 ## Domain and accounting
 
-- Each canonical $2-equivalent ETH payment authorizes one exact vault request.
+- Each canonical fixed campaign ETH payment authorizes one exact vault request.
   Users can create any number of separately paid requests. Unpaid quotes reserve
   no capacity. There are no per-wallet, browser, queue, or campaign-size quotas.
 - Campaign budget and fixed-side target determine the premium rate. They are
@@ -218,27 +218,25 @@ For keyless native-payment discovery and a strictly request-pinned, one-vault
 operator test, use [the watcher and one-request runbook](ops/ONE-REQUEST.md).
 This includes protected signer/RPC references and a real-factory Anvil fork.
 
-## Browser-only UI review
+## One wallet/API application
 
-`npm run build:preview` builds the actual campaign form and user modals with an
-explicit preview-only transport in `dist-preview/`. Set `VITE_BASE_PATH` for the
-host mount. The preview starts with the $10,000/$1,000,000, three-day example at
-50% premium-funded. Vaults is the homepage; the hamburger menu links to My requests,
-Campaigns (`campaigns/`) and Administration (`admin/`). Existing `?view=campaigns`
-links still open the calculator. Campaign
-edits and simulated requests stay in a separate browser-local storage namespace.
+All normal and lab builds use the canonical API and an actual connected wallet.
+There is no browser-only preview, seeded production catalog or fake transaction
+transport. Appearance controls change styling only. Read-only browsing does not
+require a connection; requests, payments, LP actions and operator authentication
+use the wallet at their normal authorization boundaries.
 
-Every page reuses the approved `src/host/AppShell.tsx`: original sidebar, account
-header, gray vault cards, fonts and spacing. Funnel Display, Host Grotesk and
-Roboto Mono are bundled locally with SIL Open Font Licenses so preview routes
-cannot lose their typography. Appearance controls remain review-build-only.
+Local-chain/VNC tests run the same code against disposable contracts with a
+funded generated wallet. Mainnet uses a real wallet on Robinhood Chain (4663).
+Never substitute test fixtures or browser storage for payment evidence.
 
-The footer and payment modal label sample data. It imports no wallet provider, sends no API/RPC
-or price requests, and cannot make payments, deploy vaults or fund them. This is
-not the production application or a substitute for backend integration. Normal
-and lab builds exclude the preview entry/runtime. `node tests/preview-ui.mjs`
-checks static-only interactions, math, local persistence and mobile layout; set
-`PREVIEW_WEBROOT` to verify the published files through a loopback-only mirror.
+Each program requires `requestFeeWei`: a positive, bounded integer string in
+wei. Campaigns UI accepts exact ETH decimals (at most 18 places); it has no
+implicit fee default. Existing campaigns without the field cannot quote until
+an operator sets it. Fee edits affect new quotes only. Existing paid requests,
+recovery records and full refunds retain their original quoted wei amounts.
+No ETH/USD request-fee lookup remains. USD inputs for LP sizing, APR economics
+and TVL are separate and unchanged.
 
 ## Verified operator deployment
 

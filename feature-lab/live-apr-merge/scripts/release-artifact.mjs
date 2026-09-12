@@ -35,11 +35,11 @@ export function writeReleaseMarker(directory, mode) {
   return marker
 }
 
-export function validateMarker(marker, { basePath, requireClean = true, expectedRelease, expectedMode = 'canonical-api' } = {}) {
+export function validateMarker(marker, { basePath, requireClean = true, expectedRelease } = {}) {
   assert.equal(marker.schema, 1, 'Unsupported release marker')
   assert.equal(marker.application, 'saffron-liquidity-incentives', 'Wrong public interface')
-  assert.equal(marker.incentives, expectedMode, 'Wrong incentive adapter')
-  assert.equal(marker.wallet, expectedMode === 'canonical-api', 'Wallet/adapter mismatch')
+  assert.equal(marker.incentives, 'canonical-api', 'Wrong incentive adapter')
+  assert.equal(marker.wallet, true, 'Wallet/adapter mismatch')
   assert.equal(typeof marker.appearanceControls, 'boolean')
   assert.equal(marker.basePath, mountPath(basePath), 'Wrong release mount')
   assert.equal(marker.release?.package, 'saffron-live-apr-merge')

@@ -24,7 +24,7 @@ test('private advisory is confined to the operator portfolio; above-target quote
     await expect(dialog.getByRole('button',{name:'Continue',exact:true})).toBeEnabled()
     await expect(dialog).not.toContainText(/capacity|amount review|available per vault/i)
     await dialog.getByRole('button',{name:'Continue',exact:true}).click()
-    await expect(dialog.getByRole('button',{name:'Pay $2 in ETH',exact:true})).toBeEnabled()
+    await expect(dialog.getByRole('button',{name:'Pay request fee',exact:true})).toBeEnabled()
     await expect(page.locator('[data-payment-waiting]')).toHaveCount(0)
   }finally{await f.close()}
 })

@@ -1,6 +1,5 @@
 import { isAddress,zeroAddress } from 'viem'
-import { fault } from '../shared/incentives.mjs'
-import { ceilDiv } from '../shared/liquidity-math.mjs'
+import { fault,integer } from '../shared/incentives.mjs'
 
 export function creationFeeRecipient(value){
   const recipient=typeof value==='string'?value.trim():''
@@ -10,12 +9,11 @@ export function creationFeeRecipient(value){
   return recipient.toLowerCase()
 }
 
-/** Native ETH on Robinhood. A quote owns these values after it is issued. */
-export function quoteCreationFee(recipient,eth,now=Date.now()){
+/** Copy the campaign's fixed native ETH amount. Issued quotes keep their original
+ * amount and recipient, even if the operator later changes campaign settings.
+ * Legacy campaigns without an explicit amount cannot issue new payment terms. */
+export function quoteCreationFee(recipient,amountWei){
   recipient=creationFeeRecipient(recipient)
-  if(!/^\d+$/.test(eth?.priceRaw??'')||BigInt(eth.priceRaw)<=0n||!Number.isFinite(eth.checkedAt)
-    ||now-eth.checkedAt>60_000||eth.checkedAt>now+5000)
-    throw fault(503,'A fresh ETH/USD fee quote is unavailable.')
-  return {usdCents:'200',asset:'ETH',recipient,amountWei:ceilDiv(2n*10n**36n,BigInt(eth.priceRaw)).toString(),
-    ethPriceRaw:eth.priceRaw,checkedAt:eth.checkedAt}
+  try{integer(amountWei,{positive:true})}catch{throw fault(503,'This campaign needs a fixed ETH request fee.')}
+  return {asset:'ETH',recipient,amountWei}
 }

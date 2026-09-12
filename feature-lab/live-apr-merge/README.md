@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.3.0 provides Home, Portfolio, Live APR and the full fixed-side vault
+Version 0.4.0 provides Home, Portfolio, Live APR and the full fixed-side vault
 journey in one standalone interface. Its canonical API, database, watcher and
 creator are maintained in this repository's `liquidity-incentives` package.
 Vendored sources and licenses are included; no other application is a build or
@@ -17,12 +17,12 @@ npm run dev
 
 | Command | Output | Incentive behavior | Appearance controls |
 | --- | --- | --- | --- |
-| `npm run build` | `dist/` | Explicit browser simulation | No |
-| `npm run build:lab` | `dist/` | Explicit browser simulation | Yes |
+| `npm run build` | `dist/` | Wallet and canonical API | No |
+| `npm run build:lab` | `dist/` | Wallet and canonical API | Yes |
 | `npm run build:live` | `dist-live/` | Wallet and canonical API | Optional |
 
-Live mode is selected at build time. It never switches to samples after an API
-failure. APR uses the separately configured read-only v2 gateway in either mode.
+Every build uses the same wallet/API path, including local-chain tests. None
+switches to samples after an API failure. APR uses its separate read-only gateway.
 A static host alone cannot provide live incentives. Build output does not prove
 which version is deployed or whether paid intake is open.
 
@@ -45,7 +45,7 @@ boundary. Never put RPC or signer credentials in frontend settings.
 - Mobile Home, Portfolio, APR navigation and transaction dialogs share compact
   controls and safe-area spacing. Desktop navigation remains available.
 - **Claim $X** retains its request-time incentive value. Review explicitly shows
-  the separate creation fee: $2 equivalent in native ETH on Robinhood, paid to
+  the separate creation fee: the campaign’s fixed amount in native ETH on Robinhood, paid to
   the recipient frozen by the backend quote. User message signatures are not
   required; wallet transactions still require explicit confirmation.
 - Canonically accepted fees enter automatic creation. Four verified stages cover
@@ -55,10 +55,12 @@ boundary. Never put RPC or signer credentials in frontend settings.
   deposit, incentive claim, ownership recovery and mature withdrawal.
 - **Vault TVL** values the current deposited principal in each campaign's vaults.
   It excludes premium and requested capacity, and reports unavailable/stale data.
-  APR's separate **Pool TVL** retains its pool-wide meaning. Preview values are
-  explicitly samples.
+  APR's separate **Pool TVL** retains its pool-wide meaning.
 - Campaigns remain database-managed after launch. Private advisory targets do
-  not cap user requests. Quote economics freeze; new terms require a new program.
+  not cap user requests. Premium economics freeze; new premium terms require a new
+  program. A fixed ETH request fee (`requestFeeWei`) is required per program, with
+  no dollar peg or default. Fee edits apply only to new quotes; original payments
+  and refunds retain their quoted amount. Old campaigns without a fee stay paused.
 - Operator refund administration prepares exact full-fee manifests and verifies
   externally paid refunds before permanently closing unfulfillable requests.
   The app does not sign refunds or expose a public variable-side deposit form.
@@ -93,8 +95,8 @@ transaction outcomes across reloads and tabs. Shared requests and canonical
 observations belong to the API/database. A browser return refreshes ownership
 and chain state without automatically confirming a wallet action.
 
-The preview alone uses `saffron.live-apr-merge.campaign-preview.v1`; Reset preview
-only resets that simulation. APR receipt ownership is separate: route departure
+Old browser simulation storage is ignored and cannot connect a wallet, create
+a campaign or submit a request. APR receipt ownership is separate: route departure
 releases it, while suspended-document recovery reuses it when recognized.
 
 ## Verification and handoff
@@ -114,9 +116,11 @@ The source check compares all 32 exact copied files with their pins and, when
 available in this repository, the canonical backend. It normalizes CRLF to LF
 only. A portable frontend archive verifies without a backend checkout.
 
-For preview browser checks, run `npm run build:lab`, set `MERGE_BASE=/` for a root
-build, then `npm run test:browser`. The harness uses explicit wire fixtures and
-checks responsive UI, actual PNG pixels, simulation and recovery state.
+For UI browser checks, build at `/`, set `SAFFRON_BACKEND_SOURCE` to the canonical
+package and configure disposable `SAFFRON_TEST_DB_*`, then run `npm run test:browser`.
+The harness uses a real API/database/local EVM and generated wallet. Only read-only
+APR observations use wire fixtures. It checks wallet gating, exact campaign fee
+editing, responsive layout and actual PNG pixels.
 
 For the real API/database/disposable-chain journey, follow
 [lifecycle acceptance](docs/LIFECYCLE-ACCEPTANCE.md). Run both `MERGE_DEVICE=mobile`

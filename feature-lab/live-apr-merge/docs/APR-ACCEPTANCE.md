@@ -1,5 +1,9 @@
 # Live APR gateway acceptance
 
+> Historical 0.3.0 acceptance/adoption record. Version 0.4.0 removes the browser
+> simulation and requires wallet/API flows in every build. See README.md and
+> WALLET-ONLY-FIXED-FEES.md for the current behavior.
+
 The frontend consumes the existing v2 gateway. It does not deploy a collector or
 create a second APR backend. Gateway availability is independent of incentives
 checkout, vault funding and position ownership checks.

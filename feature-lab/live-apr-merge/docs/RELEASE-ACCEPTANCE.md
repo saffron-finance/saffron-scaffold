@@ -1,5 +1,9 @@
 # Version 0.3.0 release acceptance
 
+> Historical 0.3.0 acceptance/adoption record. Version 0.4.0 removes the browser
+> simulation and requires wallet/API flows in every build. See README.md and
+> WALLET-ONLY-FIXED-FEES.md for the current behavior.
+
 The candidate includes the automatic fee-to-vault lifecycle, external premium
 funding, fixed-side entry, premium claim, mature withdrawal, payment recovery,
 operator-verified external refunds and the combined mobile/desktop interface.

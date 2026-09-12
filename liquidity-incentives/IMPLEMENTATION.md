@@ -10,7 +10,14 @@ Chain 4663 and the configured unrestricted factory are authoritative. HTTP and
 the payment watcher are keyless. The creator is a separate protected signer.
 External funders own variable bearer rights; users own their actual LP/claim
 rights. A request address or browser record never substitutes for token ownership.
-Production catalogs start empty; only disposable fixtures seed sample data.
+Production catalogs start empty; only disposable fixtures seed test data.
+Every production and lab frontend uses actual wallet/API transactions. Browser
+simulation entries and transports are removed; local/VNC fixtures use wallets.
+Program JSON contains a required positive `requestFeeWei` integer. Existing JSON
+without it is preserved but cannot quote. No schema backfill guesses a fee.
+Creation fee quotes copy the program amount without ETH/USD pricing. Operator
+fee edits use revision checks, while old quote/payment/refund bodies remain
+immutable. Program and budget locks prevent stale new quotes during fee edits.
 
 Browser payment records use prepared/submitting/submitted/confirming/accepted,
 needs_attention, confirmed_unpaid, and abandoned. Legacy values remain readable.

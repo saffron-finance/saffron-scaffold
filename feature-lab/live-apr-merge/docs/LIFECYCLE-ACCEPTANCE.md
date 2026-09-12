@@ -1,5 +1,9 @@
 # Complete-cycle acceptance
 
+> Historical 0.3.0 acceptance/adoption record. Version 0.4.0 removes the browser
+> simulation and requires wallet/API flows in every build. See README.md and
+> WALLET-ONLY-FIXED-FEES.md for the current behavior.
+
 Run `npm run build:live` with `VITE_BASE_PATH=/` and then
 `npm run test:backend-browser`. Set `SAFFRON_BACKEND_SOURCE` to the absolute path
 of this repository's `liquidity-incentives` package, with its test dependencies

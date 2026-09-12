@@ -2,7 +2,7 @@ import { useEffect,useRef,useState } from 'react'
 import { toHex,type Address,type Hex } from 'viem'
 import { walletClient,assertWalletAccount,ensureChain } from '@lab/wallet/wallet'
 import { robinhoodChain } from '@lab/chain/chains'
-import { digest,cents } from '../../shared/incentives.mjs'
+import { digest,cents,integer } from '../../shared/incentives.mjs'
 import { proofHash,paymentData } from '../../shared/payment.mjs'
 import { requestJson,rememberPayment,robinhoodClient } from './transport'
 import { readPayments,savePayment,saveCheckoutDraft,selectPayment,nextPaymentNonce,retryPaymentNonce,type Payment,type Payments,type CheckoutDraft } from './payment-records.mjs'
@@ -59,6 +59,7 @@ export function useDeploymentFlow(account:Address|null){
   })
   const review=(offer:Offer,amount:string)=>coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
+    await assertWalletAccount(account);await ensureChain(robinhoodChain)
     if(ledger.activeId)throw new Error('Resume or close the saved payment review before starting another request.')
     const draft=ledger.draft??{requestKey:crypto.randomUUID(),wallet:account.toLowerCase(),programId:offer.id,amountUsd:amount,recoverySecret:toHex(crypto.getRandomValues(new Uint8Array(32)))}
     if(draft.programId!==offer.id||cents(draft.amountUsd)!==cents(amount))throw new Error('Resume the saved checkout amount or discard its unpaid review before changing terms.')
@@ -69,7 +70,7 @@ export function useDeploymentFlow(account:Address|null){
     const expected=digest({snapshot:q.snapshot,plan:q.plan,signer:q.signer,programRevision:q.programRevision,pairRevision:q.pairRevision,budgetRevision:q.budgetRevision})
     if(q.origin!==location.origin||q.wallet!==account.toLowerCase()||q.programId!==offer.id||q.principalCents!==cents(amount)||expected!==q.planHash
       ||q.snapshot.poolAddress!==offer.pool||q.snapshot.variableAssetAddress!==offer.token0.address||q.snapshot.durationSeconds!==offer.days*86400
-      ||q.fee?.usdCents!=='200'||q.fee.asset!=='ETH'||q.recoveryHash!==proofHash(recoverySecret)||q.paymentData!==paymentData(q))throw new Error('Payment or deployment terms changed. Refresh before paying.')
+      ||q.fee?.amountWei!==offer.requestFeeWei||integer(q.fee.amountWei,{positive:true})!==q.fee.amountWei||q.fee.asset!=='ETH'||q.recoveryHash!==proofHash(recoverySecret)||q.paymentData!==paymentData(q))throw new Error('Payment or deployment terms changed. Refresh before paying.')
     await assertWalletAccount(account);persist({quote:q,recoverySecret,sent:false,status:'prepared'})
   })
   const pay=(retryMissingHash=false)=>coordinated(async(ledger,persist)=>{
