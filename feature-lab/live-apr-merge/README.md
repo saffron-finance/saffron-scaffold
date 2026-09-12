@@ -1,6 +1,6 @@
 # Saffron Live APR merge
 
-Version 0.2.1 integrates watcher-app product changes through `19ad0e9` into the
+Version 0.2.2 integrates watcher-app product changes through `19ad0e9` into the
 approved merged frontend. The standalone incentives baseline was `93fcab6`.
 The Live APR feature remains pinned to `b8eb411`.
 
@@ -25,7 +25,7 @@ samples. These are display placeholders, not private budget amounts or live
 TVL readings. The API build shows unavailable TVL until real data is connected.
 The third sample is added without resetting existing requests or campaign edits.
 
-Enabled incentive-modal buttons brighten by 6% on mouse hover, replacing the
+Enabled incentive-modal buttons brighten by 15% on mouse hover, replacing the
 shared 60%-opacity dim. Disabled controls and navigation styles are unchanged.
 
 

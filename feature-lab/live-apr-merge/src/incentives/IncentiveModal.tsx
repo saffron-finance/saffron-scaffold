@@ -99,12 +99,12 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
 }
 
 /** The shared base Button dims to 60% opacity on hover. Override only this
- * portal's enabled buttons: a 6% brightness lift is intentionally much gentler.
+ * portal's enabled buttons: a 15% brightness lift is intentionally much gentler.
  * No disabled-state, outside navigation or touchscreen hover behavior changes. */
 const ModalButtonHover=createGlobalStyle`
   [data-incentive-modal] button:not(:disabled):not([aria-disabled='true']){transition:filter 160ms ease,background-color 160ms ease,border-color 160ms ease;}
   @media(hover:hover) and (pointer:fine){
-    [data-incentive-modal] button:not(:disabled):not([aria-disabled='true']):hover{opacity:1;filter:brightness(1.06);}
+    [data-incentive-modal] button:not(:disabled):not([aria-disabled='true']):hover{opacity:1;filter:brightness(1.15);}
   }
   @media(prefers-reduced-motion:reduce){[data-incentive-modal] button{transition:none;}}
 `

@@ -388,7 +388,7 @@ try {
       await checkModalSurface(appearance)
       await appearance.getByRole('button',{name:`Claim ${claim}`,exact:true}).hover()
       await checkModalSurface(appearance)
-      await expect.poll(()=>appearance.locator('[data-incentive-primary-action]').evaluate(el=>getComputedStyle(el).filter)).toBe('brightness(1.06)')
+      await expect.poll(()=>appearance.locator('[data-incentive-primary-action]').evaluate(el=>getComputedStyle(el).filter)).toBe('brightness(1.15)')
       await expect.poll(()=>appearance.locator('[data-incentive-primary-action]').evaluate(el=>getComputedStyle(el).opacity)).toBe('1')
       // Short mobile screens must keep Back, Close and Claim reachable without
       // horizontal overflow; the modal may use its existing vertical scrolling.

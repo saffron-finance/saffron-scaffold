@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "checks": [
+    "Amount \u2192 Back-preserved review \u2192 simulated request \u2192 C06 \u2192 Portfolio works without wallet/API access",
+    "LP wrap/approvals/deposit, premium claim and mature withdrawal mockups form a complete explicit-action sequence",
+    "Recovery, offline and admin-only Portfolio scenarios work; the advisory is absent on Home",
+    "Bottom navigation, three comparison limit and secondary More destination work",
+    "Simulated keyboard leaves the focused field and action above reserved keyboard space",
+    "320/390/430px frames have no horizontal overflow and visible buttons meet 44px targets",
+    "Native keyboard toggles, nested deep links, all 13 HTML frames and 320/390/768/1440px document layouts pass",
+    "Actual PDF print expands closed plan sections and restores prior disclosure states"
+  ],
+  "errors": [],
+  "unexpected": [],
+  "printTextVerified": [
+    "Implementation plan",
+    "Acceptance and device matrix",
+    "Scope, sources and handoff",
+    "Your LP is ready to withdraw"
+  ],
+  "htmlSha256": "51eadeaba523fba799ae41dc12d20a432443c4b5852905dba0559d2e2fe36892",
+  "referenceSourceCommit": "f80eefffce1f02412f36e960e0e578e6a25af214",
+  "actualMobileDevices": "Not tested; implementation acceptance gates remain in the report"
+}
