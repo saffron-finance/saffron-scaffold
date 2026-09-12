@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-normal/
+dist-live/
+validation/
+.env.local
+*.zip

@@ -1,0 +1,24 @@
+/* Native CSS keeps container queries out of the host's legacy Stylis parser.
+   Only the APR pane is targeted; the export portal and Vaults are unaffected. */
+[data-apr-section] [data-testid='pool-grid'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+@container live-apr (min-width: 960px) {
+  [data-apr-section] [data-testid='pool-grid'][data-tiled='true'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container live-apr (max-width: 600px) {
+  [data-apr-section] [data-testid='pool-pair-heading'] {
+    grid-template-areas: 'title title' 'logos description';
+  }
+}
+@container live-apr (max-width: 350px) {
+  [data-apr-toolbar] { flex-wrap: wrap; }
+  [data-apr-toolbar] > div:last-child { margin-left: auto; }
+}
+@container live-apr (max-width: 300px) {
+  [data-apr-section] [data-testid='live-metrics'] { grid-template-columns: minmax(0, 1fr); }
+  [data-apr-section] [data-testid='pool-pair-heading'] { column-gap: 8px; }
+  [data-apr-section] [data-testid='pool-description'] { font-size: 12px; }
+}

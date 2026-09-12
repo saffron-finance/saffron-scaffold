@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "checks": [
+    "Header controls match row gray surface/border and gold hover; CONNECT Funnel Display at 320/390/1440px",
+    "Vaults default and no APR admission/chunk or wallet request",
+    "Three public metrics stay aligned without capacity; only top offer is NEW; ten widths and both sidebar states",
+    "NEW-left toggle: defaults, validation, preference preservation, reload, reset, storage denial and ten responsive widths",
+    "Home/Portfolio labels and order; unchanged Live APR font with matching paint; both offers/modal stages match selected sidebar, including custom preset, disabled/hover and reduced motion",
+    "LP disclosure and first-page copy/Funnel font; amount-only tooltip with token icons, copy and aligned caret; hover/focus/touch dismissal; green title reward and white button amount",
+    "New sidebar order, external Saffron pro, local Stats/Community, responsive scaffolds and dark-only theme",
+    "Default live pair, route-scoped labels, table-corner PNG and history",
+    "Expanded/collapsed responsive layouts and Tokens bounds",
+    "Comparisons preserve sessions; selected Live APR stays white, inactive gradient returns on Home; fresh back-navigation baseline",
+    "Creation claim survives former expiry; dynamic premium, token logos, Back, fee copy and mobile layout pass",
+    "Above-target request and a second independent payment work; advisory appears only in the operator portfolio",
+    "Calculator modes, local paid requests, saved C06 progress and isolated preview reset",
+    "Legacy campaigns/aliases preserve query+fragment; unknown routes admit nothing",
+    "Keyboard Tokens, narrow dark PNG, private budget advisory, storage denial and direct scaffold reloads"
+  ],
+  "errors": [],
+  "unexpected": [],
+  "realWatchers": 0,
+  "mode": "lab-preview"
+}
