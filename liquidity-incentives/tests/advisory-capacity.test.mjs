@@ -52,7 +52,7 @@ it('public offers and new quote snapshots omit private targets and inventory det
   const f=await fixture(),{service,account,db}=f
   try{
     // Readiness is independent of DTO privacy; no RPC is needed for this check.
-    service.readiness=async()=>({canQuote:true,workerOnline:false})
+    service.readiness=async()=>({canQuote:true,workerOnline:false,offerReady:{planning:true}})
     const publicData=await service.programs()
     assert.doesNotMatch(JSON.stringify(publicData),/budgetCents|capacityCents|accounting|limitRaw|availableRaw|maximumCents|treasury|gasBalance|eligibleMaximum/)
     const q=await f.quote(account,{programId:'planning'})
