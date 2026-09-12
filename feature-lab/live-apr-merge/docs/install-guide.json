@@ -1,54 +1,54 @@
 {
-  "title": "Saffron · Live APR merge\nPortable installation guide",
-  "eyebrow": "Saffron Feature Lab · Version 0.2.4 · 12 September 2026",
-  "description": "The complete Live APR page inside the latest Liquidity Incentives shell, delivered as a third independent Feature Lab app.",
-  "meta": "Live APR · Product updates through 19ad0e9 · Explicit preview/API build modes",
+  "title": "Saffron liquidity incentives\nPortable installation guide",
+  "eyebrow": "Saffron · Version 0.3.0",
+  "description": "Home, Portfolio and Live APR with an independent incentives API and automatic vault lifecycle.",
+  "meta": "Version 0.3.0 · Explicit simulation and live builds · Source identity in the archive manifest",
   "sections": [
     {
       "id": "overview",
-      "title": "1. The merged edition",
-      "body_html": "<p>Version 0.2.3 implements the approved mobile Home screen below 600px: compact branding/Connect, short introduction with How it works, APR-first cards with Duration and TVL, and fixed Home/Portfolio/Live APR/More navigation. More opens the existing menu. Desktop, tablet, other destinations and modals retain their layouts. Safe-area and bottom padding keep the final offer reachable. Saved requests and desktop appearance preferences are preserved.</p><p class=\"lead\">Home, Portfolio and Live APR share the approved Saffron shell.</p><p><a href=\"./\">Open the updated app</a> · <a href=\"./live-apr\">Open Live APR</a> · <a href=\"live-apr-merge-source.zip\" download>Download portable source ZIP</a></p><p>The published page uses browser-only vault samples and no real payments. APR uses the existing read-only live gateway. An explicit API-connected build is also included.</p>"
+      "title": "1. Standalone application",
+      "body_html": "<p>The combined Home, Portfolio and Live APR interface includes mobile navigation and transaction dialogs. Production uses the canonical incentives API maintained in this repository. Configure real campaigns and operating owners before paid intake.</p><p><a href=\"./\">Open the app</a> · <a href=\"./live-apr\">Live APR</a> · <a href=\"live-apr-merge-source.zip\" download>Portable source ZIP</a></p>"
     },
     {
       "id": "changes",
-      "title": "2. Latest incentives changes and the plan",
-      "body_html": "<p>Version 0.2.1 adds TVL after Duration, using the same cell font. The three preview rows show $500,000, $700,000 and $900,000. These are placeholders, not live TVL or capacity limits. Existing saved requests survive the added 7-day sample.</p><p>Version 0.2.2: enabled modal buttons brighten by 15% on mouse hover. The previous shared style reduced opacity to 60%. Disabled controls keep their existing appearance.</p><p>Version 0.2.0 integrates applicable product changes from all 26 commits between <code>93fcab6</code> and <code>19ad0e9</code>. The earlier watcher/VNC release did not update this separate frontend.</p><ul><li>C06 shows four stages, elapsed time and recoverable progress.</li><li>Live mode uses canonical payment recovery and current position ownership.</li><li>Public capacity meters and request limits are removed. The planning advisory appears only in admin Portfolio.</li><li>C05, refund/retirement controls, gas-spending records and treasury tracking are absent.</li><li>Approved navigation, modal styling, Live APR observations and PNG export remain.</li></ul><p>The source includes a commit-by-commit integration map in <code>docs/PRODUCT-SYNC.md</code>.</p>"
+      "title": "2. Current lifecycle",
+      "body_html": "<p><strong>Claim $X</strong> retains the incentive wording. A separate $2-equivalent native ETH fee on Robinhood requests automatic creation. Four verified stages lead to external premium funding, fixed-side LP entry, incentive claim and mature withdrawal.</p><p>Vault TVL values deposited campaign principal; APR keeps separate Pool TVL. Refund administration verifies full original-fee payouts paid externally. Private advisory targets do not cap requests.</p>"
     },
     {
       "id": "quickstart",
       "title": "3. Install and run",
-      "body_html": "<p>Use Node 22.9 or newer and npm. Extract the source ZIP, enter its folder, and run:</p><pre><code>npm ci\nnpm run dev</code></pre><p>Preview builds need no backend checkout. Run <code>npm run build</code> for the normal preview, or <code>npm run build:lab</code> for Tweak controls. Serve <code>dist/</code> through HTTP(S), not a file URL.</p>"
+      "body_html": "<p>Use Node 22.9 or newer and npm. Extract the source ZIP, enter its folder and run:</p><pre><code>npm ci\nnpm run dev</code></pre><p><code>npm run build</code> writes an explicit simulation to <code>dist/</code>. <code>build:lab</code> adds appearance controls. Serve output through HTTP(S). No backend checkout is required to build the archive.</p>"
     },
     {
       "id": "hosting",
-      "title": "4. Hosting, base paths and live data",
-      "body_html": "<p>For this nested preview, set these public values in <code>.env.local</code>, then run <code>npm run build:lab</code>. The same instructions apply on Windows.</p><pre><code>VITE_BASE_PATH=/saffron/apps/feature-lab/live-apr-merge/\nVITE_LIVE_APR_API_BASE=/saffron/api/live-apr/v2\nVITE_FEATURE_LAB_HREF=/saffron/apps/feature-lab/</code></pre><p>For a root install, use <code>VITE_BASE_PATH=/</code>. Preserve authentication, SPA fallback for extensionless routes and genuine 404s for missing files. API paths must not fall through to HTML. Clipboard PNG requires HTTPS or localhost.</p><p><strong>API mode:</strong> <code>npm run build:live</code> writes <code>dist-live/</code>. Serve it through the canonical liquidity-incentives backend with matching base path and <code>DIST_DIR</code>. This mode enables real wallet actions; the default preview cannot switch into it at runtime. Backend services and credentials are not included in this ZIP. See <code>docs/DEPLOYMENT.md</code>.</p><p>Version 0.2.4 also supports <code>VITE_UI_TWEAKS=true</code> in live mode. Appearance does not select the payment adapter. The emitted <code>deployment-mode.json</code> identifies the served mode and mount. Run <code>scripts/check_live.mjs</code> before cutover. See <code>docs/LIVE-CUTOVER.md</code> for fee-recipient, campaign, watcher, database and rollback requirements. A staged API with closed intake is not an active payment service.</p>"
+      "title": "4. Live mode and routing",
+      "body_html": "<p>Put public settings in <code>.env.local</code>:</p><pre><code>VITE_BASE_PATH=/\nVITE_LIVE_APR_API_BASE=/api/live-apr/v2\nVITE_UI_TWEAKS=false</code></pre><p><code>npm run build:live</code> writes <code>dist-live/</code>. Serve through the canonical backend with matching <code>BASE_PATH</code> and <code>DIST_DIR</code>. Configure its independent database, watcher and creator. Backend services and credentials are excluded from this frontend ZIP.</p><p>Preserve same-origin API/RPC/prices, cookies, unbuffered APR SSE, SPA routes and real missing-file 404s. Hosting provides staging access. Appearance controls never select the payment adapter; live mode never falls back to samples.</p>"
     },
     {
       "id": "routes",
-      "title": "5. Routes and persistent state",
-      "body_html": "<p>Sidebar order: Home, Portfolio, Saffron pro, Live APR, Stats, Audits, Community.</p><ul><li><code>/</code>: incentive offers.</li><li><code>/portfolio/vaults</code>: saved requests and owned positions.</li><li><code>/campaigns</code> and <code>/admin</code>: operator controls.</li><li><code>/live-apr</code>: NVDA / USDG 0.05% default; pool and comparison routes remain supported.</li><li><code>/stats</code> and <code>/community</code>: scaffold pages without invented live statistics.</li></ul><p>Existing sample storage stays under <code>saffron.live-apr-merge.campaign-preview.v1</code>. Requests and edits survive this update. Reset preview affects only this key. Sample C06 is labelled and has no chain receipts. API mode uses shared backend state and durable local payment-recovery records; no preview reset is offered.</p><p>APR observations release on section exit and restart with fresh baselines on return. Sidebar preferences, dark styling, collapsed-rail behavior and the lab NEW-on-left toggle remain.</p>"
+      "title": "5. Navigation and recovery",
+      "body_html": "<p>Home: <code>/</code>; Portfolio: <code>/portfolio/vaults</code>; operators: <code>/campaigns</code> and <code>/admin</code>; pool observations: <code>/live-apr</code>. Up to four pools can be compared.</p><p>Payment and position recovery survives reloads without automatic wallet sends. Full premium funding and actual ownership govern safe entry and later actions. APR outages remain explicitly unavailable while independently ready vault actions remain usable. Preview reset affects only its simulation.</p><p>Initial mobile use is through a wallet browser. Real phones require qualification; WalletConnect remains desired future work.</p>"
     },
     {
       "id": "reuse",
-      "title": "6. Component reuse and dependencies",
-      "body_html": "<p>One router, shell, theme and modal layer serve both sections. APR and PNG code remain lazy. The preview build excludes wallet discovery and actual request transport. The live build uses the canonical wallet adapters and payment hooks.</p><p>Nine runtime dependencies remain; no new package was needed. Backend PostgreSQL, watcher, creator and recovery tools stay in the canonical repository.</p>"
+      "title": "6. Application boundaries",
+      "body_html": "<p>One router, shell, theme and modal layer serve the public UI. Vendored sources and licenses are included. No other application is a build or runtime dependency. APR/PNG code loads when needed. The API and watcher are keyless; the separate creator only creates and initializes vaults. Premium and refund payments are external operator responsibilities.</p>"
     },
     {
       "id": "testing",
-      "title": "7. Reproducible checks",
-      "body_html": "<pre><code>npm test\nnpm run check:upstream\nnpx playwright install chromium\nnpm run build</code></pre><p>For a root build, set <code>MERGE_BASE=/</code> and run <code>npm run test:browser</code>. The suite checks actual compiled layouts, APR wire fixtures, PNG pixels, multiple requests, private advisories and storage preservation. Use the nested build without this override.</p><p><code>npm run test:backend-browser</code> requires <code>build:live</code> at base / and <code>SAFFRON_BACKEND_SOURCE</code> pointing to the canonical package. Configure its disposable PostgreSQL test fixture as documented there. It uses generated wallets and a local EVM, with a separate fork simulation before reviewed creation. It exercises payment recovery, C06, premium funding, LP deposit, claim, dates and withdrawal. No live funds or VNC reset are involved.</p><p>This release was checked on Linux. Portable Windows build instructions are not a claim of a new Windows end-to-end test. Fixture tests are not mainnet tests.</p><p>The canonical backend browser check now starts on the approved mobile Home and tests two independent test fees with recovery after reload. The VNC environment remains separate.</p>"
+      "title": "7. Verification",
+      "body_html": "<pre><code>npm run check:upstream\nnpm run test:source\nnpm test\nnpm run typecheck\nnpx playwright install chromium\nnpm run build:live\nnpm run test:apr-http</code></pre><p>For preview checks, run <code>build:lab</code>, set <code>MERGE_BASE=/</code> for a root mount and run <code>test:browser</code>. Follow <code>docs/LIFECYCLE-ACCEPTANCE.md</code> for the disposable backend tests on mobile and desktop.</p><p>Controlled HTTP/SSE tests qualify client behavior, not the deployed gateway. Hosted-browser, real phone, normal HTTPS clipboard and explicitly operated live-funds acceptance remain launch gates. Disposable time advancement does not establish real maturity.</p>"
     },
     {
       "id": "files",
-      "title": "8. Source map and provenance",
-      "body_html": "<p><code>src/merge</code> owns routing and build-mode entry. <code>src/host</code> owns the shell and canonical hooks. <code>src/incentives</code> owns product screens. <code>src/preview</code> is local-only; <code>src/adapters</code> serves API mode. <code>src/livePoolApr</code> remains the pinned APR module.</p><p>Current incentives compatibility: <code>19ad0e90af221e86fd13014b5d7e7aceb9a05cc9</code>. APR source: <code>b8eb411f435a1e0d0529dd77f15e117fb6be2f7f</code>. Original source hashes are retained. <code>docs/upstream-sync.json</code> pins exact imports; the ZIP manifest hashes the final package. Credentials, installed dependencies, build outputs and backend services are excluded.</p>"
+      "title": "8. Source and release identity",
+      "body_html": "<p><code>source-files.json</code> defines the inventory. <code>source-manifest.json</code> records version, Git revision, normalized source digest and exact file hashes. Shared pins normalize CRLF to LF; archive integrity verifies exact bytes.</p><pre><code>python scripts/verify_source.py\npython scripts/render_install.py</code></pre><p>The ZIP includes the lockfile, tests, portable scripts and licenses, excluding runtime settings, credentials, dependencies, build output and other ZIPs. Regenerate this guide from <code>docs/install-guide.json</code>.</p>"
     },
     {
       "id": "rollback",
-      "title": "9. Deployment boundary and rollback",
-      "body_html": "<p>Back up the current published static files and route configuration before replacing them. A Git rollback alone does not restore a deployed build. Publish hashed assets before the entrypoint; retain old assets for open tabs.</p><p>Restore the previous entrypoint and static manifest to roll back. Keep authentication and APR routes unchanged. Do not clear browser storage, reset VNC or restore databases for a static frontend rollback.</p><p>See <code>README.md</code> and <code>docs/DEPLOYMENT.md</code> in the source ZIP for the maintained procedure. Rebuild this HTML from <code>docs/install-guide.json</code> with <code>scripts/render_install.py</code>.</p>"
+      "title": "9. Release and rollback",
+      "body_html": "<p>Follow <code>docs/DEPLOYMENT.md</code> and <code>docs/LIVE-CUTOVER.md</code>. Build identity does not establish publication or enabled intake. Verify the intended candidate through existing hosting access before cutover.</p><p>Publish hashed assets before the entrypoint and retain old assets for open tabs. Preserve database/WAL, received fees, watcher cursors, journals, permits and browser recovery. Use a backend compatible with advisory commitments and refund closure. Do not restore the old hard-cap schema or reset QA for a frontend release.</p>"
     }
   ],
-  "footer": "Saffron live-apr-merge · Source and installation · No external report assets"
+  "footer": "Saffron · Version 0.3.0 · Source and installation"
 }

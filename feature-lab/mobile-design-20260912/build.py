@@ -3,8 +3,8 @@
 
 The approved app supplies licensed fonts and local token/emblem images. The
 Clawbee renderer supplies native disclosures, contents navigation and print-state
-restoration. This task-specific build overrides its palette at Joey's request.
-It does not modify any reusable skill or call a network service.
+restoration. This historical generator requires an explicitly installed external
+renderer. The frozen HTML is the maintained reference artifact.
 """
 import base64
 import html
@@ -15,10 +15,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 APP = ROOT.parent / 'live-apr-merge'
-SKILL = Path('/root/.openclaw/agents/main/agent/codex-home/skills/clawbee-reports')
-# Optional renderer path makes rebuilding possible on another installed workspace.
-if len(sys.argv) > 1:
-    SKILL = Path(sys.argv[1]).resolve()
+if len(sys.argv) != 2:
+    raise SystemExit('Historical generator: supply an installed renderer directory. The frozen HTML needs no renderer.')
+RENDERER = Path(sys.argv[1]).resolve()
+if not (RENDERER / 'scripts/render.py').is_file():
+    raise SystemExit('The selected renderer must provide scripts/render.py')
 
 def data(path, mime):
     return 'data:' + mime + ';base64,' + base64.b64encode(path.read_bytes()).decode()
@@ -134,7 +135,7 @@ else:
 model={'title':'Saffron, within reach.\nA complete mobile design plan.','eyebrow':'Mobile design study · 12 September 2026','description':'An immersive, interactive proposal for the existing Live APR merge frontend. Same Saffron character. A clearer mobile hierarchy. Complete request and recovery flows.','meta':'Current app: 15% modal hover · Proposed mobile layouts: not deployed · All mockup values are illustrative','sections':sections,'footer':'Saffron mobile design study · Full offline HTML · Prototype only · 12 September 2026'}
 (ROOT/'report.json').write_text(json.dumps(model,ensure_ascii=False,indent=2)+'\n')
 output=ROOT/'saffron-mobile-design-2026-09-12.html'
-subprocess.run([sys.executable,str(SKILL/'scripts/render.py'),'build',str(ROOT/'report.json'),str(output)],check=True,cwd=SKILL)
+subprocess.run([sys.executable,str(RENDERER/'scripts/render.py'),'build',str(ROOT/'report.json'),str(output)],check=True,cwd=RENDERER)
 page=output.read_text()
 page=page.replace('</head>','<style id="saffron-mobile-study">'+FONT+'\n'+(ROOT/'report.css').read_text()+'</style></head>')
 controls='''<script id="prototype-controls">

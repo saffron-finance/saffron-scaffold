@@ -21,17 +21,16 @@ modal-button mouse hover to `brightness(1.15)` in version 0.2.2.
   compiled frontend browser check; this is not a proposed mockup.
 - `verification.json`: the recorded browser, offline and print checks.
 
-The builder uses font/image files in the sibling `live-apr-merge` source tree
-and the Clawbee reports renderer. Pass the installed skill directory explicitly
-if it is not at the default workspace location:
+The checked-in standalone HTML is a frozen design reference and needs no renderer
+or installation. Its historical `build.py` remains as provenance; regeneration
+is not part of the application build or source-handoff acceptance. It requires
+an explicitly supplied external renderer with `scripts/render.py` and reads the
+included frontend's licensed fonts/images. No private default path is assumed,
+and that external renderer is not an application dependency.
 
-```sh
-python3 build.py /path/to/clawbee-reports
-```
-
-This writes the complete HTML and an ignored intermediate `report.json`.
-The HTML can be copied or shared alone. Funnel Display's font license is
-embedded in the HTML and retained in the app source.
+The HTML can be shared alone. Funnel Display's font license is embedded in it
+and retained in the frontend sources. Use the frontend's `scripts/render_install.py`
+for the maintained installation guide; that renderer is self-contained.
 
 ## Verification
 

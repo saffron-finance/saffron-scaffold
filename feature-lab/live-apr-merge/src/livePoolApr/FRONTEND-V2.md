@@ -6,7 +6,7 @@ legacy module; the mounted UI uses the version-2 cumulative contract.
 
 ## Portable mounting
 
-- `SAFFRON_STAGING_BASE_PATH` configures the staging Vite/router mount; the full host owns its own router basename.
+- `VITE_BASE_PATH` configures this package's Vite/router mount.
 - `VITE_LIVE_APR_API_BASE` optionally supplies the aggregate API mount.
 - At runtime, `window.__SAFFRON_LIVE_APR__.apiBase` overrides the build value.
 - Without an override the API defaults to `<BASE_URL>/api/live-apr/v2`.
@@ -42,11 +42,12 @@ server-owned pool deadline or intentional pause it stays unchanged, including
 quote valuation time and the last watched swap block. The page timer remains
 local. A new epoch retains those previous results until the new verified
 boundary is available, then visibly starts a new observation. The current-block
-row still means the last watched swap, not merely the latest scanned block.
+row reports the last verified scan block represented by the displayed observation.
 
 Named heartbeat events prove transport only. Disconnection is displayed after
 more than 20 seconds of continuous failure. Chain freshness is labeled
-separately after 30 seconds. Temporary control-plane failure freezes financial
+separately after 30 seconds. Transport failure displays APR unavailable with
+retained observations labelled stale. Temporary control-plane failure freezes financial
 values without treating an open socket as fresh blockchain data.
 
 ## Bounded transport and optional history
@@ -65,27 +66,24 @@ that expired table rows do not reduce cumulative observation totals.
 
 ## Verification
 
-Run `yarn workspace frontend test:live-apr` and `yarn workspace frontend typecheck`
-from the root. `build:saffron-staging` followed by `test:live-apr:browser` checks
-the compiled static artifact, shared URLs, capacity, mobile layouts, real PNG
-clipboard bytes and the actual reducer-to-browser wire contract. External
-network requests are blocked.
+Run `npm test` and `npm run typecheck` from this frontend package. After
+`npm run build:live`, run `npm run test:apr-http` for real browser HTTP/SSE
+transport against a controlled gateway contract fixture. After `build:lab`, the
+compiled preview suite is `npm run test:browser` with `MERGE_BASE` matching its
+build mount. It checks layouts, wire contracts and real PNG pixels.
 
-For the opt-in stateful campaign use `vitest.live-apr-fuzz.config.mts`; it exposes
-GC in one persistent worker so retained-memory observations are meaningful.
-Set `APR_FUZZ_OUTPUT` and an explicit duration/case bound for a short preflight.
-The script remains capable of eight-hour runs, but normal tests skip it.
-
-The original standalone browser scripts remain reference test source, not the
-staging deployment path. See `docs/live-pool-apr/README.md` for the current
-compiled-browser and disposable gateway/collector integration commands.
+The bounded session/reducer tests are included in the normal suite. No monorepo
+Yarn command, separate staging script or inherited fuzz configuration is required
+or provided by this standalone package. See
+[APR gateway acceptance](../../docs/APR-ACCEPTANCE.md) for the maintained checks
+and the separate deployed-gateway qualification gate.
 
 ## Shareable pool comparisons
 
 The page path selects the base pool. Repeated `compare` query parameters select
 additional catalog pool IDs in display order, for example:
 
-`/apps/live-pool-apr/swole-hood-1?compare=zzz-eth-005&compare=cashcat-eth-1`
+`/live-apr/swole-hood-1?compare=zzz-eth-1&compare=cashcat-eth-1`
 
 Adding/removing tiles updates the URL in place without resetting existing
 observations. Opening or refreshing the link restores the pool selection with

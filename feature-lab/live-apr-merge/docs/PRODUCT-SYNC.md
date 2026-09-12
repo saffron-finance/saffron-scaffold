@@ -1,10 +1,16 @@
-# Product integration — 12 September 2026
+# Historical source adoption — 12 September 2026
 
 The watcher/VNC release did not update this separately built frontend. Version
 0.2.0 closes that source/deployment gap while retaining its approved UI and APR
 feature. The old source was `93fcab6`; the reviewed backend head is `19ad0e9`.
 
-## Commit coverage
+This map records version 0.2.0 adoption, not current deployment or compatibility.
+Current behavior is maintained in the frontend README and acceptance documents;
+version 0.3.0 adds automatic-cycle validation, external refund verification,
+Vault TVL, recovery and APR availability changes. Exact source pins identify
+shared file contents, not a promise that the backend is frozen at that old head.
+
+## Historical commit coverage
 
 These 26 commits are not 26 frontend features. Backend services remain in the
 canonical `saffron-finance/saffron-scaffold` repository. Live mode uses that API;

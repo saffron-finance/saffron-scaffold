@@ -9,7 +9,7 @@
 - The VNC harness owns a disposable database, chain, browser and generated wallets.
   Do not point it at live services, give it a real signer, or reset it for a release.
 
-Version 0.2.4 permits `VITE_UI_TWEAKS=true` in live mode. The visual controls do
+Live builds permit `VITE_UI_TWEAKS=true`. The visual controls do
 not change wallet or payment behavior. `deployment-mode.json` records the compiled
 adapter. A live build has no fallback to simulated requests when its API fails.
 
@@ -30,14 +30,16 @@ adapter. A live build has no fallback to simulated requests when its API fails.
    start empty and intake stays closed until configuration is complete.
 5. Configure and supervise the keyless payment watcher with a reviewed start block.
    Retain its cursor and identity across restarts. Verify freshness and continuity.
-6. Use a bounded reviewed intake window if no automatic creator is authorized.
-   Never start a signing worker to make an intake status look healthy. Prior
-   one-vault execution permission does not authorize further creations. Premium
-   funding remains external and manual.
+6. Configure the automatic creator and its operating coverage before opening an
+   expiring automatic intake window. Normal requests need no per-vault approval.
+   Reviewed one-request execution is optional testing/recovery; its permission
+   does not authorize the automatic queue. Premium funding remains external.
 
 Follow the backend's `ops/README.md` and `ops/ONE-REQUEST.md` for these operations.
-There are no request quotas, capacity hard limits, refund/retirement workflows,
-gas ledgers or treasury balance checks in this release.
+There are no request quotas, capacity hard limits, gas ledgers or treasury balance
+checks. Unfulfillable accepted requests use operator-approved external refunds,
+verified before permanent closure. Follow the backend's `ops/REFUNDS.md` and
+`ops/FULFILLMENT.md` for policy and ownership.
 
 ## Build and route
 
@@ -49,8 +51,9 @@ Run `npm run build:live`. Use the same mount for backend `BASE_PATH` and point
 The existing GET/HEAD-only static route cannot handle checkout. Stage a reverse
 proxy to the canonical server for the app mount, including `/api/incentives`,
 `/rpc/robinhood` and `/prices`. Preserve TLS authentication, cookie and Origin
-headers, request size limits and real asset 404s. Do not send a TLS Basic Auth
-Authorization header upstream as an application credential. Keep the unrelated
+headers, request size limits and real asset 404s. Use the hosting provider's
+existing staging access; no additional password gate is required. Hosting
+identity must not become application operator authority. Keep the unrelated
 APR routes and VNC mount unchanged.
 
 Retain old hashed assets for already-open tabs. Publish new assets before the

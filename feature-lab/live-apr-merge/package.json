@@ -1,7 +1,7 @@
 {
   "name": "saffron-live-apr-merge",
   "private": true,
-  "version": "0.2.4",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -13,7 +13,7 @@
     "build:live": "tsc --noEmit && vite build --mode live",
     "check:upstream": "node scripts/check_upstream.mjs",
     "test:backend-browser": "node tests/backend-browser.mjs",
-    "test:source": "node --test tests/source-sync.test.mjs",
+    "test:source": "node --test tests/source-sync.test.mjs tests/release-source.test.mjs",
     "test:apr-http": "node tests/apr-http-browser.mjs"
   },
   "dependencies": {
