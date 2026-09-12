@@ -9,7 +9,7 @@ product-policy removals, while preserving the approved shell and Live APR module
 
 Published app: https://clawbee.xyz/saffron/apps/feature-lab/live-apr-merge/
 
-This path is distinct from the [VNC QA tool](../liquidity-incentives/tools/qa/).
+This path is distinct from the [VNC QA tool](../liquidity-incentives/ops/vnc/README.md).
 A successful watcher/VNC build or deployment does not update the merge page.
 
 ## Maintenance
