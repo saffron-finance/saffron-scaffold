@@ -1,8 +1,8 @@
 {
   "title": "Saffron liquidity incentives\nPortable installation guide",
-  "eyebrow": "Saffron \u00b7 Version 0.5.1",
+  "eyebrow": "Saffron \u00b7 Version 0.5.2",
   "description": "Home, Portfolio and Live APR with an independent incentives API and automatic vault lifecycle.",
-  "meta": "Version 0.5.1 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
+  "meta": "Version 0.5.2 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
   "sections": [
     {
       "id": "overview",

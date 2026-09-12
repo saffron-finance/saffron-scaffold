@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.5.1 provides Home, Portfolio, Live APR and the full fixed-side vault
+Version 0.5.2 provides Home, Portfolio, Live APR and the full fixed-side vault
 journey in one standalone interface. Its canonical API, database, watcher and
 creator are maintained in this repository's `liquidity-incentives` package.
 Vendored sources and licenses are included; no other application is a build or
@@ -175,3 +175,6 @@ All discovery endpoints require a wallet-authenticated operator session.
 Selected token addresses link to their Blockscout token pages, even without a
 matching pool. The selected pool links to Uniswap Explore on Robinhood. Fee-tier
 controls have persistent gray outlines; USDG uses its bundled, address-bound icon.
+
+Campaign Range selection is displayed as a read-only `Infinite range` field;
+the current full-range adapter and campaign API payload are unchanged.

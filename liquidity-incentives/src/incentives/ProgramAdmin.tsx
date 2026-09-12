@@ -61,6 +61,8 @@ function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];on
     catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Editor onSubmit={submit} aria-label='Create campaign'><b>Create campaign</b><Fields>
     <Field>Pair<select aria-label='Campaign pair' required value={pairId} onChange={e=>setPairId(e.target.value)}><option value='' disabled>Select pair</option>{pairs.map(p=><option key={p.id} value={p.id}>{poolHeading(p)}</option>)}</select></Field>
+    {/* Campaign deployment currently supports only the full-range adapter. */}
+    <Field>Range selection<input aria-label='Range selection' readOnly value='Infinite range'/></Field>
     <Field>Request fee (ETH)<input aria-label='Campaign request fee ETH' required inputMode='decimal' placeholder='Enter a fixed ETH amount' value={requestFee} onChange={e=>setRequestFee(e.target.value)}/></Field>
     <Field>Duration (days)<input aria-label='Campaign duration' required type='number' min={1} max={3650} step={1} value={days} onChange={e=>setDays(e.target.value)}/></Field>
     <Field>Calculate<select aria-label='Calculate campaign field' value={computed} onChange={e=>setComputed(e.target.value)}><option value='apr'>APR from budget + capacity</option><option value='capacity'>Capacity from budget + APR</option><option value='budget'>Budget from capacity + APR</option></select></Field>
