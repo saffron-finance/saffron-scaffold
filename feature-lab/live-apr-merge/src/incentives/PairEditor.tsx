@@ -54,13 +54,15 @@ export function PairEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[]
         {token?<><TokenIcon token={token}/><span>{token.symbol}</span></>:<span>Select a token</span>}<span aria-hidden='true'>⌄</span>
       </Trigger>{slot===0&&<Swap type='button' disabled={busy||(!token0&&!token1)} aria-label='Swap reward and quote tokens' onClick={()=>{setToken0(token1);setToken1(token0)}}>⇄</Swap>}</Slot>
     })}</Selectors>
+    {/* Selected-token addresses remain inspectable even when no pool resolves. */}
+    <TokenLinks>{[token0,token1].map((token,slot)=>token&&<div key={slot}><span>{token.symbol}:</span><a href={'https://robinhoodchain.blockscout.com/token/'+token.address} target='_blank' rel='noopener noreferrer' aria-label={'View '+token.symbol+' token on Blockscout'}>{token.address} ↗</a></div>)}</TokenLinks>
     <FinePrint>The first token is the reward token. Use WETH for an ETH pool.</FinePrint>
     {source==='loading'&&<FinePrint role='status'>Loading token list… You can also paste an address.</FinePrint>}
     {['fallback','unavailable'].includes(source)&&<FinePrint>Full token list is unavailable. Use a listed token or paste a token address.</FinePrint>}
     <Stack><b>Fee tier</b><Fees>{tiers.map(tier=><Tier type='button' key={tier} aria-pressed={fee===tier} disabled={busy||loading||!current?.pools.some(p=>p.feeTier===tier)} onClick={()=>setFee(tier)}>{tier/10000}%</Tier>)}</Fees></Stack>
     {loading&&<FinePrint role='status'>Checking pools on chain…</FinePrint>}
     {current&&!current.pools.length&&<FinePrint>No supported pool exists for these tokens. Select a different pair.</FinePrint>}
-    {pool&&current&&<FinePrint>Pool: {current.token0.symbol} / {current.token1.symbol} · {pool.feeTier/10000}%<br/><a href={'https://robinhoodchain.blockscout.com/address/'+pool.pool} target='_blank' rel='noreferrer'>{pool.pool}</a></FinePrint>}
+    {pool&&current&&<FinePrint>Pool: {current.token0.symbol} / {current.token1.symbol} · {pool.feeTier/10000}%<br/><a href={'https://app.uniswap.org/explore/pools/robinhood/'+pool.pool} target='_blank' rel='noopener noreferrer' aria-label='View pool on Uniswap'>{pool.pool} ↗ Uniswap</a></FinePrint>}
     {error&&<ErrorText role='alert'>{error}</ErrorText>}
     {selectionKey&&!loading&&!busy&&<QuietButton type='button' onClick={()=>setRetry(retry+1)}>Refresh pools</QuietButton>}
     <Action disabled={busy||loading||!pool}>{busy?'Saving pair…':'Save pair'}</Action>
@@ -69,8 +71,10 @@ export function PairEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[]
 }
 const Form=styled.form`display:flex;flex-direction:column;gap:24px;padding:28px 32px;background:${p=>p.theme.colors.background.base};border:1px solid var(--line);border-radius:var(--radius-md);>b{font-family:${p=>p.theme.fonts.display};font-size:22px;font-weight:400}a{overflow-wrap:anywhere;color:${p=>p.theme.colors.accent.gold}}@media(max-width:650px){padding:24px 16px}`
 const Selectors=styled.div`display:flex;gap:52px;`
+const TokenLinks=styled.div`display:flex;flex-direction:column;gap:8px;font:12px ${p=>p.theme.fonts.mono};>div{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}span{color:${p=>p.theme.colors.text.secondary}}a{min-width:0;max-width:100%}&:empty{display:none}`
 const Slot=styled.div`flex:1;min-width:0;position:relative;font-size:12px;color:${p=>p.theme.colors.text.secondary};`
 const Trigger=styled.button`display:flex;align-items:center;gap:8px;width:100%;min-width:0;min-height:50px;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:var(--radius-md);color:${p=>p.theme.colors.text.primary};background:var(--surface-input);font-size:15px;cursor:pointer;span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}span:last-child{margin-left:auto} &:hover:not(:disabled),&:focus-visible{border-color:var(--line-strong);outline:1px solid var(--line-strong)}`
 const Swap=styled(QuietButton)`position:absolute;right:-48px;bottom:3px;width:44px;height:44px;padding:0;font-size:22px;color:${p=>p.theme.colors.text.primary};`
 const Fees=styled.div`display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;`
-const Tier=styled(QuietButton)`min-height:44px;padding:10px 2px;&[aria-pressed='true']{color:${p=>p.theme.colors.accent.gold};border-color:${p=>p.theme.colors.accent.gold}} &:disabled{opacity:.3;cursor:not-allowed}`
+// Disabled tiers keep their gray outline; only the label is muted.
+const Tier=styled(QuietButton)`min-height:44px;padding:10px 2px;border-color:${p=>p.theme.colors.text.tertiary};&[aria-pressed='true']{color:${p=>p.theme.colors.accent.gold};border-color:${p=>p.theme.colors.accent.gold}} &:disabled{opacity:1;color:${p=>p.theme.colors.text.tertiary};cursor:not-allowed}`

@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-Version 0.5.0 provides Home, Portfolio, Live APR and the full fixed-side vault
+Version 0.5.1 provides Home, Portfolio, Live APR and the full fixed-side vault
 journey in one standalone interface. Its canonical API, database, watcher and
 creator are maintained in this repository's `liquidity-incentives` package.
 Vendored sources and licenses are included; no other application is a build or
@@ -171,3 +171,7 @@ No paid CoinGecko API or key is required. The API uses the public Robinhood toke
 list with a bundled WETH/USDG/SFI fallback and supports direct RPC address lookup.
 An unavailable token list does not enable sample data or bypass wallet login.
 All discovery endpoints require a wallet-authenticated operator session.
+
+Selected token addresses link to their Blockscout token pages, even without a
+matching pool. The selected pool links to Uniswap Explore on Robinhood. Fee-tier
+controls have persistent gray outlines; USDG uses its bundled, address-bound icon.

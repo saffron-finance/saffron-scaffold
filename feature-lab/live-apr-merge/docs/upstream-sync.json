@@ -33,8 +33,8 @@
     "src/adapters/wallet/walletconnect.ts": "cdcaacfb65265c146929db0fe0e1cea07ca51992408de62e47e4bd5c89fda87d",
     "src/adapters/wallet/walletconnect-sdk.ts": "bbb71a238e3e10db8ced2eb5cc3d7f300e8e69ce589394573e66246adef435b5",
     "vendor/fixed-income-ui/shared/components/Modal.tsx": "308c54a2445444ea7791408e844ebc7a72cf7c73546c730bfb8e60a15690c92a",
-    "src/incentives/TokenPicker.tsx": "4b2babd76f68d30f4a9d14ca45dbc087a60bf7c2dcba586d694a670a4151af1b",
-    "src/incentives/PairEditor.tsx": "9eb1d6c8fd78459828c646ff3e43ce9d8d39c3459963ce70b4a18000e4adc492"
+    "src/incentives/TokenPicker.tsx": "59d1da1db72d4b5844b7a2274f58237be8523ad168349e82dd9a31ba9baa8485",
+    "src/incentives/PairEditor.tsx": "ff30a3ea7aa365b2e69dfc3e6b1a38aaac57dd7331cb5cc8a0b926ffcb55b5aa"
   },
   "adaptedFiles": [
     "src/incentives/IncentivesPage.tsx",

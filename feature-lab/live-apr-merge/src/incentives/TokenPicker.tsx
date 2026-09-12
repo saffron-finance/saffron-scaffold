@@ -48,10 +48,12 @@ export function TokenPicker({account,tokens,other,onSelect,onClose}:{account:Add
   </Modal>
 }
 
-/** Remote logos are optional decoration; a failed logo never hides a token. */
+/** The canonical USDG icon is bundled and keyed by address, never by a symbol
+ * another contract can copy. Remote logo failure must not hide a new selection. */
 export function TokenIcon({token}:{token:PickerToken}){
-  const [failed,setFailed]=useState(false)
-  return <Icon>{token.logoURI&&!failed?<img src={token.logoURI} loading='lazy' referrerPolicy='no-referrer' alt='' onError={()=>setFailed(true)}/>:token.symbol.slice(0,1)}</Icon>
+  const logo=token.address.toLowerCase()==='0x5fc5360d0400a0fd4f2af552add042d716f1d168'?import.meta.env.BASE_URL+'usdg.png':token.logoURI
+  const [failedSource,setFailedSource]=useState<string>()
+  return <Icon>{logo&&failedSource!==logo?<img src={logo} loading='lazy' referrerPolicy='no-referrer' alt='' onError={()=>setFailedSource(logo)}/>:token.symbol.slice(0,1)}</Icon>
 }
 const Search=styled.input`width:100%;min-width:0;padding:14px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface-input);color:inherit;font:inherit;`
 const List=styled.div`height:320px;max-height:45dvh;overflow-y:auto;overscroll-behavior:contain;`
