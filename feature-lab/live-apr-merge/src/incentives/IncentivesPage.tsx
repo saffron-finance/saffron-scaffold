@@ -55,13 +55,13 @@ function WalletPage({account,onConnect,selected,setSelected,preview}:{account:Ad
       {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
       {groups.map(offers=><ProgramGroup key={offers[0].pairId}><PairHeader pair={offers[0]}/><Programs data-incentive-programs aria-label={offers[0].token0.symbol+' / '+offers[0].token1.symbol+' liquidity incentive offers'}>
-        <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','TVL'].map(label=><ColumnTitle as='span' $column={label.toLowerCase()} key={label}>{label}</ColumnTitle>)}</ProgramHeading>
+        <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','TVL'].map(label=><ColumnTitle as='span' $column={label.toLowerCase()} key={label}>{label==='TVL'?'Vault TVL':label}</ColumnTitle>)}</ProgramHeading>
         {offers.map(offer=><ProgramRow key={offer.id} type='button' data-incentive-offer={offer.id} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={flow.busy} onClick={(event:MouseEvent<HTMLButtonElement>)=>void openOffer(offer,event.currentTarget)}>
           <Metric $column='yield' data-offer-metric='yield'><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
           <Metric $column='apr' data-offer-metric='apr'><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</OfferApr><PhoneAprLabel>APR</PhoneAprLabel></Metric>
           <Metric $column='duration' data-offer-metric='duration'><MobileLabel>Duration</MobileLabel><Value data-incentive-duration>{offer.days} days</Value></Metric>
           {/* TVL placeholders are preview metadata, never inferred from capacity. */}
-          <Metric $column='tvl' data-offer-metric='tvl'><MobileLabel>TVL</MobileLabel><Value data-incentive-tvl title={preview&&offer.previewTvlUsd!=null?'Placeholder TVL':'TVL unavailable'}>{preview&&offer.previewTvlUsd!=null?'$'+offer.previewTvlUsd.toLocaleString('en-US'):'—'}</Value></Metric>
+          <Metric $column='tvl' data-offer-metric='tvl'><MobileLabel>Vault TVL</MobileLabel><Value data-incentive-tvl title={preview?'Sample Vault TVL':offer.vaultTvl?.status==='available'?'Confirmed LP principal in campaign vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')}>{preview&&offer.previewTvlUsd!=null?'$'+offer.previewTvlUsd.toLocaleString('en-US'):offer.vaultTvl?.status==='available'&&offer.vaultTvl.usdRaw!==null?'$'+(Number(offer.vaultTvl.usdRaw)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}):'—'}</Value></Metric>
           {/* Only the first visible offer can carry the catalog's NEW label. */}
           {offer.isNew&&offer.id===catalog.offers[0]?.id&&<NewTag data-incentive-new>NEW</NewTag>}
           {!(offer.isNew&&offer.id===catalog.offers[0]?.id)&&<PhoneArrow aria-hidden='true'>↗</PhoneArrow>}

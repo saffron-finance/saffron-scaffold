@@ -13,6 +13,7 @@ import { intakeReadiness } from './intake-policy.mjs'
 import { deploymentProgress } from './deployment-progress.mjs'
 import { operationalStatus } from './operational-status.mjs'
 import { createCheckoutProbe } from './checkout-readiness.mjs'
+import { createVaultTvl } from './vault-tvl.mjs'
 
 const ownsPosition=row=>row.observation?.verified&&(BigInt(row.observation.claimBalance)>0n||BigInt(row.observation.fixedBalance)>0n)
 
@@ -53,6 +54,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     return plan
   }
   const checkoutProbe=createCheckoutProbe({rpc,usdQuote,feeRecipient,signer,requireConfigured,size,now})
+  const vaultTvl=createVaultTvl({db,rpc,usdQuote,confirmations:config?.confirmations??2,now})
   const service={
     refresh,
     async readiness(offers){
@@ -90,10 +92,11 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
     },
     async programs(){
       const {offers}=await db.catalog(),readiness=await service.readiness(offers)
+      const tvl=vaultTvl.current(offers)
       // Expose offer terms only. Planning amounts, usage and readiness internals
       // are administrator data, never front-page or payment-modal payloads.
       return {offers:offers.map(offer=>({id:offer.id,revision:offer.revision,pairId:offer.pairId,pairRevision:offer.pairRevision,
-        chainId:offer.chainId,pool:offer.pool,feeTier:offer.feeTier,token0:offer.token0,token1:offer.token1,
+        chainId:offer.chainId,pool:offer.pool,feeTier:offer.feeTier,token0:offer.token0,token1:offer.token1,vaultTvl:tvl[offer.id],
         budgetPoolId:offer.budgetPoolId,apr:offer.apr,days:offer.days,sortOrder:offer.sortOrder,isNew:offer.isNew,active:offer.active,
         budget:{id:offer.budget.id,revision:offer.budget.revision,paused:offer.budget.paused},
         availability:offer.budget.paused||offer.budget.reconciliationRequired||!readiness.canQuote||!readiness.offerReady[offer.id]?'New requests are temporarily paused.':null})),
@@ -275,6 +278,7 @@ export function createIncentivesService({database:db,rpc,usdQuote,config,signer,
         const jobs=await db.execution.tracked();let index=0
         await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{while(index<jobs.length)await refresh(jobs[index++].intent_id)}))
         for(const budget of (await db.catalog(true)).budgets)await db.auditBudget(budget.id)
+        await vaultTvl.refresh((await db.catalog()).offers)
       }finally{polling=false}
     },
   }
