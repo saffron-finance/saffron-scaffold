@@ -12,7 +12,8 @@
     "test:browser": "node tests/merge-browser.mjs",
     "build:live": "tsc --noEmit && vite build --mode live",
     "check:upstream": "node scripts/check_upstream.mjs",
-    "test:backend-browser": "node tests/backend-browser.mjs"
+    "test:backend-browser": "node tests/backend-browser.mjs",
+    "test:source": "node --test tests/source-sync.test.mjs"
   },
   "dependencies": {
     "react": "18.3.1",

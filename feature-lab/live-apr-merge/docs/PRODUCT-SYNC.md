@@ -57,8 +57,12 @@ the published lab mode adapts product screens to explicitly simulated data.
 ## Maintenance check
 
 1. Compare new canonical commits against the backend pin, not only this UI's Git head.
-2. Run `npm run check:upstream -- /path/to/liquidity-incentives` to detect changes
-   to unmodified shared files. Review adapted UI files separately.
+2. Run `npm run check:upstream`. In the combined repository it also compares the
+   current `liquidity-incentives` package automatically. A portable source archive
+   verifies its own pins; an explicit backend path can be passed after `--`.
+   Hashes normalize CRLF to LF only: code and other whitespace changes still fail.
+   Update corresponding copies and their pins together after reviewing a change.
+   Review adapted UI files separately. Run `npm run test:source` for drift checks.
 3. Classify backend-only, frontend-applicable and superseded changes here.
 4. Test normal/lab builds and the API-connected build before publishing.
 5. Deploy the intended frontend explicitly. A successful VNC or watcher deployment
