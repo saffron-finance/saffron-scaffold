@@ -1,6 +1,7 @@
 import {operatorConsoleHref} from '../host/operatorConsole'
 import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { RefundAdmin } from './RefundAdmin'
+import { DeployerBalance } from './DeployerBalance'
 import { useState,type ReactNode } from 'react'
 import { useAdminHealth } from '../host/useAdminHealth'
 import { IntakeSummary,OperationMetrics } from './OperatorOverview'
@@ -33,6 +34,7 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
     <OpsNote>Manage real requests, review exceptions, and give each vault a clear next step.</OpsNote>
     <ConfigurationWarnings account={account} compact/>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!health.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
+      <DeployerBalance report={report} onRefresh={health.refresh}/>
       <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Campaigns','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
       {health.unavailable&&<ErrorText role='alert'>Operational status is unavailable. Counts and readiness are not assumed. Open Status for independent checks.</ErrorText>}
       {(tab==='Overview'||tab==='Requests')&&<>

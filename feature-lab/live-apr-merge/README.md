@@ -1,6 +1,11 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.4 — frontend-only release
+## Version 0.8.5 — frontend-only release
+
+Adds an operator-only deployer ETH balance card to Administration and Campaigns.
+It uses optional `walletBalance` metadata on the existing `server-gas` health
+check; older backends show Unavailable, never an invented zero. No new RPC
+polling or homepage administration is introduced.
 
 Makes Back immediate while unpaid quote cleanup runs independently, preserving
 recovery and serializing subsequent reviews. The isolated `test:checkout-navigation`
