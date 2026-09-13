@@ -195,7 +195,7 @@ const PairIcons = styled.span`display:inline-flex;align-items:center;img+img{mar
 // Keep the pair and reward together on one line at desktop and phone widths.
 // Only this longer progress title scales down; Claim and other headings retain
 // their existing typography. Preserve the complete amount, never ellipsize it.
-const VaultTitleLine=styled.span`display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:clamp(10px,calc(5vw - 6px),17px);line-height:1.5;${PairIcons}{flex-shrink:0;}`
+const VaultTitleLine=styled.span`display:flex;align-items:center;gap:8px;padding-top:12px;white-space:nowrap;font-size:clamp(10px,calc(5vw - 6px),17px);line-height:1.5;${PairIcons}{flex-shrink:0;}`
 const ClaimErrorDisclosure=styled(Disclosure)`
   &&&{border-color:${({theme})=>theme.colors.accent.gold};}
   summary{color:${({theme})=>theme.colors.accent.gold};}

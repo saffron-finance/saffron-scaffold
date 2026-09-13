@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.3 — frontend-only release
+## Version 0.8.4 — frontend-only release
 
 Makes Back immediate while unpaid quote cleanup runs independently, preserving
 recovery and serializing subsequent reviews. The isolated `test:checkout-navigation`
