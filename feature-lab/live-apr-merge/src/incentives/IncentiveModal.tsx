@@ -7,7 +7,7 @@ import { aprTextPaint } from '../host/aprTextStyle'
 import { sidebarDefaults, sidebarVariables } from '../host/sidebarTheme'
 import type { useDeploymentFlow } from '../host/useDeploymentFlow'
 import type { useOfferPrice } from '../host/useOfferPrice'
-import { tokenAmount,usd,type Offer } from './model'
+import { tokenAmount,usd,type Offer,type Deployment } from './model'
 import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
 import { campaignPremiumCents } from '../../shared/campaign.mjs'
 import { PrimaryAction as ModalAction,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,Row,Stack,Token } from './styles'
@@ -21,6 +21,9 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[lpDetailsOpen,setLpDetailsOpen]=useState(false)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
   const [position,setPosition]=useState(openPosition)
+  // Reuse the child's existing status poll for Portfolio resumes. A title must
+  // not trigger another API request or fall back to a new offer's economics.
+  const [statusRow,setStatusRow]=useState<Deployment|null>(null)
   // Advance instantly to review. The server quote prepares independently;
   // only an explicit Claim click can progress to a wallet transaction.
   const [preview,setPreview]=useState<{amount:string;reward:number}|null>(null)
@@ -56,12 +59,14 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   // Every quote freezes raw premium and its USD price. Direct APR programs may
   // omit campaign-cent economics, so value their actual quoted token amount.
   // The estimate uses the same downward cent rounding as the final review.
-  const claimUsd=reviewed?Number(reviewed.plan.premiumCents??(
-    BigInt(reviewed.plan.premium)*BigInt(reviewed.plan.variablePrice)/(10n**BigInt(reviewed.plan.variableDecimals)*10n**16n)
+  const plan=id?(statusRow?.id===id?statusRow.plan:flow.deployment?.id===id?flow.deployment.plan:reviewed?.plan):reviewed?.plan
+  const claimUsd=plan?Number(plan.premiumCents??(
+    BigInt(plan.premium)*BigInt(plan.variablePrice)/(10n**BigInt(plan.variableDecimals)*10n**16n)
   ))/100:preview?.reward??reward
   // The review title highlights the reward in green; the primary action stays white.
   const claimLabel=<>Claim <ClaimAmount data-claim-amount>{usd(claimUsd)}</ClaimAmount></>
-  const depositTokens=reviewed?[reviewed.plan.token0,reviewed.plan.token1]:offer?[offer.token0,offer.token1]:null
+  const depositTokens=plan?[plan.token0,plan.token1]:offer?[offer.token0,offer.token1]:null
+  const vaultTitle=depositTokens?<VaultTitleLine data-vault-request-title><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={20}/><TokenIcon {...depositTokens[1]} size={20}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol} to claim <ClaimAmount data-claim-amount>{usd(claimUsd)}</ClaimAmount>.</span></VaultTitleLine>:'Your vault'
   const pair=offer?offer.token0.symbol+' / '+offer.token1.symbol:''
   // The wallet hook enforces the API's exact fee and quote expiry.
   // Back creates a fresh quote without discarding a submitted payment record.
@@ -97,12 +102,12 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
     <Close aria-label='Close incentive vault' disabled={busy} onClick={close}>×</Close>
     {(reviewed||preview)&&!id&&!requesting&&!flow.saved?.sent&&<BackButton aria-disabled={busy} onClick={()=>void back()}>← Back</BackButton>}
     <Header $hasLogo={!second}><RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
-      {second?(id||requesting?'Your incentive vault':claimLabel):<TitleContent><Token><PairIcons><TokenIcon symbol={offer!.token0.symbol} size={24}/><TokenIcon symbol={offer!.token1.symbol} size={24}/></PairIcons>{pair}</Token>
+      {second?(id||requesting?(position?'Your incentive vault':vaultTitle):claimLabel):<TitleContent><Token><PairIcons><TokenIcon symbol={offer!.token0.symbol} size={24}/><TokenIcon symbol={offer!.token1.symbol} size={24}/></PairIcons>{pair}</Token>
         <TitleStats><TitleApr data-incentive-apr>{offer!.apr.toLocaleString()}% APR</TitleApr><TitleDays>{offer!.days} days</TitleDays></TitleStats></TitleContent>}
     </RequestTitle>{!second&&<InteractiveEmblem/>}</Header>
     <ModalContent $amountPage={!second}>
       {!id&&!requesting&&depositTokens&&<DepositReward aria-label='Deposit and incentive'><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={24}/><TokenIcon {...depositTokens[1]} size={24}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol}, get {usd(claimUsd)}.</span></DepositReward>}
-      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy}/>:requesting?<RequestPending role='status' aria-live='polite' data-request-pending><RequestSpinner aria-hidden='true'/><b>{flow.preparing?'Making request...':'Confirming payment...'}</b><FinePrint>{flow.preparing?'Your request is being prepared.':'Confirm the request in your wallet. This step will update when your payment is confirmed.'}</FinePrint></RequestPending>:reviewed?<>
+      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy} onDeployment={setStatusRow}/>:requesting?<RequestPending role='status' aria-live='polite' data-request-pending><RequestSpinner aria-hidden='true'/><b>{flow.preparing?'Making request...':'Confirming payment...'}</b><FinePrint>{flow.preparing?'Your request is being prepared.':'Confirm the request in your wallet. This step will update when your payment is confirmed.'}</FinePrint></RequestPending>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li><DepositTooltip value={usd(Number(reviewed.principalCents)/100)} assets={[
             {amount:tokenAmount(formatUnits(raw!.amount0,reviewed.plan.token0.decimals)),symbol:reviewed.plan.token0.symbol,address:reviewed.plan.token0.address},
@@ -115,8 +120,8 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
         {flow.quote?.fee&&<FinePrint>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus gas.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.saved?.sent&&!flow.saved.hash&&flow.saved.nonce!==undefined&&<Disclosure><summary>Recover a missing transaction response</summary><p>Check payment first. If your wallet never returned a hash, retry the exact same fee at nonce {flow.saved.nonce}. Your wallet will ask for confirmation. If the quote expired, resolve or cancel that nonce in your wallet and enter the resulting hash here.</p><QuietButton disabled={busy} onClick={()=>void flow.pay(true)}>Retry same payment</QuietButton></Disclosure>}
-        {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
         <ModalAction disabled={flow.saved?.status==='confirmed_unpaid'} aria-disabled={busy} onClick={()=>void claim()}>{flow.saved?.sent?'Check payment':claimLabel}</ModalAction>
+        {flow.error&&<ClaimError key={flow.error} message={flow.error}/>}
         {flow.saved?.sent&&<QuietButton disabled={busy} onClick={async()=>{await flow.startNew();onClose()}}>Create another vault</QuietButton>}
       </>:preview&&offer?<>
         <VaultReview label='Deployment summary' bullets={<>
@@ -126,8 +131,8 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <li><ImpermanentLossTooltip/></li>
         </>} details={<><p>USD values are estimates and may change with crypto prices. The request uses the final token amounts.</p><p>The campaign operator funds the premium before LP entry. Your LP assets stay in your wallet until you approve their deposit.</p></>}/>
         <FinePrint>Request fee: {formatUnits(BigInt(offer.requestFeeWei??'0'),18)} ETH, plus gas.</FinePrint>
-        {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
         <ModalAction aria-disabled={busy} onClick={()=>void claim()}>{claimLabel}</ModalAction>
+        {flow.error&&<ClaimError key={flow.error} message={flow.error}/>}
       </>:offer?<>
         <FormFieldGroup><FormLabel htmlFor='incentive-deposit'>Deposit</FormLabel><FormInput as={CurrencyInput} ref={attachDeposit} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal' prefix='$' groupSeparator=',' decimalSeparator='.' allowNegativeValue={false} disableAbbreviations decimalsLimit={2} value={deposit} maxLength={24} onValueChange={(value:string|undefined)=>setDeposit(value??'')}/>
           {availabilityNotice&&<FinePrint>{availabilityNotice}</FinePrint>}
@@ -148,6 +153,13 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
       </>:null}
     </ModalContent>
   </Modal>
+}
+
+/** Hide wallet diagnostic detail until requested, without mislabelling network
+ * failures as cancellations. A new error remounts the disclosure closed. */
+function ClaimError({message}:{message:string}){
+  const cancelled=/user (?:rejected|denied)|denied transaction signature|(?:transaction|request|payment) (?:was )?cancelled|user cancelled/i.test(message)
+  return <ClaimErrorDisclosure data-claim-error><summary><span role='status'><span aria-hidden='true'>⚠ </span>{cancelled?'Transaction cancelled. View details.':'Request could not complete. View details.'}</span></summary><ErrorText>{message}</ErrorText></ClaimErrorDisclosure>
 }
 
 /** The shared base Button dims to 60% opacity on hover. Override only this
@@ -178,6 +190,16 @@ const Header = styled.div<{ $hasLogo: boolean }>`display:flex;align-items:center
 const RequestTitle = styled(ModalTitle)`min-width:0;margin-bottom:0;[data-claim-amount]{color:${({theme})=>theme.colors.semantic.success};}&:focus{outline:none;}`
 const TitleContent = styled.span`display:flex;flex-direction:column;align-items:flex-start;gap:16px;`
 const PairIcons = styled.span`display:inline-flex;align-items:center;img+img{margin-left:-6px;}`
+// Keep the pair and reward together on one line at desktop and phone widths.
+// Only this longer progress title scales down; Claim and other headings retain
+// their existing typography. Preserve the complete amount, never ellipsize it.
+const VaultTitleLine=styled.span`display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:clamp(10px,calc(5vw - 6px),17px);line-height:1.5;${PairIcons}{flex-shrink:0;}`
+const ClaimErrorDisclosure=styled(Disclosure)`
+  &&&{border-color:${({theme})=>theme.colors.accent.gold};}
+  summary{color:${({theme})=>theme.colors.accent.gold};}
+  summary:focus-visible{outline:2px solid currentColor;outline-offset:4px;border-radius:2px;}
+  ${ErrorText}{margin-top:14px;}
+`
 const TitleStats = styled.span`display:inline-flex;align-items:center;gap:16px;`
 // The same APR marker shares staging animation/speed settings with the table.
 // Keep a readable static gradient when motion is disabled or Tweak is absent.
