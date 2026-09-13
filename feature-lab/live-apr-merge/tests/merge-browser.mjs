@@ -109,6 +109,8 @@ async function checkActiveAprNavigation(target){
 /** Portals must receive the same selected paint as the rail, including saved
  * presets. Do not compare fonts: primary actions keep their existing type. */
 async function checkModalSurface(target){
+  // Opening a request waits for wallet coordination before rendering its portal.
+  await expect(target.getByRole('dialog').locator('[data-incentive-primary-action]')).toBeVisible()
   // A just-selected navigation item has a 150ms border/glow transition.
   // Compare its settled paint, not a frame partway through that transition.
   await expect.poll(async()=>{
@@ -179,7 +181,7 @@ try {
   await expect(page.getByLabel('Campaign request fee ETH')).toHaveValue('')
   await page.getByLabel('Campaign request fee ETH').fill('0.0000000000000000001')
   await page.getByRole('button',{name:'Create campaign',exact:true}).click()
-  await expect(page.getByRole('alert')).toContainText('at most 18 decimal places')
+  await expect(page.getByRole('form',{name:'Create campaign',exact:true}).getByRole('alert')).toContainText('at most 18 decimal places')
   await page.getByLabel('Campaign request fee ETH').fill('0.000000000000000007')
   await page.getByRole('button',{name:'Create campaign',exact:true}).click()
   await expect(page.getByText('Campaign configuration saved.',{exact:true})).toBeVisible()

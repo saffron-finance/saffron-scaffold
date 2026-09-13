@@ -68,6 +68,8 @@ jobs:
           MERGE_BASE: /
           SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
           VITE_WALLETCONNECT_PROJECT_ID: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      - run: npm run test:configuration && npm run test:status
+        working-directory: feature-lab/live-apr-merge
       - run: npm run build:live
         working-directory: feature-lab/live-apr-merge
         env:
@@ -117,6 +119,10 @@ jobs:
             liquidity-incentives/validation/complete-cycle.json
             feature-lab/live-apr-merge/validation/browser/*.json
             feature-lab/live-apr-merge/validation/browser/*.png
+            feature-lab/live-apr-merge/validation/configuration/*.json
+            feature-lab/live-apr-merge/validation/configuration/*.png
+            feature-lab/live-apr-merge/validation/status/*.json
+            feature-lab/live-apr-merge/validation/status/*.png
             feature-lab/live-apr-merge/validation/backend-browser-*/*.json
             feature-lab/live-apr-merge/validation/backend-browser-*/*.png
             feature-lab/live-apr-merge/validation/apr-http/*.json
