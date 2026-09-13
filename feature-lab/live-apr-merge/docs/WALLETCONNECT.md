@@ -1,6 +1,6 @@
 # WalletConnect
 
-The live incentive interface offers WalletConnect alongside EIP-6963 and legacy
+The incentive interface offers WalletConnect alongside EIP-6963 and legacy
 injected wallets. Mobile browsers open the chosen wallet app; desktop users can
 scan a QR code. The application retains its existing Robinhood fee, LP deposit,
 claim, withdrawal and payment-recovery behavior. Connecting requires wallet
@@ -11,9 +11,11 @@ permission, without a user message-signing login.
 1. Create/select an application project in the [Reown dashboard](https://dashboard.reown.com).
    Add each intended HTTPS application origin to its origin allowlist.
 2. Set `VITE_WALLETCONNECT_PROJECT_ID` to that project's public 32-character hex
-   ID in the frontend's ignored `.env.local`, then run `npm run build:live`.
+   ID in the frontend's ignored `.env.local`, then rebuild with `npm run build`,
+   `npm run build:lab`, or `npm run build:live`.
    This public ID is embedded in browser assets; never substitute a secret key.
-   Empty or malformed settings omit WalletConnect and retain injected wallets.
+   Empty or malformed settings disable WalletConnect pairing and retain injected
+   wallets; the connection dialog marks WalletConnect unavailable.
 3. Match `VITE_BASE_PATH` to the backend's `BASE_PATH`. Pairing metadata uses the
    actual browser origin; session storage is scoped to the application mount.
    Keep the application available on the same origin when returning from a wallet.
@@ -26,10 +28,13 @@ permission, without a user message-signing login.
 The connector uses the [Ethereum provider](https://docs.reown.com/advanced/providers/ethereum)
 and AppKit Core for QR codes, wallet selection and mobile links. The SDK loads
 only on explicit WalletConnect selection or restoration of an accepted session.
-Preview builds exclude wallet discovery, pairing and wallet transactions, even
-when a project ID is supplied. Email/social sign-in, analytics, swaps and onramps
-are disabled. Hosting must allow the SDK's Reown/WalletConnect directory, image
-and relay traffic under its content security policy.
+All frontend build modes use actual wallets and the canonical API. Normal and
+lab builds write `dist`; `build:live` writes `dist-live`. There is no simulated
+preview mode. Wallet connection and every transaction still require the user's
+wallet approval. Use the disposable test harness for simulated peers and local
+contracts. Email/social sign-in, analytics, swaps and onramps are disabled.
+Hosting must allow the SDK's Reown/WalletConnect directory, image and relay
+traffic under its content security policy.
 
 The SDK's Robinhood read fallback is the application's same-origin
 `rpc/robinhood` route, including gas estimates and pending nonce reads. Signing
