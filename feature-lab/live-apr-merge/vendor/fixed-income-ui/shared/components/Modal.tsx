@@ -14,6 +14,9 @@ export interface ModalProps {
   size?: 'default' | 'wide'
   /** Optional per-dialog spacing; other shared modal defaults stay unchanged. */
   contentStyle?: React.CSSProperties
+  /** Header dialogs can name themselves and use a lighter anchored backdrop. */
+  contentLabel?: string
+  overlayStyle?: React.CSSProperties
   /** Wallet selection must stay above the form that requested a connection. */
   layer?: 'dialog' | 'wallet'
 }
@@ -41,6 +44,8 @@ export function Modal({
   shouldCloseOnOverlayClick = true,
   size = 'default',
   contentStyle,
+  contentLabel,
+  overlayStyle,
   layer = 'dialog',
 }: Props) {
   const externalOpen = useSyncExternalStore(subscribeExternal, () => externalWalletOpen, () => false)
@@ -67,13 +72,14 @@ export function Modal({
       className='_'
       overlayClassName='_'
       ariaHideApp={false}
+      contentLabel={contentLabel}
       contentElement={(props, children) => (
         <ModalElement {...props} $size={size} style={{ ...props.style, ...contentStyle }}>
           {children}
         </ModalElement>
       )}
       overlayElement={(props, contentElement) => (
-        <ModalOverlayElement {...props} transitionMs={TRANSITION_MS} $layer={layer}>
+        <ModalOverlayElement {...props} style={{ ...props.style, ...overlayStyle }} transitionMs={TRANSITION_MS} $layer={layer}>
           {contentElement}
         </ModalOverlayElement>
       )}

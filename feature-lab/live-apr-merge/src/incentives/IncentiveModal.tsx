@@ -1,16 +1,16 @@
 import { useCallback,useEffect,useId,useRef,useState } from 'react'
 import CurrencyInput from 'react-currency-input-field'
 import { formatUnits,type Address } from 'viem'
-import styled,{css,createGlobalStyle} from 'styled-components'
+import styled,{css,createGlobalStyle,keyframes} from 'styled-components'
 import { FormFieldGroup,FormInput,FormLabel,Modal,ModalTitle,InteractiveEmblem } from '../host/ui'
 import { aprTextPaint } from '../host/aprTextStyle'
-import { sidebarDefaults, sidebarSelectedSurface, sidebarVariables } from '../host/sidebarTheme'
+import { sidebarDefaults, sidebarVariables } from '../host/sidebarTheme'
 import type { useDeploymentFlow } from '../host/useDeploymentFlow'
 import type { useOfferPrice } from '../host/useOfferPrice'
 import { tokenAmount,usd,type Offer } from './model'
 import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
 import { campaignPremiumCents } from '../../shared/campaign.mjs'
-import { Action,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,Row,Stack,Token } from './styles'
+import { PrimaryAction as ModalAction,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,Row,Stack,Token } from './styles'
 import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
 import { DeploymentWaiting } from './DeploymentWaiting'
@@ -20,8 +20,14 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[lpDetailsOpen,setLpDetailsOpen]=useState(false)
   const id=deploymentId??flow.deployment?.id,reviewed=flow.quote
   const [position,setPosition]=useState(openPosition)
+  // Advance instantly to review. The server quote prepares independently;
+  // only an explicit Claim click can progress to a wallet transaction.
+  const [preview,setPreview]=useState<{amount:string;reward:number}|null>(null)
+  const [requesting,setRequesting]=useState(false)
+  const mounted=useRef(true),claiming=useRef(false),goingBack=useRef(false)
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[])
   useEffect(()=>setPosition(openPosition),[openPosition,id])
-  const second=Boolean(id||reviewed),busy=flow.busy||nativeBusy
+  const second=Boolean(id||reviewed||preview),busy=flow.busy||nativeBusy
   const titleId=useId(),rangeId=useId(),tokensId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
   const attachTitle=useCallback((node:HTMLDivElement|null)=>{titleRef.current=node;const dialog=node?.closest('[role="dialog"]');dialog?.setAttribute('aria-labelledby',titleId);dialog?.setAttribute('data-incentive-modal','')},[titleId])
   const focusedDeposit=useRef<HTMLInputElement|null>(null)
@@ -33,21 +39,25 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
       queueMicrotask(()=>{if(node.isConnected)node.focus({preventScroll:true})})
     }
   },[])
-  useEffect(()=>{if(second)titleRef.current?.focus()},[second,id])
+  useEffect(()=>{if(second)titleRef.current?.focus()},[second,id,requesting])
   const amount=Number(deposit)
   const valid=!!offer&&Number.isFinite(amount)&&amount>0&&!offer.availability&&Boolean(price.value)&&!price.loading
+  // Hide the requested pause copy on the amount step only. The original
+  // availability still gates Continue, and other diagnostic messages remain.
+  const availabilityNotice=offer?.availability==='New requests are temporarily paused.'?null:offer?.availability
   const tokenUsd=price.value?price.value.quotePerToken*price.value.quoteUsd:0
   // Use campaign-cent rounding on both screens; never relabel the LP principal
   // or the ETH request fee as the incentive. The accepted plan owns the reviewed amount.
   const principalCents=Number.isFinite(amount)&&amount>0?Math.round(amount*100):0
   const reward=offer?.budget.campaign&&Number.isSafeInteger(principalCents)
     ?Number(campaignPremiumCents(offer.budget.campaign,String(principalCents)))/100
-    :offer&&Number.isFinite(amount)?Math.max(0,amount)*offer.apr/100*offer.days/365:0
+    :offer&&Number.isFinite(amount)?Math.floor(Math.max(0,amount)*offer.apr*offer.days/365)/100:0
   // Every quote freezes raw premium and its USD price. Direct APR programs may
   // omit campaign-cent economics, so value their actual quoted token amount.
+  // The estimate uses the same downward cent rounding as the final review.
   const claimUsd=reviewed?Number(reviewed.plan.premiumCents??(
     BigInt(reviewed.plan.premium)*BigInt(reviewed.plan.variablePrice)/(10n**BigInt(reviewed.plan.variableDecimals)*10n**16n)
-  ))/100:reward
+  ))/100:preview?.reward??reward
   // The review title highlights the reward in green; the primary action stays white.
   const claimLabel=<>Claim <ClaimAmount data-claim-amount>{usd(claimUsd)}</ClaimAmount></>
   const depositTokens=reviewed?[reviewed.plan.token0,reviewed.plan.token1]:offer?[offer.token0,offer.token1]:null
@@ -55,18 +65,43 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   // The wallet hook enforces the API's exact fee and quote expiry.
   // Back creates a fresh quote without discarding a submitted payment record.
   const raw=reviewed?amountsForLiquidity(reviewed.plan.liquidity,reviewed.plan.sqrtPrice,reviewed.plan.minTick,reviewed.plan.maxTick):null
-  const close=()=>{if(!busy)onClose()}
+  const close=()=>{if(!busy){mounted.current=false;onClose()}}
+  function beginReview(){
+    if(!account){onConnect();return}
+    if(!offer||!valid||busy||preview)return
+    setPreview({amount:deposit,reward})
+    void flow.review(offer,deposit)
+  }
+  async function back(){
+    if(busy||claiming.current||goingBack.current)return
+    goingBack.current=true
+    try{if(await flow.reset()&&mounted.current){setPreview(null)}}
+    finally{goingBack.current=false}
+  }
+  async function claim(){
+    // Ref guards cover double clicks before React paints. Closing the modal
+    // while preparation runs cancels this click's permission to open a wallet.
+    if(claiming.current||goingBack.current||busy)return
+    claiming.current=true;setRequesting(true)
+    try{
+      const q=reviewed??(offer&&preview?await flow.review(offer,preview.amount):null)
+      if(!q||!mounted.current)return
+      // USD displays are estimates, not payment-admission constraints. Price
+      // movement must never bounce an explicit Claim back to the review screen.
+      await flow.pay(false,q.id)
+    }finally{claiming.current=false;if(mounted.current)setRequesting(false)}
+  }
   return <Modal isOpen onRequestClose={close} shouldCloseOnOverlayClick={!busy} contentStyle={{padding:'10px 28px 26px 28px'}}>
     <ModalButtonHover/>
     <Close aria-label='Close incentive vault' disabled={busy} onClick={close}>×</Close>
-    {reviewed&&!id&&!flow.saved?.sent&&<BackButton disabled={busy} onClick={flow.reset}>← Back</BackButton>}
+    {(reviewed||preview)&&!id&&!requesting&&!flow.saved?.sent&&<BackButton aria-disabled={busy} onClick={()=>void back()}>← Back</BackButton>}
     <Header $hasLogo={!second}><RequestTitle id={titleId} role='heading' aria-level={2} tabIndex={-1} ref={attachTitle}>
-      {second?(id?'Your incentive vault':claimLabel):<TitleContent><Token><PairIcons><TokenIcon symbol={offer!.token0.symbol} size={24}/><TokenIcon symbol={offer!.token1.symbol} size={24}/></PairIcons>{pair}</Token>
+      {second?(id||requesting?'Your incentive vault':claimLabel):<TitleContent><Token><PairIcons><TokenIcon symbol={offer!.token0.symbol} size={24}/><TokenIcon symbol={offer!.token1.symbol} size={24}/></PairIcons>{pair}</Token>
         <TitleStats><TitleApr data-incentive-apr>{offer!.apr.toLocaleString()}% APR</TitleApr><TitleDays>{offer!.days} days</TitleDays></TitleStats></TitleContent>}
     </RequestTitle>{!second&&<InteractiveEmblem/>}</Header>
     <ModalContent $amountPage={!second}>
-      {!id&&depositTokens&&<DepositReward aria-label='Deposit and incentive'><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={24}/><TokenIcon {...depositTokens[1]} size={24}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol}, get {usd(claimUsd)}</span></DepositReward>}
-      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy}/>:reviewed?<>
+      {!id&&!requesting&&depositTokens&&<DepositReward aria-label='Deposit and incentive'><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={24}/><TokenIcon {...depositTokens[1]} size={24}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol}, get {usd(claimUsd)}</span></DepositReward>}
+      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy}/>:requesting?<RequestPending role='status' aria-live='polite' data-request-pending><RequestSpinner aria-hidden='true'/><b>{flow.preparing?'Making request...':'Confirming payment...'}</b><FinePrint>{flow.preparing?'Your request is being prepared.':'Confirm the request in your wallet. This step will update when your payment is confirmed.'}</FinePrint></RequestPending>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li><DepositTooltip value={usd(Number(reviewed.principalCents)/100)} assets={[
             {amount:tokenAmount(formatUnits(raw!.amount0,reviewed.plan.token0.decimals)),symbol:reviewed.plan.token0.symbol,address:reviewed.plan.token0.address},
@@ -74,30 +109,40 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           ]}/></li>
           <li>You get: <b>{tokenAmount(formatUnits(BigInt(reviewed.plan.premium),reviewed.plan.variableDecimals))} {reviewed.plan.variableSymbol}</b>, claimable after the vault starts.</li>
           <li>Lock time: <b>{reviewed.snapshot.durationSeconds/86400} days</b>.</li>
-        </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>LP amounts and deposit value are refreshed for your confirmation before you deposit. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
+        </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>USD values are estimates and may change with crypto prices. You review the LP token amounts before depositing. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
         {flow.saved&&<FinePrint>Your payment request is saved. Retry to recover it without paying twice.</FinePrint>}
         {flow.quote?.fee&&<FinePrint>{<>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus wallet network gas, on Robinhood Chain. Recipient: <span style={{overflowWrap:'anywhere'}}>{flow.quote.fee.recipient}</span>. The premium is claimed after funding, LP deposit, and vault start.</>}</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.saved?.sent&&!flow.saved.hash&&flow.saved.nonce!==undefined&&<Disclosure><summary>Recover a missing transaction response</summary><p>Check payment first. If your wallet never returned a hash, retry the exact same fee at nonce {flow.saved.nonce}. Your wallet will ask for confirmation. If the quote expired, resolve or cancel that nonce in your wallet and enter the resulting hash here.</p><QuietButton disabled={busy} onClick={()=>void flow.pay(true)}>Retry same payment</QuietButton></Disclosure>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
-        <ModalAction disabled={busy||flow.saved?.status==='confirmed_unpaid'} onClick={()=>void flow.pay()}>{busy?'Confirming payment…':flow.saved?.sent?'Check payment':claimLabel}</ModalAction>
+        <ModalAction disabled={flow.saved?.status==='confirmed_unpaid'} aria-disabled={busy} onClick={()=>void claim()}>{flow.saved?.sent?'Check payment':claimLabel}</ModalAction>
         {flow.saved?.sent&&<QuietButton disabled={busy} onClick={async()=>{await flow.startNew();onClose()}}>Create another vault</QuietButton>}
+      </>:preview&&offer?<>
+        <VaultReview label='Deployment summary' bullets={<>
+          <li>You deposit: <b>{usd(Number(preview.amount))}</b> in LP assets.</li>
+          <li>You get: <b>{usd(preview.reward)}</b> in {offer.token0.symbol}, claimable after the vault starts.</li>
+          <li>Lock time: <b>{offer.days} days</b>.</li>
+        </>} details={<><p>USD values are estimates and may change with crypto prices. The request uses the final token amounts.</p><p>The campaign operator funds the premium before LP entry. Your LP assets stay in your wallet until you approve their deposit.</p></>}/>
+        <FinePrint>Request fee: {formatUnits(BigInt(offer.requestFeeWei??'0'),18)} ETH, plus wallet network gas, on Robinhood Chain. Your wallet shows the recipient before you approve payment.</FinePrint>
+        {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
+        <ModalAction aria-disabled={busy} onClick={()=>void claim()}>{claimLabel}</ModalAction>
       </>:offer?<>
-        {/* Keep one toggle mounted so expanding/collapsing preserves focus. Only
-            the range controls collapse; Deposit and LP tokens remain visible. */}
-        <Range aria-label='LP price range details'><Row><RangeToggle type='button' $expanded={lpDetailsOpen} aria-expanded={lpDetailsOpen} aria-controls={rangeId} onClick={()=>setLpDetailsOpen(!lpDetailsOpen)}>{lpDetailsOpen?'PRICE RANGE: FULL':'LP details'}</RangeToggle>{lpDetailsOpen&&<RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch>}</Row><RangePlot id={rangeId} hidden={!lpDetailsOpen}><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></RangePlot></Range>
         <FormFieldGroup><FormLabel htmlFor='incentive-deposit'>Deposit</FormLabel><FormInput as={CurrencyInput} ref={attachDeposit} id='incentive-deposit' aria-label='Deposit value in US dollars' inputMode='decimal' prefix='$' groupSeparator=',' decimalSeparator='.' allowNegativeValue={false} disableAbbreviations decimalsLimit={2} value={deposit} maxLength={24} onValueChange={(value:string|undefined)=>setDeposit(value??'')}/>
-          {offer.availability&&<FinePrint>{offer.availability}</FinePrint>}
+          {availabilityNotice&&<FinePrint>{availabilityNotice}</FinePrint>}
         </FormFieldGroup>
         <FormFieldGroup><FormLabel as='h3' id={tokensId} style={{margin:0}}>LP tokens</FormLabel><TokenAmounts aria-labelledby={tokensId}>
           <Row><Token><TokenIcon symbol={offer.token0.symbol} size={24}/>{offer.token0.symbol}</Token><b>{tokenUsd?tokenAmount(amount/2/tokenUsd):'—'}</b></Row>
           <Row><Token><TokenIcon symbol={offer.token1.symbol} size={24}/>{offer.token1.symbol}</Token><b>{price.value?tokenAmount(amount/2/price.value.quoteUsd):'—'}</b></Row>
         </TokenAmounts></FormFieldGroup>
+        {/* Keep one toggle mounted so expanding/collapsing preserves focus. Only
+            the range controls collapse; Deposit and LP tokens remain visible. */}
+        <Range aria-label='LP price range details'><Row><RangeToggle type='button' $expanded={lpDetailsOpen} aria-expanded={lpDetailsOpen} aria-controls={rangeId} onClick={()=>setLpDetailsOpen(!lpDetailsOpen)}>{lpDetailsOpen?'Price range: full':'LP details'}</RangeToggle>{lpDetailsOpen&&<RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch>}</Row><RangePlot id={rangeId} hidden={!lpDetailsOpen}><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></RangePlot></Range>
         <QuoteSummary aria-label='Position and premium estimate'><div><Label as='dt'>YOU DEPOSIT</Label><dd data-testid='position-value'>{usd(amount||0)}</dd></div><div><Label as='dt'>YOU GET</Label><dd data-testid='upfront-premium'>{tokenUsd?<><Token>{tokenAmount(reward/tokenUsd)}<TokenIcon symbol={offer.token0.symbol} size={20}/></Token><RewardValue>+{usd(reward)}</RewardValue></>:'—'}</dd></div></QuoteSummary>
-        <FinePrint>{offer.requestFeeWei?<>Request fee: {formatUnits(BigInt(offer.requestFeeWei),18)} ETH, plus wallet network gas.</>:'Request fee is not configured.'}</FinePrint>
+        {/* The exact fee remains disclosed on the next, payment-review step. */}
+        {!offer.requestFeeWei&&<FinePrint>Request fee is not configured.</FinePrint>}
         {price.error&&<Row><ErrorText role='alert'>{price.error}</ErrorText><QuietButton onClick={price.refresh}>Refresh price</QuietButton></Row>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
-        <ModalAction disabled={busy||Boolean(account)&&!valid} onClick={()=>account?void flow.review(offer,deposit):onConnect()}>{busy?'Preparing deployment…':!account?'Connect wallet':'Continue'}</ModalAction>
+        <ModalAction disabled={Boolean(account)&&!valid} aria-disabled={busy} onClick={beginReview}>{!account?'Connect wallet':'Continue'}</ModalAction>
       </>:null}
     </ModalContent>
   </Modal>
@@ -126,16 +171,6 @@ const BackButton = styled(QuietButton).attrs({'data-incentive-back':''})`
 `
 const ClaimAmount=styled.span`color:#fff;`
 const DepositReward = styled.div`display:flex;align-items:center;gap:10px;min-width:0;font-size:14px;line-height:1.5;>span:last-child{min-width:0;overflow-wrap:anywhere;}`
-// ReactModal portals live outside the rail, so supply the same defaults here.
-// The lab editor targets this marker too; it never changes button typography,
-// validation, click handlers, or disabled/busy opacity and pointer behavior.
-const ModalAction = styled(Action).attrs({ 'data-incentive-primary-action': '' })`
-  ${sidebarVariables(sidebarDefaults)}
-  &&, &&:hover:not(:disabled){${sidebarSelectedSurface}}
-  border:1px solid var(--sidebar-button-border);border-radius:var(--sidebar-radius);
-  &:focus-visible{outline:2px solid var(--sidebar-start);outline-offset:3px;}
-  @media(prefers-reduced-motion:reduce){&&, &&:hover:not(:disabled){animation:none;background-position:50% 50%;}}
-`
 // Two text rows leave a dedicated right-hand slot for the interactive emblem.
 const Header = styled.div<{ $hasLogo: boolean }>`display:flex;align-items:center;justify-content:space-between;gap:12px;padding-right:8px;padding-top:${({ $hasLogo }) => $hasLogo ? '16px' : '0'};margin-bottom:24px;`
 const RequestTitle = styled(ModalTitle)`min-width:0;margin-bottom:0;[data-claim-amount]{color:${({theme})=>theme.colors.semantic.success};}&:focus{outline:none;}`
@@ -187,3 +222,8 @@ const RewardValue = styled.b`color:${({ theme }) => theme.colors.semantic.succes
 const Terms = styled.dl`margin:16px 0;display:flex;flex-direction:column;gap:10px;div{display:flex;justify-content:space-between;gap:16px}dt{color:${({ theme }) => theme.colors.text.tertiary}}dd{margin:0;text-align:right}`
 const Receipt = styled.div`display:flex;flex-direction:column;gap:10px;overflow-wrap:anywhere;`
 const Success = styled.p`margin:0;line-height:1.6;color:${({ theme }) => theme.colors.semantic.success};font-size:14px;overflow-wrap:anywhere;`
+
+// Loading is confined to the third step; the first two steps keep normal buttons.
+const requestSpin=keyframes`to{transform:rotate(360deg)}`
+const RequestPending=styled.div`display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 0;text-align:center;`
+const RequestSpinner=styled.span`width:28px;height:28px;border:3px solid #493353;border-top-color:#d286ff;border-radius:50%;animation:${requestSpin} .8s linear infinite;@media(prefers-reduced-motion:reduce){animation-duration:2s;}`

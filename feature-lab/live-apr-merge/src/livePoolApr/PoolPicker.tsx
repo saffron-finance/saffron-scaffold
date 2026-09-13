@@ -396,7 +396,7 @@ const ExploreTrigger = styled.button<{ $active: boolean }>`
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
+  text-transform: none; /* Preserve sentence case on menu buttons. */
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;

@@ -11,24 +11,25 @@ import { mobileHomeMaxWidth } from '../host/MobileHomeNavigation'
 export function PairHeader({ pair: { token0, token1, feeTier } }: { pair: Offer }) {
   return <><Header>
     <Title><PairHeading data-testid='pool-pair-heading'>
-      <PairLogos aria-hidden='true'><PairLogo><TokenIcon {...token0} size={48} /></PairLogo><PairLogo><TokenIcon {...token1} size={48} /></PairLogo></PairLogos>
+      <PairLogos aria-hidden='true'><PairLogo><TokenIcon {...token0} size={40} /></PairLogo><PairLogo><TokenIcon {...token1} size={40} /></PairLogo></PairLogos>
       <PairHeadingText>
         <PairName data-testid='pool-pair-name'>{token0.symbol} / {token1.symbol} {(feeTier ?? 0) / 10_000}%</PairName>
       </PairHeadingText>
     </PairHeading></Title>
-    <Description><PoolDescription data-testid='pool-description'>
-      <DescriptionItem><UniswapDescriptionLogo src={uniswapLogo} alt='' aria-hidden='true' />Uniswap v3</DescriptionItem>
-      <DescriptionItem><DescriptionLogo src={robinhoodLogo} alt='' aria-hidden='true' />Robinhood Chain</DescriptionItem>
-    </PoolDescription></Description>
   </Header>
     {/* This compact Home-only header matches the approved concept. The larger
         desktop header above retains its fee-tier and venue description. */}
     <PhoneHeader data-mobile-pair>
       <h2><span aria-hidden='true'><TokenIcon {...token0} size={26} compact /><TokenIcon {...token1} size={26} compact /></span>{token0.symbol} / {token1.symbol}</h2>
-      <span><img src={robinhoodLogo} alt='' />Robinhood</span>
     </PhoneHeader>
   </>
 }
+
+/** Venue metadata follows the offers on every screen size. */
+export function PairDescription(){return <Description data-testid='pool-description'><PoolDescription>
+  <DescriptionItem><UniswapDescriptionLogo src={uniswapLogo} alt='' aria-hidden='true'/>Uniswap v3</DescriptionItem>
+  <DescriptionItem><DescriptionLogo src={robinhoodLogo} alt='' aria-hidden='true'/>Robinhood Chain</DescriptionItem>
+</PoolDescription></Description>}
 
 // AppPageShell's header text geometry, without its app surface or navigation.
 const Header = styled.header`max-width:760px;@media(max-width:${mobileHomeMaxWidth}px){display:none;}`
@@ -36,7 +37,8 @@ const PhoneHeader = styled.header`
   display:none;
   @media(max-width:${mobileHomeMaxWidth}px){
     display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0;
-    h2{display:flex;align-items:center;gap:8px;margin:0 0 10px;min-width:0;font:400 16px/1.45 "Funnel Display",sans-serif;}
+    h2{display:flex;align-items:center;gap:12px;margin:0 0 10px;min-width:0;font:400 1.3em/1.45 "Funnel Display",sans-serif;}
+    h2 img{max-width:40px;max-height:40px;}
     h2>span{display:inline-flex;align-items:center;flex-shrink:0;}
     h2 img+img{margin-left:-6px;background:#191919;border:2px solid #000;}
     >span{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px;color:#a09ca5;}
@@ -44,12 +46,12 @@ const PhoneHeader = styled.header`
   }
 `
 const Title = styled.h2`margin:0;line-height:1;`
-const Description = styled.p`max-width:680px;margin:18px 0 0;color:${({ theme }) => theme.colors.text.secondary};font-size:16px;line-height:1.55;`
+const Description = styled.p`max-width:680px;margin:0;color:${({ theme }) => theme.colors.text.secondary};font-size:16px;line-height:1.55;`
 // Exact LivePoolAprPage header styles. Assets are local, with no lookup calls.
 const PairHeading = styled.span`
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   /* Preserve the reference's white dark-mode heading and support beta light. */
   color: ${({ theme }) => theme.colors.text.primary};
   font-family: ${({ theme }) => theme.fonts.body};
@@ -64,14 +66,15 @@ const PairLogos = styled.span`
 `
 const PairLogo = styled.span`
   display: block;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  max-height: 40px;
   object-fit: cover;
   border: 2px solid ${({ theme }) => theme.colors.background.base};
   border-radius: 50%;
   overflow: hidden;
-  > * { width: 100% !important; height: 100% !important; }
-  @media (max-width: 480px) { width: 42px; height: 42px; }
+  > * { width: 100% !important; height: 100% !important; max-width:40px; max-height:40px; }
 `
 const PairHeadingText = styled.span`
   display: flex;
@@ -81,12 +84,11 @@ const PairHeadingText = styled.span`
 `
 const PairName = styled.span`
   font-family: ${({ theme }) => theme.fonts.display};
-  font-size: clamp(22px, 5.8vw, 42px);
+  font-size: 1.3em;
   font-weight: 300;
   line-height: 1.12;
   letter-spacing: normal;
   overflow-wrap: anywhere;
-  @media (max-width: 360px) { font-size: 19px; }
 `
 const PoolDescription = styled.span`
   display: flex;

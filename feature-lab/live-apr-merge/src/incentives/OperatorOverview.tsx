@@ -1,3 +1,4 @@
+import {operatorConsoleHref} from '../host/operatorConsole'
 import type { AdminHealth } from '../host/useAdminHealth'
 import { QuietButton } from './styles'
 import { MetricGrid,OpsButtons,OpsCard,OpsNote,OpsPill,OpsRow } from './operator-styles'
@@ -10,7 +11,7 @@ export function IntakeSummary({report,onStatus,onEdit}:{report:AdminHealth|null;
   return <OpsCard aria-label='Request intake summary'><OpsRow><h2>Request intake</h2><OpsPill $state={report?.canQuote===true?'ready':report?.canQuote===false?'blocked':'unknown'}>{report?.canQuote===true?'Paid requests enabled':report?.canQuote===false?'Paid requests blocked':'Not verified'}</OpsPill></OpsRow>
     <OpsNote>{policy?`Switch ${policy.enabled?'on':'off'} · ${report?.mode==='automatic'?'Automatic queue':'Reviewed execution'} · window expires ${new Date(policy.expires_at).toLocaleString()}`:'No verified intake window.'}</OpsNote>
     <OpsNote>{report?.canQuote===true?'Checkout checks pass. Creation, external premium funding, and each user wallet transaction still have separate requirements.':blockers.length?blockers.map(c=>c.title).join(' · '):'Connect and sign in with an admin wallet to verify the service state.'}</OpsNote>
-    <OpsButtons>{onStatus&&<QuietButton onClick={onStatus}>View Status</QuietButton>}{onEdit&&<QuietButton onClick={onEdit}>Edit intake window</QuietButton>}</OpsButtons>
+    <OpsButtons><a href={operatorConsoleHref} target="_blank" rel="noopener" style={{color:"#d286ff",padding:"10px"}}>Server operator ↗</a>{onStatus&&<QuietButton onClick={onStatus}>View Status</QuietButton>}{onEdit&&<QuietButton onClick={onEdit}>Edit intake window</QuietButton>}</OpsButtons>
   </OpsCard>
 }
 

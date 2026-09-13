@@ -42,7 +42,7 @@ async function png(label,name='NVDA / USDG 0.05%'){
 }
 /** Open the host menu and follow a real internal router link. */
 async function menuLink(name){
-  await page.getByRole('button',{name:/^(Open menu|More)$/}).click()
+  await page.getByRole('button',{name:'Open menu',exact:true}).click()
   await page.getByRole('dialog').getByRole('link',{name,exact:true}).click()
 }
 
@@ -66,31 +66,21 @@ async function checkAprNavigation(target){
   assert.ok(result.clip.split(',').every(value=>value.trim()==='text'),'Every APR paint layer clips to text')
 }
 
-/** Header chrome must match the real row, including its settled hover paint.
- * This checks the network indicator too without inventing selection behavior. */
+/** Header chrome follows the new breadcrumb/reference design rather than the
+ * campaign row's hover surface. Mobile replaces breadcrumbs with its logo;
+ * the wallet, chain selector and menu retain the approved six-pixel corners. */
 async function checkHeaderControls(target){
-  const row=target.locator('[data-incentive-offer]').first()
-  const controls=target.locator('header[aria-label="Account controls"] > div > *')
-  const read=el=>{const style=getComputedStyle(el);return Object.fromEntries(['backgroundColor','backgroundImage','borderTopColor','borderTopWidth','borderTopStyle','borderRadius','transitionProperty','transitionDuration','transitionTimingFunction'].map(key=>[key,style[key]]))}
-  await target.getByRole('heading',{name:'Liquidity Incentives',exact:true}).hover()
-  await expect.poll(()=>row.evaluate(el=>getComputedStyle(el).borderTopColor)).toBe('rgb(29, 29, 29)')
-  const idle=await row.evaluate(read)
-  assert.equal(idle.backgroundColor,'rgb(10, 10, 10)')
+  if(target.viewportSize().width<=599){
+    await expect(target.getByRole('navigation',{name:'Breadcrumb'})).toHaveCount(0)
+    await expect(target.getByRole('link',{name:'Saffron home',exact:true})).toBeVisible()
+  }else await expect(target.getByRole('navigation',{name:'Breadcrumb'})).toContainText('Home')
+  const controls=target.locator('header[aria-label="Account controls"] > div > button')
   await expect(controls).toHaveCount(3)
-  // Resizing can move a control under the pointer before the heading hover.
-  // Wait for its 160ms hover-exit transition instead of sampling an in-between color.
-  for(const control of await controls.all())await expect.poll(async()=>JSON.stringify(await control.evaluate(read))).toBe(JSON.stringify(idle))
-  const font=await controls.first().evaluate(el=>{const s=getComputedStyle(el);return {family:s.fontFamily,size:s.fontSize,weight:s.fontWeight}})
-  assert.deepEqual(font,{family:'"Funnel Display", ui-monospace, monospace',size:'14px',weight:'500'})
-  await row.hover()
-  await expect.poll(()=>row.evaluate(el=>getComputedStyle(el).borderTopColor)).toBe('rgb(255, 188, 9)')
-  const hover=await row.evaluate(read)
-  for(const [index,control] of (await controls.all()).entries()){
-    await control.hover()
-    await expect.poll(async()=>JSON.stringify(await control.evaluate(read))).toBe(JSON.stringify(hover))
-    await target.screenshot({path:path.join(output,`header-hover-${target.viewportSize().width}-${index}.png`),fullPage:true})
+  for(const control of await controls.all()){
+    await expect(control).toBeVisible()
+    assert.equal(await control.evaluate(el=>getComputedStyle(el).borderRadius),'6px')
   }
-  await target.getByRole('heading',{name:'Liquidity Incentives',exact:true}).hover()
+  await expect(target.getByRole('button',{name:'Select network',exact:true})).toBeEnabled()
 }
 
 /** Selection removes only APR paint, leaving the label's own typography intact. */
@@ -164,11 +154,11 @@ try {
     if([320,390,1440].includes(width))await page.screenshot({path:path.join(output,'home-'+width+'.png'),fullPage:true})
   }
   await page.setViewportSize({width:1440,height:1100})
-  // Preserve approved portal paint and exact fee disclosure without ever
-  // bypassing wallet review. Reset withdraws only an unpaid quote.
+  // Keep the amount step uncluttered; disclose the exact fee at payment review
+  // without bypassing wallet approval. Reset withdraws only an unpaid quote.
   await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
   await checkModalSurface(page)
-  await expect(page.getByRole('dialog')).toContainText('Request fee: 0.001 ETH')
+  await expect(page.getByRole('dialog')).not.toContainText('Request fee:')
   await page.getByRole('button',{name:'Continue',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Claim $1.00',exact:true})).toBeVisible()
   await checkModalSurface(page)
@@ -176,7 +166,7 @@ try {
   assert.equal(fixture.state.sends,0)
   await page.getByRole('button',{name:'← Back',exact:true}).click()
   await page.getByRole('button',{name:'Close incentive vault',exact:true}).click()
-  report.checks.push('Ten responsive widths, shared header/portal paint and exact pre-quote/review ETH fee')
+  report.checks.push('Ten responsive widths, shared header/portal paint and exact ETH fee at payment review only')
   await menuLink('Campaigns')
   await expect(page.getByLabel('Campaign request fee ETH')).toHaveValue('')
   await page.getByLabel('Campaign request fee ETH').fill('0.0000000000000000001')

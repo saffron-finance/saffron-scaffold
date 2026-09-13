@@ -1,5 +1,19 @@
 # Saffron liquidity incentives and Live APR
 
+## Version 0.8.0 — frontend-only release
+
+Includes the responsive header and mobile cards, wallet/modal redesign, admin
+wallet funding and paused-program withdrawal UI, nonblocking checkout, removal
+of exact USD preview/quote matching, and bounded browser price/catalog refreshes.
+Server, worker, operator-console and signer-import implementations are deliberately
+not part of this update. Runtime credentials and host configuration are excluded.
+
+See [frontend compatibility](docs/FRONTEND-0.8.0.md) before pairing this UI with a
+backend. Older server sources in this repository are historical, not a claim
+that the separately maintained production backend was published here.
+
+## Historical 0.7.0 baseline
+
 Version 0.7.0 adds an operational Status page, startup/Journey Guide, and a focused
 Administration console with intake summary, metric cards, request filters, and
 separate campaign/payment/refund sections. Operator navigation orders
@@ -21,8 +35,8 @@ defaults do not trigger false alarms. An unavailable check is not a healthy
 result. The check does not open intake or test worker/network availability.
 
 The application provides Home, Portfolio, Live APR and the full fixed-side vault
-journey in one standalone interface. Its canonical API, database, watcher and
-creator are maintained in this repository's `liquidity-incentives` package.
+journey in one standalone interface. Its historical API, database, watcher and creator baseline is in the
+`liquidity-incentives` package; the 0.8.0 backend extensions are maintained separately.
 Vendored sources and licenses are included; no other application is a build or
 runtime dependency. Historical adoption revisions remain in the provenance files.
 

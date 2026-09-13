@@ -46,7 +46,7 @@ export const DROPDOWN_MENU_ITEM = css<{ $active: boolean }>`
   font-family: ${(props) => props.theme.fonts.mono};
   font-size: 13px;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
+  text-transform: none; /* Preserve sentence case on menu buttons. */
   background-color: ${(props) =>
     props.$active ? props.theme.colors.primary.soft : 'transparent'};
   /* An anchor colours its own :visited state, so the row's text colour has to

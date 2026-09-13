@@ -21,7 +21,7 @@ export const BUTTON_TYPOGRAPHY = css`
   font-size: 16px;
   letter-spacing: 1px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: none; /* Keep authored sentence case and token acronyms. */
 `
 
 export const SOLID_BUTTON_HOVER = css`
@@ -40,7 +40,7 @@ export const ACTION_BUTTON_TYPOGRAPHY = css`
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
+  text-transform: none; /* Keep authored sentence case and token acronyms. */
 `
 
 // The terminal "already done" look for a spent action button — a collected

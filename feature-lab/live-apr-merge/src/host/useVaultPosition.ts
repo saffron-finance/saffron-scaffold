@@ -3,10 +3,10 @@ import { decodeEventLog, encodeAbiParameters, encodeFunctionData, formatUnits, t
 import { walletClient, walletPublicClient, assertWalletAccount, ensureChain } from '@lab/wallet/wallet'
 import { robinhoodChain } from '@lab/chain/chains'
 import { abi, WETH, eligibility, sameAddress } from '../../shared/vault-lifecycle.mjs'
-import { readVault } from '../../shared/vault-reader.mjs'
 import { amountsForLiquidity, ceilDiv } from '../../shared/liquidity-math.mjs'
-import { robinhoodClient, requestJson } from './transport'
+import { robinhoodClient, requestJson, authedJson, readSession } from './transport'
 import { positionAction } from '../../shared/position-actions.mjs'
+import { campaignFundingTerms,campaignFundingAction,fundingStorageKey,campaignWithdrawalStorageKey,campaignWithdrawalQuote } from './campaignFunding'
 
 type Intent = { stage: string; account: Address; deploymentId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex }
 export const positionStorageKey = (account: string, deploymentId: string) => 'saffron.position-action.v1:' + account.toLowerCase() + ':' + deploymentId
@@ -16,11 +16,15 @@ const rejected = (cause: unknown): boolean => {
   return false
 }
 
-/** Native fixed-only controller. Durable intent precedes a wallet prompt; lost
- * responses never silently become permission to send a second transaction.
+/** Wallet-only position/funding controller. Durable intent precedes a wallet
+ * prompt; lost responses never become permission to send a second transaction.
+ * Admin variable funding shares recovery, but has separate role-gated context
+ * and storage from the requester's fixed position.
  */
 export function useVaultPosition(account: Address, deploymentId: string, mode: string) {
-  const key = positionStorageKey(account, deploymentId)
+  const adminMode=mode==='fund'||mode==='campaign-withdraw'
+  const contextPath='/admin/deployments/'+deploymentId+(mode==='campaign-withdraw'?'/withdrawal-context':'/funding-context')
+  const key = mode==='campaign-withdraw'?campaignWithdrawalStorageKey(account,deploymentId):mode==='fund'?fundingStorageKey(account,deploymentId):positionStorageKey(account, deploymentId)
   const [context, setContext] = useState<any>(null)
   const [quote, setQuote] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,13 +43,35 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     setPending(value)
   }
   async function load() {
+    if(adminMode){
+      // Never trigger a surprise login signature on a background refresh.
+      if(!(await readSession(account))?.operator)throw new Error('Sign in as an operator before continuing.')
+      const value=await authedJson(account,contextPath)
+      if(!sameAddress(value.funder,account))throw new Error('The signed-in funding wallet changed.')
+      setContext(value)
+      if(mode==='campaign-withdraw'){
+        const fresh=campaignWithdrawalQuote(value);setQuote(fresh);setError(null);return fresh
+      }
+      const terms=campaignFundingTerms(value.deployment)
+      const [balance,allowance]=await Promise.all([
+        robinhoodClient.readContract({address:terms.token.address,abi,functionName:'balanceOf',args:[account]}) as Promise<bigint>,
+        robinhoodClient.readContract({address:terms.token.address,abi,functionName:'allowance',args:[account,terms.vault]}) as Promise<bigint>,
+      ])
+      const blocked=balance<terms.remaining?'Insufficient '+terms.token.symbol+' in your connected wallet.':null
+      const fresh={phase:null,snapshot:value.snapshot,tokens:[terms.token],rawAmounts:[terms.remaining],maximums:[terms.remaining],
+        action:campaignFundingAction(terms,allowance),blocked}
+      setQuote(fresh);setError(blocked);return fresh
+    }
     const value = await requestJson('/deployments/' + deploymentId + '/context')
-    const snapshot = await readVault(value.job, (method, params) => robinhoodClient.request({ method, params } as any), { confirmations: 2 })
+    // The context endpoint freshly reads the trusted-factory vault and this
+    // viewer's balances. Do not repeat that entire observation in the browser.
+    const snapshot = value.snapshot
+    if(eligibility(snapshot).state==='checking')throw new Error('Position state is unavailable. Refresh before continuing.')
     setContext({...value,snapshot})
     if(mode==='view'){setQuote(null);return null}
     if(mode!=='deposit'){
       const action=positionAction(snapshot,mode)
-      const fresh={snapshot,tokens:[snapshot.token0,snapshot.token1],rawAmounts:action.amounts??[0n,0n],maximums:action.amounts??[0n,0n],action,blocked:null}
+      const fresh={phase:null,snapshot,tokens:[snapshot.token0,snapshot.token1],rawAmounts:action.amounts??[0n,0n],maximums:action.amounts??[0n,0n],action,blocked:null}
       setQuote(fresh);setError(null);return fresh
     }
     if (!value.deployment.depositable || !eligibility(snapshot).depositable) throw new Error('Vault funding or availability changed.')
@@ -80,7 +106,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     const data = encodeAbiParameters([{type:'uint256'},{type:'uint256'},{type:'uint256'}],
       [rawAmounts[0]*9950n/10000n,rawAmounts[1]*9950n/10000n,BigInt(snapshot.headTimestamp+300)])
     action ??= {stage:'deposit',label:'Deposit',to:snapshot.vault,data:encodeFunctionData({abi,functionName:'deposit',args:[0n,0n,data]}),value:0n}
-    const fresh={snapshot,tokens,rawAmounts,maximums,action,blocked}
+    const fresh={phase:null,snapshot,tokens,rawAmounts,maximums,action,blocked}
     setContext(value);setQuote(fresh);setError(blocked)
     return fresh
   }
@@ -115,28 +141,43 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       throw new Error(cancelled?'Wallet transaction was cancelled.':'Replacement does not match the reviewed action; recovery retained.')
     }
     if (receipt.status!=='success') {persist(null);throw new Error('Transaction reverted. Refresh the amounts before retrying.')}
-    if (intent.stage === 'deposit') {
+    if (intent.stage === 'deposit' || intent.stage === 'fund') {
       const deposited = receipt.logs.some(log => {
         if (!sameAddress(log.address, intent.to) || log.removed) return false
-        try { const event = decodeEventLog({abi, data:log.data, topics:log.topics}); return event.eventName === 'FundsDeposited' && (event.args as any).side === 0n && sameAddress((event.args as any).user, account) } catch { return false }
+        try { const event = decodeEventLog({abi, data:log.data, topics:log.topics}); return event.eventName === 'FundsDeposited' && (event.args as any).side === (intent.stage==='fund'?1n:0n) && sameAddress((event.args as any).user, account) } catch { return false }
       })
-      if (!deposited) throw new Error('Expected fixed-deposit event not found. Recovery retained.')
+      if (!deposited) throw new Error('Expected deposit event not found. Recovery retained.')
+    }
+    if(intent.stage==='campaign-withdraw'){
+      const withdrew=receipt.logs.some(log=>{
+        if(!sameAddress(log.address,intent.to)||log.removed)return false
+        try{const event=decodeEventLog({abi,data:log.data,topics:log.topics});return event.eventName==='FundsWithdrawn'&&(event.args as any).side===1n&&sameAddress((event.args as any).user,account)}catch{return false}
+      })
+      if(!withdrew)throw new Error('Expected variable-side withdrawal event not found. Recovery retained.')
     }
     if(['deposit','claim','withdraw','recover'].includes(intent.stage))await requestJson('/deployments/'+deploymentId+'/transactions',{hash,wallet:account})
     persist(null)
-    if(['deposit','claim','withdraw','recover'].includes(intent.stage)){setCompleted(true);setQuote(null);window.dispatchEvent(new Event('saffron:vault-updated'))}
+    if(['deposit','claim','withdraw','recover','fund','campaign-withdraw'].includes(intent.stage)){
+      setCompleted(true);setQuote(null)
+      // A successful funding receipt is final for this wallet action. Refresh
+      // the observer without ever turning a failed refresh into a second send.
+      if(['fund','campaign-withdraw'].includes(intent.stage))try{setContext(await authedJson(account,contextPath))}
+      catch{setError('Wallet transaction confirmed. Refresh operations to update the vault status.')}
+      window.dispatchEvent(new Event('saffron:vault-updated'))
+    }
     else await refresh()
   }
   async function recover(hash?: Hex) {
     if(!pending)return
     setBusy(true);setError(null)
-    try {const intent={...pending,...(hash?{hash}:{})};persist(intent);await confirm(intent)}
+    try {await assertWalletAccount(account);const intent={...pending,...(hash?{hash}:{})};persist(intent);await confirm(intent)}
     catch(cause){setError(cause instanceof Error?cause.message:'Recovery check failed. Record retained.')}
     finally{setBusy(false)}
   }
   async function sendAction() {
     setBusy(true);setError(null)
     try {
+      if(adminMode&&localStorage.getItem(mode==='fund'?campaignWithdrawalStorageKey(account,deploymentId):fundingStorageKey(account,deploymentId)))throw new Error('Recover the previous campaign wallet action before starting another.')
       const stored=localStorage.getItem(key)
       if(pending){await recover();return}
       if(stored){
@@ -145,10 +186,14 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
         setPending(intent);return
       }
       await assertWalletAccount(account);await ensureChain(robinhoodChain)
+      // A captured review is required for funding; opening/reloading a modal
+      // cannot itself authorize a transaction, even if the context later loads.
+      if(adminMode&&!quote)throw new Error('Refresh and review the wallet action first.')
       const fresh=await load()
       if(!fresh?.action)throw new Error('This position has no available wallet action.')
       if(fresh.blocked) throw new Error(fresh.blocked)
-      if(quote && (fresh.action.stage!==quote.action.stage || fresh.action.stage==='deposit'&&fresh.rawAmounts.some((value:bigint,i:number)=>value>quote.maximums[i]))) {
+      if(quote && (fresh.action.stage!==quote.action.stage || fresh.action.stage==='deposit'&&fresh.rawAmounts.some((value:bigint,i:number)=>value>quote.maximums[i])
+        || adminMode&&(fresh.action.to.toLowerCase()!==quote.action.to.toLowerCase()||fresh.action.data!==quote.action.data||fresh.rawAmounts[0]!==quote.rawAmounts[0]||fresh.phase!==quote.phase))) {
         throw new Error('Required action or amounts changed. Review the updated modal before continuing.')
       }
       const action=fresh.action
@@ -157,13 +202,20 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       await assertWalletAccount(account)
       // Bind recovery to this nonce, not an older identical wrap/approval hash.
       const nonce = await walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'})
+      // Simulation/wallet-network work can outlive a program pause. Refresh its
+      // authoritative policy and ownership again immediately before prompting.
+      if(mode==='campaign-withdraw'){
+        const latest=await load()
+        if(!latest||latest.phase!==fresh.phase||latest.rawAmounts[0]!==fresh.rawAmounts[0])throw new Error('Withdrawal changed. Review the updated modal before continuing.')
+        await assertWalletAccount(account)
+      }
       const intent:Intent={stage:action.stage,account,deploymentId,to:action.to,data:action.data,value:action.value.toString(),nonce}
       persist(intent)
       let hash:Hex
       try {hash=await walletClient().sendTransaction({chain:robinhoodChain,account,to:action.to,data:action.data,value:action.value,nonce})}
       catch(cause){if(rejected(cause))persist(null);throw cause}
       const saved={...intent,hash};persist(saved);await confirm(saved)
-    }catch(cause){setError(cause instanceof Error?cause.message:'Wallet action failed. Check recovery before retrying.')}
+    }catch(cause){if(mode==='campaign-withdraw')setQuote(null);setError(cause instanceof Error?cause.message:'Wallet action failed. Check recovery before retrying.')}
     finally{setBusy(false)}
   }
   async function advance(){

@@ -40,7 +40,7 @@ function MergeApp() {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [path, pageLabel])
 
-  return <AppShell account={session.account} liveApr={isApr} pageLabel={pageLabel} onConnect={session.openModal} overlays={session.overlays}>
+  return <AppShell account={session.account} chainId={session.chainId} liveApr={isApr} pageLabel={pageLabel} onConnect={session.openModal} overlays={session.overlays}>
     {legacyCampaign ? <Navigate replace to={{ pathname: '/campaigns', search: params.toString() ? `?${params}` : '', hash: location.hash }} /> :
       <SectionBoundary key={isApr ? 'apr' : isIncentives ? 'incentives' : path}>
         {isApr ? <Suspense fallback={<Loading role='status'>Loading Live APR…</Loading>}><AprSection /></Suspense> :

@@ -5,3 +5,9 @@ dist-live/
 validation/
 .env.local
 *.zip
+
+# Ignore every local build environment and dependency link.
+node_modules
+.env
+.env.*
+!.env.example

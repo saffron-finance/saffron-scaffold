@@ -1,5 +1,6 @@
 import styled from 'styled-components'
 import { Button } from '../host/ui'
+import { sidebarDefaults, sidebarSelectedSurface, sidebarVariables } from '../host/sidebarTheme'
 
 /** Feature-only composition. Colors/type/control dimensions stay upstream-owned. */
 export const Stack = styled.div`display:flex;flex-direction:column;gap:20px;min-width:0;overflow-wrap:anywhere;`
@@ -9,6 +10,16 @@ export const Muted = styled.span`color:${({ theme }) => theme.colors.text.tertia
 export const Label = styled.div`font-family:${({ theme }) => theme.fonts.mono};font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:${({ theme }) => theme.colors.text.label};`
 export const Premium = styled.b`color:${({ theme }) => theme.colors.accent.gold};font-weight:500;`
 export const Action = styled(Button)`width:100%;flex-shrink:0;`
+/** Shared purple primary action for portfolio connection and incentive modals.
+ * Scope defaults outside the sidebar while preserving the appearance editor's
+ * existing marker, disabled behavior, keyboard focus and reduced-motion support. */
+export const PrimaryAction = styled(Action).attrs({ 'data-incentive-primary-action': '' })`
+  ${sidebarVariables(sidebarDefaults)}
+  &&, &&:hover:not(:disabled){${sidebarSelectedSurface}}
+  border:1px solid var(--sidebar-button-border);border-radius:var(--sidebar-radius);
+  &:focus-visible{outline:2px solid var(--sidebar-start);outline-offset:3px;}
+  @media(prefers-reduced-motion:reduce){&&, &&:hover:not(:disabled){animation:none;background-position:50% 50%;}}
+`
 export const QuietButton = styled.button`
   border:1px solid transparent;border-radius:var(--radius-md);background:${({ theme }) => theme.colors.background.base};
   color:${({ theme }) => theme.colors.text.secondary};padding:9px 12px;cursor:pointer;font-size:12px;

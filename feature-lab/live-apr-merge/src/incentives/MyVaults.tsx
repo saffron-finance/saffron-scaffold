@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import styled from 'styled-components'
 import { requestJson } from '../host/transport'
 import { usePollingResource } from '../host/usePollingResource'
 import type { Payment } from '../host/payment-records.mjs'
@@ -7,11 +8,11 @@ import { StepTitle } from '../host/ui'
 import type { useDeployments } from '../host/useDeployments'
 import { statusLabel } from './model'
 import { DeploymentPagination } from './DeploymentPagination'
-import { Action,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
+import { PrimaryAction,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
 
 export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin,payments,onResumePayment}:{account:Address|null;positions:ReturnType<typeof useDeployments>;onConnect:()=>void;onOpen:(id:string,position?:boolean)=>void;onBack:()=>void;onAdmin:()=>void;payments:Payment[];onResumePayment:(id:string)=>void}){
   return <Stack><Row><StepTitle>Portfolio</StepTitle><QuietButton onClick={onBack}>Home</QuietButton></Row>
-    {!account?<Action onClick={onConnect}>Connect wallet</Action>:<>
+    {!account?<PortfolioConnect onClick={onConnect}>Connect wallet</PortfolioConnect>:<>
       {positions.session?.operator&&<PortfolioCapacity/>}
       {payments.map(payment=><Row key={payment.quote.id}><FinePrint>Saved creation payment · {payment.quote.id.slice(0,8)}</FinePrint><QuietButton onClick={()=>onResumePayment(payment.quote.id)}>Check saved payment</QuietButton></Row>)}
       {positions.verificationUnavailable&&<FinePrint>Showing the last known requests. Verification is temporarily unavailable.</FinePrint>}
@@ -30,6 +31,15 @@ export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin,paym
     {positions.error&&<ErrorText role='alert'>{positions.error}</ErrorText>}
   </Stack>
 }
+
+/** Match the front-page modal's typography and gentle hover outside its portal.
+ * Purple paint, focus, disabled states and appearance controls stay shared. */
+const PortfolioConnect = styled(PrimaryAction)`
+  font-family:"Funnel Display",sans-serif;
+  transition:filter 160ms ease,background-color 160ms ease,border-color 160ms ease;
+  @media(hover:hover) and (pointer:fine){&&:hover:not(:disabled){opacity:1;filter:brightness(1.15);}}
+  @media(prefers-reduced-motion:reduce){transition:none;}
+`
 
 /** Mounted only in an authenticated operator's portfolio, never in a modal or
  * homepage. Missing data is unknown, not an assertion that capacity is free. */

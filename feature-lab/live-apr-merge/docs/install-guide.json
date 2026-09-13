@@ -1,13 +1,13 @@
 {
   "title": "Saffron liquidity incentives\nPortable installation guide",
-  "eyebrow": "Saffron \u00b7 Version 0.7.0",
-  "description": "Home, Portfolio and Live APR with an independent incentives API and automatic vault lifecycle.",
-  "meta": "Version 0.7.0 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
+  "eyebrow": "Saffron \u00b7 Version 0.8.0",
+  "description": "Frontend-only source for Home, Portfolio and Live APR; requires a separately managed compatible incentives API.",
+  "meta": "Version 0.8.0 \u00b7 Wallet required for transactions \u00b7 Fixed ETH campaign fees",
   "sections": [
     {
       "id": "overview",
       "title": "1. Standalone application",
-      "body_html": "<p>The combined Home, Portfolio and Live APR interface includes mobile navigation and transaction dialogs. Production uses the canonical incentives API maintained in this repository. Configure real campaigns and operating owners before paid intake.</p><p><a href=\"./\">Open the app</a> \u00b7 <a href=\"./live-apr\">Live APR</a> \u00b7 <a href=\"live-apr-merge-source.zip\" download>Portable source ZIP</a></p>"
+      "body_html": "<p><strong>Version 0.8.0 is a frontend-only release.</strong> Server, operator-console, watcher and signer-import changes are not included. See <code>docs/FRONTEND-0.8.0.md</code> for backend compatibility, including admin funding and withdrawal context routes.</p><p>The combined Home, Portfolio and Live APR interface includes mobile navigation and transaction dialogs. Production requires a compatible separately managed incentives API; the older backend in this repository is a historical baseline. Configure real campaigns and operating owners before paid intake.</p><p><a href=\"./\">Open the app</a> \u00b7 <a href=\"./live-apr\">Live APR</a> \u00b7 <a href=\"live-apr-merge-source.zip\" download>Portable source ZIP</a></p>"
     },
     {
       "id": "changes",
@@ -50,5 +50,5 @@
       "body_html": "<p>Follow <code>docs/DEPLOYMENT.md</code> and <code>docs/LIVE-CUTOVER.md</code>. Build identity does not establish publication or enabled intake. Verify the intended candidate through existing hosting access before cutover.</p><p>Publish hashed assets before the entrypoint and retain old assets for open tabs. Preserve database/WAL, received fees, watcher cursors, journals, permits and browser recovery. Use a backend compatible with advisory commitments and refund closure. Do not restore the old hard-cap schema or reset QA for a frontend release.</p>"
     }
   ],
-  "footer": "Saffron \u00b7 Version 0.4.0 \u00b7 Source and installation"
+  "footer": "Saffron \u00b7 Version 0.8.0 \u00b7 Source and installation"
 }
