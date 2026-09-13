@@ -1,4 +1,4 @@
-import { type CSSProperties,useEffect,useId,useLayoutEffect,useRef,useState } from 'react'
+import { type CSSProperties,type ReactNode,useEffect,useId,useLayoutEffect,useRef,useState } from 'react'
 import styled from 'styled-components'
 import { TokenIcon } from './TokenIcon'
 
@@ -9,6 +9,17 @@ import { TokenIcon } from './TokenIcon'
  * Amounts are preformatted display labels; this component cannot move funds.
  */
 export function DepositTooltip({value,assets}:{value:string;assets:{amount:string;symbol:string;address?:string}[]}){
+  return <InlineTooltip label={value} prefix='You deposit: ' suffix=' into Uniswap v3.'>
+    <strong>Your LP tokens</strong>
+    {assets.map((asset,index)=><Asset key={index}><span aria-hidden='true'><TokenIcon symbol={asset.symbol} address={asset.address} size={20}/></span><span><b>{asset.amount}</b> {asset.symbol}</span></Asset>)}
+    <TooltipNote>Deposited to Uniswap v3</TooltipNote>
+  </InlineTooltip>
+}
+
+/** Shared inline help keeps amount/risk bubbles visually identical. Help with
+ * a documentation link is a non-modal popover, allowing keyboard focus into
+ * the link; the read-only amount breakdown retains tooltip semantics. */
+export function InlineTooltip({label,prefix,suffix,children,interactive=false}:{label:string;prefix:ReactNode;suffix:ReactNode;children:ReactNode;interactive?:boolean}){
   const [open,setOpen]=useState(false),root=useRef<HTMLSpanElement>(null),pinned=useRef(false)
   const line=useRef<HTMLSpanElement>(null),trigger=useRef<HTMLButtonElement>(null)
   const [position,setPosition]=useState<CSSProperties>({})
@@ -32,32 +43,35 @@ export function DepositTooltip({value,assets}:{value:string;assets:{amount:strin
     const observer=new ResizeObserver(place)
     observer.observe(line.current);observer.observe(trigger.current)
     return ()=>observer.disconnect()
-  },[open,value])
+  },[open,label])
   useEffect(()=>{
     if(!open)return
     const outside=(event:PointerEvent)=>{if(!root.current?.contains(event.target as Node))close()}
     const escape=(event:KeyboardEvent)=>{
-      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close()}
+      if(event.key==='Escape'){
+        event.preventDefault();event.stopPropagation()
+        // Return focus from a dismissed documentation link to its visible term.
+        if(interactive&&root.current?.contains(document.activeElement))trigger.current?.focus({preventScroll:true})
+        close()
+      }
     }
     document.addEventListener('pointerdown',outside,true)
     document.addEventListener('keydown',escape,true)
     return ()=>{document.removeEventListener('pointerdown',outside,true);document.removeEventListener('keydown',escape,true)}
-  },[open])
-  return <Line ref={line}><span>You deposit: </span><Anchor ref={root}
+  },[open,interactive])
+  return <Line ref={line}><span>{prefix}</span><Anchor ref={root}
     onPointerEnter={event=>{if(event.pointerType==='mouse')setOpen(true)}}
     onPointerLeave={event=>{if(event.pointerType==='mouse'&&!pinned.current)setOpen(false)}}
     onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node))close()}}>
-    <Trigger ref={trigger} type='button' aria-expanded={open} aria-controls={id} aria-describedby={open?id:undefined}
+    <Trigger ref={trigger} type='button' aria-expanded={open} aria-controls={id} aria-describedby={!interactive&&open?id:undefined} aria-haspopup={interactive?'dialog':undefined}
       onFocus={event=>{if(event.currentTarget.matches(':focus-visible'))setOpen(true)}}
       onClick={()=>{pinned.current=!pinned.current;setOpen(pinned.current)}}>
-      <b>{value}</b>
+      <b>{label}</b>
     </Trigger>
-    <Tip role='tooltip' id={id} hidden={!open} style={position}>
-      <strong>Your LP tokens</strong>
-      {assets.map((asset,index)=><Asset key={index}><span aria-hidden='true'><TokenIcon symbol={asset.symbol} address={asset.address} size={20}/></span><span><b>{asset.amount}</b> {asset.symbol}</span></Asset>)}
-      <TooltipNote>Deposited to Uniswap v3</TooltipNote>
+    <Tip role={interactive?'dialog':'tooltip'} aria-label={interactive?label:undefined} id={id} hidden={!open} style={position}>
+      {children}
     </Tip>
-  </Anchor><span> into Uniswap v3.</span></Line>
+  </Anchor><span>{suffix}</span></Line>
 }
 
 // Keep the tooltip inside the bullet's available width, including 320px phones.

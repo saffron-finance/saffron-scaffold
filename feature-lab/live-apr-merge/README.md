@@ -1,7 +1,8 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.0 — frontend-only release
+## Version 0.8.1 — frontend-only release
 
+Adds the linked impermanent-loss disclosure and concise request-fee review.
 Includes the responsive header and mobile cards, wallet/modal redesign, admin
 wallet funding and paused-program withdrawal UI, nonblocking checkout, removal
 of exact USD preview/quote matching, and bounded browser price/catalog refreshes.

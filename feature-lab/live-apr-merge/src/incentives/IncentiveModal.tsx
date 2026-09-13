@@ -15,6 +15,7 @@ import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
 import { DeploymentWaiting } from './DeploymentWaiting'
 import { DepositTooltip } from './DepositTooltip'
+import { ImpermanentLossTooltip } from './ImpermanentLossTooltip'
 
 export function IncentiveModal({offer,account,flow,price,deploymentId,openPosition=false,onClose,onConnect}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;openPosition?:boolean;onClose:()=>void;onConnect:()=>void}){
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[lpDetailsOpen,setLpDetailsOpen]=useState(false)
@@ -100,7 +101,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
         <TitleStats><TitleApr data-incentive-apr>{offer!.apr.toLocaleString()}% APR</TitleApr><TitleDays>{offer!.days} days</TitleDays></TitleStats></TitleContent>}
     </RequestTitle>{!second&&<InteractiveEmblem/>}</Header>
     <ModalContent $amountPage={!second}>
-      {!id&&!requesting&&depositTokens&&<DepositReward aria-label='Deposit and incentive'><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={24}/><TokenIcon {...depositTokens[1]} size={24}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol}, get {usd(claimUsd)}</span></DepositReward>}
+      {!id&&!requesting&&depositTokens&&<DepositReward aria-label='Deposit and incentive'><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={24}/><TokenIcon {...depositTokens[1]} size={24}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol}, get {usd(claimUsd)}.</span></DepositReward>}
       {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy}/>:requesting?<RequestPending role='status' aria-live='polite' data-request-pending><RequestSpinner aria-hidden='true'/><b>{flow.preparing?'Making request...':'Confirming payment...'}</b><FinePrint>{flow.preparing?'Your request is being prepared.':'Confirm the request in your wallet. This step will update when your payment is confirmed.'}</FinePrint></RequestPending>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li><DepositTooltip value={usd(Number(reviewed.principalCents)/100)} assets={[
@@ -109,9 +110,9 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           ]}/></li>
           <li>You get: <b>{tokenAmount(formatUnits(BigInt(reviewed.plan.premium),reviewed.plan.variableDecimals))} {reviewed.plan.variableSymbol}</b>, claimable after the vault starts.</li>
           <li>Lock time: <b>{reviewed.snapshot.durationSeconds/86400} days</b>.</li>
+          <li><ImpermanentLossTooltip/></li>
         </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>USD values are estimates and may change with crypto prices. You review the LP token amounts before depositing. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
-        {flow.saved&&<FinePrint>Your payment request is saved. Retry to recover it without paying twice.</FinePrint>}
-        {flow.quote?.fee&&<FinePrint>{<>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus wallet network gas, on Robinhood Chain. Recipient: <span style={{overflowWrap:'anywhere'}}>{flow.quote.fee.recipient}</span>. The premium is claimed after funding, LP deposit, and vault start.</>}</FinePrint>}
+        {flow.quote?.fee&&<FinePrint>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus gas.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.saved?.sent&&!flow.saved.hash&&flow.saved.nonce!==undefined&&<Disclosure><summary>Recover a missing transaction response</summary><p>Check payment first. If your wallet never returned a hash, retry the exact same fee at nonce {flow.saved.nonce}. Your wallet will ask for confirmation. If the quote expired, resolve or cancel that nonce in your wallet and enter the resulting hash here.</p><QuietButton disabled={busy} onClick={()=>void flow.pay(true)}>Retry same payment</QuietButton></Disclosure>}
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
@@ -122,8 +123,9 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <li>You deposit: <b>{usd(Number(preview.amount))}</b> in LP assets.</li>
           <li>You get: <b>{usd(preview.reward)}</b> in {offer.token0.symbol}, claimable after the vault starts.</li>
           <li>Lock time: <b>{offer.days} days</b>.</li>
+          <li><ImpermanentLossTooltip/></li>
         </>} details={<><p>USD values are estimates and may change with crypto prices. The request uses the final token amounts.</p><p>The campaign operator funds the premium before LP entry. Your LP assets stay in your wallet until you approve their deposit.</p></>}/>
-        <FinePrint>Request fee: {formatUnits(BigInt(offer.requestFeeWei??'0'),18)} ETH, plus wallet network gas, on Robinhood Chain. Your wallet shows the recipient before you approve payment.</FinePrint>
+        <FinePrint>Request fee: {formatUnits(BigInt(offer.requestFeeWei??'0'),18)} ETH, plus gas.</FinePrint>
         {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
         <ModalAction aria-disabled={busy} onClick={()=>void claim()}>{claimLabel}</ModalAction>
       </>:offer?<>
