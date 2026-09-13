@@ -1,6 +1,6 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.5 — frontend-only release
+## Version 0.8.6 — frontend-only release
 
 Adds an operator-only deployer ETH balance card to Administration and Campaigns.
 It uses optional `walletBalance` metadata on the existing `server-gas` health

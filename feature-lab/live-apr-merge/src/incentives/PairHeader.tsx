@@ -92,6 +92,8 @@ const PairName = styled.span`
 `
 const PoolDescription = styled.span`
   display: flex;
+  justify-content: flex-end;
+  opacity: 0.64;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px 20px;
