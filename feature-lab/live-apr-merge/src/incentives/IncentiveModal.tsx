@@ -78,10 +78,12 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
     setPreview({amount:deposit,reward})
     void flow.review(offer,deposit)
   }
-  async function back(){
+  function back(){
     if(busy||claiming.current||goingBack.current)return
     goingBack.current=true
-    try{if(await flow.reset()&&mounted.current){setPreview(null)}}
+    // Back is local navigation, not a network action. The hook immediately
+    // hides stale quotes and serializes cleanup with any subsequent Continue.
+    try{setPreview(null);void flow.reset(true)}
     finally{goingBack.current=false}
   }
   async function claim(){

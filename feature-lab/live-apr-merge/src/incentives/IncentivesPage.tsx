@@ -32,7 +32,9 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   // The shared router owns paths; the feature keeps its existing flow state.
   const route=useLocation().pathname.replace(/\/+$/,'')||'/'
   const navigate=useNavigate()
-  const price=useOfferPrice(flow.quote||flow.preparing?null:selected)
+  // Keep the cached amount preview available during background quote cleanup.
+  // Its own shared cache/timer bounds reads; Back never waits for a fresh RPC.
+  const price=useOfferPrice(flow.quote?null:selected)
   const groups=Array.from(new Set(catalog.offers.map(o=>o.pairId))).map(id=>catalog.offers.filter(o=>o.pairId===id))
   // Preserve the opener across asynchronous checkout selection and disabled paint.
   const opener=useRef<HTMLElement|null>(null),opening=useRef(false)

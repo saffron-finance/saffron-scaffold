@@ -1,8 +1,12 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.2 — frontend-only release
+## Version 0.8.3 — frontend-only release
 
-Adds token-pair/reward progress titles, collapsed deployment diagnostics and
+Makes Back immediate while unpaid quote cleanup runs independently, preserving
+recovery and serializing subsequent reviews. The isolated `test:checkout-navigation`
+suite holds API responses to verify rapid edits, failed cleanup and safe payment.
+
+Retains token-pair/reward progress titles, collapsed deployment diagnostics and
 expandable claim errors beneath the action. Retains the linked impermanent-loss
 disclosure and concise request-fee review.
 Includes the responsive header and mobile cards, wallet/modal redesign, admin

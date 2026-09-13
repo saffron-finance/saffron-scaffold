@@ -17,6 +17,11 @@ export function useDeploymentFlow(account:Address|null){
   // Its promise outlives a modal; the local draft remains the recovery anchor.
   const [preparing,setPreparing]=useState(false)
   const preparation=useRef<Promise<any|null>|null>(null)
+  // Navigation invalidates the visible review immediately. The durable ledger
+  // stays intact until background withdrawal succeeds, including lost replies.
+  const [reviewHidden,setReviewHidden]=useState(false)
+  const reviewRevision=useRef(0),cleanupNeeded=useRef(false)
+  const cleanup=useRef<Promise<boolean>|null>(null)
   const alive=useRef(true)
   const owner=useRef(account);owner.current=account
   const isCurrent=()=>alive.current&&owner.current===account
@@ -26,16 +31,17 @@ export function useDeploymentFlow(account:Address|null){
     try{update(readPayments(localStorage,account));setDeployment(null)}catch(cause){setError((cause as Error).message)}
   }
   useEffect(()=>{
-    alive.current=true;setSaved(null);setDraft(null);setRecords([]);setDeployment(null);setError(undefined);setRecoveryHash('');setBusy(false);restore()
+    alive.current=true;reviewRevision.current++;preparation.current=null;cleanup.current=null;cleanupNeeded.current=false
+    setReviewHidden(false);setPreparing(false);setSaved(null);setDraft(null);setRecords([]);setDeployment(null);setError(undefined);setRecoveryHash('');setBusy(false);restore()
     const changed=()=>{try{if(account)update(readPayments(localStorage,account))}catch(cause){setError((cause as Error).message)}}
     window.addEventListener('storage',changed);window.addEventListener('saffron:payment-record',changed)
     return()=>{alive.current=false;window.removeEventListener('storage',changed);window.removeEventListener('saffron:payment-record',changed)}
   },[account])
-  async function coordinated(operation:(ledger:Payments,persist:(payment:Payment,active?:boolean)=>void,prepare:(draft:CheckoutDraft|null)=>void)=>Promise<void>,background=false):Promise<boolean>{
+  async function coordinated(operation:(ledger:Payments,persist:(payment:Payment,active?:boolean)=>void,prepare:(draft:CheckoutDraft|null)=>void)=>Promise<void>,foreground=true,relevant=isCurrent):Promise<boolean>{
     if(!account)return true
     if(!navigator.locks){setError('Use a browser with Web Locks support to coordinate wallet payments.');return false}
-    const setWorking=background?setPreparing:setBusy
-    setWorking(true);setError(undefined)
+    if(foreground)setBusy(true)
+    if(relevant())setError(undefined)
     try{await navigator.locks.request('saffron.wallet-action:'+account.toLowerCase(),{ifAvailable:true},async lock=>{
       if(!lock)throw new Error('Another wallet action is in progress.')
       let ledger=readPayments(localStorage,account);update(ledger)
@@ -43,7 +49,7 @@ export function useDeploymentFlow(account:Address|null){
         ledger=savePayment(localStorage,account,ledger,payment,{active});update(ledger)
         window.dispatchEvent(new Event('saffron:payment-record'))
       },draft=>{ledger=saveCheckoutDraft(localStorage,account,ledger,draft);update(ledger);window.dispatchEvent(new Event('saffron:payment-record'))})
-    });return true}catch(cause){if(isCurrent())setError((cause as Error).message);return false}finally{if(isCurrent())setWorking(false)}
+    });return true}catch(cause){if(relevant())setError((cause as Error).message);return false}finally{if(foreground&&isCurrent())setBusy(false)}
   }
   function finish(payment:Payment,persist:(payment:Payment,active?:boolean)=>void,result:any){
     if(!account)return
@@ -64,8 +70,19 @@ export function useDeploymentFlow(account:Address|null){
   })
   function review(offer:Offer,amount:string):Promise<any|null>{
     if(preparation.current)return preparation.current
+    // A failed cleanup keeps its recovery record. Retry it only on another
+    // explicit Continue/Claim, never on a polling timer or while navigating.
+    if(cleanupNeeded.current&&!cleanup.current)void reset(true)
+    const pendingCleanup=cleanup.current,revision=reviewRevision.current
+    const relevant=()=>isCurrent()&&revision===reviewRevision.current
+    setPreparing(true);setError(undefined)
     let prepared:any=null
-    const task=coordinated(async(ledger,persist,prepare)=>{
+    const task=(async()=>{
+    // Queue a new quote behind the previous cancellation without holding the
+    // screen or acquiring competing Web Locks. Back can invalidate this wait.
+    if(pendingCleanup&&!await pendingCleanup)return null
+    if(!relevant())return null
+    const ok=await coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
     await assertWalletAccount(account);await ensureChain(robinhoodChain)
     if(ledger.activeId)throw new Error('Resume or close the saved payment review before starting another request.')
@@ -81,10 +98,15 @@ export function useDeploymentFlow(account:Address|null){
       ||q.fee?.amountWei!==offer.requestFeeWei||integer(q.fee.amountWei,{positive:true})!==q.fee.amountWei||q.fee.asset!=='ETH'||q.recoveryHash!==proofHash(recoverySecret)||q.paymentData!==paymentData(q))throw new Error('Payment or deployment terms changed. Refresh before paying.')
     await assertWalletAccount(account)
     if(!isCurrent())throw new Error('Wallet changed during request preparation. Reopen the review.')
-    persist({quote:q,recoverySecret,sent:false,status:'prepared'});prepared=q
-    },true).then(ok=>ok?prepared:null)
+    persist({quote:q,recoverySecret,sent:false,status:'prepared'})
+    // An old response must still be saved for cancellation/recovery, but it
+    // must never resurrect the review that Back has already left.
+    if(relevant()){prepared=q;setReviewHidden(false)}
+    },false,relevant)
+    return ok?prepared:null
+    })()
     preparation.current=task
-    void task.finally(()=>{if(preparation.current===task)preparation.current=null})
+    void task.finally(()=>{if(preparation.current===task)preparation.current=null;if(relevant())setPreparing(false)})
     return task
   }
   const pay=(retryMissingHash=false,expectedQuoteId?:string)=>coordinated(async(ledger,persist)=>{
@@ -138,9 +160,18 @@ export function useDeploymentFlow(account:Address|null){
     }
     accepted(await requestJson('/deployments',{quoteId:payment.quote.id,paymentHash:payment.hash,recoverySecret:payment.recoverySecret}))
   })
-  // Wait for the in-flight quote before withdrawing it. This prevents a late
-  // response from resurrecting a checkout after Back/discard was selected.
-  const reset=async()=>{await preparation.current;return coordinated(async(ledger,persist,prepare)=>{
+  /** Hide an unpaid review synchronously; finish cancellation independently.
+   * Background mode never disables navigation. Awaiting callers still receive
+   * the actual server result before changing the selected checkout. */
+  function reset(background=false):Promise<boolean>{
+    if(saved?.sent){setError('Recover the existing payment before starting another request.');return Promise.resolve(false)}
+    const pendingPreparation=preparation.current,pendingCleanup=cleanup.current
+    reviewRevision.current++;preparation.current=null;cleanupNeeded.current=true
+    setReviewHidden(true);setPreparing(false);setError(undefined)
+    const task=(async()=>{
+    await pendingCleanup;await pendingPreparation
+    if(!isCurrent())return false
+    const ok=await coordinated(async(ledger,persist,prepare)=>{
     const current=ledger.activeId?ledger.records[ledger.activeId]:null
     if(current?.sent)throw new Error('Recover the existing payment before starting another request.')
     if(ledger.draft){
@@ -151,13 +182,19 @@ export function useDeploymentFlow(account:Address|null){
     }
     if(current){await requestJson('/deployment-quotes/withdraw',{quoteId:current.quote.id,recoverySecret:current.recoverySecret});persist({...current,status:'abandoned'},false)}
     if(isCurrent()){setDeployment(null);setRecoveryHash('')}
-  })}
+    },!background)
+    return ok
+    })()
+    cleanup.current=task
+    void task.then(ok=>{if(cleanup.current===task){cleanupNeeded.current=!ok;cleanup.current=null}})
+    return task
+  }
   // Navigation changes the active checkout only. It never abandons sent fees.
-  const select=async(id:string|null=null)=>{await preparation.current;return coordinated(async ledger=>{
+  const select=async(id:string|null=null)=>{if(cleanup.current&&!await cleanup.current)return false;await preparation.current;return coordinated(async ledger=>{
     if(!account)return
     if(ledger.draft)throw new Error('Resume the saved checkout before starting another request.')
     update(selectPayment(localStorage,account,ledger,id))
-    setDeployment(null);setRecoveryHash('');window.dispatchEvent(new Event('saffron:payment-record'))
+    setReviewHidden(false);setDeployment(null);setRecoveryHash('');window.dispatchEvent(new Event('saffron:payment-record'))
   })}
-  return {preparing,quote:saved?.quote??null,deployment,saved,draft,busy,error,records,startNew:()=>select(),resumePayment:(id:string)=>select(id),review,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
+  return {preparing,quote:reviewHidden?null:saved?.quote??null,deployment,saved,draft,busy,error,records,startNew:()=>select(),resumePayment:(id:string)=>select(id),review,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
 }
