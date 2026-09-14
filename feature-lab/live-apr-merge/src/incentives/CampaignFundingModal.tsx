@@ -10,11 +10,11 @@ import type { Deployment } from './model'
 export function CampaignFundingModal({account,row,onClose}:{account:Address;row:Deployment;onClose:()=>void}){
   const flow=useVaultPosition(account,row.id,'fund'),[hash,setHash]=useState('')
   const snapshot=flow.context?.snapshot??row.observation
-  const close=()=>{if(!flow.busy)onClose()}
-  return <Modal isOpen contentLabel='Fund campaign' onRequestClose={close} shouldCloseOnOverlayClick={!flow.busy}
+  const close=()=>{if(!flow.closeBlocked){flow.cancelPreflight();onClose()}}
+  return <Modal isOpen contentLabel='Fund campaign' onRequestClose={close} shouldCloseOnOverlayClick={!flow.closeBlocked}
     contentStyle={{padding:'20px 24px 26px',maxWidth:560,width:'calc(100vw - 32px)',boxSizing:'border-box'}}>
     <Stack data-campaign-funding={row.id}>
-      <Row><ModalTitle style={{margin:0}}>Fund campaign</ModalTitle><QuietButton aria-label='Close campaign funding' disabled={flow.busy} onClick={close}>×</QuietButton></Row>
+      <Row><ModalTitle style={{margin:0}}>Fund campaign</ModalTitle><QuietButton aria-label='Close campaign funding' disabled={flow.closeBlocked} onClick={close}>×</QuietButton></Row>
       <b>{row.snapshot.display.pair} · {row.snapshot.durationSeconds/86400} days</b>
       <FinePrint>From your connected admin wallet on Robinhood. ETH is needed separately for network gas.</FinePrint>
       <ul style={{paddingLeft:18,margin:0,fontSize:13,lineHeight:1.5,overflowWrap:'anywhere'}}>
@@ -32,11 +32,11 @@ export function CampaignFundingModal({account,row,onClose}:{account:Address;row:
         <FinePrint>A submitted wallet action needs confirmation. Check it before making another payment.</FinePrint>
         {flow.pending.hash&&<a href={'https://robinhoodchain.blockscout.com/tx/'+flow.pending.hash} target='_blank' rel='noreferrer'>View funding transaction ↗</a>}
         <label>Transaction hash (if the wallet response was lost)<input aria-label='Recover funding transaction hash' value={hash} onChange={e=>setHash(e.target.value)} style={{width:'100%',boxSizing:'border-box'}}/></label>
-        <PrimaryAction disabled={flow.busy||(!flow.pending.hash&&!/^0x[0-9a-fA-F]{64}$/.test(hash))} onClick={()=>void flow.recover(hash?hash as Hex:undefined)}>{flow.busy?'Confirming wallet action…':'Check funding transaction'}</PrimaryAction>
+        <PrimaryAction disabled={flow.busy||(!flow.pending.hash&&!/^0x[0-9a-fA-F]{64}$/.test(hash))} onClick={()=>void flow.recover(hash?hash as Hex:undefined)}>{flow.busy?(flow.closeBlocked?'Confirming wallet action…':'Preparing wallet action…'):'Check funding transaction'}</PrimaryAction>
       </Stack>:!flow.completed?<>
         <QuietButton disabled={flow.busy} onClick={()=>void flow.refresh()}>Refresh funding amount</QuietButton>
-        <PrimaryAction disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?'Confirming wallet action…':flow.quote?.action.label??'Fund campaign'}</PrimaryAction>
-      </>:<PrimaryAction disabled={flow.busy} onClick={close}>Done</PrimaryAction>}
+        <PrimaryAction disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?(flow.closeBlocked?'Confirming wallet action…':'Preparing wallet action…'):flow.quote?.action.label??'Fund campaign'}</PrimaryAction>
+      </>:<PrimaryAction disabled={flow.closeBlocked} onClick={close}>Done</PrimaryAction>}
     </Stack>
   </Modal>
 }

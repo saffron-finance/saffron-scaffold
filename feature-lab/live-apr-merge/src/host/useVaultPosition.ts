@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { decodeEventLog, encodeAbiParameters, encodeFunctionData, formatUnits, type Address, type Hex } from 'viem'
-import { walletClient, walletPublicClient, assertWalletAccount, ensureChain } from '@lab/wallet/wallet'
+import { walletClient, walletPublicClient, assertWalletAccount, ensureChain, selectedWalletProviderId } from '@lab/wallet/wallet'
+import { WalletPreflight } from '@lab/wallet/preflight'
 import { robinhoodChain } from '@lab/chain/chains'
 import { abi, WETH, eligibility, sameAddress } from '../../shared/vault-lifecycle.mjs'
 import { amountsForLiquidity, ceilDiv } from '../../shared/liquidity-math.mjs'
@@ -29,6 +30,19 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   const [quote, setQuote] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Preparing reads can be cancelled. Only an actual send/recovery blocks
+  // closing; busy still disables duplicate action buttons during preparation.
+  const [closeBlocked, setCloseBlocked] = useState(false)
+  const identity = account.toLowerCase()+':'+deploymentId+':'+mode
+  const view = useRef(identity);view.current=identity
+  const mounted = useRef(true)
+  const operation = useRef<{scope:WalletPreflight;submitted:boolean}|null>(null)
+  const refreshing = useRef<WalletPreflight|null>(null)
+  const isVisible = () => mounted.current && view.current===identity
+  const cancelPreflight = () => {
+    if(operation.current&&!operation.current.submitted)operation.current.scope.cancel()
+    refreshing.current?.cancel()
+  }
   const [completed, setCompleted] = useState(false)
   const foregroundState = useRef<() => void>(() => {})
   const [pending, setPending] = useState<Intent | null>(() => {
@@ -42,27 +56,35 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     else localStorage.removeItem(key)
     setPending(value)
   }
-  async function load() {
+  async function load(scope?: WalletPreflight) {
+    // Guard both network continuations and their UI updates. A late context
+    // response from a closed/replaced review cannot overwrite the new review.
+    const read = <T>(work:()=>Promise<T>) => scope ? scope.read(work) : work()
     if(adminMode){
       // Never trigger a surprise login signature on a background refresh.
-      if(!(await readSession(account))?.operator)throw new Error('Sign in as an operator before continuing.')
-      const value=await authedJson(account,contextPath)
+      if(!(await read(()=>readSession(account)))?.operator)throw new Error('Sign in as an operator before continuing.')
+      // The fresh session above is sufficient for this authenticated GET.
+      // Do not use the login-capable helper inside cancellable preflight work.
+      const value=await read(()=>requestJson(contextPath))
+      scope?.assertActive()
       if(!sameAddress(value.funder,account))throw new Error('The signed-in funding wallet changed.')
       setContext(value)
       if(mode==='campaign-withdraw'){
         const fresh=campaignWithdrawalQuote(value);setQuote(fresh);setError(null);return fresh
       }
       const terms=campaignFundingTerms(value.deployment)
-      const [balance,allowance]=await Promise.all([
+      const [balance,allowance]=await read(()=>Promise.all([
         robinhoodClient.readContract({address:terms.token.address,abi,functionName:'balanceOf',args:[account]}) as Promise<bigint>,
         robinhoodClient.readContract({address:terms.token.address,abi,functionName:'allowance',args:[account,terms.vault]}) as Promise<bigint>,
-      ])
+      ]))
+      scope?.assertActive()
       const blocked=balance<terms.remaining?'Insufficient '+terms.token.symbol+' in your connected wallet.':null
       const fresh={phase:null,snapshot:value.snapshot,tokens:[terms.token],rawAmounts:[terms.remaining],maximums:[terms.remaining],
         action:campaignFundingAction(terms,allowance),blocked}
       setQuote(fresh);setError(blocked);return fresh
     }
-    const value = await requestJson('/deployments/' + deploymentId + '/context')
+    const value = await read(()=>requestJson('/deployments/' + deploymentId + '/context'))
+    scope?.assertActive()
     // The context endpoint freshly reads the trusted-factory vault and this
     // viewer's balances. Do not repeat that entire observation in the browser.
     const snapshot = value.snapshot
@@ -78,11 +100,12 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     const amounts = amountsForLiquidity(snapshot.liquidity,snapshot.sqrtPrice,snapshot.minTick,snapshot.maxTick)
     const tokens = [snapshot.token0,snapshot.token1]
     const rawAmounts = [amounts.amount0,amounts.amount1]
-    const [balances, allowances, native] = await Promise.all([
+    const [balances, allowances, native] = await read(()=>Promise.all([
       Promise.all(tokens.map(token => robinhoodClient.readContract({ address: token.address,abi,functionName:'balanceOf',args:[account] }) as Promise<bigint>)),
       Promise.all(tokens.map(token => robinhoodClient.readContract({ address: token.address,abi,functionName:'allowance',args:[account,snapshot.adapter] }) as Promise<bigint>)),
       robinhoodClient.getBalance({address:account}),
-    ])
+    ]))
+    scope?.assertActive()
     // A 0.5% explicit token-spend envelope, not an unlimited approval.
     const maximums = rawAmounts.map(amount => ceilDiv(amount * 10050n,10000n))
     let blocked: string | null = null
@@ -111,10 +134,23 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     return fresh
   }
   async function refresh() {
+    if(operation.current&&!operation.current.submitted)return
+    refreshing.current?.cancel()
+    const scope=new WalletPreflight(isVisible);refreshing.current=scope
     setError(null);setQuote(null)
-    try { await load() } catch(cause) { setQuote(null);setError(cause instanceof Error?cause.message:'Deposit unavailable.') }
+    try { await load(scope) }
+    catch(cause) { if(isVisible()&&refreshing.current===scope){setQuote(null);setError(cause instanceof Error?cause.message:'Deposit unavailable.')} }
+    finally { if(refreshing.current===scope)refreshing.current=null }
   }
-  useEffect(()=>{ void refresh() },[account,deploymentId,mode])
+  useEffect(()=>{
+    mounted.current=true
+    setBusy(false);setCloseBlocked(false);setCompleted(false)
+    void refresh()
+    return()=>{
+      mounted.current=false;cancelPreflight()
+      if(operation.current&&!operation.current.submitted)operation.current=null
+    }
+  },[account,deploymentId,mode])
   foregroundState.current=()=>{
     if(busy||completed||document.hidden)return
     // A return is permission to read evidence, never to submit a wallet action.
@@ -169,13 +205,13 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   }
   async function recover(hash?: Hex) {
     if(!pending)return
-    setBusy(true);setError(null)
+    setBusy(true);setCloseBlocked(true);setError(null)
     try {await assertWalletAccount(account);const intent={...pending,...(hash?{hash}:{})};persist(intent);await confirm(intent)}
     catch(cause){setError(cause instanceof Error?cause.message:'Recovery check failed. Record retained.')}
-    finally{setBusy(false)}
+    finally{setBusy(false);setCloseBlocked(false)}
   }
-  async function sendAction() {
-    setBusy(true);setError(null)
+  async function sendAction(run: {scope:WalletPreflight;submitted:boolean}) {
+    const scope=run.scope
     try {
       if(adminMode&&localStorage.getItem(mode==='fund'?campaignWithdrawalStorageKey(account,deploymentId):fundingStorageKey(account,deploymentId)))throw new Error('Recover the previous campaign wallet action before starting another.')
       const stored=localStorage.getItem(key)
@@ -185,11 +221,12 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
         if(!sameAddress(intent?.account,account)||intent.deploymentId!==deploymentId||!Number.isSafeInteger(intent.nonce)||intent.nonce<0)throw new Error('Saved wallet action cannot be read. Preserve its record and recover the original transaction before continuing.')
         setPending(intent);return
       }
-      await assertWalletAccount(account);await ensureChain(robinhoodChain)
+      await scope.read(()=>assertWalletAccount(account));await ensureChain(robinhoodChain,scope)
+      scope.assertActive()
       // A captured review is required for funding; opening/reloading a modal
       // cannot itself authorize a transaction, even if the context later loads.
       if(adminMode&&!quote)throw new Error('Refresh and review the wallet action first.')
-      const fresh=await load()
+      const fresh=await load(scope)
       if(!fresh?.action)throw new Error('This position has no available wallet action.')
       if(fresh.blocked) throw new Error(fresh.blocked)
       if(quote && (fresh.action.stage!==quote.action.stage || fresh.action.stage==='deposit'&&fresh.rawAmounts.some((value:bigint,i:number)=>value>quote.maximums[i])
@@ -198,33 +235,61 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       }
       const action=fresh.action
       // Gas simulation uses only the selected wallet, never the read-only relay.
-      await walletPublicClient(robinhoodChain).estimateGas({account,to:action.to,data:action.data,value:action.value})
-      await assertWalletAccount(account)
+      await scope.read(()=>walletPublicClient(robinhoodChain).estimateGas({account,to:action.to,data:action.data,value:action.value}))
+      await scope.read(()=>assertWalletAccount(account))
       // Bind recovery to this nonce, not an older identical wrap/approval hash.
-      const nonce = await walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'})
+      const nonce = await scope.read(()=>walletPublicClient(robinhoodChain).getTransactionCount({address:account,blockTag:'pending'}))
       // Simulation/wallet-network work can outlive a program pause. Refresh its
       // authoritative policy and ownership again immediately before prompting.
       if(mode==='campaign-withdraw'){
-        const latest=await load()
+        const latest=await load(scope)
         if(!latest||latest.phase!==fresh.phase||latest.rawAmounts[0]!==fresh.rawAmounts[0])throw new Error('Withdrawal changed. Review the updated modal before continuing.')
-        await assertWalletAccount(account)
+        await scope.read(()=>assertWalletAccount(account))
       }
+      // Recheck after a slow nonce/context read. Revocation is checked again
+      // synchronously at the send boundary, before any durable intent exists.
+      await scope.read(()=>assertWalletAccount(account))
+      if(await scope.read(()=>walletPublicClient(robinhoodChain).getChainId())!==robinhoodChain.id)throw new Error('Wallet network changed. Review the action again.')
+      scope.assertActive()
       const intent:Intent={stage:action.stage,account,deploymentId,to:action.to,data:action.data,value:action.value.toString(),nonce}
-      persist(intent)
+      const client=walletClient({scope,onSubmit:()=>{
+        // The SDK can perform another silent chain read before sending. Keep
+        // that read cancellable, and persist only when the provider is called.
+        persist(intent)
+        run.submitted=true;setCloseBlocked(true)
+      }})
       let hash:Hex
-      try {hash=await walletClient().sendTransaction({chain:robinhoodChain,account,to:action.to,data:action.data,value:action.value,nonce})}
+      try {hash=await client.sendTransaction({chain:robinhoodChain,account,to:action.to,data:action.data,value:action.value,nonce})}
       catch(cause){if(rejected(cause))persist(null);throw cause}
       const saved={...intent,hash};persist(saved);await confirm(saved)
-    }catch(cause){if(mode==='campaign-withdraw')setQuote(null);setError(cause instanceof Error?cause.message:'Wallet action failed. Check recovery before retrying.')}
-    finally{setBusy(false)}
+    }catch(cause){
+      if(isVisible()&&operation.current===run){
+        if(mode==='campaign-withdraw')setQuote(null)
+        setError(cause instanceof Error?cause.message:'Wallet action failed. Check recovery before retrying.')
+      }
+    }
   }
   async function advance(){
+    if(operation.current)return
     if(!navigator.locks){setError('This browser cannot coordinate wallet actions safely. Use a browser with Web Locks support.');return}
-    await navigator.locks.request('saffron.wallet-action:'+account.toLowerCase(),{ifAvailable:true},async lock=>{
-      if(!lock){setError('Another Saffron wallet action is in progress. Finish it before continuing.');return}
-      await sendAction()
-    })
+    refreshing.current?.cancel();refreshing.current=null
+    const provider=selectedWalletProviderId()
+    const run={scope:new WalletPreflight(()=>isVisible()&&selectedWalletProviderId()===provider),submitted:false}
+    operation.current=run;setBusy(true);setError(null)
+    try{
+      await navigator.locks.request('saffron.wallet-action:'+account.toLowerCase(),{ifAvailable:true},async lock=>{
+        run.scope.assertActive()
+        if(!lock)throw new Error('Another Saffron wallet action is in progress. Finish it before continuing.')
+        await sendAction(run)
+      })
+    }catch(cause){if(isVisible()&&operation.current===run)setError(cause instanceof Error?cause.message:'Wallet action unavailable.')}
+    finally{
+      if(operation.current===run){
+        operation.current=null
+        if(isVisible()){setBusy(false);setCloseBlocked(false)}
+      }
+    }
   }
-  return {context,quote,error,busy,completed,pending,refresh,advance,recover,
+  return {context,quote,error,busy,closeBlocked,cancelPreflight,completed,pending,refresh,advance,recover,
     amountLabel:(i:number)=>quote?formatUnits(quote.rawAmounts[i],quote.tokens[i].decimals):'—'}
 }

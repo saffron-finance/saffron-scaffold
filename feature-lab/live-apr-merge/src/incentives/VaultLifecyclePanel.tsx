@@ -12,7 +12,7 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
   const [error,setError]=useState<string>(),[hash,setHash]=useState(''),[cancelling,setCancelling]=useState(false)
   const mode=verificationError?'view':row?.canClaim?'claim':row?.canWithdraw?'withdraw':row?.canRecover?'recover':row?.depositable?'deposit':'view'
   const flow=useVaultPosition(account,id,mode)
-  useEffect(()=>{onBusy(flow.busy||cancelling)},[flow.busy,cancelling])
+  useEffect(()=>{onBusy(flow.closeBlocked||cancelling)},[flow.closeBlocked,cancelling])
   const s=flow.quote?.snapshot??row?.observation
   return <Stack data-vault-lifecycle={id}>
     <b role='status'>{row?statusLabel(row.state):'Loading your vault…'}</b>
@@ -41,7 +41,7 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
       <Action disabled={flow.busy||(!flow.pending.hash&&!/^0x[0-9a-fA-F]{64}$/.test(hash))} onClick={()=>void flow.recover(hash?hash as Hex:undefined)}>{flow.busy?'Checking transaction…':'Check transaction'}</Action>
     </Stack>:mode!=='view'?<>
       <QuietButton disabled={flow.busy} onClick={()=>void flow.refresh()}>Refresh position</QuietButton>
-      <Action disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?'Confirming wallet action…':flow.quote?.action.label??'Checking position…'}</Action>
+      <Action disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?(flow.closeBlocked?'Confirming wallet action…':'Preparing wallet action…'):flow.quote?.action.label??'Checking position…'}</Action>
     </>:null}
     {row?.state==='completed'&&<FinePrint>Your fixed withdrawal is confirmed and your LP assets have been returned.</FinePrint>}
     {row?.transactions.length?<Disclosure><summary>Deployment transactions</summary>{row.transactions.map(tx=><p key={tx.hash}><a target='_blank' rel='noreferrer' href={'https://robinhoodchain.blockscout.com/tx/'+tx.hash}>{tx.step.replaceAll('-',' ')} · {tx.confirmed?'confirmed':tx.reverted?'failed':'pending'} ↗</a></p>)}</Disclosure>:null}

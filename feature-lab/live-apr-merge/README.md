@@ -1,6 +1,12 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.6 — frontend-only release
+## Version 0.8.7 — frontend-only release
+
+Bounds silent wallet preflight reads to 15 seconds, releases the shared wallet
+lock on timeout or close, and ignores late results. Preparation remains
+cancellable until the actual provider-send boundary, including viem's final
+internal chain read. Durable recovery and zero-retry wallet writes are retained.
+See [wallet preflight](docs/wallet-preflight.md) and `test:wallet-preflight`.
 
 Adds an operator-only deployer ETH balance card to Administration and Campaigns.
 It uses optional `walletBalance` metadata on the existing `server-gas` health

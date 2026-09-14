@@ -19,7 +19,6 @@
     "shared/campaign.d.mts": "be4779f2dd162c64480b76890ef43a7365f2811976fee79e70683725d3eceaca",
     "src/adapters/chain/chains.ts": "97c4fc701f493de262203301dbabca9f3cec0c248734d26b1a213840e49b1ae8",
     "src/adapters/hooks/useWallet.ts": "76e24f558b62c24ce9da30ed4a98e92b7a1be6fa5fc65130d5182c4b778dedf1",
-    "src/adapters/wallet/wallet.ts": "18ae1a1360b4176d0e933ee5019f6ee8accd96d59558b489cadae985acd02b5c",
     "src/host/transport.ts": "827b3c8549cc04aa3759005e02506699e74a977caee3f35838f04f341a79e100",
     "src/host/useDeployments.ts": "57513c918a76d5b3a3c9f26afe86a6f60efa794d4da4157a453ccb9ad78b6e26",
     "src/host/useDeploymentStatus.ts": "e0b27895fbb8a3dc7950835a8b1593158af308a7984bed211beef49ef5114479",
@@ -50,8 +49,9 @@
     "vendor/fixed-income-ui/shared/components/Modal.tsx",
     "src/incentives/OperatorOverview.tsx",
     "src/incentives/OperatorStatus.tsx",
-    "src/incentives/JourneyGuide.tsx"
+    "src/incentives/JourneyGuide.tsx",
+    "src/adapters/wallet/wallet.ts"
   ],
   "frontendRelease": "0.8.0",
-  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update."
+  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md."
 }

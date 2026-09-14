@@ -1,3 +1,4 @@
+import { boundedWalletRead, type WalletPreflight } from './preflight'
 import { WALLETCONNECT_ID, WALLETCONNECT_RDNS, walletConnectConfigured, walletConnectConnector } from './walletconnect'
 import { createPublicClient, createWalletClient, custom, type Address, type Chain } from 'viem'
 
@@ -209,15 +210,37 @@ function requireSelectedProvider(): Eip1193Provider {
   return wallet.provider
 }
 
-export function walletClient() {
-  // A lost wallet response belongs to transaction recovery, not automatic retries.
-  return createWalletClient({ transport: custom(requireSelectedProvider(), { retryCount: 0 }) })
+export function walletClient(preflight?: {scope: WalletPreflight; onSubmit: () => void}) {
+  const provider = requireSelectedProvider()
+  let submitted = false
+  // viem also performs silent account/chain reads inside wallet actions. Bound
+  // those reads, but NEVER time out or retry a send, signature or wallet prompt.
+  // A lost wallet response belongs to durable recovery, not another submission.
+  const reads = new Set(['eth_accounts', 'eth_chainId', 'eth_estimateGas', 'eth_getTransactionCount'])
+  return createWalletClient({ transport: custom({ request: args => {
+    // viem's last chain read is still preflight. Commit the recovery record
+    // only at the actual provider-send boundary, not before that silent read.
+    if (preflight && !submitted) {
+      if (args.method === 'eth_sendTransaction' || args.method === 'wallet_sendTransaction') {
+        preflight.scope.assertActive()
+        preflight.onSubmit()
+        submitted = true
+      } else if (reads.has(args.method)) {
+        return preflight.scope.read(() => provider.request(args))
+      }
+    }
+    return reads.has(args.method) ? boundedWalletRead(() => provider.request(args)) : provider.request(args)
+  },
+  }, { retryCount: 0 }) })
 }
 
 // Use this only for wallet-specific reads such as gas estimation. Receipt and
 // contract-state reads use the independent chain client, including on Uniswap.
 export function walletPublicClient(chain: Chain) {
-  return createPublicClient({ chain, transport: custom(requireSelectedProvider()) })
+  const provider = requireSelectedProvider()
+  return createPublicClient({ chain, transport: custom({
+    request: args => boundedWalletRead(() => provider.request(args)),
+  }, { retryCount: 0 }) })
 }
 
 /** Prompt for accounts through one explicit provider from the wallet modal. */
@@ -263,7 +286,7 @@ export async function disconnect(): Promise<void> {
 // reconnecting the This application UI on the next render.
 export async function currentAccounts(): Promise<Address[]> {
   try {
-    return await walletClient().getAddresses()
+    return await boundedWalletRead(() => walletClient().getAddresses())
   } catch {
     return []
   }
@@ -271,7 +294,7 @@ export async function currentAccounts(): Promise<Address[]> {
 
 export async function currentChainId(): Promise<number | undefined> {
   try {
-    return await walletClient().getChainId()
+    return await boundedWalletRead(() => walletClient().getChainId())
   } catch {
     return undefined
   }
@@ -279,7 +302,7 @@ export async function currentChainId(): Promise<number | undefined> {
 
 /** Stop if the user changed accounts while a confirmation dialog was open. */
 export async function assertWalletAccount(expected: Address): Promise<void> {
-  const accounts = await walletClient().getAddresses()
+  const accounts = await boundedWalletRead(() => walletClient().getAddresses())
   if (accounts[0]?.toLowerCase() !== expected.toLowerCase()) {
     throw new Error('Wallet account changed. Reconnect the original account before continuing.')
   }
@@ -287,13 +310,18 @@ export async function assertWalletAccount(expected: Address): Promise<void> {
 
 // Ensure the wallet is on `chain`; switch, and add it first if the wallet does
 // not know it. The selected provider is shared with every deposit helper.
-export async function ensureChain(chain: Chain): Promise<void> {
+export async function ensureChain(chain: Chain, scope?: WalletPreflight): Promise<void> {
   const client = walletClient()
-  const current = await client.getChainId()
+  // Only silent reads have deadlines. A cancelled switch must never continue
+  // into addChain, another switch, or a later transaction prompt.
+  const read = <T>(operation: () => Promise<T>) => scope ? scope.read(operation) : boundedWalletRead(operation)
+  const prompt = <T>(operation: () => Promise<T>) => scope ? scope.prompt(operation) : operation()
+  const current = await read(() => client.getChainId())
   if (current === chain.id) return
   try {
-    await client.switchChain({ id: chain.id })
+    await prompt(() => client.switchChain({ id: chain.id }))
   } catch (error) {
+    scope?.assertActive()
     // viem wraps EIP-1193 errors; 4902 can live several causes below the top.
     let nested: unknown = error
     let code: number | undefined
@@ -304,13 +332,13 @@ export async function ensureChain(chain: Chain): Promise<void> {
     }
     const notAdded = code === 4902 || /unrecognized chain|not been added|addEthereumChain/i.test(String(error))
     if (notAdded && chain.rpcUrls.default.http[0]) {
-      await client.addChain({ chain })
-      await client.switchChain({ id: chain.id })
+      await prompt(() => client.addChain({ chain }))
+      await prompt(() => client.switchChain({ id: chain.id }))
     } else {
       throw error
     }
   }
-  if (await client.getChainId() !== chain.id) throw new Error('Wallet did not switch to the requested network.')
+  if (await read(() => client.getChainId()) !== chain.id) throw new Error('Wallet did not switch to the requested network.')
 }
 
 /** Subscribe only to the provider currently selected in the wallet modal. */

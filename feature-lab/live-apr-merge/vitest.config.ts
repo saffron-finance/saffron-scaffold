@@ -5,6 +5,7 @@ const here = (file: string) => fileURLToPath(new URL(file, import.meta.url))
 export default defineConfig({
   esbuild: { jsx: 'automatic' },
   resolve: { alias: {
+    '@lab': here('./src/adapters'),
     '@fixed': here('./vendor/fixed-income-ui'),
     '@packages/onchain-config/live-pool-apr/pools.json': here('./vendor/live-apr-shared/pools.json'),
     '@packages/api-types/live-pool-apr.mjs': here('./vendor/live-apr-shared/live-pool-apr.mjs'),

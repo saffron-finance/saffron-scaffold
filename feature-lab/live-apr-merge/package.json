@@ -1,7 +1,7 @@
 {
   "name": "saffron-live-apr-merge",
   "private": true,
-  "version": "0.8.6",
+  "version": "0.8.7",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -20,7 +20,8 @@
     "test:walletconnect": "node tests/run-walletconnect.mjs",
     "test:configuration": "node tests/configuration-browser.mjs",
     "test:status": "node tests/status-browser.mjs",
-    "test:checkout-navigation": "node tests/checkout-navigation-browser.mjs"
+    "test:checkout-navigation": "node tests/checkout-navigation-browser.mjs",
+    "test:wallet-preflight": "node tests/wallet-preflight-browser.mjs"
   },
   "dependencies": {
     "@reown/appkit": "1.8.19",
