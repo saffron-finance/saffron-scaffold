@@ -1,6 +1,11 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.7 — frontend-only release
+## Version 0.8.8 — frontend-only release
+
+Keeps intake form fields bound to the saved policy revision. Existing watcher
+and service settings initialize the form; concurrent operator changes require
+an explicit reload/review, never a silent merge into a newer revision. Pause
+preserves saved settings. See [intake editing](docs/intake-policy.md).
 
 Bounds silent wallet preflight reads to 15 seconds, releases the shared wallet
 lock on timeout or close, and ignores late results. Preparation remains
