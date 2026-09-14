@@ -4,11 +4,11 @@ import type {Address} from 'viem'
 
 // Use the real selected-provider adapter and viem transport. Only the read-only
 // backend and contract snapshot are fixtures; no keys, RPC or real wallet sends.
-const mocks=vi.hoisted(()=>({context:vi.fn(),receipt:vi.fn(),request:vi.fn()}))
+const mocks=vi.hoisted(()=>({context:vi.fn(),receipt:vi.fn(),request:vi.fn(),transaction:vi.fn(),block:vi.fn()}))
 vi.mock('@lab/wallet/walletconnect',()=>({WALLETCONNECT_ID:'wallet:walletconnect',WALLETCONNECT_RDNS:'org.walletconnect',walletConnectConfigured:false}))
 vi.mock('./transport',()=>({
   requestJson:mocks.context,authedJson:vi.fn(),readSession:vi.fn(async()=>({operator:true})),
-  robinhoodClient:{waitForTransactionReceipt:mocks.receipt},
+  robinhoodClient:{waitForTransactionReceipt:mocks.receipt,getTransaction:mocks.transaction,getBlock:mocks.block},
 }))
 vi.mock('../../shared/vault-lifecycle.mjs',()=>({abi:[],WETH:'0x'+'33'.repeat(20),eligibility:()=>({state:'ready'}),sameAddress:(a:string,b:string)=>a?.toLowerCase()===b?.toLowerCase()}))
 vi.mock('../../shared/position-actions.mjs',()=>({positionAction:()=>({stage:'claim',label:'Claim',to:'0x'+'22'.repeat(20),data:'0x1234',value:0n,amounts:[1n,0n]})}))
@@ -16,6 +16,7 @@ import {connect,discoverWalletProviders,walletProviders,disconnect,walletPublicC
 import {robinhoodChain} from '@lab/chain/chains'
 import {WALLET_READ_TIMEOUT_MS} from '@lab/wallet/preflight'
 import {useVaultPosition,positionStorageKey} from './useVaultPosition'
+import {readIntentRecord,writeIntentRecord} from './position-intent'
 
 const account=('0x'+'11'.repeat(20)) as Address
 const txHash='0x'+'aa'.repeat(32)
@@ -39,6 +40,8 @@ beforeEach(async()=>{
   mocks.context.mockReset().mockResolvedValue({snapshot})
   mocks.receipt.mockReset().mockRejectedValue(new Error('Receipt pending; recovery retained.'))
   mocks.request.mockReset().mockImplementation(standard)
+  mocks.transaction.mockReset().mockResolvedValue({from:account,to:'0x'+'22'.repeat(20),input:'0x1234',value:0n,nonce:3})
+  mocks.block.mockReset().mockResolvedValue({hash:'0x'+'bb'.repeat(32)})
   Object.defineProperty(navigator,'locks',{configurable:true,value:{request:vi.fn(async(name:string,_options:unknown,callback:(lock:any)=>Promise<void>)=>{
     if(locks.has(name))return callback(null)
     locks.add(name)
@@ -47,6 +50,58 @@ beforeEach(async()=>{
   Object.defineProperty(window,'ethereum',{configurable:true,value:{request:mocks.request,isMetaMask:true}})
   discoverWalletProviders()
   await connect(walletProviders().find(wallet=>wallet.name==='MetaMask')!.id)
+})
+
+describe('cross-tab intent ownership',()=>{
+  const key=positionStorageKey(account,'vault-a')
+  const old={actionId:'first',stage:'claim',account,deploymentId:'vault-a',to:'0x'+'22'.repeat(20),data:'0x1234',value:'0',nonce:3,hash:txHash}
+  const newer={...old,actionId:'next',nonce:4,hash:'0x'+'cc'.repeat(32)}
+  it.each([undefined,'0x'+'dd'.repeat(32)])('refuses stale recovery or manual hash edits against a newer intent',async hash=>{
+    localStorage.setItem(key,JSON.stringify(old))
+    const view=renderHook(()=>useVaultPosition(account,'vault-a','claim'));await flush()
+    // A suspended/background tab may not have received its storage event yet.
+    localStorage.setItem(key,JSON.stringify(newer))
+    await act(async()=>{await view.result.current.recover(hash as any)})
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual(newer)
+    expect(view.result.current.pending).toEqual(newer)
+    expect(view.result.current.error).toMatch(/changed in another tab/)
+    expect(mocks.receipt).not.toHaveBeenCalled();expect(calls('eth_sendTransaction')).toHaveLength(0)
+  })
+  it('uses the send lock during recovery and blocks overlapping actions',async()=>{
+    localStorage.setItem(key,JSON.stringify(old))
+    const held=deferred<any>();mocks.receipt.mockReturnValue(held.promise)
+    const first=renderHook(()=>useVaultPosition(account,'vault-a','claim'));await flush()
+    let task!:Promise<void>;await act(async()=>{task=first.result.current.recover()});await flush()
+    expect(locks.size).toBe(1)
+    const second=renderHook(()=>useVaultPosition(account,'vault-b','claim'));await flush()
+    await act(async()=>{await second.result.current.advance()})
+    expect(second.result.current.error).toMatch(/Another Saffron wallet action/)
+    expect(calls('eth_sendTransaction')).toHaveLength(0)
+    held.reject(Error('Still pending'));await act(async()=>{await task})
+    expect(locks.size).toBe(0);expect(JSON.parse(localStorage.getItem(key)!)).toEqual(old)
+  })
+  it('a late confirmation cannot remove a record replaced by an older uncoordinated client',async()=>{
+    localStorage.setItem(key,JSON.stringify(old))
+    const held=deferred<any>();mocks.receipt.mockReturnValue(held.promise)
+    const view=renderHook(()=>useVaultPosition(account,'vault-a','claim'));await flush()
+    let task!:Promise<void>;await act(async()=>{task=view.result.current.recover()});await flush()
+    localStorage.setItem(key,JSON.stringify(newer))
+    held.resolve({status:'success',blockNumber:1n,blockHash:'0x'+'bb'.repeat(32),logs:[]})
+    await act(async()=>{await task})
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual(newer)
+    expect(view.result.current.error).toMatch(/changed in another tab/)
+    expect(view.result.current.completed).toBe(false)
+  })
+  it('notifies other controllers in this tab and accepts legacy records without migration',async()=>{
+    const {actionId,...legacy}=old
+    localStorage.setItem(key,JSON.stringify(legacy))
+    const view=renderHook(()=>useVaultPosition(account,'vault-a','claim'));await flush()
+    const before=readIntentRecord(key,account,'vault-a')
+    await act(async()=>{writeIntentRecord(key,before,newer as any)})
+    expect(view.result.current.pending).toEqual(newer)
+    expect(()=>writeIntentRecord(key,before,null)).toThrow(/changed in another tab/)
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual(newer)
+  })
 })
 afterEach(async()=>{cleanup();await disconnect();vi.useRealTimers()})
 

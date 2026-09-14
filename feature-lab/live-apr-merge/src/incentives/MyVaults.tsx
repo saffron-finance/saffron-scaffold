@@ -23,8 +23,10 @@ export function MyVaults({account,positions,onConnect,onOpen,onBack,onAdmin,paym
         <FinePrint>${(Number(row.snapshot.fixedCapacityAmount)/100).toFixed(2)} LP at request · {row.id.slice(0,8)}</FinePrint>
         <QuietButton onClick={()=>onOpen(row.id,!positions.verificationUnavailable&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover))}>{positions.verificationUnavailable?'View request':row.depositable?'Deposit':row.canClaim?'Claim premium':row.canWithdraw?'Withdraw':row.canRecover?'Recover LP assets':'View vault'}</QuietButton>
       </Stack>)}
+      {positions.sessionError&&<FinePrint role='status'>Wallet sign-in status is unavailable. Vaults can still be viewed.</FinePrint>}
+      {positions.paymentError&&<FinePrint role='status'>Payment history is temporarily unavailable. Vault actions remain available.</FinePrint>}
       {positions.payments.filter(row=>!row.deployment_id).map(row=><FinePrint key={row.hash} style={{overflowWrap:'anywhere'}}>Creation payment · {formatUnits(BigInt(row.amount_wei),18)} ETH · {statusLabel(row.state)}. <a href={'https://robinhoodchain.blockscout.com/tx/'+row.hash} target='_blank' rel='noreferrer'>Payment transaction ↗</a></FinePrint>)}
-      {(positions.paymentPage>1||positions.hasNextPayments)&&<Row aria-label='Creation payment history'><QuietButton disabled={positions.paymentPage===1||positions.loading} onClick={positions.previousPayments}>Newer payments</QuietButton><FinePrint>Payments page {positions.paymentPage}</FinePrint><QuietButton disabled={!positions.hasNextPayments||positions.loading} onClick={positions.nextPayments}>Older payments</QuietButton></Row>}
+      {(positions.paymentPage>1||positions.hasNextPayments)&&<Row aria-label='Creation payment history'><QuietButton disabled={positions.paymentPage===1||positions.paymentsLoading} onClick={positions.previousPayments}>Newer payments</QuietButton><FinePrint>Payments page {positions.paymentPage}</FinePrint><QuietButton disabled={!positions.hasNextPayments||positions.paymentsLoading} onClick={positions.nextPayments}>Older payments</QuietButton></Row>}
       <DeploymentPagination data={positions}/>
       <Row><QuietButton onClick={positions.refresh}>Refresh vaults</QuietButton>{positions.session?.operator&&<QuietButton onClick={onAdmin}>Administration</QuietButton>}</Row>
     </>}

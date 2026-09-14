@@ -9,7 +9,8 @@ import { robinhoodClient, requestJson, authedJson, readSession } from './transpo
 import { positionAction } from '../../shared/position-actions.mjs'
 import { campaignFundingTerms,campaignFundingAction,fundingStorageKey,campaignWithdrawalStorageKey,campaignWithdrawalQuote } from './campaignFunding'
 
-type Intent = { stage: string; account: Address; deploymentId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex }
+import { readIntentRecord,writeIntentRecord,intentIdentity,intentChanged,type Intent,type IntentRecord } from './position-intent'
+type Operation = {scope:WalletPreflight;submitted:boolean}
 export const positionStorageKey = (account: string, deploymentId: string) => 'saffron.position-action.v1:' + account.toLowerCase() + ':' + deploymentId
 const rejected = (cause: unknown): boolean => {
   let current = cause as { code?: number; cause?: unknown } | undefined
@@ -36,7 +37,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   const identity = account.toLowerCase()+':'+deploymentId+':'+mode
   const view = useRef(identity);view.current=identity
   const mounted = useRef(true)
-  const operation = useRef<{scope:WalletPreflight;submitted:boolean}|null>(null)
+  const operation = useRef<Operation|null>(null)
   const refreshing = useRef<WalletPreflight|null>(null)
   const isVisible = () => mounted.current && view.current===identity
   const cancelPreflight = () => {
@@ -46,16 +47,29 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   const [completed, setCompleted] = useState(false)
   const foregroundState = useRef<() => void>(() => {})
   const [pending, setPending] = useState<Intent | null>(() => {
-    try {
-      const value = JSON.parse(localStorage.getItem(key) ?? 'null')
-      return value?.account?.toLowerCase() === account.toLowerCase() && value.deploymentId === deploymentId ? value : null
-    } catch { return null }
+    try { return readIntentRecord(key,account,deploymentId).value } catch { return null }
   })
-  function persist(value: Intent | null) {
-    if (value) localStorage.setItem(key, JSON.stringify(value))
-    else localStorage.removeItem(key)
-    setPending(value)
+  function persist(value: Intent | null, previous: IntentRecord) {
+    const saved=writeIntentRecord(key,previous,value)
+    if(isVisible())setPending(value)
+    return saved
   }
+  useEffect(()=>{
+    const sync=()=>{
+      try {
+        const current=readIntentRecord(key,account,deploymentId).value
+        setPending(current)
+        // A different tab may have advanced the action. Do not infer completion
+        // or send anything from a storage notification; refresh read-only state.
+        if(!operation.current){setCompleted(false);void refresh()}
+      }catch(cause){setError(cause instanceof Error?cause.message:'Saved action is unavailable.')}
+    }
+    const changed=(event:StorageEvent)=>{if(event.storageArea===localStorage&&(event.key===key||event.key===null))sync()}
+    const local=(event:Event)=>{if((event as CustomEvent).detail===key)sync()}
+    try{setPending(readIntentRecord(key,account,deploymentId).value)}catch{/* An action surfaces the malformed record without deleting it. */}
+    window.addEventListener('storage',changed);window.addEventListener('saffron:position-action',local)
+    return()=>{window.removeEventListener('storage',changed);window.removeEventListener('saffron:position-action',local)}
+  },[key])
   async function load(scope?: WalletPreflight) {
     // Guard both network continuations and their UI updates. A late context
     // response from a closed/replaced review cannot overwrite the new review.
@@ -163,20 +177,21 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     return()=>{window.removeEventListener('focus',resume);window.removeEventListener('pageshow',resume);document.removeEventListener('visibilitychange',resume)}
   },[])
 
-  async function confirm(intent: Intent) {
+  async function confirm(intent: Intent, initial: IntentRecord) {
+    let record=initial
     if (!intent.hash || !/^0x[0-9a-fA-F]{64}$/.test(intent.hash)) throw new Error('Enter the transaction hash from your wallet to recover.')
     let hash=intent.hash
     const receipt=await robinhoodClient.waitForTransactionReceipt({hash,confirmations:2,timeout:60_000,
-      onReplaced: replacement=>{ hash=replacement.transaction.hash;persist({...intent,hash}) }})
+      onReplaced: replacement=>{ hash=replacement.transaction.hash;record=persist({...intent,hash},record) }})
     const [tx,block]=await Promise.all([robinhoodClient.getTransaction({hash}),robinhoodClient.getBlock({blockNumber:receipt.blockNumber})])
     if (block.hash!==receipt.blockHash) throw new Error('Transaction block changed. Keep this recovery record.')
     const expected=sameAddress(tx.from,account)&&sameAddress(tx.to,intent.to)&&tx.input===intent.data&&tx.value===BigInt(intent.value)&&tx.nonce===intent.nonce
     if (!expected) {
       const cancelled=sameAddress(tx.from,account)&&sameAddress(tx.to,account)&&tx.value===0n&&tx.input==='0x'&&receipt.logs.length===0&&tx.nonce===intent.nonce
-      if (cancelled) persist(null)
+      if (cancelled) persist(null,record)
       throw new Error(cancelled?'Wallet transaction was cancelled.':'Replacement does not match the reviewed action; recovery retained.')
     }
-    if (receipt.status!=='success') {persist(null);throw new Error('Transaction reverted. Refresh the amounts before retrying.')}
+    if (receipt.status!=='success') {persist(null,record);throw new Error('Transaction reverted. Refresh the amounts before retrying.')}
     if (intent.stage === 'deposit' || intent.stage === 'fund') {
       const deposited = receipt.logs.some(log => {
         if (!sameAddress(log.address, intent.to) || log.removed) return false
@@ -192,7 +207,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       if(!withdrew)throw new Error('Expected variable-side withdrawal event not found. Recovery retained.')
     }
     if(['deposit','claim','withdraw','recover'].includes(intent.stage))await requestJson('/deployments/'+deploymentId+'/transactions',{hash,wallet:account})
-    persist(null)
+    persist(null,record)
     if(['deposit','claim','withdraw','recover','fund','campaign-withdraw'].includes(intent.stage)){
       setCompleted(true);setQuote(null)
       // A successful funding receipt is final for this wallet action. Refresh
@@ -203,24 +218,26 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     }
     else await refresh()
   }
-  async function recover(hash?: Hex) {
-    if(!pending)return
-    setBusy(true);setCloseBlocked(true);setError(null)
-    try {await assertWalletAccount(account);const intent={...pending,...(hash?{hash}:{})};persist(intent);await confirm(intent)}
-    catch(cause){setError(cause instanceof Error?cause.message:'Recovery check failed. Record retained.')}
-    finally{setBusy(false);setCloseBlocked(false)}
+  /** Recovery and sends share the same wallet lock. Never trust the pending
+   * value captured by an old render/tab; compare its action to locked storage. */
+  async function recoverAction(run:Operation,hash?:Hex) {
+    let record=readIntentRecord(key,account,deploymentId)
+    if(!pending||!record.value||intentIdentity(pending)!==intentIdentity(record.value)){
+      setPending(record.value);throw intentChanged()
+    }
+    await run.scope.read(()=>assertWalletAccount(account))
+    run.scope.assertActive()
+    if(hash)record=persist({...record.value,hash},record)
+    run.submitted=true;setCloseBlocked(true)
+    await confirm(record.value!,record)
   }
-  async function sendAction(run: {scope:WalletPreflight;submitted:boolean}) {
+  async function recover(hash?:Hex){await runLocked(run=>recoverAction(run,hash))}
+  async function sendAction(run: Operation) {
     const scope=run.scope
     try {
       if(adminMode&&localStorage.getItem(mode==='fund'?campaignWithdrawalStorageKey(account,deploymentId):fundingStorageKey(account,deploymentId)))throw new Error('Recover the previous campaign wallet action before starting another.')
-      const stored=localStorage.getItem(key)
-      if(pending){await recover();return}
-      if(stored){
-        const intent=JSON.parse(stored)
-        if(!sameAddress(intent?.account,account)||intent.deploymentId!==deploymentId||!Number.isSafeInteger(intent.nonce)||intent.nonce<0)throw new Error('Saved wallet action cannot be read. Preserve its record and recover the original transaction before continuing.')
-        setPending(intent);return
-      }
+      const stored=readIntentRecord(key,account,deploymentId)
+      if(pending||stored.value){await recoverAction(run);return}
       await scope.read(()=>assertWalletAccount(account));await ensureChain(robinhoodChain,scope)
       scope.assertActive()
       // A captured review is required for funding; opening/reloading a modal
@@ -251,17 +268,18 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       await scope.read(()=>assertWalletAccount(account))
       if(await scope.read(()=>walletPublicClient(robinhoodChain).getChainId())!==robinhoodChain.id)throw new Error('Wallet network changed. Review the action again.')
       scope.assertActive()
-      const intent:Intent={stage:action.stage,account,deploymentId,to:action.to,data:action.data,value:action.value.toString(),nonce}
+      const intent:Intent={actionId:crypto.randomUUID(),stage:action.stage,account,deploymentId,to:action.to,data:action.data,value:action.value.toString(),nonce}
+      let record=stored
       const client=walletClient({scope,onSubmit:()=>{
         // The SDK can perform another silent chain read before sending. Keep
         // that read cancellable, and persist only when the provider is called.
-        persist(intent)
+        record=persist(intent,record)
         run.submitted=true;setCloseBlocked(true)
       }})
       let hash:Hex
       try {hash=await client.sendTransaction({chain:robinhoodChain,account,to:action.to,data:action.data,value:action.value,nonce})}
-      catch(cause){if(rejected(cause))persist(null);throw cause}
-      const saved={...intent,hash};persist(saved);await confirm(saved)
+      catch(cause){if(rejected(cause)&&run.submitted)persist(null,record);throw cause}
+      const saved={...intent,hash};record=persist(saved,record);await confirm(saved,record)
     }catch(cause){
       if(isVisible()&&operation.current===run){
         if(mode==='campaign-withdraw')setQuote(null)
@@ -269,7 +287,8 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       }
     }
   }
-  async function advance(){
+  async function advance(){await runLocked(sendAction)}
+  async function runLocked(action:(run:Operation)=>Promise<void>){
     if(operation.current)return
     if(!navigator.locks){setError('This browser cannot coordinate wallet actions safely. Use a browser with Web Locks support.');return}
     refreshing.current?.cancel();refreshing.current=null
@@ -280,7 +299,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       await navigator.locks.request('saffron.wallet-action:'+account.toLowerCase(),{ifAvailable:true},async lock=>{
         run.scope.assertActive()
         if(!lock)throw new Error('Another Saffron wallet action is in progress. Finish it before continuing.')
-        await sendAction(run)
+        await action(run)
       })
     }catch(cause){if(isVisible()&&operation.current===run)setError(cause instanceof Error?cause.message:'Wallet action unavailable.')}
     finally{
