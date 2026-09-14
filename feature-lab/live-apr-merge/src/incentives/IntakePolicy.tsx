@@ -64,6 +64,7 @@ function IntakePolicyEditor({account,status,onUpdate}:Props){
   const valid=Boolean(fields&&validMinutes(fields.minutes)&&validMinutes(fields.serviceMinutes)&&/^[-a-z0-9]{1,64}$/.test(fields.watcherId))
   const unavailable=!incoming||!draft
   const readiness=status.readiness,policy=latest.current
+  const modeLocked=readiness?.policy?.mode_locked===true
 
   function edit<K extends keyof Fields>(name:K,value:Fields[K]){
     setDraft(previous=>previous?{...previous,fields:{...previous.fields,[name]:value}}:null)
@@ -97,7 +98,7 @@ function IntakePolicyEditor({account,status,onUpdate}:Props){
         // legacy API requires a future expiry even for an already-expired pause.
         :base.expiresAt&&Date.parse(base.expiresAt)>Date.now()?base.expiresAt:new Date(Date.now()+60000).toISOString()
       const result=await authedJson(account,'/admin/intake',{signer:base.signer,revision:base.revision,enabled,expiresAt,
-        mode:enabled?fields.mode:base.mode,serviceMinutes:enabled?Number(fields.serviceMinutes):base.serviceMinutes,
+        mode:enabled&&!modeLocked?fields.mode:base.mode,serviceMinutes:enabled?Number(fields.serviceMinutes):base.serviceMinutes,
         watcherId:enabled?fields.watcherId:base.watcherId})
       if(!mounted.current)return
       const saved=savedPolicy({signer:base.signer,readiness:{policy:result.policy}})
@@ -122,7 +123,8 @@ function IntakePolicyEditor({account,status,onUpdate}:Props){
     {unavailable&&<ErrorText role='alert'>Saved intake settings are unavailable. Load latest settings before editing.</ErrorText>}
     {conflict&&<div role='alert' style={{border:'1px solid #ffbc09',borderRadius:8,padding:12,color:'#edcc83'}}>{changed||/Intake policy changed/.test(error)?conflictMessage:'The save result is uncertain. Load latest settings before saving again.'}</div>}
     <fieldset disabled={busy||unavailable} style={{border:0,padding:0,margin:0,display:'grid',gap:12,minWidth:0}}>
-      <label>Execution mode<select value={fields?.mode??''} onChange={e=>edit('mode',e.target.value as Fields['mode'])}><option value='automatic'>Automatic queue</option><option value='reviewed'>Reviewed one-request</option></select></label>
+      <label>Execution mode<select disabled={modeLocked} value={modeLocked?policy?.mode:fields?.mode??''} onChange={e=>edit('mode',e.target.value as Fields['mode'])}><option value='automatic'>Automatic queue</option><option value='reviewed'>Reviewed one-request</option></select></label>
+      {modeLocked&&<FinePrint>Execution mode is fixed after an incentive program is created.</FinePrint>}
       <label>Intake window (minutes, at most 1440)<input type='number' min='1' max='1440' value={fields?.minutes??''} placeholder='Enter duration' onChange={e=>edit('minutes',e.target.value)}/></label>
       <label>Declared service window (minutes)<input type='number' min='1' max='1440' value={fields?.serviceMinutes??''} onChange={e=>edit('serviceMinutes',e.target.value)}/></label>
       <label>Payment watcher ID<input value={fields?.watcherId??''} onChange={e=>edit('watcherId',e.target.value)}/></label>

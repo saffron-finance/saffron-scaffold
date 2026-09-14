@@ -29,6 +29,9 @@ try{
       expiresAt:new Date(Date.now()+37*60000).toISOString(),serviceMinutes:p.service_minutes,watcherId:p.watcher_id,...patch})
   }
   await otherSession({mode:'reviewed',enabled:false,serviceMinutes:725,watcherId:'fixture-saved-watcher'})
+  // Setup is a separate operator action. Wait for the bounded health cache to
+  // observe it before opening this editor; stale drafts correctly conflict.
+  await expect.poll(async()=>(await f.operatorCall('/admin/health')).readiness?.policy?.revision).toBe((await current()).revision)
   await page.goto(f.origin+'/admin');await connect(page)
   await page.getByRole('button',{name:'Sign in as operator',exact:true}).click()
   const form=page.locator('#intake-controls')
@@ -37,24 +40,26 @@ try{
   const open=form.getByRole('button',{name:'Open intake window',exact:true}),pause=form.getByRole('button',{name:'Pause new requests',exact:true})
   const load=form.getByRole('button',{name:'Load latest settings',exact:true})
   await expect(mode).toHaveValue('reviewed');await expect(watcher).toHaveValue('fixture-saved-watcher');await expect(service).toHaveValue('725')
+  await expect(mode).toBeDisabled()
+  await assert.rejects(otherSession({mode:'automatic'}),/cannot change after an incentive program/)
   const original=await current();await open.click()
   await expect.poll(async()=>(await current()).revision).toBe(original.revision+1)
   await expect(open).toBeEnabled()
   assert.equal(posts[0].watcherId,'fixture-saved-watcher');assert.equal(posts[0].serviceMinutes,725)
   assert.equal(posts[0].revision,original.revision)
 
-  // A second authenticated session changes execution mode while this operator
-  // has an untouched old mode and a local service-duration edit.
+  // Program creation freezes mode. Other editable fields retain their existing
+  // revision-conflict behavior; no new multi-admin workflow is introduced.
   await service.fill('333')
-  const newer=(await otherSession({mode:'automatic',watcherId:'fixture-current-watcher',serviceMinutes:900})).policy
+  const newer=(await otherSession({watcherId:'fixture-current-watcher',serviceMinutes:900})).policy
   await page.getByRole('button',{name:'Refresh operations',exact:true}).click()
   await expect(form.getByRole('alert')).toContainText('Intake policy changed elsewhere')
   await expect(mode).toHaveValue('reviewed');await expect(service).toHaveValue('333')
   await expect(open).toBeDisabled();await expect(pause).toBeDisabled();assert.equal(posts.length,1)
   await load.click()
-  await expect(mode).toHaveValue('automatic');await expect(watcher).toHaveValue('fixture-current-watcher');await expect(service).toHaveValue('900')
+  await expect(mode).toHaveValue('reviewed');await expect(watcher).toHaveValue('fixture-current-watcher');await expect(service).toHaveValue('900')
   await open.click();await expect.poll(()=>posts.length).toBe(2)
-  assert.equal(posts[1].revision,newer.revision);assert.equal(posts[1].mode,'automatic')
+  assert.equal(posts[1].revision,newer.revision);assert.equal(posts[1].mode,'reviewed')
   await expect(open).toBeEnabled()
 
   // Freeze the health poll to model a concurrent edit that this form has not
@@ -75,14 +80,14 @@ try{
   await load.click();await expect(mode).toHaveValue('reviewed');await expect(service).toHaveValue('610')
   await page.unroute('**/api/incentives/admin/health')
   // Pausing is not permission to apply unsaved watcher/mode/service edits.
-  await watcher.fill('unsaved-draft');await mode.selectOption('automatic');await service.fill('111')
+  await watcher.fill('unsaved-draft');await expect(mode).toBeDisabled();await service.fill('111')
   await pause.click();await expect.poll(async()=>(await current()).enabled).toBe(false)
   const final=await current()
   assert.equal(final.watcher_id,'fixture-current-watcher');assert.equal(final.service_minutes,610);assert.equal(final.mode,'reviewed')
   assert.equal(f.state.sends,0)
   assert.equal((await f.database.query('SELECT count(*)::int count FROM saffron_incentives.deployment_quotes')).rows[0].count,0)
   assert.deepEqual(errors,[])
-  const report={ok:true,savedNondefaultsPreserved:true,polledConflictNoWrite:true,unseenRaceStatus:409,
+  const report={ok:true,createdProgramModeImmutable:true,savedNondefaultsPreserved:true,polledConflictNoWrite:true,unseenRaceStatus:409,
     explicitReloadRequired:true,pausePreservesSavedPolicy:true,desktop:true,mobile:true,walletTransactions:0,quotes:0,errors}
   await writeFile(resolve(evidence,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report))
 }catch(error){await writeFile(resolve(evidence,'failure-policies.json'),JSON.stringify({posts,responses,observations:observations.slice(-8)},null,2));await page.screenshot({path:resolve(evidence,'failure.png'),fullPage:true});throw error}

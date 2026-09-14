@@ -148,3 +148,14 @@ it('keeps an expired policy’s saved settings and requires an explicit opening 
   fireEvent.click(open());await flush()
   expect(posts()[0][2]).toMatchObject({revision:1,mode:'reviewed',serviceMinutes:725,watcherId:'payments-v7',expiresAt:'2026-09-14T00:18:00.000Z'})
 })
+
+it('freezes mode after creation, discards a stale mode edit and still permits pause/open',async()=>{
+ const view=render(<IntakePolicy account={account} status={report(policy())} onUpdate={onUpdate}/>)
+ fireEvent.change(field('Execution mode'),{target:{value:'reviewed'}})
+ view.rerender(<IntakePolicy account={account} status={report(policy({mode_locked:true}))} onUpdate={onUpdate}/>)
+ expect(field('Execution mode')).toBeDisabled();expect(field('Execution mode')).toHaveValue('automatic')
+ fireEvent.click(open());await flush()
+ expect(posts()[0][2].mode).toBe('automatic')
+ fireEvent.click(pause());await flush()
+ expect(posts()[1][2]).toMatchObject({mode:'automatic',enabled:false})
+})

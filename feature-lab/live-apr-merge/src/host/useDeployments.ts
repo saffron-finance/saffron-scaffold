@@ -39,6 +39,9 @@ export function useDeployments(account:Address|null,admin=false){
   const refresh=useCallback(()=>{rows.refresh();payments.refresh();session.refresh()},[rows.refresh,payments.refresh,session.refresh])
   async function signIn(){if(!account)return;setBusy(true);setError(undefined);try{await ensureOperatorSession(account);refresh()}catch(cause){setError((cause as Error).message)}finally{setBusy(false)}}
   return {rows:rows.data?.deployments??[],session:session.data,error:error??rows.error,busy,online:rows.data?.creatorOnline??false,
+    // This response was authorized by the deployments endpoint itself. Empty
+    // successful pages count too; auxiliary session/health reads are not gates.
+    rowsAuthorized:Boolean(account&&admin&&rows.data),
     positionsUpdating:rows.data?.positionsUpdating??false,payments:payments.data?.payments??[],loading:rows.loading,refresh,signIn,
     verificationUnavailable:Boolean(rows.error),paymentError:payments.error,sessionError:session.error,paymentsLoading:payments.loading,
     page:cursors.length,hasNext:Boolean(rows.data?.nextCursor),

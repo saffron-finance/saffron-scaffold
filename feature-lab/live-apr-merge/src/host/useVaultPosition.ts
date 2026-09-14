@@ -35,6 +35,9 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   // closing; busy still disables duplicate action buttons during preparation.
   const [closeBlocked, setCloseBlocked] = useState(false)
   const identity = account.toLowerCase()+':'+deploymentId+':'+mode
+  // A finite reviewed envelope survives approval confirmations and background
+  // price refreshes. It is scoped to the wallet, vault, adapter and tokens.
+  const spendEnvelope=useRef<{key:string;maximums:bigint[]}|null>(null)
   const view = useRef(identity);view.current=identity
   const mounted = useRef(true)
   const operation = useRef<Operation|null>(null)
@@ -120,8 +123,15 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       robinhoodClient.getBalance({address:account}),
     ]))
     scope?.assertActive()
-    // A 0.5% explicit token-spend envelope, not an unlimited approval.
-    const maximums = rawAmounts.map(amount => ceilDiv(amount * 10050n,10000n))
+    const envelopeKey=[identity,snapshot.adapter,...tokens.map(t=>t.address)].join(':').toLowerCase()
+    const previous=spendEnvelope.current?.key===envelopeKey?spendEnvelope.current.maximums:null
+    const maximums = rawAmounts.map((amount,i) => {
+      // Reuse the reviewed bound while it covers actual spend. On reopening,
+      // an existing finite allowance can cover spend without a new 0.5% top-up.
+      const bound=previous&&previous[i]>=amount?previous[i]:ceilDiv(amount*10050n,10000n)
+      return allowances[i]>=amount&&allowances[i]<bound?allowances[i]:bound
+    })
+    spendEnvelope.current={key:envelopeKey,maximums}
     let blocked: string | null = null
     let action: {stage:string;label:string;to:Address;data:Hex;value:bigint} | null = null
     for (let i=0;i<tokens.length;i++) {

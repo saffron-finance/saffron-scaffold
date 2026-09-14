@@ -25,6 +25,7 @@ import { Action,Disclosure,ErrorText,FinePrint,PrimaryAction,QuietButton,Row,Sta
 export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRecovery}:{account:Address|null;onConnect:()=>void;onBack:()=>void;onNavigate:(path:string)=>void;checkoutRecovery?:ReactNode}){
   const data=useDeployments(account,true),health=useAdminHealth(account)
   const report=health.unavailable?null:health.report
+  const operator=data.rowsAuthorized||health.session?.operator===true
   const [tab,setTab]=useState('Overview'),[filter,setFilter]=useState('All requests')
   const [fundingRow,setFundingRow]=useState<Deployment|null>(null)
   const [withdrawalRow,setWithdrawalRow]=useState<Deployment|null>(null)
@@ -34,7 +35,7 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
     <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><a href={operatorConsoleHref} target="_blank" rel="noopener" style={{color:"#d286ff",padding:"10px"}}>Server operator ↗</a><QuietButton onClick={()=>onNavigate('/campaigns')}>New campaign</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
     <OpsNote>Manage real requests, review exceptions, and give each vault a clear next step.</OpsNote>
     <ConfigurationWarnings account={account} compact/>
-    {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!health.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
+    {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!operator&&!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
       <DeployerBalance report={report} onRefresh={health.refresh}/>
       <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Campaigns','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
       {health.unavailable&&<ErrorText role='alert'>Operational status is unavailable. Counts and readiness are not assumed. Open Status for independent checks.</ErrorText>}
