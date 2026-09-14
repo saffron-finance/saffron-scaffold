@@ -1,4 +1,4 @@
-import { ReactNode, Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Component, ReactNode, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 
 // Direct module path (not the src/analytics barrel) to avoid closing a
@@ -59,6 +59,16 @@ const STILL_URL = `${import.meta.env.BASE_URL}gl/emblem-still.png`
 
 const Emblem3D = lazy(() => import('./Emblem3D').then((m) => ({ default: m.Emblem3D })))
 
+/** Suspense handles pending imports, not rejected ones. Keep download/render
+ * failures below the still layer and every surrounding navigation control.
+ * Never retry a decoration automatically or reload the user's checkout. */
+class EmblemBoundary extends Component<{ children: ReactNode; onError: (error: unknown) => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: unknown) { this.props.onError(error) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 /**
  * Report — once per page load — how the emblem ended up.
  *
@@ -85,7 +95,8 @@ type EmblemOutcome = 'emblem_static' | 'emblem_animating'
 function report(event: EmblemOutcome, properties?: Record<string, unknown>) {
   if (reported) return
   reported = true
-  posthog.capture(event, { ...properties, ...emblemEnvironment() })
+  // Diagnostics must not turn a successful static fallback into a crash.
+  try { posthog.capture(event, { ...properties, ...emblemEnvironment() }) } catch { /* Decoration only. */ }
 }
 
 const reportStatic = (reason: EmblemStaticReason) => report('emblem_static', { reason })
@@ -112,6 +123,12 @@ export function Emblem3DLogo({ fallback, spinSpeed, tilt, className }: Emblem3DL
   const [shouldLoad, setShouldLoad] = useState(false)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [stillFailed, setStillFailed] = useState(false)
+  const fail = (error: unknown) => {
+    setFailed(true)
+    setReady(false)
+    reportStatic(classifyEmblemFailure(error))
+  }
 
   // Read at fire time, not closed over: making it a dependency below would
   // restart the countdown the moment scheduling flipped, giving the emblem two
@@ -214,11 +231,12 @@ export function Emblem3DLogo({ fallback, spinSpeed, tilt, className }: Emblem3DL
   const showCanvas = shouldLoad && !failed
 
   return (
-    <Stage ref={stageRef} className={className}>
-      <Layer $visible={!ready}>{fallback ?? <Still src={STILL_URL} alt='' aria-hidden='true' />}</Layer>
+    <Stage ref={stageRef} className={className} data-emblem-state={failed ? 'static' : ready ? 'ready' : 'loading'}>
+      <Layer $visible={!ready}>{fallback ?? (stillFailed ? <TextStill aria-hidden='true'>S</TextStill> :
+        <Still src={STILL_URL} alt='' aria-hidden='true' onError={() => setStillFailed(true)} />)}</Layer>
       {showCanvas && (
         <Layer $visible={ready}>
-          <Suspense fallback={null}>
+          <EmblemBoundary onError={fail}><Suspense fallback={null}>
             <Emblem3D
               modelUrl={MODEL_URL}
               matcapUrl={MATCAP_URL}
@@ -237,13 +255,9 @@ export function Emblem3DLogo({ fallback, spinSpeed, tilt, className }: Emblem3DL
                 // so this reports a working emblem, not a spinning one.
                 else reportAnimating()
               }}
-              onError={(error) => {
-                setFailed(true)
-                setReady(false)
-                reportStatic(classifyEmblemFailure(error))
-              }}
+              onError={fail}
             />
-          </Suspense>
+          </Suspense></EmblemBoundary>
         </Layer>
       )}
     </Stage>
@@ -275,3 +289,6 @@ const Layer = styled.div<{ $visible: boolean }>`
 const Still = styled.img`
   object-fit: contain;
 `
+
+// Last-resort branding requires no download if the still is unavailable too.
+const TextStill = styled.span`display:grid;place-items:center;color:#caa4e0;font:bold 26px/1 serif;`

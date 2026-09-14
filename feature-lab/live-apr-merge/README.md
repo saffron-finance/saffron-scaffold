@@ -1,6 +1,11 @@
 # Saffron liquidity incentives and Live APR
 
-## Version 0.8.8 — frontend-only release
+## Version 0.8.9 — frontend-only release
+
+Contains optional 3D-logo and appearance-editor download failures locally,
+preserving static branding and the usable application. Adds outer shell and
+pre-JavaScript recovery without clearing saved requests or retrying transactions.
+See [download recovery](docs/download-recovery.md) and `test:downloads`.
 
 Keeps intake form fields bound to the saved policy revision. Existing watcher
 and service settings initialize the form; concurrent operator changes require

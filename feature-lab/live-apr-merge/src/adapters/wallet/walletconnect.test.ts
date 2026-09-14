@@ -35,6 +35,19 @@ test('discovery and account reads with no accepted session never load the relay 
   expect(f.load).not.toHaveBeenCalled()
 })
 
+test('a failed SDK download clears the attempt without approving or sending, and allows explicit retry', async () => {
+  const f = fixture(), c = f.create()
+  f.load.mockRejectedValueOnce(new Error('SDK download failed'))
+  await expect(c.provider.request({ method: 'eth_requestAccounts' })).rejects.toThrow('SDK download failed')
+  expect(f.sdk.connect).not.toHaveBeenCalled()
+  expect(f.sdk.provider.request).not.toHaveBeenCalled()
+  expect(f.data.size).toBe(0)
+  const retry = c.provider.request({ method: 'eth_requestAccounts' })
+  await vi.waitFor(() => expect(f.sdk.connect).toHaveBeenCalledOnce())
+  f.setSession(f.valid()); f.proposal.resolve()
+  expect(await retry).toEqual([address])
+})
+
 test('explicit connection is deduplicated, approves only Robinhood accounts, and restores without pairing or sending', async () => {
   const f = fixture(), c = f.create()
   const first = c.provider.request({ method: 'eth_requestAccounts' })

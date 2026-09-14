@@ -9,7 +9,7 @@ export class SectionBoundary extends Component<{ children: ReactNode }, { failed
   render() {
     return this.state.failed ? <section role='alert'>
       <h1>This section could not load</h1>
-      <p>Your saved sample campaigns have not been reset.</p>
+      <p>Your saved requests have not been cleared. Reload or choose another section.</p>
       <button type='button' onClick={() => window.location.reload()}>Reload page</button>{' · '}
       <Link to='/'>Return to Home</Link>
     </section> : this.props.children

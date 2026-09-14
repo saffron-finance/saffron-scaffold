@@ -7,6 +7,7 @@ import IncentivesPage from '../incentives/IncentivesPage'
 import { useMergeSession } from '@merge/session'
 import { SectionBoundary } from './SectionBoundary'
 import { StatsPage, CommunityPage } from './SectionPages'
+import { RootBoundary } from '../host/RenderBoundary'
 
 // APR does not load or create observations while the user browses Vaults.
 const AprSection = lazy(() => import('./AprSection'))
@@ -51,4 +52,4 @@ function MergeApp() {
   </AppShell>
 }
 const Loading = styled.section`padding:24px 0;color:${p => p.theme.colors.text.secondary};`
-createRoot(document.getElementById('root')!).render(<BrowserRouter basename={basename}><MergeApp /></BrowserRouter>)
+createRoot(document.getElementById('root')!).render(<RootBoundary><BrowserRouter basename={basename}><MergeApp /></BrowserRouter></RootBoundary>)

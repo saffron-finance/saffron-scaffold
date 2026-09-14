@@ -13,6 +13,7 @@ import { darkTheme, GlobalStyles, Modal, NAV_BUTTON_CHROME, ICON_BUTTON_HOVER } 
 import { HeaderDialog, HeaderIcon, CloseButton } from './HeaderDialogs'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
 import './fonts.css'
+import { RenderBoundary } from './RenderBoundary'
 
 const mount = import.meta.env.BASE_URL
 const RowTweaks = import.meta.env.VITE_DEV_TWEAKS === 'true' ? lazy(() => import('../dev/RowTweaks')) : null
@@ -49,7 +50,8 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
   </MenuLink>
   return <ThemeProvider theme={darkTheme}>
     <GlobalStyles />
-    {RowTweaks && <DesktopTweaks $mobileHome={mobileHome}><Suspense fallback={null}><RowTweaks /></Suspense></DesktopTweaks>}
+    {/* An optional appearance editor must never take down the wallet or page. */}
+    {RowTweaks && <DesktopTweaks $mobileHome={mobileHome}><RenderBoundary fallback={null}><Suspense fallback={null}><RowTweaks /></Suspense></RenderBoundary></DesktopTweaks>}
     <Frame $sidebarCollapsed={sidebarCollapsed} $mobileHome={mobileHome} data-mobile-home data-home-page={path === '/' || undefined}>
       <Sidebar home='/' collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)} />
       <Content>
