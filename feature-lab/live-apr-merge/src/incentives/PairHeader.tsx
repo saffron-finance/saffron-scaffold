@@ -1,4 +1,4 @@
-import styled from 'styled-components'
+import './PairHeader.css'
 import type { Offer } from './model'
 import { TokenIcon } from './TokenIcon'
 import uniswapLogo from './assets/uniswap.svg'
@@ -9,112 +9,25 @@ import { mobileHomeMaxWidth } from '../host/MobileHomeNavigation'
  * Keeps its original artwork, copy and typography without importing the live
  * monitor, subscriptions or host shell. Offer metadata owns the pair/fee. */
 export function PairHeader({ pair: { token0, token1, feeTier } }: { pair: Offer }) {
-  return <><Header>
-    <Title><PairHeading data-testid='pool-pair-heading'>
-      <PairLogos aria-hidden='true'><PairLogo><TokenIcon {...token0} size={40} /></PairLogo><PairLogo><TokenIcon {...token1} size={40} /></PairLogo></PairLogos>
-      <PairHeadingText>
-        <PairName data-testid='pool-pair-name'>{token0.symbol} / {token1.symbol} {(feeTier ?? 0) / 10_000}%</PairName>
-      </PairHeadingText>
-    </PairHeading></Title>
-  </Header>
+  return <><header className='saffron-pair-header'>
+    <h2 className='saffron-pair-title'><span className='saffron-pair-pair-heading' data-testid='pool-pair-heading'>
+      <span className='saffron-pair-pair-logos' aria-hidden='true'><span className='saffron-pair-pair-logo'><TokenIcon {...token0} size={40} /></span><span className='saffron-pair-pair-logo'><TokenIcon {...token1} size={40} /></span></span>
+      <span className='saffron-pair-pair-heading-text'>
+        <span className='saffron-pair-pair-name' data-testid='pool-pair-name'>{token0.symbol} / {token1.symbol} {(feeTier ?? 0) / 10_000}%</span>
+      </span>
+    </span></h2>
+  </header>
     {/* This compact Home-only header matches the approved concept. The larger
         desktop header above retains its fee-tier and venue description. */}
-    <PhoneHeader data-mobile-pair>
+    <header className='saffron-pair-phone-header' data-mobile-pair>
       <h2><span aria-hidden='true'><TokenIcon {...token0} size={26} compact /><TokenIcon {...token1} size={26} compact /></span>{token0.symbol} / {token1.symbol}</h2>
-    </PhoneHeader>
+    </header>
   </>
 }
 
 /** Venue metadata follows the offers on every screen size. */
-export function PairDescription(){return <Description data-testid='pool-description'><PoolDescription>
-  <DescriptionItem><UniswapDescriptionLogo src={uniswapLogo} alt='' aria-hidden='true'/>Uniswap v3</DescriptionItem>
-  <DescriptionItem><DescriptionLogo src={robinhoodLogo} alt='' aria-hidden='true'/>Robinhood Chain</DescriptionItem>
-</PoolDescription></Description>}
-
-// AppPageShell's header text geometry, without its app surface or navigation.
-const Header = styled.header`max-width:760px;@media(max-width:${mobileHomeMaxWidth}px){display:none;}`
-const PhoneHeader = styled.header`
-  display:none;
-  @media(max-width:${mobileHomeMaxWidth}px){
-    display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0;
-    h2{display:flex;align-items:center;gap:12px;margin:0 0 10px;min-width:0;font:400 1.3em/1.45 "Funnel Display",sans-serif;}
-    h2 img{max-width:40px;max-height:40px;}
-    h2>span{display:inline-flex;align-items:center;flex-shrink:0;}
-    h2 img+img{margin-left:-6px;background:#191919;border:2px solid #000;}
-    >span{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px;color:#a09ca5;}
-    >span img{width:13px;height:13px;}
-  }
-`
-const Title = styled.h2`margin:0;line-height:1;`
-const Description = styled.p`margin:0;color:${({ theme }) => theme.colors.text.secondary};font-size:16px;line-height:1.55;`
-// Exact LivePoolAprPage header styles. Assets are local, with no lookup calls.
-const PairHeading = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  /* Preserve the reference's white dark-mode heading and support beta light. */
-  color: ${({ theme }) => theme.colors.text.primary};
-  font-family: ${({ theme }) => theme.fonts.body};
-  letter-spacing: -0.03em;
-  @media (max-width: 480px) { gap: 12px; }
-`
-const PairLogos = styled.span`
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  > * + * { margin-left: -12px; }
-`
-const PairLogo = styled.span`
-  display: block;
-  width: 40px;
-  height: 40px;
-  max-width: 40px;
-  max-height: 40px;
-  object-fit: cover;
-  border: 2px solid ${({ theme }) => theme.colors.background.base};
-  border-radius: 50%;
-  overflow: hidden;
-  > * { width: 100% !important; height: 100% !important; max-width:40px; max-height:40px; }
-`
-const PairHeadingText = styled.span`
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-`
-const PairName = styled.span`
-  font-family: ${({ theme }) => theme.fonts.display};
-  font-size: 1.3em;
-  font-weight: 300;
-  line-height: 1.12;
-  letter-spacing: normal;
-  overflow-wrap: anywhere;
-`
-const PoolDescription = styled.span`
-  display: flex;
-  justify-content: flex-end;
-  opacity: 0.64;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-  @media (max-width: 480px) { font-size: 14px; gap: 10px 16px; }
-`
-const DescriptionItem = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-`
-const DescriptionLogo = styled.img`
-  display: block;
-  width: 1em;
-  height: 1em;
-  flex: 0 0 1em;
-  object-fit: contain;
-`
-// Uniswap artwork has the source's 2px optical adjustment; Robinhood does not.
-const UniswapDescriptionLogo = styled(DescriptionLogo)`
-  width: calc(1em + 2px);
-  height: calc(1em + 2px);
-  flex-basis: calc(1em + 2px);
-`
+export function PairDescription(){return <p className='saffron-pair-description' data-testid='pool-description'><span className='saffron-pair-pool-description'>
+  <span className='saffron-pair-description-item'><img className='saffron-pair-uniswap-description-logo' src={uniswapLogo} alt='' aria-hidden='true'/>Uniswap v3</span>
+  <span className='saffron-pair-description-item'><img className='saffron-pair-description-logo' src={robinhoodLogo} alt='' aria-hidden='true'/>Robinhood Chain</span>
+</span></p>}
+// First-screen geometry lives in the adjacent cached stylesheet.

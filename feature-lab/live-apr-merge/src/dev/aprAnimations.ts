@@ -1,4 +1,4 @@
-import { aprTextGradient } from '../host/aprTextStyle'
+import { aprTextGradient } from '../host/aprGradient'
 
 /** Staging-only motion presets. CSS owns every frame; no React timer, data
  * refresh, or layout animation is involved. Short text paint areas keep the

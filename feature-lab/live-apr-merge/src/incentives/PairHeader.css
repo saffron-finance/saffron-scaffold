@@ -1,0 +1,245 @@
+/* Stable first-screen styles: compiled once, not on each React mount.
+ * Keep semantic data attributes, responsive tracks, focus and disabled states. */
+/* Header */
+.saffron-pair-header {
+  max-width: 760px;
+}
+@media(max-width:599px) {
+  .saffron-pair-header {
+    display: none;
+  }
+}
+/* PhoneHeader */
+.saffron-pair-phone-header {
+  display: none;
+}
+@media(max-width:599px) {
+  .saffron-pair-phone-header {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: justify;
+    -webkit-justify-content: space-between;
+    -ms-flex-pack: justify;
+    justify-content: space-between;
+    -webkit-align-items: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .saffron-pair-phone-header h2 {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-align-items: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 10px;
+    min-width: 0;
+    font: 400 1.3em/1.45 "Funnel Display",sans-serif;
+  }
+  .saffron-pair-phone-header h2 img {
+    max-width: 40px;
+    max-height: 40px;
+  }
+  .saffron-pair-phone-header h2>span {
+    display: -webkit-inline-box;
+    display: -webkit-inline-flex;
+    display: -ms-inline-flexbox;
+    display: inline-flex;
+    -webkit-align-items: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-flex-shrink: 0;
+    -ms-flex-negative: 0;
+    flex-shrink: 0;
+  }
+  .saffron-pair-phone-header h2 img+img {
+    margin-left: -6px;
+    background: #191919;
+    border: 2px solid #000;
+  }
+  .saffron-pair-phone-header >span {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-align-items: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    font-size: 11px;
+    color: #a09ca5;
+  }
+  .saffron-pair-phone-header >span img {
+    width: 13px;
+    height: 13px;
+  }
+}
+/* Title */
+.saffron-pair-title {
+  margin: 0;
+  line-height: 1;
+}
+/* Description */
+.saffron-pair-description {
+  margin: 0;
+  color: #C9C4BE;
+  font-size: 16px;
+  line-height: 1.55;
+}
+/* PairHeading */
+.saffron-pair-pair-heading {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 12px;
+  color: #FFFFFF;
+  font-family: 'Host Grotesk',system-ui,sans-serif;
+  -webkit-letter-spacing: -0.03em;
+  -moz-letter-spacing: -0.03em;
+  -ms-letter-spacing: -0.03em;
+  letter-spacing: -0.03em;
+}
+@media (max-width:480px) {
+  .saffron-pair-pair-heading {
+    gap: 12px;
+  }
+}
+/* PairLogos */
+.saffron-pair-pair-logos {
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-flex-shrink: 0;
+  -ms-flex-negative: 0;
+  flex-shrink: 0;
+}
+.saffron-pair-pair-logos > * + * {
+  margin-left: -12px;
+}
+/* PairLogo */
+.saffron-pair-pair-logo {
+  display: block;
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  object-fit: cover;
+  border: 2px solid #000000;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.saffron-pair-pair-logo > * {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 40px;
+  max-height: 40px;
+}
+/* PairHeadingText */
+.saffron-pair-pair-heading-text {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+/* PairName */
+.saffron-pair-pair-name {
+  font-family: 'Funnel Display',serif;
+  font-size: 1.3em;
+  font-weight: 300;
+  line-height: 1.12;
+  -webkit-letter-spacing: normal;
+  -moz-letter-spacing: normal;
+  -ms-letter-spacing: normal;
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+}
+/* PoolDescription */
+.saffron-pair-pool-description {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: end;
+  -webkit-justify-content: flex-end;
+  -ms-flex-pack: end;
+  justify-content: flex-end;
+  opacity: 0.64;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+@media (max-width:480px) {
+  .saffron-pair-pool-description {
+    font-size: 14px;
+    gap: 10px 16px;
+  }
+}
+/* DescriptionItem */
+.saffron-pair-description-item {
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+/* DescriptionLogo */
+.saffron-pair-description-logo {
+  display: block;
+  width: 1em;
+  height: 1em;
+  -webkit-flex: 0 0 1em;
+  -ms-flex: 0 0 1em;
+  flex: 0 0 1em;
+  object-fit: contain;
+}
+/* UniswapDescriptionLogo */
+.saffron-pair-uniswap-description-logo {
+  display: block;
+  width: 1em;
+  height: 1em;
+  -webkit-flex: 0 0 1em;
+  -ms-flex: 0 0 1em;
+  flex: 0 0 1em;
+  object-fit: contain;
+  width: calc(1em + 2px);
+  height: calc(1em + 2px);
+  -webkit-flex-basis: calc(1em + 2px);
+  -ms-flex-preferred-size: calc(1em + 2px);
+  flex-basis: calc(1em + 2px);
+}

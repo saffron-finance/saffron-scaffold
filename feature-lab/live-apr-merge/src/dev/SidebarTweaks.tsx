@@ -1,54 +1,15 @@
-import { useEffect, useId, useState } from 'react'
-import styled, { createGlobalStyle } from 'styled-components'
-import { sidebarDefaults, sidebarVariables, type SidebarAppearance } from '../host/sidebarTheme'
-import { applySidebarPreset, sidebarOrbitCss, sidebarPreset, sidebarPresetCss, sidebarPresets } from './sidebarPresets'
+import { useId, type Dispatch, type SetStateAction } from 'react'
+import styled from 'styled-components'
+import { sidebarDefaults, type SidebarAppearance } from '../host/sidebarTheme'
+import { applySidebarPreset, sidebarPresets } from './sidebarPresets'
+import { colors, paintSliders, shapeSliders, orbitSlider, toggles } from './appearancePreferences'
 
-const storageKey = 'saffron.staging.sidebar.v1'
-// Apply the approved page design once; later explicit Tweak choices still persist.
-const defaultsVersion = 2
-const colors = [
-  ['surfaceTop', 'Background top'], ['surfaceBottom', 'Background bottom'],
-  ['gradientStart', 'Gradient start'], ['gradientMiddle', 'Gradient middle'], ['gradientEnd', 'Gradient end'],
-  ['text', 'Navigation text'], ['selectedText', 'Highlighted text'],
-] as const
-// One definition drives slider bounds, accessible labels, and storage validation.
-const paintSliders = [
-  ['angle', 'Gradient direction', 0, 360, 15, '°'], ['surfaceAngle', 'Background direction', 0, 360, 15, '°'],
-  ['strength', 'Highlight strength', 5, 100, 1, '%'], ['border', 'Border strength', 0, 100, 1, '%'],
-  ['glow', 'Sidebar glow', 0, 60, 1, '%'], ['glowSpread', 'Glow spread', 0, 48, 1, 'px'],
-] as const
-const shapeSliders = [
-  ['radius', 'Corner radius', 0, 24, 1, 'px'], ['padding', 'Button padding', 8, 18, 1, 'px'],
-  ['gap', 'Row spacing', 0, 16, 1, 'px'], ['iconSize', 'Icon size', 16, 24, 1, 'px'],
-] as const
-const orbitSlider = ['orbitSpeed', 'Sidebar orbit speed', .25, 4, .25, '×'] as const
-const toggles = [['tintAll', 'Style all buttons'], ['showIcons', 'Show icons'], ['indicator', 'Show active indicator']] as const
-
-/** Restore only known presets, hex colors, booleans and bounded numbers.
- * Apply approved defaults to older storage once; preserve subsequent choices. */
-function savedAppearance(): SidebarAppearance {
-  try {
-    const stored = JSON.parse(localStorage.getItem(storageKey) || '{}'), result = { ...sidebarDefaults }
-    if (stored?.defaultsVersion !== defaultsVersion) return result
-    for (const [key] of colors) if (typeof stored?.[key] === 'string' && /^#[0-9a-f]{6}$/i.test(stored[key])) result[key] = stored[key]
-    if (stored?.selectedText === undefined) result.selectedText = result.gradientStart
-    for (const [key, , min, max] of [...paintSliders, ...shapeSliders, orbitSlider]) {
-      if (typeof stored?.[key] === 'number' && Number.isFinite(stored[key]) && stored[key] >= min && stored[key] <= max) result[key] = stored[key]
-    }
-    for (const [key] of toggles) if (typeof stored?.[key] === 'boolean') result[key] = stored[key]
-    if (sidebarPreset(stored?.style)) result.style = stored.style
-    return result
-  } catch { return { ...sidebarDefaults } }
-}
-
-/** Browser-local sidebar editor. Presets supply a starting palette; subsequent
- * controls customize it and the matching modal actions without changing flows. */
-export default function SidebarTweaks() {
-  const id = useId()
-  const [appearance, setAppearance] = useState<SidebarAppearance>(savedAppearance)
-  useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify({ ...appearance, defaultsVersion })) } catch { /* In-memory preview still works. */ }
-  }, [appearance])
+/** Editor-only sidebar controls. First-paint styling and persistence belong to
+ * the lightweight parent and do not depend on downloading this component. */
+export default function SidebarTweaks({appearance,setAppearance}: {
+  appearance: SidebarAppearance; setAppearance: Dispatch<SetStateAction<SidebarAppearance>>;
+}) {
+  const id=useId()
   // Reuse the same small slider renderer for paint, layout and optional motion.
   const slider = ([key, label, min, max, step, unit]: typeof paintSliders[number] | typeof shapeSliders[number] | typeof orbitSlider) =>
     <Slider key={key} htmlFor={`${id}-${key}`}>
@@ -57,7 +18,6 @@ export default function SidebarTweaks() {
         onChange={event => setAppearance(value => ({ ...value, [key]: Number(event.target.value) }))} />
     </Slider>
   return <>
-    <Preview $variables={sidebarVariables(appearance) + sidebarPresetCss(appearance)} />
     <Section>
       <summary>Sidebar appearance</summary>
       <Fields>
@@ -88,13 +48,6 @@ export default function SidebarTweaks() {
   </>
 }
 
-// Portal actions share the exact rail paint, including custom saved presets.
-const Preview = createGlobalStyle<{ $variables: string }>`
-  [data-saffron-sidebar][data-saffron-sidebar],
-  [data-incentive-primary-action][data-incentive-primary-action],
-  [data-incentive-back][data-incentive-back]{${p => p.$variables}}
-  ${sidebarOrbitCss}
-`
 const Section = styled.details`
   border-top:1px solid rgba(127,122,120,.25);padding-top:12px;
   summary{cursor:pointer;font-weight:500;padding:4px 0;}

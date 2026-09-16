@@ -9,7 +9,9 @@ script transfers.
 - HTML declares the shared font stylesheet and preloads the three local variable
   WOFF2 faces. Vite gives preload and CSS references the same fingerprinted URL.
   Early non-blocking FontFaceSet activation also starts decoding before the
-  first React text; the application does not await fonts. No Google Fonts connection or other third-party font request is required.
+  first React text. The ordinary application does not await fonts; the optional
+  warm display gives cached faces at most 150 ms to finish decoding, otherwise
+  it uses the ordinary startup. No third-party font request is required.
 - Appearance presets keep their existing saved IDs, weights and behavior but use
   those shared font families. Five duplicate TTF files and their late `@font-face`
   injection are removed. The unused Work Sans declaration is removed too.
@@ -31,6 +33,49 @@ script transfers.
   the timestamp, keeps existing rows, shows the error and keeps actions disabled.
   Cached availability never authorizes a transaction: fresh catalog success is
   required. No wallet, payment, authentication or readiness snapshot is added.
+
+## Warm first-screen path
+
+A cached download still needs JavaScript execution, React rendering, CSS
+processing and layout. The warm path now separates display from initialization:
+
+1. A small bootstrap reads the same validated five-minute display snapshot.
+   It applies only to Home, not APR, portfolio, checkout or operator routes.
+2. The build generates inert shell/group/row templates from `AppShell`,
+   `HomeCatalog`, `OfferGroup` and `OfferRow`, the same components used by React.
+   Templates contain placeholder data only. Browser storage never supplies HTML,
+   CSS or arbitrary image URLs; text is assigned with `textContent`, and token
+   artwork uses the shared local allowlist.
+3. Cached fonts and saved appearance preferences are ready before exposing the
+   warm view. Buttons are disabled and the temporary root is inert. Empty
+   snapshots are valid; malformed, expired, oversized, future-dated and cleared
+   storage retains the ordinary skeleton and application startup.
+4. The bootstrap yields a rendering opportunity, then imports the main app.
+   React replaces the view in one commit; template CSS is removed after live
+   styles exist. Wallet/session/payment recovery and authoritative data remain
+   in the application, never in the display snapshot. An import failure leaves
+   the saved rows visible with an explicit reload action.
+5. Stable sidebar, pair-header and offer-row CSS is compiled into the cached
+   stylesheet. The appearance editor mounts and downloads only when opened;
+   its small validated preference/style layer remains eager, so opening the
+   editor cannot introduce a second font/style change.
+
+The build-only server renderer adds no browser runtime dependency. `esbuild`
+compiles the presentation template at build time; emitted asset placeholders
+resolve to the same Vite fingerprints used by the application.
+
+Back/Forward cache is separate from HTTP caching. On `pagehide`, catalog action
+permission is synchronously revoked and expendable reads are cancelled. A
+persisted `pageshow` retains visible rows but starts one new availability check.
+Late pre-freeze replies cannot overwrite restored-page results. Wallet and API
+checks still gate actions; restored pixels are not restored authority.
+
+Measure row **paint** separately from DOM insertion, FCP and application-ready
+marks. `saffron:warm-display` and `saffron:app-ready` identify the two stages;
+Element Timing on the duration text identifies rendered rows. Report refresh,
+full URL return, new-tab return and true Back restoration separately. Browser
+restoration eligibility is not guaranteed: when unavailable, the warm startup
+path still works. No service worker or cache-clear recovery was introduced.
 
 ## Hosting requirements
 

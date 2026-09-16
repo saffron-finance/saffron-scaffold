@@ -1,4 +1,4 @@
-import {act,renderHook} from '@testing-library/react'
+import {act,cleanup,renderHook} from '@testing-library/react'
 import {beforeEach,afterEach,expect,it,vi} from 'vitest'
 import {useIncentivePrograms} from './useIncentivePrograms'
 
@@ -10,7 +10,7 @@ beforeEach(()=>{
   localStorage.clear();request.mockReset();request.mockImplementation(()=>new Promise(()=>{}))
   vi.spyOn(document,'hidden','get').mockReturnValue(false)
 })
-afterEach(()=>vi.restoreAllMocks())
+afterEach(()=>{cleanup();vi.restoreAllMocks()})
 
 it('paints cached offers synchronously on remount while revalidating availability',async()=>{
   request.mockResolvedValueOnce(response)
@@ -66,4 +66,31 @@ it('clearing browser storage restores the cold path',()=>{
   localStorage.setItem(key,JSON.stringify({at:Date.now(),offers}))
   localStorage.clear()
   expect(renderHook(()=>useIncentivePrograms()).result.current).toMatchObject({offers:[],hasSnapshot:false})
+})
+
+it('restores Back/Forward pixels but revokes action authority until a new response',async()=>{
+  request.mockResolvedValueOnce(response)
+  const {result}=renderHook(()=>useIncentivePrograms());await act(async()=>{})
+  expect(result.current.canAct()).toBe(true)
+  // Even a previously captured handler sees synchronous revocation.
+  const previousCanAct=result.current.canAct
+  act(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})))
+  expect(previousCanAct()).toBe(false)
+  expect(result.current).toMatchObject({offers,loading:true})
+  act(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})))
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(result.current.canAct()).toBe(false)
+})
+
+it('ignores a pre-freeze response which arrives after a restored-page refresh',async()=>{
+  let oldReply!:(value:unknown)=>void,newReply!:(value:unknown)=>void
+  request.mockImplementationOnce(()=>new Promise(resolve=>{oldReply=resolve}))
+    .mockImplementationOnce(()=>new Promise(resolve=>{newReply=resolve}))
+  const {result}=renderHook(()=>useIncentivePrograms())
+  act(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})))
+  act(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})))
+  await act(async()=>{newReply({...response,offers:[]})})
+  expect(result.current.canAct()).toBe(true)
+  await act(async()=>{oldReply(response)})
+  expect(result.current.offers).toEqual([])
 })

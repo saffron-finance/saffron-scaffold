@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Navigate, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
@@ -21,6 +21,14 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
 /** One route owner and persistent shell. Only the content feature unmounts when
  * changing sections, releasing APR interest without recreating the sidebar. */
 function MergeApp() {
+  useLayoutEffect(()=>{
+    // The root swap is one React commit, so there is no intermediate blank
+    // frame. Remove build-only snapshot CSS only after live styles exist.
+    const root=document.getElementById('root')!
+    root.inert=false;delete root.dataset.warmDisplay
+    document.querySelectorAll('[data-warm-css],template[id^="warm-"]').forEach(node=>node.remove())
+    performance.mark('saffron:app-ready')
+  },[])
   const session=useMergeSession()
   const location = useLocation()
   const path = location.pathname.replace(/\/+$/, '') || '/'
@@ -52,4 +60,6 @@ function MergeApp() {
   </AppShell>
 }
 const Loading = styled.section`padding:24px 0;color:${p => p.theme.colors.text.secondary};`
+// RootBoundary remains actionable even if the normal application cannot mount.
+document.getElementById('root')!.inert=false
 createRoot(document.getElementById('root')!).render(<RootBoundary><BrowserRouter basename={basename}><MergeApp /></BrowserRouter></RootBoundary>)

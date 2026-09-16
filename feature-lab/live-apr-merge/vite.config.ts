@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { sourceIdentity } from './scripts/release-source.mjs'
 import { mountPath,writeReleaseMarker } from './scripts/release-artifact.mjs'
+import { warmTemplatePlugin } from './scripts/warm-template-plugin'
 
 const here = (file: string) => normalizePath(fileURLToPath(new URL(file, import.meta.url)))
 /** All builds use the same wallet/API application. Modes select appearance and
@@ -19,7 +20,7 @@ export default defineConfig(({ mode }) => {
   const basePath=mountPath(settings.VITE_BASE_PATH||'/')
   return {
   base: basePath,
-  plugins: [react(), svgr(), {
+  plugins: [react(), svgr(), warmTemplatePlugin(here('.'),basePath,tweaks,settings), {
     // A served release must identify its adapter independently of its appearance.
     // Operations can reject a preview bundle before enabling a payment route.
     name:'deployment-mode',writeBundle(options){

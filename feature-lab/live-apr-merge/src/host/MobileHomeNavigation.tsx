@@ -2,7 +2,8 @@ import styled from 'styled-components'
 import { Link, useLocation } from 'react-router-dom'
 
 // One cutoff for the public journey, cards and preview controls.
-export const mobileHomeMaxWidth = 599
+export { mobileHomeMaxWidth } from './layout'
+import { mobileHomeMaxWidth } from './layout'
 
 const paths = {
   Home: 'M3 10l9-7 9 7v11h-6v-7H9v7H3z',

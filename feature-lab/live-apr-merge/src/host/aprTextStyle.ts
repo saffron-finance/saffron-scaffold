@@ -1,7 +1,8 @@
 import styled, { css } from 'styled-components'
 
 // Share only APR paint. Consumers keep their own font, weight and dimensions.
-export const aprTextGradient = 'linear-gradient(110deg, rgb(255, 188, 9) 10%, rgb(228, 126, 1) 65%, rgb(250, 63, 6) 100%)'
+export { aprTextGradient } from './aprGradient'
+import { aprTextGradient } from './aprGradient'
 export const aprTextPaint = css`
   background-image:${aprTextGradient};
   -webkit-background-clip:text;background-clip:text;color:transparent;
