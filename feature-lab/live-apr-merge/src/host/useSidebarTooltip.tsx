@@ -45,7 +45,7 @@ export function useSidebarTooltip(enabled: boolean, routeKey: string) {
       '--caret-x': `${center - left - 1}px`, '--anchor-width': '20px' } as CSSProperties)
     // Animate after measurement, before paint; no timers, storage or CSS state.
     if (active.fade && !matchMedia('(prefers-reduced-motion:reduce)').matches) {
-      const fade = bubble.current.animate({ opacity: [0, 1] }, 310)
+      const fade = bubble.current.animate({ opacity: [0, 1] }, 220)
       return () => fade.cancel() // A quick move to the next icon must be instant.
     }
   }, [enabled, active])
