@@ -11,7 +11,20 @@ type OpenOffer=(offer:Offer,target:HTMLElement)=>void
 export type DisplayCatalog={offers:Offer[];loading:boolean;hasSnapshot:boolean;error?:string}
 
 /** Canonical display tree shared by React and build-time warm templates.
- * Wallet state, recovery capabilities and transaction handlers stay outside. */
+ * Wallet state, recovery capabilities and transaction handlers stay outside.
+ *
+ * MAINTENANCE: keep the cached first view and interactive page consistent.
+ * CSS/markup changes regenerate through scripts/warm-template.tsx; do not edit
+ * generated HTML or introduce a second hand-maintained layout. When changing
+ * fields, formatting, grouping, selectors, token icons or conditional states,
+ * also review ../merge/bootstrap.ts (row/restoreDisplay/fillTokens), the cache
+ * validator in ../host/catalogSnapshot.ts, and the template's variant coverage.
+ * Before shipping such changes, compare cached rows with the API held back to
+ * the subsequent React view at desktop/phone widths and with saved appearance
+ * settings. Text, geometry and states must agree without a font/layout jump;
+ * cached controls must remain disabled until fresh availability is confirmed.
+ * See ../../docs/LOADING.md for the startup and verification contract.
+ */
 export function HomeCatalog({catalog,busy=false,onOpen,recovery}: {
   catalog:DisplayCatalog;busy?:boolean;onOpen?:OpenOffer;recovery?:ReactNode;
 }) {

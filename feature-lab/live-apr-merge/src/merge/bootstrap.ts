@@ -6,6 +6,10 @@ import { appearanceCss, savedAppearance, savedTypography } from '../dev/appearan
 import { tokenArtwork } from '../incentives/tokenArtwork'
 import { isOfferLive, type Offer, type Token } from '../incentives/model'
 
+// MAINTENANCE: follow the consistency checklist above HomeCatalog in
+// ../incentives/HomeCatalog.tsx. Changes to these text/attribute mappings must
+// match OfferRow, PairHeader and TokenIcon; never turn cached data into authority.
+
 /** Clone build-generated markup, never HTML recovered from browser storage. */
 function clone(id:string):DocumentFragment {
   const template=document.getElementById(id)

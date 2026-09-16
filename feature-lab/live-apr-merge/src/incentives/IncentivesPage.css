@@ -1,5 +1,7 @@
 /* Stable first-screen styles: compiled once, not on each React mount.
- * Keep semantic data attributes, responsive tracks, focus and disabled states. */
+ * Keep semantic data attributes, responsive tracks, focus and disabled states.
+ * Shared by cached and interactive views: edit styles here once, then verify
+ * their handoff using the MAINTENANCE checklist in HomeCatalog.tsx. */
 /* RouteSkeleton */
 .saffron-catalog-route-skeleton {
   display: grid;
