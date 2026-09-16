@@ -19,8 +19,8 @@ const fonts = [
   { id: 'host-medium', label: 'Host Grotesk Medium', weight: 500, src: hostMedium },
   { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
 ]
-type Typography = { compactHeader: boolean; newOnLeft: boolean; font: string; aprAnimation: AprAnimation; orbitSpeed: number }
-const defaultTypography: Typography = { compactHeader: true, newOnLeft: false, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 3.5 }
+type Typography = { compactHeader: boolean; newOnLeft: boolean; font: string; aprAnimation: AprAnimation; orbitSpeed: number; comingSoonAngle: number }
+const defaultTypography: Typography = { compactHeader: true, newOnLeft: false, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 3.5, comingSoonAngle: -8 }
 
 /** Restore known font/animation IDs and a boolean; never inject stored CSS. */
 function savedTypography(): Typography {
@@ -35,7 +35,10 @@ function savedTypography(): Typography {
       aprAnimation: validAprAnimation(animation) ? animation : defaultTypography.aprAnimation,
       // Preserve valid saved speeds; missing/invalid settings use the current default.
       orbitSpeed: typeof saved?.orbitSpeed === 'number' && Number.isFinite(saved.orbitSpeed)
-        && saved.orbitSpeed >= .25 && saved.orbitSpeed <= 4 ? saved.orbitSpeed : defaultTypography.orbitSpeed }
+        && saved.orbitSpeed >= .25 && saved.orbitSpeed <= 4 ? saved.orbitSpeed : defaultTypography.orbitSpeed,
+      // Only bounded numeric angles can reach the generated CSS variable.
+      comingSoonAngle: typeof saved?.comingSoonAngle === 'number' && Number.isFinite(saved.comingSoonAngle)
+        && saved.comingSoonAngle >= -30 && saved.comingSoonAngle <= 30 ? saved.comingSoonAngle : defaultTypography.comingSoonAngle }
   } catch { return defaultTypography }
 }
 
@@ -46,6 +49,7 @@ export default function RowTweaks() {
   const fontId = useId()
   const animationId = useId()
   const speedId = useId()
+  const angleId = useId()
   const [typography, setTypography] = useState<Typography>(savedTypography)
 
   useEffect(() => {
@@ -58,6 +62,7 @@ export default function RowTweaks() {
   // Larger slider values mean faster motion. CSS still renders every frame.
   const orbitSeconds = 24 / typography.orbitSpeed
   const speedCss = `[data-incentive-apr], [data-incentive-new], [data-apr-navigation] { --saffron-orbit-duration:${orbitSeconds}s; }`
+  const comingSoonCss = `${table} { --incentive-coming-soon-angle:${typography.comingSoonAngle}deg; }`
   // Move a reserved named track, not just the painted badge: headers and all
   // rows stay aligned. These overrides and their storage are lab-only.
   const badgeCss = typography.newOnLeft ? `
@@ -84,7 +89,7 @@ export default function RowTweaks() {
   return <>
     {/* Desktop appearance preferences remain saved, but do not restyle the
         approved phone cards. The mobile layout has its own fixed hierarchy. */}
-    <TableTypography $rules={`@media(min-width:${mobileHomeMaxWidth + 1}px){${headingCss + fontCss + badgeCss}}${speedCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)}`} />
+    <TableTypography $rules={`@media(min-width:${mobileHomeMaxWidth + 1}px){${headingCss + fontCss + badgeCss}}${speedCss + comingSoonCss + newOfferBadgeCss + aprAnimationCss(typography.aprAnimation)}`} />
     <Control>
       <summary>
         <svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' aria-hidden='true'>
@@ -122,6 +127,11 @@ export default function RowTweaks() {
           aria-valuetext={`${typography.orbitSpeed} times speed`}
           onChange={event => setTypography(previous => ({ ...previous, orbitSpeed: Number(event.target.value) }))} />
         <small>{typography.orbitSpeed}× · {Number(orbitSeconds.toFixed(1))} seconds per orbit. Slide right for faster.</small>
+        <label htmlFor={angleId}>Coming soon angle</label>
+        <input id={angleId} type='range' min='-30' max='30' step='1' value={typography.comingSoonAngle}
+          aria-valuetext={`${typography.comingSoonAngle} degrees`}
+          onChange={event => setTypography(previous => ({ ...previous, comingSoonAngle: Number(event.target.value) }))} />
+        <small>{typography.comingSoonAngle}° · Slide to tilt the Coming soon label.</small>
         <button type='button' onClick={() => { setTypography(defaultTypography) }}>Reset defaults</button>
         <SidebarTweaks />
         <small>Preview only. Saved in this browser.</small>

@@ -46,7 +46,7 @@ const PhoneHeader = styled.header`
   }
 `
 const Title = styled.h2`margin:0;line-height:1;`
-const Description = styled.p`max-width:680px;margin:0;color:${({ theme }) => theme.colors.text.secondary};font-size:16px;line-height:1.55;`
+const Description = styled.p`margin:0;color:${({ theme }) => theme.colors.text.secondary};font-size:16px;line-height:1.55;`
 // Exact LivePoolAprPage header styles. Assets are local, with no lookup calls.
 const PairHeading = styled.span`
   display: flex;

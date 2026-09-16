@@ -16,6 +16,7 @@ import { VaultReview } from './VaultReview'
 import { DeploymentWaiting } from './DeploymentWaiting'
 import { DepositTooltip } from './DepositTooltip'
 import { ImpermanentLossTooltip } from './ImpermanentLossTooltip'
+import uniswapLogo from './assets/uniswap.svg'
 
 export function IncentiveModal({offer,account,flow,price,deploymentId,openPosition=false,onClose,onConnect}:{offer:Offer|null;account:Address|null;flow:ReturnType<typeof useDeploymentFlow>;price:ReturnType<typeof useOfferPrice>;deploymentId?:string|null;openPosition?:boolean;onClose:()=>void;onConnect:()=>void}){
   const [deposit,setDeposit]=useState(flow.draft?.amountUsd??'100'),[inverted,setInverted]=useState(false),[nativeBusy,setNativeBusy]=useState(false),[lpDetailsOpen,setLpDetailsOpen]=useState(false)
@@ -143,9 +144,10 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <Row><Token><TokenIcon symbol={offer.token0.symbol} size={24}/>{offer.token0.symbol}</Token><b>{tokenUsd?tokenAmount(amount/2/tokenUsd):'—'}</b></Row>
           <Row><Token><TokenIcon symbol={offer.token1.symbol} size={24}/>{offer.token1.symbol}</Token><b>{price.value?tokenAmount(amount/2/price.value.quoteUsd):'—'}</b></Row>
         </TokenAmounts></FormFieldGroup>
+        <LiquidityVenue>You're providing liquidity to <span>Uniswap v3 <img src={uniswapLogo} alt='' aria-hidden='true'/></span></LiquidityVenue>
         {/* Keep one toggle mounted so expanding/collapsing preserves focus. Only
             the range controls collapse; Deposit and LP tokens remain visible. */}
-        <Range aria-label='LP price range details'><Row><RangeToggle type='button' $expanded={lpDetailsOpen} aria-expanded={lpDetailsOpen} aria-controls={rangeId} onClick={()=>setLpDetailsOpen(!lpDetailsOpen)}>{lpDetailsOpen?'Price range: full':'LP details'}</RangeToggle>{lpDetailsOpen&&<RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch>}</Row><RangePlot id={rangeId} hidden={!lpDetailsOpen}><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></RangePlot></Range>
+        <Range aria-label='LP price range details'><Row><RangeToggle type='button' $expanded={lpDetailsOpen} aria-expanded={lpDetailsOpen} aria-controls={rangeId} onClick={()=>setLpDetailsOpen(!lpDetailsOpen)}>{lpDetailsOpen?<Label as='span'>PRICE RANGE: FULL</Label>:<><span>LP details</span><RangeLabel as='span'>PRICE RANGE: FULL</RangeLabel></>}</RangeToggle>{lpDetailsOpen&&<RangeSwitch aria-label='Invert price pair' onClick={()=>setInverted(!inverted)}>{inverted?offer.token1.symbol+' / '+offer.token0.symbol:pair} ⇄</RangeSwitch>}</Row><RangePlot id={rangeId} hidden={!lpDetailsOpen}><Track aria-hidden='true'><i/></Track><Row><Muted>0</Muted><Muted>{price.value?tokenAmount(inverted?1/price.value.quotePerToken:price.value.quotePerToken):'—'}</Muted><Muted>∞</Muted></Row></RangePlot></Range>
         <QuoteSummary aria-label='Position and premium estimate'><div><Label as='dt'>YOU DEPOSIT</Label><dd data-testid='position-value'>{usd(amount||0)}</dd></div><div><Label as='dt'>YOU GET</Label><dd data-testid='upfront-premium'>{tokenUsd?<><Token>{tokenAmount(reward/tokenUsd)}<TokenIcon symbol={offer.token0.symbol} size={20}/></Token><RewardValue>+{usd(reward)}</RewardValue></>:'—'}</dd></div></QuoteSummary>
         {/* The exact fee remains disclosed on the next, payment-review step. */}
         {!offer.requestFeeWei&&<FinePrint>Request fee is not configured.</FinePrint>}
@@ -210,12 +212,17 @@ const TitleApr = styled(Premium)`
   ${aprTextPaint}
 `
 const TitleDays = styled(Muted)`font-size:14px;white-space:nowrap;font-weight:400;`
+// Keep the venue name and local icon together when this sentence wraps on phones.
+const LiquidityVenue = styled.p`margin:0;color:${({theme})=>theme.colors.text.secondary};font:400 14px/1.5 "Funnel Display",sans-serif;span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}img{width:16px;height:16px;object-fit:contain;}`
 const Range = styled.div`display:flex;flex-direction:column;gap:12px;`
 const RangePlot=styled.div`display:flex;flex-direction:column;gap:12px;&[hidden]{display:none;}`
+// Shared Label owns the exact summary typography in both disclosure states.
+const RangeLabel=styled(Label)`margin-left:auto;text-align:right;white-space:nowrap;`
 const RangeToggle=styled.button<{$expanded:boolean}>`
   display:inline-flex;align-items:center;gap:8px;border:0;padding:0;background:none;cursor:pointer;text-align:left;
-  font-family:"Funnel Display",sans-serif;font-size:${p=>p.$expanded?'11px':'13px'};font-weight:${p=>p.$expanded?'400':'500'};line-height:1.5;
-  letter-spacing:${p=>p.$expanded?'.06em':'normal'};color:${p=>p.$expanded?p.theme.colors.text.label:p.theme.colors.text.secondary};
+  width:${p=>p.$expanded?'auto':'100%'};min-width:0;
+  font-family:"Funnel Display",sans-serif;font-size:13px;font-weight:400;line-height:inherit;
+  color:${({theme})=>theme.colors.text.secondary};
   /* A filled disclosure marker matches the reference without relying on a
      font-specific chevron glyph. The expanded heading stays plain/clickable. */
   &::before{content:'';display:${p=>p.$expanded?'none':'block'};flex:none;width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:7px solid currentColor;}

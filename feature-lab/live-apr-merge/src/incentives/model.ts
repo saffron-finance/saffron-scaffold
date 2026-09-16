@@ -4,6 +4,11 @@ export interface Pair {id:string;revision:number;chainId:number;pool:Address;fee
 export interface Program {id:string;revision:number;pairId:string;budgetPoolId:string;apr:number;days:number;requestFeeWei:string|null;minimumCents:string;maximumCents:string;sortOrder:number;isNew:boolean;active:boolean}
 export interface Budget {advisoryBudgetCents?:string;campaign?:any;accounting?:any;id:string;revision:number;name:string;chainId:number;rewardAsset:Address;decimals:number;limitRaw:string;reservedRaw:string;allocatedRaw:string;availableRaw:string;paused:boolean;reconciliationRequired:boolean}
 export interface Offer extends Pair,Program {pairRevision:number;budget:Budget;availability:string|null;vaultTvl?:{status:string;usdRaw:string|null;checkedAt:number|null;block:{number:string;hash:string}|null;priceCheckedAt:number|null}}
+/** Use canonical catalog admission, not APR/TVL or browser time, for live paint.
+ * An unavailable offer stays inspectable; the existing checkout gates still apply. */
+export function isOfferLive(offer:Offer):boolean {
+  return offer.active && offer.availability===null && !offer.budget.paused && !offer.budget.reconciliationRequired
+}
 export interface PriceSnapshot {quotePerToken:number;quoteUsd:number;observedAt:string;block:string}
 export interface DeploymentProgress {version:1;reason:string;stages:{id:number;name:string;state:'pending'|'active'|'complete'|'blocked'|'checking';hash:Hex|null;confirmedAt:string|null}[];activeStage:number|null;requestedAt:string;acceptedAt:string;lastProgressAt:string;checkedAt:string;observedBlock:{number:string;hash:Hex;checkedAt:string}|null;verificationAvailable:boolean;operatorAction:boolean;paymentState:string;serviceWindowMinutes:number|null}
 export interface ProgramControl {state:'active'|'paused'|'closed'|'unavailable';programId:string;budgetPoolId:string;programRevision:number;budgetRevision:number;checkedAt:number}
