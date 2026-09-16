@@ -107,10 +107,17 @@ function RequestFeeEditor({account,program,heading,onSaved}:{account:Address;pro
 
 /** Editing a planning target must not alter the campaign's quoted economics. */
 function AdvisoryTarget({account,budget,onSaved}:{account:Address;budget:Budget;onSaved:()=>Promise<void>}){
-  const [value,setValue]=useState(String(Number(budget.advisoryBudgetCents??budget.campaign.budgetCents)/100)),[busy,setBusy]=useState(false),[error,setError]=useState('')
-  async function save(){setBusy(true);setError('');try{await authedJson(account,'/admin/budgets/'+budget.id+'/advisory',{revision:budget.revision,budgetUsd:value});await onSaved()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <><label>Internal planning budget (USD)<input aria-label={'Planning budget for '+budget.name} value={value} onChange={e=>setValue(e.target.value)} inputMode='decimal'/></label>
-    <QuietButton disabled={busy} onClick={()=>void save()}>Update planning target</QuietButton>{error&&<ErrorText role='alert'>{error}</ErrorText>}</>
+  const amount=String(Number(budget.advisoryBudgetCents??budget.campaign.budgetCents)/100)
+  // A draft and its optimistic revision are one value. Refresh pristine inputs;
+  // never bless an older dirty amount with a newly fetched server revision.
+  const [draft,setDraft]=useState({value:amount,revision:budget.revision,dirty:false})
+  const [busy,setBusy]=useState(false),[error,setError]=useState('')
+  useEffect(()=>{setDraft(old=>old.dirty?old:{value:amount,revision:budget.revision,dirty:false})},[amount,budget.revision])
+  const conflict=draft.dirty&&draft.revision!==budget.revision
+  async function save(){if(conflict)return;setBusy(true);setError('');try{await authedJson(account,'/admin/budgets/'+budget.id+'/advisory',{revision:draft.revision,budgetUsd:draft.value});setDraft(old=>({...old,dirty:false}));await onSaved()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+  return <><label>Internal planning budget (USD)<input aria-label={'Planning budget for '+budget.name} value={draft.value} onChange={e=>setDraft(old=>({...old,value:e.target.value,dirty:true}))} inputMode='decimal'/></label>
+    {conflict&&<ErrorText role='alert'>The planning target changed elsewhere. <QuietButton onClick={()=>setDraft({value:amount,revision:budget.revision,dirty:false})}>Use latest target</QuietButton></ErrorText>}
+    <QuietButton disabled={busy||conflict} onClick={()=>void save()}>Update planning target</QuietButton>{error&&<ErrorText role='alert'>{error}</ErrorText>}</>
 }
 
 /** Pool-derived headings also apply to campaigns created before this UI change. */

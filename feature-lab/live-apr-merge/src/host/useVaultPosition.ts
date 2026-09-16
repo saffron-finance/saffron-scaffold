@@ -49,6 +49,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   }
   const [completed, setCompleted] = useState(false)
   const foregroundState = useRef<() => void>(() => {})
+  const refreshCurrent = useRef<() => void>(() => {})
   const [pending, setPending] = useState<Intent | null>(() => {
     try { return readIntentRecord(key,account,deploymentId).value } catch { return null }
   })
@@ -100,7 +101,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
         action:campaignFundingAction(terms,allowance),blocked}
       setQuote(fresh);setError(blocked);return fresh
     }
-    const value = await read(()=>requestJson('/deployments/' + deploymentId + '/context'))
+    const value = await read(()=>requestJson('/deployments/' + deploymentId + '/context?wallet=' + encodeURIComponent(account)))
     scope?.assertActive()
     // The context endpoint freshly reads the trusted-factory vault and this
     // viewer's balances. Do not repeat that entire observation in the browser.
@@ -166,6 +167,33 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
     catch(cause) { if(isVisible()&&refreshing.current===scope){setQuote(null);setError(cause instanceof Error?cause.message:'Deposit unavailable.')} }
     finally { if(refreshing.current===scope)refreshing.current=null }
   }
+  refreshCurrent.current=()=>void refresh()
+  /** Chain confirmation and server journaling are separate durable states.
+   * Retry only idempotent registration, never the wallet send. Cancellation
+   * stops this view's retry while the record survives navigation/reload. */
+  useEffect(()=>{
+    if(!pending?.chainConfirmed||!pending.hash)return
+    if(pending.stage===mode){setCompleted(true);setQuote(null)}
+    const abort=new AbortController()
+    let timer:ReturnType<typeof setTimeout>|undefined,attempt=0
+    async function register(){
+      try{
+        const record=readIntentRecord(key,account,deploymentId)
+        if(!record.value?.chainConfirmed||record.value.hash!==pending!.hash)return
+        await requestJson('/deployments/'+deploymentId+'/transactions',{hash:record.value.hash,wallet:account},abort.signal)
+        if(abort.signal.aborted)return
+        // Another tab/action may have changed storage during the HTTP wait.
+        if(localStorage.getItem(key)!==record.raw)return
+        persist(null,record)
+        window.dispatchEvent(new Event('saffron:vault-updated'))
+        refreshCurrent.current()
+      }catch{
+        if(!abort.signal.aborted)timer=setTimeout(()=>void register(),Math.min(30_000,1000*2**Math.min(attempt++,5)))
+      }
+    }
+    void register()
+    return()=>{abort.abort();clearTimeout(timer)}
+  },[key,pending?.hash,pending?.chainConfirmed,mode])
   useEffect(()=>{
     mounted.current=true
     setBusy(false);setCloseBlocked(false);setCompleted(false)
@@ -178,7 +206,8 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   foregroundState.current=()=>{
     if(busy||completed||document.hidden)return
     // A return is permission to read evidence, never to submit a wallet action.
-    if(pending?.hash)void recover()
+    if(pending?.chainConfirmed)void refresh()
+    else if(pending?.hash)void recover()
     else void refresh()
   }
   useEffect(()=>{
@@ -216,17 +245,21 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       })
       if(!withdrew)throw new Error('Expected variable-side withdrawal event not found. Recovery retained.')
     }
-    if(['deposit','claim','withdraw','recover'].includes(intent.stage))await requestJson('/deployments/'+deploymentId+'/transactions',{hash,wallet:account})
-    persist(null,record)
+    const journalPending=['deposit','claim','withdraw','recover'].includes(intent.stage)
+    if(journalPending)persist({...intent,hash,chainConfirmed:true},record)
+    else persist(null,record)
     if(['deposit','claim','withdraw','recover','fund','campaign-withdraw'].includes(intent.stage)){
-      setCompleted(true);setQuote(null)
-      // A successful funding receipt is final for this wallet action. Refresh
-      // the observer without ever turning a failed refresh into a second send.
-      if(['fund','campaign-withdraw'].includes(intent.stage))try{setContext(await authedJson(account,contextPath))}
-      catch{setError('Wallet transaction confirmed. Refresh operations to update the vault status.')}
+      // A claim finishing after the visible panel became Withdraw cannot clear
+      // that newer quote or suppress its refresh. Durable receipt work is separate.
+      if(isVisible()){setCompleted(true);setQuote(null)}
+      if(['fund','campaign-withdraw'].includes(intent.stage)&&isVisible())try{
+        const value=await authedJson(account,contextPath)
+        if(isVisible())setContext(value)
+      }catch{if(isVisible())setError('Wallet transaction confirmed. Refresh operations to update the vault status.')}
       window.dispatchEvent(new Event('saffron:vault-updated'))
+      if(!isVisible())refreshCurrent.current()
     }
-    else await refresh()
+    else if(isVisible())await refresh()
   }
   /** Recovery and sends share the same wallet lock. Never trust the pending
    * value captured by an old render/tab; compare its action to locked storage. */

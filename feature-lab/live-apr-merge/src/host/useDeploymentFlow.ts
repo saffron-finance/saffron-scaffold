@@ -1,6 +1,7 @@
 import { useEffect,useRef,useState } from 'react'
 import { toHex,type Address,type Hex } from 'viem'
-import { walletClient,assertWalletAccount,ensureChain } from '@lab/wallet/wallet'
+import { walletClient,assertWalletAccount,ensureChain,selectedWalletProviderId } from '@lab/wallet/wallet'
+import { WalletPreflight } from '@lab/wallet/preflight'
 import { robinhoodChain } from '@lab/chain/chains'
 import { digest,cents,integer } from '../../shared/incentives.mjs'
 import { proofHash,paymentData } from '../../shared/payment.mjs'
@@ -17,6 +18,8 @@ export function useDeploymentFlow(account:Address|null){
   // Its promise outlives a modal; the local draft remains the recovery anchor.
   const [preparing,setPreparing]=useState(false)
   const preparation=useRef<Promise<any|null>|null>(null)
+  const preparationScope=useRef<WalletPreflight|null>(null)
+  const paymentScope=useRef<WalletPreflight|null>(null)
   // Navigation invalidates the visible review immediately. The durable ledger
   // stays intact until background withdrawal succeeds, including lost replies.
   const [reviewHidden,setReviewHidden]=useState(false)
@@ -31,11 +34,12 @@ export function useDeploymentFlow(account:Address|null){
     try{update(readPayments(localStorage,account));setDeployment(null)}catch(cause){setError((cause as Error).message)}
   }
   useEffect(()=>{
+    preparationScope.current?.cancel();paymentScope.current?.cancel()
     alive.current=true;reviewRevision.current++;preparation.current=null;cleanup.current=null;cleanupNeeded.current=false
     setReviewHidden(false);setPreparing(false);setSaved(null);setDraft(null);setRecords([]);setDeployment(null);setError(undefined);setRecoveryHash('');setBusy(false);restore()
     const changed=()=>{try{if(account)update(readPayments(localStorage,account))}catch(cause){setError((cause as Error).message)}}
     window.addEventListener('storage',changed);window.addEventListener('saffron:payment-record',changed)
-    return()=>{alive.current=false;window.removeEventListener('storage',changed);window.removeEventListener('saffron:payment-record',changed)}
+    return()=>{alive.current=false;preparationScope.current?.cancel();paymentScope.current?.cancel();window.removeEventListener('storage',changed);window.removeEventListener('saffron:payment-record',changed)}
   },[account])
   async function coordinated(operation:(ledger:Payments,persist:(payment:Payment,active?:boolean)=>void,prepare:(draft:CheckoutDraft|null)=>void)=>Promise<void>,foreground=true,relevant=isCurrent):Promise<boolean>{
     if(!account)return true
@@ -74,7 +78,10 @@ export function useDeploymentFlow(account:Address|null){
     // explicit Continue/Claim, never on a polling timer or while navigating.
     if(cleanupNeeded.current&&!cleanup.current)void reset(true)
     const pendingCleanup=cleanup.current,revision=reviewRevision.current
-    const relevant=()=>isCurrent()&&revision===reviewRevision.current
+    const provider=selectedWalletProviderId()
+    const relevant=()=>isCurrent()&&revision===reviewRevision.current&&selectedWalletProviderId()===provider
+    const scope=new WalletPreflight(relevant)
+    preparationScope.current=scope
     setPreparing(true);setError(undefined)
     let prepared:any=null
     const task=(async()=>{
@@ -84,13 +91,15 @@ export function useDeploymentFlow(account:Address|null){
     if(!relevant())return null
     const ok=await coordinated(async(ledger,persist,prepare)=>{
     if(!account)return
-    await assertWalletAccount(account);await ensureChain(robinhoodChain)
+    await scope.read(()=>assertWalletAccount(account));await ensureChain(robinhoodChain,scope)
+    scope.assertActive()
     if(ledger.activeId)throw new Error('Resume or close the saved payment review before starting another request.')
     const draft=ledger.draft??{requestKey:crypto.randomUUID(),wallet:account.toLowerCase(),programId:offer.id,amountUsd:amount,recoverySecret:toHex(crypto.getRandomValues(new Uint8Array(32)))}
     if(draft.programId!==offer.id||cents(draft.amountUsd)!==cents(amount))throw new Error('Resume the saved checkout amount or discard its unpaid review before changing terms.')
     prepare(draft)
     const {recoverySecret,requestKey}=draft
-    await requestJson('/checkout/session',{})
+    await scope.read(()=>requestJson('/checkout/session',{}))
+    scope.assertActive() // Back during network switching cannot issue payable terms.
     const {quote:q}=await requestJson('/deployment-quotes',{wallet:account,programId:offer.id,amountUsd:amount,recoveryHash:proofHash(recoverySecret),requestKey})
     const expected=digest({snapshot:q.snapshot,plan:q.plan,signer:q.signer,programRevision:q.programRevision,pairRevision:q.pairRevision,budgetRevision:q.budgetRevision})
     if(q.origin!==location.origin||q.wallet!==account.toLowerCase()||q.programId!==offer.id||expected!==q.planHash
@@ -106,7 +115,7 @@ export function useDeploymentFlow(account:Address|null){
     return ok?prepared:null
     })()
     preparation.current=task
-    void task.finally(()=>{if(preparation.current===task)preparation.current=null;if(relevant())setPreparing(false)})
+    void task.finally(()=>{scope.cancel();if(preparationScope.current===scope)preparationScope.current=null;if(preparation.current===task)preparation.current=null;if(relevant())setPreparing(false)})
     return task
   }
   const pay=(retryMissingHash=false,expectedQuoteId?:string)=>coordinated(async(ledger,persist)=>{
@@ -124,22 +133,32 @@ export function useDeploymentFlow(account:Address|null){
     const retrying=retryMissingHash&&payment.sent&&!payment.hash
     if(!payment.sent||retrying){
       if(!retrying&&Date.parse(payment.quote.paymentDeadline)<=Date.now())throw new Error('Payment quote expired. Refresh before paying.')
-      await assertWalletAccount(account);await ensureChain(robinhoodChain)
-      const [latestNonce,pendingNonce]=await Promise.all([
+      const provider=selectedWalletProviderId()
+      const scope=new WalletPreflight(()=>isCurrent()&&selectedWalletProviderId()===provider)
+      paymentScope.current=scope
+      try {
+      await scope.read(()=>assertWalletAccount(account));await ensureChain(robinhoodChain,scope)
+      const [latestNonce,pendingNonce]=await scope.read(()=>Promise.all([
         robinhoodClient.getTransactionCount({address:account,blockTag:'latest'}),
         robinhoodClient.getTransactionCount({address:account,blockTag:'pending'}),
-      ])
+      ]))
       const nonce=retrying?retryPaymentNonce(payment,latestNonce,pendingNonce):nextPaymentNonce(ledger.records,latestNonce,pendingNonce)
-      await assertWalletAccount(account)
-      payment={...payment,sent:true,status:'submitting',nonce};persist(payment)
+      await scope.read(()=>assertWalletAccount(account))
+      // The SDK may still read chain ID. Persist only when its provider wrapper
+      // actually invokes eth_sendTransaction, preserving uncertain real sends.
+      const client=walletClient({scope,onSubmit:()=>{
+        payment={...payment,sent:true,status:'submitting',nonce};persist(payment)
+        if(paymentScope.current===scope)paymentScope.current=null
+      }})
       try{
-        const hash=await walletClient().sendTransaction({chain:robinhoodChain,account,to:payment.quote.fee.recipient,value:BigInt(payment.quote.fee.amountWei),data:paymentData(payment.quote),nonce})
+        const hash=await client.sendTransaction({chain:robinhoodChain,account,to:payment.quote.fee.recipient,value:BigInt(payment.quote.fee.amountWei),data:paymentData(payment.quote),nonce})
         payment={...payment,hash,status:'submitted'};persist(payment)
       }catch(cause:any){
         // Rejecting a retry does not prove the original unknown send was unpaid.
         let current=cause;for(let i=0;!retrying&&current&&i<8;i++,current=current.cause)if(current.code===4001){payment={...payment,sent:false,status:'prepared',nonce:undefined};persist(payment);break}
         throw cause
       }
+      } finally {scope.cancel();if(paymentScope.current===scope)paymentScope.current=null}
     }
     if(!payment.hash){
       const recovered=await requestJson('/payments/recover',{quoteId:payment.quote.id,recoverySecret:payment.recoverySecret})
@@ -165,6 +184,9 @@ export function useDeploymentFlow(account:Address|null){
    * the actual server result before changing the selected checkout. */
   function reset(background=false):Promise<boolean>{
     if(saved?.sent){setError('Recover the existing payment before starting another request.');return Promise.resolve(false)}
+    // Revoke only unsent work. A real provider send clears paymentScope and
+    // remains owned by its durable recovery record, never a cancellation timer.
+    preparationScope.current?.cancel();paymentScope.current?.cancel()
     const pendingPreparation=preparation.current,pendingCleanup=cleanup.current
     reviewRevision.current++;preparation.current=null;cleanupNeeded.current=true
     setReviewHidden(true);setPreparing(false);setError(undefined)

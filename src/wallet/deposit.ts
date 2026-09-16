@@ -64,7 +64,9 @@ export async function depositVariable(
       args: [v.vault, amount],
     })
     onStep('approve-confirm')
-    await pub.waitForTransactionReceipt({ hash: approveHash })
+    const approval = await pub.waitForTransactionReceipt({ hash: approveHash })
+    // A mined revert is not an approval; never continue to the deposit send.
+    if (approval.status !== 'success') throw new Error('Token approval reverted. No deposit was sent.')
   }
 
   onStep('depositing')
@@ -77,7 +79,8 @@ export async function depositVariable(
     args: [amount, VARIABLE_SIDE, '0x'],
   })
   onStep('deposit-confirm')
-  await pub.waitForTransactionReceipt({ hash })
+  const receipt = await pub.waitForTransactionReceipt({ hash })
+  if (receipt.status !== 'success') throw new Error('Deposit reverted. Check the transaction before trying again.')
   onStep('done')
   return { hash }
 }

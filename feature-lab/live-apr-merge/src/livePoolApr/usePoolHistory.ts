@@ -21,7 +21,11 @@ export function usePoolHistory(model: ReturnType<typeof usePoolObservation>, col
     setHistoryError(null)
   }, [epochKey])
   useEffect(() => {
-    if (collapsed || !historyOpen || !client || !baseline || paused || valuationUnavailable) return
+    if (collapsed || !historyOpen || !client || !baseline || paused || valuationUnavailable) {
+      // Cleanup aborted the prior generation; no replacement is loading now.
+      setHistoryBusy(false)
+      return
+    }
     const abort = new AbortController()
     setHistoryBusy(true)
     void client

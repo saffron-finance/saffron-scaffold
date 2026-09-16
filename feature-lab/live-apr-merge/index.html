@@ -43,5 +43,9 @@ if (document.fonts) for (const family of ['Funnel Display', 'Host Grotesk', 'Rob
     <div class="row"><i></i><i></i><i></i><i></i></div>
     <div class="row"><i></i><i></i><i></i><i></i></div>
   </main></section>
-</div><noscript><p style="color:#eee;padding:20px">Enable JavaScript to use Saffron.</p></noscript>
+</div>
+<!-- Remains actionable even when the entry module itself never downloads.
+     React replaces this with the application; no storage-clearing recovery. -->
+<p data-boot-recovery style="color:#eee;padding:16px 24px;margin:0">Loading Saffron. If this page stays here, <a href="" style="color:#f0ce8b">reload the page</a>. Your saved requests are preserved.</p>
+<noscript><p style="color:#eee;padding:20px">Enable JavaScript to use Saffron.</p></noscript>
 </div><script type="module" src="/src/merge/bootstrap.ts"></script></body></html>

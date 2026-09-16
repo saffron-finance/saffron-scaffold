@@ -13,20 +13,23 @@ export function useIncentivePrograms(){
   const freshRef=useRef(false)
   const refresh=()=>refreshRef.current()
   useEffect(()=>{
-    let controller:AbortController|null=null,last=0,alive=true,suspended=false
+    let controller:AbortController|null=null,last=0,alive=true,suspended=false,queued=false,revision=0
     async function load(force=false){
-      if(controller||suspended||document.hidden||!force&&Date.now()-last<30_000)return
+      if(force){revision++;last=0;freshRef.current=false}
+      if(controller){if(force)queued=true;return}
+      if(suspended||document.hidden||!force&&Date.now()-last<30_000)return
       const request=new AbortController();controller=request;last=Date.now()
+      const started=revision
       try{
         const data=await requestJson('/programs',undefined,request.signal)
         if(!Array.isArray(data.offers))throw new Error('The incentive catalog is unavailable.')
-        if(alive&&!request.signal.aborted){
+        if(alive&&!request.signal.aborted&&started===revision){
           freshRef.current=true
           setState({offers:data.offers,creatorOnline:data.creatorOnline,readiness:data.readiness,loading:false,hasSnapshot:true})
           try{localStorage.setItem(cacheKey,JSON.stringify({offers:data.offers,at:Date.now()}))}catch{/* A storage failure must not hide a good response. */}
         }
-      }catch(error){if(alive&&!request.signal.aborted){freshRef.current=false;setState(previous=>({...previous,creatorOnline:false,loading:false,error:(error as Error).message}))}}
-      finally{if(controller===request)controller=null}
+      }catch(error){if(alive&&!request.signal.aborted&&started===revision){freshRef.current=false;setState(previous=>({...previous,creatorOnline:false,loading:false,error:(error as Error).message}))}}
+      finally{if(controller===request){controller=null;if(queued&&alive){queued=false;last=0;void load()}}}
     }
     const force=()=>void load(true),resume=()=>void load()
     // Cancel expendable reads before the browser freezes the document. Keep

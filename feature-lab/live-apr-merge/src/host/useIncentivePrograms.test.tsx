@@ -94,3 +94,15 @@ it('ignores a pre-freeze response which arrives after a restored-page refresh',a
   await act(async()=>{oldReply(response)})
   expect(result.current.offers).toEqual([])
 })
+
+// An accepted edit arriving during a poll must get one fresh post-edit read.
+it('queues catalog invalidation behind an active poll and discards its pre-edit result',async()=>{
+  let oldReply!:(v:unknown)=>void
+  request.mockImplementationOnce(()=>new Promise(resolve=>{oldReply=resolve})).mockResolvedValueOnce({...response,offers:[]})
+  const {result}=renderHook(()=>useIncentivePrograms())
+  act(()=>{result.current.refresh();result.current.refresh()})
+  expect(request).toHaveBeenCalledTimes(1)
+  await act(async()=>{oldReply(response)})
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(result.current.offers).toEqual([])
+})

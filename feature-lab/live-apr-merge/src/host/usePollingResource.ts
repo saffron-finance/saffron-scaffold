@@ -9,16 +9,19 @@ export function usePollingResource<T>(key:string,load:(signal:AbortSignal)=>Prom
   useEffect(()=>{
     // Disabled consumers register no timers/listeners and issue no request.
     if(!enabled){trigger.current=()=>{};return}
-    const controller=new AbortController();let pending=false,failures=0,timer:ReturnType<typeof setTimeout>|undefined
+    const controller=new AbortController();let pending=false,queued=false,revision=0,failures=0,timer:ReturnType<typeof setTimeout>|undefined
     async function poll(){
       if(pending||controller.signal.aborted)return
-      clearTimeout(timer);pending=true
-      try{const data=await load(controller.signal);if(!controller.signal.aborted){setState({key,data});failures=0}}
-      catch(cause){if(!controller.signal.aborted){failures++;setState(previous=>({key,data:previous.key===key?previous.data:null,error:(cause as Error).message}))}}
-      finally{pending=false;if(!controller.signal.aborted)timer=setTimeout(()=>void poll(),document.hidden?30000:Math.min(30000,5000*2**Math.min(failures,3)))}
+      clearTimeout(timer);pending=true;const started=revision
+      try{const data=await load(controller.signal);if(!controller.signal.aborted&&started===revision){setState({key,data});failures=0}}
+      catch(cause){if(!controller.signal.aborted&&started===revision){failures++;setState(previous=>({key,data:previous.key===key?previous.data:null,error:(cause as Error).message}))}}
+      finally{pending=false;if(!controller.signal.aborted){if(queued){queued=false;void poll()}else timer=setTimeout(()=>void poll(),document.hidden?30000:Math.min(30000,5000*2**Math.min(failures,3)))}}
     }
-    const foreground=()=>{if(!document.hidden)void poll()}
-    trigger.current=()=>void poll();void poll()
+    // A completed mutation invalidates reads that began before it. Coalesce
+    // repeated invalidations into one follow-up without overlapping requests.
+    const invalidate=()=>{revision++;if(pending)queued=true;else void poll()}
+    const foreground=()=>{if(!document.hidden)invalidate()}
+    trigger.current=invalidate;void poll()
     const names=events.split(',').filter(Boolean)
     for(const name of names)window.addEventListener(name,foreground)
     window.addEventListener('focus',foreground);window.addEventListener('pageshow',foreground);document.addEventListener('visibilitychange',foreground)

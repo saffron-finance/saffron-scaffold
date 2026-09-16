@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatUnits } from 'viem'
 import { type VariableVault } from '../chain/vaults'
-import { loadFixedRanges, rangeGeometry, type FixedRange } from '../chain/fixedRange'
+import { rangeGeometry, type FixedRange } from '../chain/fixedRange'
 import { chainIdFor } from '../chain/chains'
 import {
   fixedCapacityUsd,
@@ -22,6 +22,7 @@ import { PairSelector } from '../components/PairSelector'
 import { DepositModal } from '../components/DepositModal'
 import { FixedDepositModal } from '../components/FixedDepositModal'
 import { IS_STATIC_MOCK } from '../mock/mode'
+import { useFixedRanges } from '../chain/useFixedRanges'
 
 const PAGE = 12
 // Table icons use their original, roomy desktop size. The mobile stylesheet
@@ -95,7 +96,7 @@ export function CapacitiesTable({
   const [sortKey, setSortKey] = useState<SortKey>('default')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(1)
-  const [ranges, setRanges] = useState<Map<string, FixedRange>>(new Map())
+  const { ranges, setRanges, unavailable: rangeUnavailable, retry: retryRanges, retryReady } = useFixedRanges(vaults, !IS_STATIC_MOCK)
   const [variableModalVault, setVariableModalVault] = useState<VariableVault | null>(null)
   const [fixedModalVault, setFixedModalVault] = useState<FixedVault | null>(null)
 
@@ -156,23 +157,6 @@ export function CapacitiesTable({
     return list
   }, [fixedVaults, openOnly, chain, filledCounterSideOnly, inRangeOnly])
 
-  useEffect(() => {
-    if (IS_STATIC_MOCK) return
-    const missing = variableBaseList.filter((vault) => !ranges.has(vault.vault.toLowerCase()))
-    if (missing.length === 0) return
-    let cancelled = false
-    void loadFixedRanges(missing).then((loaded) => {
-      if (cancelled) return
-      setRanges((current) => {
-        const next = new Map(current)
-        for (const [address, range] of loaded) next.set(address, range)
-        return next
-      })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [variableBaseList, ranges])
 
   const variableVaultTokenOptions = useMemo(() => {
     const options = new Map<string, { symbol: string; count: number; address?: string; chainId: number }>()
@@ -312,6 +296,10 @@ export function CapacitiesTable({
             : 'Available fixed-side vaults. Provide the required Uniswap pair and earn the upfront premium.'}
         </div>
 
+        {yieldMode === 'variable' && rangeUnavailable > 0 && <p role="status">
+          Range data unavailable for {rangeUnavailable} vaults.{' '}
+          <button disabled={!retryReady} onClick={retryRanges}>{retryReady ? 'Retry ranges' : 'Retry available shortly'}</button>
+        </p>}
         <div className="vaults-controls">
           <select
             className="pair-select yield-mode-select"

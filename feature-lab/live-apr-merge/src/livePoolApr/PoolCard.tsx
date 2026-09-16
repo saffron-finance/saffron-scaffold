@@ -1,3 +1,4 @@
+import { formatTimestamp } from './time'
 import { useState } from 'react'
 import styled, { css, keyframes } from 'styled-components'
 
@@ -445,7 +446,7 @@ export function PoolCard({
                 <tbody>
                   {history.rows.map((swap) => (
                     <tr key={swap.id}>
-                      <td>{new Date(swap.timestamp).toISOString().slice(11, 19)}</td>
+                      <td>{formatTimestamp(swap.timestamp, true)}</td>
                       <td>
                         {swap.inputAmount === 0
                           ? '—'
@@ -545,11 +546,11 @@ export function PoolCard({
           </p>
           {metrics && (
             <p>
-              Observation started: {new Date(metrics.observationStartedAtMs).toISOString()}.{' '}
+              Observation started: {formatTimestamp(metrics.observationStartedAtMs)}.{' '}
               Valuation time:{' '}
               {metrics.quoteTimeMs === null
                 ? 'Unavailable'
-                : new Date(metrics.quoteTimeMs).toISOString()}
+                : formatTimestamp(metrics.quoteTimeMs)}
               .
             </p>
           )}
@@ -572,7 +573,7 @@ export function PoolCard({
             <p>
               Chain {snapshot.chainId} | covered block{' '}
               {BigInt(snapshot.coverage.throughBlock).toLocaleString('en-US')} |{' '}
-              {new Date(snapshot.coverage.chainTimeMs).toISOString()} | provisional chain data.
+              {formatTimestamp(snapshot.coverage.chainTimeMs)} | provisional chain data.
             </p>
           )}
           {config.tokens.map((token) => (

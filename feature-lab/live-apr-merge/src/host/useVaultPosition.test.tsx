@@ -234,3 +234,44 @@ describe('revocable wallet preparation',()=>{
     expect(localStorage.getItem(positionStorageKey(account,'vault-a'))).toBeNull()
   })
 })
+
+// M01: chain completion is visible before the application journal acknowledges it.
+it('retains confirmed journal work without keeping the action busy or resending',async()=>{
+  const journal=deferred<any>()
+  mocks.context.mockImplementation((path:string)=>path.endsWith('/transactions')?journal.promise:Promise.resolve({snapshot}))
+  mocks.receipt.mockResolvedValue({status:'success',blockNumber:1n,blockHash:'0x'+'bb'.repeat(32),logs:[]})
+  const view=renderHook(()=>useVaultPosition(account,'journal-vault','claim'));await flush()
+  await act(async()=>{await view.result.current.advance()});await flush()
+  expect(view.result.current.completed).toBe(true);expect(view.result.current.busy).toBe(false)
+  expect(view.result.current.pending).toMatchObject({hash:txHash,chainConfirmed:true})
+  expect(locks.size).toBe(0);expect(calls('eth_sendTransaction')).toHaveLength(1)
+  journal.reject(Error('Journal unavailable'));await flush()
+  expect(view.result.current.completed).toBe(true)
+  expect(JSON.parse(localStorage.getItem(positionStorageKey(account,'journal-vault'))!)).toMatchObject({chainConfirmed:true})
+  mocks.context.mockImplementation(async()=>({snapshot}))
+  await act(async()=>{await vi.advanceTimersByTimeAsync(1001)})
+  expect(view.result.current.pending).toBeNull();expect(calls('eth_sendTransaction')).toHaveLength(1)
+})
+
+// N004: the claim continuation cannot mark a newly visible withdrawal complete.
+it('does not let old claim completion clear the newer mode quote',async()=>{
+  const held=deferred<any>();mocks.receipt.mockReturnValue(held.promise)
+  const view=renderHook(({mode})=>useVaultPosition(account,'changed-mode',mode),{initialProps:{mode:'claim'}});await flush()
+  let work!:Promise<void>;await act(async()=>{work=view.result.current.advance()});await flush()
+  view.rerender({mode:'withdraw'});await flush()
+  expect(view.result.current.quote).not.toBeNull()
+  held.resolve({status:'success',blockNumber:1n,blockHash:'0x'+'bb'.repeat(32),logs:[]})
+  await act(async()=>{await work});await flush()
+  expect(view.result.current.completed).toBe(false);expect(view.result.current.quote).not.toBeNull()
+  const before=mocks.context.mock.calls.length
+  await act(async()=>{window.dispatchEvent(new Event('focus'))});await flush()
+  expect(mocks.context.mock.calls.length).toBeGreaterThan(before)
+})
+
+// N024: no implicit transport-global wallet is allowed for ownership context.
+it('binds the context URL to the current position owner',async()=>{
+  const other=('0x'+'55'.repeat(20)) as Address
+  const view=renderHook(()=>useVaultPosition(other,'owner-bound','claim'));await flush()
+  expect(mocks.context).toHaveBeenCalledWith('/deployments/owner-bound/context?wallet='+other)
+  view.unmount()
+})

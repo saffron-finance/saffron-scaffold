@@ -1,5 +1,6 @@
 import { createParser } from './vendor/eventsource-parser'
 import { boundedControlText } from './bounded-response'
+import { validTimestamp } from './time'
 import { validBaseline, validSnapshot, validWatcher } from './contracts'
 import { initialConnection, loseConnection, receiveConnection } from './connection'
 import {
@@ -46,8 +47,11 @@ export async function consumeEventStream(
   onMessage: (message: StreamMessage) => void,
   signal: AbortSignal
 ) {
-  if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream'))
+  if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+    // Rejected headers still own a live HTTP body; never abandon its connection.
+    await response.body?.cancel().catch(() => {})
     throw new Error('Invalid event stream')
+  }
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let undispatchedBytes = 0
@@ -170,7 +174,7 @@ export class SummaryClient {
     for (const listener of this.listeners) listener(this.value)
   }
   private serverClock(serverTimeMs: unknown) {
-    if (typeof serverTimeMs === 'number' && Number.isSafeInteger(serverTimeMs)) {
+    if (validTimestamp(serverTimeMs)) {
       this.publish({ serverOffsetMs: serverTimeMs - Date.now() })
     }
   }
@@ -338,8 +342,9 @@ export class SummaryClient {
       const cancel = () => stream.abort()
       owner.signal.addEventListener('abort', cancel, { once: true })
       this.scheduleRenew()
+      let response: Response | undefined
       try {
-        const response = await this.fetcher(
+        response = await this.fetcher(
           `${this.api}/pools/${encodeURIComponent(this.poolId)}/events`,
           {
             signal: stream.signal,
@@ -359,6 +364,11 @@ export class SummaryClient {
         this.attempts = 0
         await consumeEventStream(response, (event) => this.message(event), stream.signal)
       } finally {
+        // Tear down this attempt before releasing its owner or scheduling retry.
+        // This covers HTTP/MIME rejection before consumeEventStream owns a reader.
+        stream.abort()
+        if (response?.body && !response.body.locked) await response.body.cancel().catch(() => {})
+        if (this.streamAbort === stream) this.streamAbort = null
         owner.signal.removeEventListener('abort', cancel)
       }
     } catch (error) {
@@ -501,7 +511,8 @@ export class SummaryClient {
       },
       signal
     )
-    if (!Array.isArray(data.rows) || data.rows.length > 20 || typeof data.epoch !== 'string')
+    if (!Array.isArray(data.rows) || data.rows.length > 20 || typeof data.epoch !== 'string' ||
+      (data.retainedFromMs != null && !validTimestamp(data.retainedFromMs)))
       throw new Error('Invalid history page')
     if (
       new TextEncoder().encode(JSON.stringify(data)).byteLength > 16_384 ||
@@ -510,8 +521,7 @@ export class SummaryClient {
           !row ||
           typeof row.id !== 'string' ||
           !/^\d+$/.test(String(row.block)) ||
-          !Number.isSafeInteger(row.timestamp) ||
-          row.timestamp < 0 ||
+          !validTimestamp(row.timestamp) ||
           typeof row.transactionHash !== 'string' ||
           !/^0x[\da-f]{64}$/i.test(row.transactionHash) ||
           typeof row.inputIs0 !== 'boolean' ||

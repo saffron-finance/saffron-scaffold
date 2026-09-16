@@ -95,3 +95,25 @@ it('reports unavailable clipboard support without attempting a screenshot', () =
   expect(dom.getByRole('status').textContent).toContain('not supported')
   expect(toBlob).not.toHaveBeenCalled()
 })
+
+it('N026: rejected clipboard and unmount tear down a stalled capture, with one underlying job',async()=>{
+  vi.mocked(toBlob).mockReset()
+  Object.defineProperty(document,'fonts',{configurable:true,value:{ready:Promise.resolve()}})
+  let release!:()=>void
+  const decoded=new Promise<void>(resolve=>{release=resolve})
+  Object.defineProperty(HTMLImageElement.prototype,'decode',{configurable:true,value:()=>decoded})
+  let reject!: (error:Error)=>void
+  const write=vi.fn(()=>new Promise<void>((_resolve,fail)=>{reject=fail}))
+  vi.stubGlobal('navigator',{clipboard:{write}})
+  vi.stubGlobal('ClipboardItem',class {constructor(public data:Record<string,Promise<Blob>>){}})
+  const view=render(<ThemeProvider theme={darkTheme}><CopyPoolImageButton poolName='Slow' renderCapture={()=><img src='/slow.png'/>}/></ThemeProvider>)
+  fireEvent.click(view.getByRole('button'))
+  await waitFor(()=>expect(document.querySelectorAll('[data-apr-capture]')).toHaveLength(1))
+  reject(Error('Permission refused'))
+  await waitFor(()=>expect(view.getByRole('status').textContent).toContain('Could not'))
+  expect(document.querySelectorAll('[data-apr-capture]')).toHaveLength(0)
+  // An uninterruptible earlier decoder cannot spawn a second capture tree.
+  fireEvent.click(view.getByRole('button'));await Promise.resolve()
+  view.unmount();expect(document.querySelectorAll('[data-apr-capture]')).toHaveLength(0)
+  release();await waitFor(()=>expect(toBlob).not.toHaveBeenCalled())
+})

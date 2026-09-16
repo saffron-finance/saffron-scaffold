@@ -1,3 +1,4 @@
+import { setViewerWallet } from '../host/transport'
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Navigate, useLocation } from 'react-router-dom'
@@ -32,6 +33,7 @@ function MergeApp() {
   const session=useMergeSession()
   const location = useLocation()
   const path = location.pathname.replace(/\/+$/, '') || '/'
+  useEffect(() => { setViewerWallet(session.account) }, [session.account])
   const isApr = path === '/live-apr' || path.startsWith('/live-apr/')
   const isIncentives = incentivePaths.has(path)
   const pageLabel = isApr ? 'Live APR' : pageLabels[path] ?? 'Page not found'
@@ -51,7 +53,7 @@ function MergeApp() {
 
   return <AppShell account={session.account} chainId={session.chainId} liveApr={isApr} pageLabel={pageLabel} onConnect={session.openModal} overlays={session.overlays}>
     {legacyCampaign ? <Navigate replace to={{ pathname: '/campaigns', search: params.toString() ? `?${params}` : '', hash: location.hash }} /> :
-      <SectionBoundary key={isApr ? 'apr' : isIncentives ? 'incentives' : path}>
+      <SectionBoundary key={path}>
         {isApr ? <Suspense fallback={<Loading role='status'>Loading Live APR…</Loading>}><AprSection /></Suspense> :
           isIncentives ? <IncentivesPage account={session.account} onConnect={session.openModal} /> :
             path === '/stats' ? <StatsPage /> : path === '/community' ? <CommunityPage /> :

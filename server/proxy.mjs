@@ -99,7 +99,15 @@ function allMethodsAllowed(raw) {
   return calls.length > 0 && calls.every((c) => c && ALLOWED_METHODS.has(c.method))
 }
 
-const server = createServer(async (req, res) => {
+// Node does not await async request listeners. Contain every rejected handler,
+// including malformed URLs, and keep later requests available.
+const server = createServer((req,res)=>{
+  void handleRequest(req,res).catch(()=>{
+    if(res.headersSent){res.destroy();return}
+    end(res,500,'request failed')
+  })
+})
+async function handleRequest(req,res) {
   // Force one request per connection (no keep-alive). Some browsers reach this server through a
   // forward proxy (a VPN / corporate proxy — it sends `Proxy-Connection` and absolute-URI request
   // lines) that pipelined requests and desynced their HTTP framing, so one request's body bled into
@@ -107,7 +115,8 @@ const server = createServer(async (req, res) => {
   // the pipelining and the desync. (TLS in front would also fix it by tunnelling opaquely.)
   res.setHeader('Connection', 'close')
 
-  const url = new URL(req.url, `http://${req.headers.host}`)
+  let url
+  try { url = new URL(req.url, 'http://localhost') } catch { return end(res,400,'invalid URL') }
 
   const fixedVaultPrefix = `${BASE_PATH}/fixed-vaults/`
   if (url.pathname.startsWith(fixedVaultPrefix)) {
@@ -187,7 +196,9 @@ const server = createServer(async (req, res) => {
   if (BASE_PATH && url.pathname !== BASE_PATH && !url.pathname.startsWith(`${BASE_PATH}/`)) {
     return end(res, 404, 'not found')
   }
-  let p = decodeURIComponent(url.pathname.slice(BASE_PATH.length))
+  let p
+  try { p = decodeURIComponent(url.pathname.slice(BASE_PATH.length)) } catch { return end(res,400,'invalid path') }
+  if(p.includes('\0'))return end(res,400,'invalid path')
   if (p === '' || p === '/') p = '/index.html'
   const filePath = resolve(DIST, `.${p}`)
   const relativePath = relative(DIST, filePath)
@@ -205,7 +216,7 @@ const server = createServer(async (req, res) => {
       end(res, 404, 'not found')
     }
   }
-})
+}
 
 function end(res, code, msg) {
   res.writeHead(code, { 'content-type': 'text/plain' })

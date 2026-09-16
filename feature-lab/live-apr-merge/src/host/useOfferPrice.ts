@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { parseAbi } from 'viem'
-import { robinhoodClient } from './transport'
+import { createPriceReadClient } from './transport'
 import type { Offer, PriceSnapshot } from '../incentives/model'
 
 const poolAbi = parseAbi([
@@ -22,15 +22,25 @@ function trim(map:Map<string,unknown>){while(map.size>MAX_POOLS)map.delete(map.k
 
 /** Pool token identity is immutable. Revalidate on identity/revision changes or
  * after 30 minutes, not on every slot0 observation. Failures are never retained. */
-async function poolTokens(offer:Offer,call:any):Promise<readonly [string,string]>{
+async function poolTokens(offer:Offer,call:any,client:ReturnType<typeof createPriceReadClient>):Promise<readonly [string,string]>{
   const key=identityOf(offer)+':'+offer.pairRevision,previous=metadata.get(key)
   if(previous&&Date.now()-previous.at<METADATA_TTL_MS)return previous.tokens
   const tokens=Promise.all([
-    robinhoodClient.readContract({...call,functionName:'token0'}),
-    robinhoodClient.readContract({...call,functionName:'token1'}),
+    client.readContract({...call,functionName:'token0'}),
+    client.readContract({...call,functionName:'token1'}),
   ]) as Promise<[string,string]>
   const entry={at:Date.now(),tokens};metadata.set(key,entry);trim(metadata)
   try{return await tokens}catch(error){if(metadata.get(key)===entry)metadata.delete(key);throw error}
+}
+
+/** Consumer cancellation leaves shared work alive for the other open modal. */
+function waitForPrice<T>(work:Promise<T>,signal:AbortSignal):Promise<T>{
+  return new Promise((resolve,reject)=>{
+    const cancel=()=>reject(signal.reason??new Error('Price request cancelled'))
+    signal.addEventListener('abort',cancel,{once:true})
+    if(signal.aborted)cancel()
+    work.then(resolve,reject).finally(()=>signal.removeEventListener('abort',cancel))
+  })
 }
 
 /** Coalesce callers without allowing one closed modal to abort another caller.
@@ -44,12 +54,14 @@ export async function readOfferPrice(offer:Offer,signal:AbortSignal):Promise<Pri
   let work=entry?.pending
   if(!work){
     const next:{value?:PriceSnapshot;pending?:Promise<PriceSnapshot>;retryAt?:number}={}
-    work=loadOfferPrice(offer,AbortSignal.timeout(30_000)).then(value=>{
+    const controller=new AbortController()
+    const timer=setTimeout(()=>controller.abort(new Error('Price preview timed out')),30_000)
+    work=waitForPrice(loadOfferPrice(offer,controller.signal),controller.signal).finally(()=>clearTimeout(timer)).then(value=>{
       next.value=value;delete next.pending;return value
     },error=>{delete next.pending;next.retryAt=Date.now()+RETRY_BACKOFF_MS;throw error})
     next.pending=work;snapshots.set(key,next);trim(snapshots)
   }
-  const value=await work;signal.throwIfAborted();return value
+  return waitForPrice(work,signal)
 }
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -60,11 +72,13 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 async function loadOfferPrice(offer: Offer, signal: AbortSignal): Promise<PriceSnapshot> {
   if (offer.chainId !== 4663) throw new Error('Unsupported offer chain')
   const observedAt = new Date().toISOString()
-  const block = await robinhoodClient.getBlockNumber()
+  const client=createPriceReadClient(signal)
+  const block = await waitForPrice(client.getBlockNumber(),signal)
+  signal.throwIfAborted()
   const call = { address: offer.pool, abi: poolAbi, blockNumber: block } as const
   const [slot, [token0, token1], response] = await Promise.all([
-    robinhoodClient.readContract({ ...call, functionName: 'slot0' }),
-    poolTokens(offer,call),
+    client.readContract({ ...call, functionName: 'slot0' }),
+    poolTokens(offer,call,client),
     fetch(`${import.meta.env.BASE_URL}prices/${offer.token1.address}`, { signal, cache: 'no-store' }),
   ])
   const payload = await response.json()

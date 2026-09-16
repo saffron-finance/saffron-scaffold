@@ -1,50 +1,59 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styled, { ThemeProvider, useTheme } from 'styled-components'
 import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 
-/** Render the shared presentation in a detached compact surface. This code
- * owns no session/controller; every value is a snapshot of the clicked card. */
-async function capturePool(content: ReactNode): Promise<Blob> {
-  const { toBlob } = await import('html-to-image')
-  await document.fonts.ready
-  const host = document.createElement('div')
-  host.setAttribute('aria-hidden', 'true')
-  host.inert = true
-  Object.assign(host.style, {
-    position: 'fixed',
-    left: '-100000px',
-    top: '0',
-    pointerEvents: 'none',
+// html-to-image/image decoders cannot always be interrupted. Keep one shared
+// underlying job, even after its owner cancels, until that job really settles.
+let pendingCapture: Promise<Blob> | null = null
+
+/** Release the caller promptly on cancellation without leaving an abort listener. */
+function cancellable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new DOMException('Capture cancelled', 'AbortError'))
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) abort()
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
   })
-  // Keep offscreen positioning outside the captured node: cloning that offset
-  // into the PNG would place the card outside its own canvas.
-  const surface = document.createElement('div')
-  Object.assign(surface.style, {
-    width: '600px',
-    boxSizing: 'border-box',
-    padding: '14px',
-    border: '1px solid #292929',
-    background: '#000',
-  })
-  host.append(surface)
-  document.body.append(host)
-  const root = createRoot(surface)
-  try {
-    flushSync(() => root.render(content))
-    await Promise.all([...host.querySelectorAll('img')].map((img) => img.decode()))
-    const blob = await toBlob(surface, {
-      backgroundColor: '#000',
-      pixelRatio: 2,
-      preferredFontFormat: 'woff2',
-    })
+}
+
+/** Snapshot-only capture with immediate DOM teardown on timeout or owner loss.
+ * An uninterruptible decoder may finish later, but cannot create another root. */
+async function capturePool(content: ReactNode, signal: AbortSignal): Promise<Blob> {
+  if (pendingCapture) throw new Error('The previous image capture is still finishing.')
+  let host: HTMLDivElement | undefined, root: ReturnType<typeof createRoot> | undefined
+  const cleanup = () => { root?.unmount(); root = undefined; host?.remove(); host = undefined }
+  signal.addEventListener('abort', cleanup, { once: true })
+  const work = (async () => {
+    const { toBlob } = await import('html-to-image')
+    signal.throwIfAborted()
+    await document.fonts.ready
+    signal.throwIfAborted()
+    host = document.createElement('div')
+    host.setAttribute('aria-hidden', 'true')
+    host.dataset.aprCapture = ''
+    host.inert = true
+    Object.assign(host.style, { position: 'fixed', left: '-100000px', top: '0', pointerEvents: 'none' })
+    // Position only the host, never the node html-to-image clones.
+    const surface = document.createElement('div')
+    Object.assign(surface.style, { width: '600px', boxSizing: 'border-box', padding: '14px', border: '1px solid #292929', background: '#000' })
+    host.append(surface); document.body.append(host)
+    root = createRoot(surface)
+    flushSync(() => root!.render(content))
+    await Promise.all([...host.querySelectorAll('img')].map(img => img.decode()))
+    signal.throwIfAborted()
+    const blob = await toBlob(surface, { backgroundColor: '#000', pixelRatio: 2, preferredFontFormat: 'woff2' })
+    signal.throwIfAborted()
     if (!blob) throw new Error('PNG capture failed')
     return blob
-  } finally {
-    root.unmount()
-    host.remove()
-  }
+  })()
+  pendingCapture = work
+  // Both handlers consume rejection, including completion after owner unmount.
+  void work.then(() => { if (pendingCapture === work) pendingCapture = null },
+    () => { if (pendingCapture === work) pendingCapture = null })
+  try { return await cancellable(work, signal) }
+  finally { signal.removeEventListener('abort', cleanup); cleanup() }
 }
 
 /** Start clipboard writing inside the click gesture (including Safari). The
@@ -59,6 +68,8 @@ export function CopyPoolImageButton({
   const theme = useTheme()
   const [state, setState] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const captureOwner = useRef<AbortController | null>(null)
+  useEffect(() => () => { const owner = captureOwner.current; captureOwner.current = null; owner?.abort() }, [])
   useEffect(() => {
     if (state !== 'copied' && state !== 'error') return
     const timer = window.setTimeout(() => {
@@ -68,26 +79,37 @@ export function CopyPoolImageButton({
     return () => window.clearTimeout(timer)
   }, [state])
 
-  const copy = async (button: HTMLButtonElement) => {
+  const copy = async () => {
+    if (captureOwner.current) return
     if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
       setState('error')
       setMessage('PNG clipboard copying is not supported in this browser.')
       return
     }
+    const owner = new AbortController()
+    captureOwner.current = owner
+    const deadline = window.setTimeout(() => owner.abort(), 15_000)
     setState('copying')
     setMessage('Copying PNG…')
     try {
-      const png = capturePool(<ThemeProvider theme={theme}>{renderCapture()}</ThemeProvider>)
+      const png = capturePool(<ThemeProvider theme={theme}>{renderCapture()}</ThemeProvider>, owner.signal)
       // Handle a rendering failure even if clipboard permission fails first.
       void png.catch(() => {})
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+      await cancellable(navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]), owner.signal)
+      if (captureOwner.current !== owner) return
       setState('copied')
       setMessage('PNG copied')
     } catch (error) {
+      owner.abort() // Permission failure must also release stalled rendering.
+      if (captureOwner.current !== owner) return
       // A name/message diagnosis is useful for browser permission/rendering failures.
       console.warn('APR PNG capture failed', error instanceof Error ? error.message : 'unknown')
       setState('error')
       setMessage('Could not copy PNG. Allow clipboard access and try again.')
+    } finally {
+      window.clearTimeout(deadline)
+      owner.abort()
+      if (captureOwner.current === owner) captureOwner.current = null
     }
   }
 
@@ -99,7 +121,7 @@ export function CopyPoolImageButton({
         title='Copy pair as PNG'
         aria-busy={state === 'copying'}
         disabled={state === 'copying'}
-        onClick={(event) => void copy(event.currentTarget)}
+        onClick={() => void copy()}
       >
         <svg
           width='18'

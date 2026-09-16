@@ -1,6 +1,6 @@
 import type { Address, Hex } from 'viem'
 
-export type Intent = { actionId?: string; stage: string; account: Address; deploymentId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex }
+export type Intent = { actionId?: string; stage: string; account: Address; deploymentId: string; to: Address; data: Hex; value: string; nonce: number; hash?: Hex; chainConfirmed?: boolean }
 export type IntentRecord = { raw: string | null; value: Intent | null }
 export const intentChanged = () => new Error('Saved wallet action changed in another tab. Review the current transaction before continuing.')
 

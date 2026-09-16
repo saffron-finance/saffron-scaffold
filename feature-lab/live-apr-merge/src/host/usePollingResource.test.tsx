@@ -31,3 +31,16 @@ test('disabled resources start only when enabled, then abort on disable',async()
   act(()=>{window.dispatchEvent(new Event('rows:updated'));window.dispatchEvent(new Event('pageshow'))})
   expect(load).toHaveBeenCalledTimes(count)
 })
+
+// M06: event bursts while an old read is pending must yield one fresh read.
+test('coalesces invalidations and never publishes the pre-mutation snapshot',async()=>{
+  let finish!:(value:string)=>void
+  const load=vi.fn().mockImplementationOnce(()=>new Promise<string>(resolve=>{finish=resolve})).mockResolvedValue('new')
+  const view=renderHook(()=>usePollingResource('mutation',load,'changed'))
+  act(()=>{view.result.current.refresh();window.dispatchEvent(new Event('changed'));view.result.current.refresh()})
+  expect(load).toHaveBeenCalledTimes(1)
+  await act(async()=>{finish('old')})
+  await waitFor(()=>expect(view.result.current.data).toBe('new'))
+  expect(load).toHaveBeenCalledTimes(2)
+  view.unmount()
+})

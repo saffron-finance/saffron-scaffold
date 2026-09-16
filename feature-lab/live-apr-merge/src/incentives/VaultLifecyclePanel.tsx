@@ -35,10 +35,10 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
     {(verificationError||error||flow.error)&&<ErrorText role='alert'>{verificationError??error??flow.error}</ErrorText>}
     {/Sign in|wallet session/.test(error??flow.error??'')&&<Action disabled={flow.busy||cancelling} onClick={async()=>{setCancelling(true);try{await ensureSession(account);setError(undefined);window.dispatchEvent(new Event('saffron:vault-updated'));await flow.refresh()}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}}>Restore payment session</Action>}
     {flow.pending?<Stack>
-      <FinePrint>A wallet action needs confirmation. Check it before submitting another.</FinePrint>
+      <FinePrint>{flow.pending.chainConfirmed?'Wallet transaction confirmed on chain. Syncing the application record; do not send again.':'A wallet action needs confirmation. Check it before submitting another.'}</FinePrint>
       {flow.pending.hash&&<a href={'https://robinhoodchain.blockscout.com/tx/'+flow.pending.hash} target='_blank' rel='noreferrer'>View submitted transaction ↗</a>}
-      <label>Transaction hash (for a missing response or replacement)<input aria-label='Recover transaction hash' value={hash} onChange={e=>setHash(e.target.value)} style={{width:'100%'}}/></label>
-      <Action disabled={flow.busy||(!flow.pending.hash&&!/^0x[0-9a-fA-F]{64}$/.test(hash))} onClick={()=>void flow.recover(hash?hash as Hex:undefined)}>{flow.busy?'Checking transaction…':'Check transaction'}</Action>
+      {!flow.pending.chainConfirmed&&<><label>Transaction hash (for a missing response or replacement)<input aria-label='Recover transaction hash' value={hash} onChange={e=>setHash(e.target.value)} style={{width:'100%'}}/></label>
+      <Action disabled={flow.busy||(!flow.pending.hash&&!/^0x[0-9a-fA-F]{64}$/.test(hash))} onClick={()=>void flow.recover(hash?hash as Hex:undefined)}>{flow.busy?'Checking transaction…':'Check transaction'}</Action></>}
     </Stack>:mode!=='view'?<>
       <QuietButton disabled={flow.busy} onClick={()=>void flow.refresh()}>Refresh position</QuietButton>
       <Action disabled={flow.busy||!flow.quote||Boolean(flow.quote.blocked)} onClick={()=>void flow.advance()}>{flow.busy?(flow.closeBlocked?'Confirming wallet action…':'Preparing wallet action…'):flow.quote?.action.label??'Checking position…'}</Action>

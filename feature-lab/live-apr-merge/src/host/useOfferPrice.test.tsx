@@ -4,7 +4,7 @@ import {readOfferPrice,useOfferPrice} from './useOfferPrice'
 import type {Offer} from '../incentives/model'
 
 const mocks=vi.hoisted(()=>({block:vi.fn(),read:vi.fn()}))
-vi.mock('./transport',()=>({robinhoodClient:{getBlockNumber:mocks.block,readContract:mocks.read}}))
+vi.mock('./transport',()=>({createPriceReadClient:()=>({getBlockNumber:mocks.block,readContract:mocks.read})}))
 const a='0x'+'1'.repeat(40),b='0x'+'2'.repeat(40)
 let count=0,hidden=false,fetchPrice:ReturnType<typeof vi.fn>
 const offer=()=>({chainId:4663,pool:'0x'+(++count).toString(16).padStart(40,'0'),pairRevision:1,
@@ -73,4 +73,16 @@ it('one cancelled consumer does not cancel a shared preview for another modal',a
   const closed=readOfferPrice(o,controller.signal),active=readOfferPrice(o,signal())
   controller.abort();await expect(closed).rejects.toThrow();expect(await active).toHaveProperty('quoteUsd',1)
   expect(fetchPrice).toHaveBeenCalledTimes(1)
+})
+
+// M07: even a transport fixture that ignores AbortSignal cannot hold callers.
+it('settles shared preview at its deadline and never continues after a late block',async()=>{
+  let resolve!:(block:bigint)=>void
+  mocks.block.mockImplementation(()=>new Promise<bigint>(done=>{resolve=done}))
+  const work=readOfferPrice(offer(),signal())
+  const rejected=expect(work).rejects.toThrow(/timed out/)
+  await vi.advanceTimersByTimeAsync(30_001);await rejected
+  resolve(12n);await vi.advanceTimersByTimeAsync(0)
+  expect(mocks.block).toHaveBeenCalledTimes(1)
+  expect(mocks.read).not.toHaveBeenCalled();expect(fetchPrice).not.toHaveBeenCalled()
 })

@@ -43,7 +43,7 @@ export function validateSnapshot(snapshot) {
   )
     throw new Error('snapshot_coverage')
   for (const key of ['chainTimeMs', 'headSelectedAtMs', 'committedAtMs']) {
-    if (!Number.isSafeInteger(snapshot.coverage[key]) || snapshot.coverage[key] < 0)
+    if (!timestamp(snapshot.coverage[key]))
       throw new Error('snapshot_time')
   }
   const valuation = snapshot.valuation
@@ -65,7 +65,7 @@ export function validateSnapshot(snapshot) {
   if (
     snapshot.lastSwap &&
     (!integer(snapshot.lastSwap.block) ||
-      !Number.isSafeInteger(snapshot.lastSwap.chainTimeMs) ||
+      !timestamp(snapshot.lastSwap.chainTimeMs) ||
       !/^0x[0-9a-f]{64}$/i.test(snapshot.lastSwap.blockHash))
   )
     throw new Error('snapshot_last_swap')
@@ -101,7 +101,7 @@ export function compareVersion(left, right) {
 }
 
 /** Browser-safe guards share the exact producer validator. No Node polyfills. */
-const timestamp = (value) => Number.isSafeInteger(value) && value >= 0
+const timestamp = (value) => Number.isSafeInteger(value) && value >= 0 && value <= 8_640_000_000_000_000
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 function cumulative(value) {
   return (
