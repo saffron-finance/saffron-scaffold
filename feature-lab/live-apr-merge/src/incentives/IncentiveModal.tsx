@@ -120,7 +120,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           ]}/></li>
           <li>You get: <b>{tokenAmount(formatUnits(BigInt(reviewed.plan.premium),reviewed.plan.variableDecimals))} {reviewed.plan.variableSymbol}</b>, claimable after the vault starts.</li>
           <li>Lock time: <b>{reviewed.snapshot.durationSeconds/86400} days</b>.</li>
-          <li><ImpermanentLossTooltip/></li>
+          <li data-warning><ImpermanentLossTooltip/></li>
         </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>USD values are estimates and may change with crypto prices. You review the LP token amounts before depositing. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
         {flow.quote?.fee&&<FinePrint>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus gas.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
@@ -133,7 +133,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <li>You deposit: <b>{usd(Number(preview.amount))}</b> in LP assets.</li>
           <li>You get: <b>{usd(preview.reward)}</b> in {offer.token0.symbol}, claimable after the vault starts.</li>
           <li>Lock time: <b>{offer.days} days</b>.</li>
-          <li><ImpermanentLossTooltip/></li>
+          <li data-warning><ImpermanentLossTooltip/></li>
         </>} details={<><p>USD values are estimates and may change with crypto prices. The request uses the final token amounts.</p><p>The campaign operator funds the premium before LP entry. Your LP assets stay in your wallet until you approve their deposit.</p></>}/>
         <FinePrint>Request fee: {formatUnits(BigInt(offer.requestFeeWei??'0'),18)} ETH, plus gas.</FinePrint>
         <ModalAction aria-disabled={busy} onClick={()=>void claim()}>{claimLabel}</ModalAction>
@@ -214,8 +214,8 @@ const TitleApr = styled(Premium)`
   ${aprTextPaint}
 `
 const TitleDays = styled(Muted)`font-size:14px;white-space:nowrap;font-weight:400;`
-// Keep the venue name and local icon together when this sentence wraps on phones.
-const LiquidityVenue = styled.p`margin:0;color:${({theme})=>theme.colors.text.secondary};font:400 14px/1.5 "Funnel Display",sans-serif;span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}img{width:16px;height:16px;object-fit:contain;}`
+// Center the whole sentence, retaining the venue/icon as one unit on phones.
+const LiquidityVenue = styled.p`margin:0;text-align:center;color:${({theme})=>theme.colors.text.secondary};font:400 14px/1.5 "Funnel Display",sans-serif;span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}img{width:16px;height:16px;object-fit:contain;}`
 const Range = styled.div`display:flex;flex-direction:column;gap:12px;`
 const RangePlot=styled.div`display:flex;flex-direction:column;gap:12px;&[hidden]{display:none;}`
 // Shared Label owns the exact summary typography in both disclosure states.
