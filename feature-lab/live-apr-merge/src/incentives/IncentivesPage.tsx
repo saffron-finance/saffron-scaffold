@@ -41,7 +41,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   async function openOffer(offer:Offer,target:HTMLElement){
     // Native disabled controls handle pointer/keyboard input; this also guards
     // against a direct handler call while the catalog says the offer is not live.
-    if(opening.current||flow.busy||!isOfferLive(offer))return
+    if(opening.current||flow.busy||catalog.loading||catalog.error||!isOfferLive(offer))return
     opening.current=true
     try{
     opener.current=target
@@ -66,12 +66,12 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
         </details>
       </MobileIntroduction>
       {flow.saved?.sent&&<Recovery><FinePrint>A creation payment request is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
-      {catalog.loading&&<FinePrint role='status'>Loading incentive programs…</FinePrint>}
-      {catalog.error&&<ErrorText role='alert'>{catalog.error}</ErrorText>}
+      {catalog.loading&&!catalog.offers.length&&<CatalogSkeleton role='status' aria-label='Loading incentive programs' aria-busy='true'><span/>{[0,1].map(row=><div key={row}><i/><i/><i/><i/></div>)}</CatalogSkeleton>}
+      {catalog.error&&<ErrorText role='alert'>{catalog.offers.length>0&&'Showing saved offers. '}{catalog.error}</ErrorText>}
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
       {groups.map(offers=><ProgramGroup data-pool-group key={offers[0].pairId}><PairHeader pair={offers[0]}/><Programs data-incentive-programs aria-label={offers[0].token0.symbol+' / '+offers[0].token1.symbol+' liquidity incentive offers'}>
         <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','TVL'].map(label=><ColumnTitle as='span' $column={label.toLowerCase()} key={label}>{label==='TVL'?'Vault TVL':label}</ColumnTitle>)}</ProgramHeading>
-        {offers.map(offer=><OfferCard key={offer.id} data-offer-live={isOfferLive(offer)}><ProgramRow type='button' data-incentive-offer={offer.id} data-new-offer={offer.isNew&&offer.id===catalog.offers[0]?.id||undefined} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={flow.busy||!isOfferLive(offer)} onClick={(event:MouseEvent<HTMLButtonElement>)=>void openOffer(offer,event.currentTarget)}>
+        {offers.map(offer=><OfferCard key={offer.id} data-offer-live={isOfferLive(offer)}><ProgramRow type='button' data-incentive-offer={offer.id} data-new-offer={offer.isNew&&offer.id===catalog.offers[0]?.id||undefined} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={flow.busy||catalog.loading||Boolean(catalog.error)||!isOfferLive(offer)} onClick={(event:MouseEvent<HTMLButtonElement>)=>void openOffer(offer,event.currentTarget)}>
           <Metric $column='yield' data-offer-metric='yield'><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
           <Metric $column='apr' data-offer-metric='apr'><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</OfferApr></Metric>
           <Metric $column='duration' data-offer-metric='duration'><MobileLabel>Duration</MobileLabel><Value data-incentive-duration>{offer.days} days</Value></Metric>
@@ -107,6 +107,14 @@ const TitleRow = styled(Row)`flex-wrap:wrap;button{white-space:nowrap;flex-shrin
 const Introduction = styled.div`display:flex;flex-direction:column;gap:18px;max-width:860px;`
 const Programs = styled.div`display:flex;flex-direction:column;gap:28px;margin-top:8px;@media(max-width:${mobileHomeMaxWidth}px){gap:10px;margin-top:0;}`
 const ProgramGroup = styled.div`display:flex;flex-direction:column;gap:28px;min-width:0;border-bottom:1px solid #131313;padding-bottom:24px;@media(max-width:${mobileHomeMaxWidth}px){gap:10px;&+&{margin-top:24px;}}`
+// Reuse the real row heights. Static placeholders need no timer or dependency.
+const CatalogSkeleton=styled.div`
+  display:flex;flex-direction:column;gap:28px;
+  >span{width:55%;max-width:300px;height:40px;background:#1d1d1d;border-radius:8px;}
+  >div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;gap:24px;height:124px;padding:0 32px;background:#0a0a0a;border:1px solid #1d1d1d;border-radius:var(--radius-md);}
+  i{display:block;height:20px;background:#1d1d1d;border-radius:4px;}i:first-child{width:40px;height:40px;border-radius:50%;}
+  @media(max-width:${mobileHomeMaxWidth}px){gap:10px;>div{height:76px;padding:0 14px;border-radius:10px;}}
+`
 // TVL uses the same Value typography as Duration, not capacity or APR styling.
 const dataColumns = '[yield] minmax(92px,1fr) [apr] minmax(92px,1fr) [duration] minmax(92px,1fr) [tvl] minmax(116px,1fr)'
 const programColumns = `var(--incentive-leading-badge,) ${dataColumns} var(--incentive-trailing-badge,[new] 56px)`
@@ -146,7 +154,7 @@ const ProgramRow = styled.button`
   width:100%;min-height:124px;padding:28px 32px;text-align:left;font:inherit;color:inherit;
   ${rowSurface}
   cursor:pointer;
-  &:disabled{cursor:not-allowed;}
+  &:disabled{cursor:default;}
   &:disabled:hover{border-color:#1d1d1d;}
   /* Use media rules supported by the pinned styled-components version.
      Named public metrics and the NEW badge retain their mobile positions. */
@@ -169,7 +177,7 @@ const ProgramRow = styled.button`
     [data-offer-metric='tvl']{grid-column:tvl;grid-row:1;gap:0;}
     [data-incentive-tvl]{white-space:normal;overflow-wrap:anywhere;}
     &:focus-visible{outline-color:#d286ff;outline-offset:3px;}
-    &:disabled{opacity:.45;cursor:not-allowed;}
+    &:disabled{opacity:.45;cursor:default;}
     &:disabled:hover{border-color:#262329;}
   }
   @media(max-width:345px){padding:12px;}
