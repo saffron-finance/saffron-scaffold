@@ -92,8 +92,8 @@ try {
     try {
       await page.goto(origin + base + (scenario.route || ''))
       if (scenario.boot) {
-        await expect(page.locator('[data-boot-recovery]')).toBeVisible()
-        await expect(page.getByRole('link', { name: 'Reload page' })).toBeVisible()
+        await expect(page.locator('[data-boot-skeleton]')).toBeVisible()
+        await expect(page.getByText('Loading Saffron…', { exact: true })).toHaveCount(0)
       } else if (scenario.root) {
         await expect(page.locator('[data-root-recovery]')).toBeVisible()
         await expect(page.getByRole('button', { name: 'Reload page' })).toBeEnabled()
@@ -135,7 +135,7 @@ try {
         await page.getByRole('button', { name: 'Select network', exact: true }).click()
         await expect(page.getByRole('dialog', { name: 'Select network' })).toBeVisible()
         await page.keyboard.press('Escape')
-        await expect(page.locator('[data-root-recovery], [data-boot-recovery]')).toHaveCount(0)
+        await expect(page.locator('[data-root-recovery], [data-boot-skeleton]')).toHaveCount(0)
       }
       for (const file of scenario.files || []) assert(failed.includes(file), `Unexercised download: ${file}`)
       if (scenario.assets) assert(failed.some(file => /woff/.test(file)), 'Fonts were actually requested')

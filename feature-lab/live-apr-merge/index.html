@@ -1,10 +1,29 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Saffron · Vaults & Live APR</title></head><body><div id="root">
-<!-- Replaced by React on mount. Manual recovery stays readable if entry JS or
-     eager dependencies never download; no script is needed by this fallback. -->
-<main data-boot-recovery style="min-height:100vh;box-sizing:border-box;padding:48px 24px;background:#09070b;color:#eee7f2;font:16px/1.6 system-ui,sans-serif">
-  <h1>Loading Saffron…</h1>
-  <p>If the app does not open, check your connection and reload this page.</p>
-  <p>Your saved requests are kept. Check any submitted transaction before trying again.</p>
-  <a href="" style="color:#dab5f1">Reload page</a>
-  <noscript><p>Enable JavaScript to use Saffron.</p></noscript>
-</main></div><script type="module" src="/src/merge/main.tsx"></script></body></html>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Saffron · Vaults & Live APR</title></head><body style="margin:0;background:#000"><div id="root">
+<!-- First paint is the page layout, without waiting for JavaScript, fonts or API.
+     React replaces this markup immediately on mount; no timer or loading gate. -->
+<style>
+[data-boot-skeleton]{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh;background:#000;box-sizing:border-box}
+[data-boot-skeleton] *{box-sizing:border-box}
+[data-boot-skeleton] i{display:block;background:#1d1d1d;border-radius:6px;height:18px}
+[data-boot-skeleton] aside{background:#0a0a0a;padding:32px 24px;display:flex;flex-direction:column;gap:28px}
+[data-boot-skeleton] aside i:first-child{height:40px;margin-bottom:16px;width:65%}
+[data-boot-skeleton] header{height:73px;border-bottom:1px solid #1a1717;display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:0 28px}
+[data-boot-skeleton] header i{width:110px;height:40px}
+[data-boot-skeleton] main{display:flex;flex-direction:column;gap:28px;padding:32px 20px}
+[data-boot-skeleton] .title{height:40px;width:70%;max-width:400px}
+[data-boot-skeleton] .copy{width:85%;max-width:800px}
+[data-boot-skeleton] .pair{height:40px;width:55%;max-width:300px}
+[data-boot-skeleton] .row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:center;gap:24px;height:124px;padding:0 32px;border:1px solid #1d1d1d;border-radius:24px;background:#0a0a0a}
+[data-boot-skeleton] .row i:first-child{height:40px;width:40px;border-radius:50%}
+@media(max-width:1100px){[data-boot-skeleton]{grid-template-columns:220px minmax(0,1fr)}}
+@media(max-width:600px){[data-boot-skeleton]{grid-template-columns:minmax(0,1fr)}[data-boot-skeleton] aside{display:none}[data-boot-skeleton] header{height:65px;padding:0 12px}[data-boot-skeleton] main{padding:22px 16px;gap:20px}[data-boot-skeleton] .row{height:76px;padding:0 14px;border-radius:10px}}
+</style>
+<div data-boot-skeleton role="status" aria-label="Loading page">
+  <aside aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></aside>
+  <section aria-hidden="true"><header><i></i><i></i></header><main>
+    <i class="title"></i><i class="copy"></i><i class="copy"></i><i class="pair"></i>
+    <div class="row"><i></i><i></i><i></i><i></i></div>
+    <div class="row"><i></i><i></i><i></i><i></i></div>
+  </main></section>
+</div><noscript><p style="color:#eee;padding:20px">Enable JavaScript to use Saffron.</p></noscript>
+</div><script type="module" src="/src/merge/main.tsx"></script></body></html>
