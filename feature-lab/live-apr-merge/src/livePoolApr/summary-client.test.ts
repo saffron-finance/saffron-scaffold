@@ -53,6 +53,32 @@ describe('qualified fetch-SSE parser bounds', () => {
 })
 
 describe('immutable actual-load receipt and summary transport', () => {
+  it.each([401, 403, 404].flatMap(status => ['json', 'html'].map(body => ({ status, body }))))(
+    'does not mislabel HTTP $status ($body) as expired observation interest', async ({ status, body }) => {
+    const payload = body === 'json' ? JSON.stringify({ code: 'not_found' }) : '<h1>Proxy error</h1>'
+    const fetcher = vi.fn(async () => new Response(payload, { status })) as typeof fetch
+    const client = new SummaryClient('nvda-usdg-005', { api: '/broken/api', fetcher })
+    client.start()
+    await turn()
+    await turn()
+    expect(client.state.needsReload).toBe(true)
+    expect(client.state.summary.locallyExpired).toBe(false)
+    expect(client.state.health.transportFailedAt).not.toBeNull()
+    expect(client.state.message).toMatch(status === 404 ? /data service/ : /Authentication required/)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    client.stop(true)
+  })
+  it.each([409, 410])('retains genuine HTTP %s observation expiry', async (status) => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 'paused_requires_reload' }), { status })) as typeof fetch
+    const client = new SummaryClient('nvda-usdg-005', { api: '/api', fetcher })
+    client.start()
+    await turn()
+    expect(client.state.needsReload).toBe(true)
+    expect(client.state.summary.locallyExpired).toBe(true)
+    expect(client.state.message).toMatch(/Tracking paused/)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    client.stop(true)
+  })
   afterEach(() => {
     vi.useRealTimers()
     sessionStorage.clear()

@@ -257,8 +257,14 @@ export class SummaryClient {
       const text = await response.text()
       if (new TextEncoder().encode(text).byteLength > 32_768)
         throw new Error('Oversized control response')
+      if (!response.ok) {
+        // A proxy may return HTML for auth/routing failures. Preserve its HTTP
+        // status instead of retrying a JSON syntax error as a transient outage.
+        let code = 'service_unavailable'
+        try { code = JSON.parse(text)?.code ?? code } catch { /* Non-JSON error body. */ }
+        throw new ApiError(response.status, code)
+      }
       const data = text ? JSON.parse(text) : {}
-      if (!response.ok) throw new ApiError(response.status, data.code ?? 'service_unavailable')
       this.serverClock(data.serverTimeMs)
       return data
     } finally {
@@ -356,13 +362,22 @@ export class SummaryClient {
       }
     } catch (error) {
       if (this.controller !== owner || owner.signal.aborted) return
-      if (error instanceof ApiError && [401, 403, 404, 409, 410].includes(error.status)) {
+      // Routing/authentication failures never mean the server expired interest.
+      // Stop automatic retry, retain the same receipt, and expose repair guidance.
+      if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
         this.publish({
           needsReload: true,
-          message:
-            error.status === 401 || error.status === 403
-              ? 'Authentication required. Refresh this page after signing in.'
-              : 'Tracking paused—refresh to resume.',
+          health: loseConnection(this.value.health, Date.now()),
+          message: error.status === 404
+            ? 'Live APR service unavailable. The application could not reach its data service.'
+            : 'Authentication required. Sign in, then refresh this page.',
+        })
+        return
+      }
+      if (error instanceof ApiError && [409, 410].includes(error.status)) {
+        this.publish({
+          needsReload: true,
+          message: 'Tracking paused—refresh to resume.',
           summary: { ...this.value.summary, locallyExpired: true },
         })
         return

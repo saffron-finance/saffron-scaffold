@@ -356,6 +356,9 @@ export function PoolCard({
           </SessionRow>
         </SessionSummary>
       </div>
+      {model.serviceError && (
+        <Notice role='alert' data-testid='service-error'>{model.serviceError}</Notice>
+      )}
       {paused && (
         <Notice role='status' data-testid='tracking-paused'>
           {summary?.controlUnavailable

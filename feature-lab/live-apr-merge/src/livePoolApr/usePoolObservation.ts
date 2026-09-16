@@ -133,6 +133,8 @@ export function usePoolObservation(poolId: string, observationKey: string) {
     paused,
     valuationUnavailable,
     transportUnavailable,
+    // Show terminal connection failures immediately; they are not interest pauses.
+    serviceError: view?.needsReload && !summary?.locallyExpired ? view.message : null,
     quoteUsd,
     pageElapsed,
     coverageAge,
