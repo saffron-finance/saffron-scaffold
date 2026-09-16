@@ -123,6 +123,35 @@ describe('immutable actual-load receipt and summary transport', () => {
     client.stop(true)
     expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1)
   })
+  it('does not redraw unchanged lease ticks but still announces the exact expiration', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(60_000)
+    const lease = { ...watcher, loadDeadlineMs: 65_000 }
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/events')) return new Response(new ReadableStream({ start(channel) {
+        channel.enqueue(encoder.encode(`event: snapshot\ndata: ${JSON.stringify(fixtureSnapshot(2, { watcher: lease }))}\n\n`))
+      } }), { headers: { 'Content-Type': 'text/event-stream' } })
+      return new Response(JSON.stringify({sessionId:'s',loadId:'l',poolId:'cashcat-eth-1',acceptedAtMs:1000,joinAtMs:1000,
+        baseline:fixtureBaseline(),watcher:lease,loadDeadlineMs:lease.loadDeadlineMs,serverTimeMs:60_000}))
+    }) as typeof fetch
+    const client = new SummaryClient('cashcat-eth-1', {api:'/api',loadId:'l',fetcher})
+    const redraw = vi.fn()
+    const unsubscribe = client.subscribe(redraw)
+    try {
+      client.start()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.state.summary.metrics?.count).toBe('2')
+      const initial = redraw.mock.calls.length
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(redraw).toHaveBeenCalledTimes(initial)
+      expect(client.state.summary.locallyExpired).toBe(false)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(client.state.summary.locallyExpired).toBe(true)
+      expect(redraw).toHaveBeenCalledTimes(initial + 1)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(redraw).toHaveBeenCalledTimes(initial + 1)
+    } finally { unsubscribe(); client.stop(true) }
+  })
   it('does not promote an unknown recovery receipt into a fresh admission', async () => {
     let resumed = false
     let admissions = 0

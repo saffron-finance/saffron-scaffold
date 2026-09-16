@@ -1,11 +1,12 @@
-import { createPublicClient,http,type Address } from 'viem'
+import { createClient,http,type Address } from 'viem'
+import { catalogReadActions } from '@lab/wallet/uiActions'
 import { robinhoodChain } from '@lab/chain/chains'
 import { assertWalletAccount,walletClient } from '@lab/wallet/wallet'
 import { walletSessionMessage } from '../../shared/incentives.mjs'
 
 export const BASE=import.meta.env.BASE_URL.replace(/\/$/,'')
 export const apiUrl=(path='')=>BASE+'/api/incentives'+path
-export const robinhoodClient=createPublicClient({chain:robinhoodChain,transport:http(BASE+'/rpc/robinhood',{batch:true,timeout:15_000})})
+export const robinhoodClient=createClient({key:'public',name:'Public Client',type:'publicClient',chain:robinhoodChain,transport:http(BASE+'/rpc/robinhood',{batch:true,timeout:15_000})}).extend(catalogReadActions)
 export type WalletSession={wallet:Address;csrf:string;operator:boolean;expires:number}
 let viewerWallet:Address|null=null
 let session:WalletSession|null=null

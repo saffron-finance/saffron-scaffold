@@ -1,6 +1,7 @@
+import { uiWalletActions, walletReadActions } from './uiActions'
 import { boundedWalletRead, type WalletPreflight } from './preflight'
 import { WALLETCONNECT_ID, WALLETCONNECT_RDNS, walletConnectConfigured, walletConnectConnector } from './walletconnect'
-import { createPublicClient, createWalletClient, custom, type Address, type Chain } from 'viem'
+import { createClient, custom, type Address, type Chain } from 'viem'
 
 // This module deliberately implements only the small browser-wallet boundary
 // This application needs. EIP-6963 discovery allows multiple extensions—including the
@@ -217,7 +218,7 @@ export function walletClient(preflight?: {scope: WalletPreflight; onSubmit: () =
   // those reads, but NEVER time out or retry a send, signature or wallet prompt.
   // A lost wallet response belongs to durable recovery, not another submission.
   const reads = new Set(['eth_accounts', 'eth_chainId', 'eth_estimateGas', 'eth_getTransactionCount'])
-  return createWalletClient({ transport: custom({ request: args => {
+  return createClient({ key:'wallet', name:'Wallet Client', type:'walletClient', transport: custom({ request: args => {
     // viem's last chain read is still preflight. Commit the recovery record
     // only at the actual provider-send boundary, not before that silent read.
     if (preflight && !submitted) {
@@ -231,16 +232,16 @@ export function walletClient(preflight?: {scope: WalletPreflight; onSubmit: () =
     }
     return reads.has(args.method) ? boundedWalletRead(() => provider.request(args)) : provider.request(args)
   },
-  }, { retryCount: 0 }) })
+  }, { retryCount: 0 }) }).extend(uiWalletActions)
 }
 
 // Use this only for wallet-specific reads such as gas estimation. Receipt and
 // contract-state reads use the independent chain client, including on Uniswap.
 export function walletPublicClient(chain: Chain) {
   const provider = requireSelectedProvider()
-  return createPublicClient({ chain, transport: custom({
+  return createClient({ key:'public', name:'Public Client', type:'publicClient', chain, transport: custom({
     request: args => boundedWalletRead(() => provider.request(args)),
-  }, { retryCount: 0 }) })
+  }, { retryCount: 0 }) }).extend(walletReadActions)
 }
 
 /** Prompt for accounts through one explicit provider from the wallet modal. */
@@ -248,7 +249,7 @@ export async function connect(providerId: string): Promise<Address> {
   const provider = providers.get(providerId)
   if (!provider) throw new Error('That wallet is no longer available.')
   const version = ++connectionVersion
-  const client = createWalletClient({ transport: custom(provider.provider, { retryCount: 0 }) })
+  const client = createClient({ key:'wallet', name:'Wallet Client', type:'walletClient', transport: custom(provider.provider, { retryCount: 0 }) }).extend(uiWalletActions)
   // Preserve the connector's actionable pairing/cancellation messages rather
   // than wrapping local session errors as unknown JSON-RPC failures.
   const addresses = provider.kind === 'walletconnect'

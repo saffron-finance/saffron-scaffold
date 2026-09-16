@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import styled, { css, ThemeProvider } from 'styled-components'
 import { Link, useLocation } from 'react-router-dom'
 import type { Address } from 'viem'
@@ -32,6 +32,7 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
   const [menu, setMenu] = useState(false), [network, setNetwork] = useState(false)
   const [switching, setSwitching] = useState(false), [networkError, setNetworkError] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const toggleSidebar = useCallback(() => setSidebarCollapsed(value => !value), [])
   useEffect(() => { setMenu(false); setNetwork(false) }, [path])
   // Do not offer fictional campaign-network support. Selecting the supported
   // chain requests an actual wallet switch, with rejection shown in the sheet.
@@ -55,7 +56,7 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
     {/* An optional appearance editor must never take down the wallet or page. */}
     {showTweaks && <DesktopTweaks $mobileHome={mobileHome}><RenderBoundary fallback={null}><RowTweaks /></RenderBoundary></DesktopTweaks>}
     <Frame $sidebarCollapsed={sidebarCollapsed} $mobileHome={mobileHome} data-mobile-home data-home-page={path === '/' || undefined}>
-      <Sidebar home='/' collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)} />
+      <Sidebar home='/' collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       <Content>
         <Nav aria-label='Account controls'>
           {/* Share the existing lazy 3D emblem and home navigation; the mobile

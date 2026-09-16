@@ -42,9 +42,14 @@ const addressTokenLogos: Record<string, string> = Object.fromEntries(
   ).map(([path, url]) => [path.split('/').pop()!.split('.')[0].toLowerCase(), url])
 )
 
+// Reuse Intl objects across one-second updates and history rows. Precision is
+// bounded by these UI call sites; formatting and the authoritative values stay unchanged.
+const numbers = new Map<number, Intl.NumberFormat>(), currencies = new Map<number, Intl.NumberFormat>()
+
 /** Format readable token values without rounding small, nonzero fees to zero. */
 function number(value: number, precision = 4) {
-  return value.toLocaleString('en-US', { maximumFractionDigits: precision })
+  if (!numbers.has(precision)) numbers.set(precision, new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }))
+  return numbers.get(precision)!.format(value)
 }
 
 /** Keep large APR labels compact. Drop the second decimal without changing
@@ -58,12 +63,13 @@ function aprLabel(value: number) {
 function dollars(value: number | null, precision = 2) {
   if (value == null || !Number.isFinite(value)) return '—'
   if (value > 0 && value < 0.01) return '<$0.01'
-  return value.toLocaleString('en-US', {
+  if (!currencies.has(precision)) currencies.set(precision, new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: precision,
     maximumFractionDigits: precision,
-  })
+  }))
+  return currencies.get(precision)!.format(value)
 }
 
 /** Keep elapsed page time in minutes and seconds, including sessions over an hour. */

@@ -137,3 +137,6 @@ The source-graph review found all application modules reachable. Remaining
 non-page shared modules belong to the pinned backend compatibility/source
 handoff inventory and are not automatically downloaded. They were preserved;
 this is not a backend/protocol audit or a claim of exhaustive transaction testing.
+
+The follow-up [UI JavaScript review](UI-PERFORMANCE.md) documents action-level
+bundle pruning, shared ordered grouping and reduced interaction re-rendering.

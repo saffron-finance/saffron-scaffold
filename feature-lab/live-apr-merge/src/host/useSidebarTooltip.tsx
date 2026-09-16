@@ -12,7 +12,6 @@ let firstHover = true
  */
 export function useSidebarTooltip(enabled: boolean, routeKey: string) {
   const [active, setActive] = useState<{ anchor: HTMLAnchorElement; label: string; fade: boolean } | null>(null)
-  const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' })
   const bubble = useRef<HTMLSpanElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
   const id = useId()
@@ -41,8 +40,10 @@ export function useSidebarTooltip(enabled: boolean, routeKey: string) {
     const bounds = bubble.current.getBoundingClientRect()
     const center = anchor.left + anchor.width / 2
     const left = Math.max(8, Math.min(center - bounds.width / 2, window.innerWidth - bounds.width - 8))
-    setPosition({ left, top: Math.max(8, anchor.top - bounds.height - 8),
-      '--caret-x': `${center - left - 1}px`, '--anchor-width': '20px' } as CSSProperties)
+    // Coordinates are not React state: place before paint without rendering the
+    // whole rail twice. This effect exclusively owns these positioning styles.
+    Object.assign(bubble.current.style, {left: left+'px', top: Math.max(8, anchor.top-bounds.height-8)+'px', visibility:'visible'})
+    bubble.current.style.setProperty('--caret-x', `${center-left-1}px`)
     // Animate after measurement, before paint; no timers, storage or CSS state.
     if (active.fade && !matchMedia('(prefers-reduced-motion:reduce)').matches) {
       const fade = bubble.current.animate({ opacity: [0, 1] }, 220)
@@ -79,7 +80,7 @@ export function useSidebarTooltip(enabled: boolean, routeKey: string) {
   })
   const tooltip = enabled && active ? createPortal(
     <span ref={bubble} id={id} role='tooltip' className='saffron-tooltip-surface saffron-rail-tooltip'
-      style={position}>{active.label}</span>,
+      style={{visibility:'hidden','--anchor-width':'20px'} as CSSProperties}>{active.label}</span>,
     document.body,
   ) : null
   return { linkProps, tooltip }

@@ -9,6 +9,17 @@ export interface Offer extends Pair,Program {pairRevision:number;budget:Budget;a
 export function isOfferLive(offer:Offer):boolean {
   return offer.active && offer.availability===null && !offer.budget.paused && !offer.budget.reconciliationRequired
 }
+/** One ordered grouping for both cached templates and live React rows. Keep
+ * first-seen pair/offer order without repeatedly scanning the full catalog. */
+export function groupOffers(offers:Offer[]):Offer[][] {
+  const groups=new Map<string,Offer[]>()
+  for(const offer of offers){
+    const group=groups.get(offer.pairId)
+    if(group)group.push(offer)
+    else groups.set(offer.pairId,[offer])
+  }
+  return [...groups.values()]
+}
 export interface PriceSnapshot {quotePerToken:number;quoteUsd:number;observedAt:string;block:string}
 export interface DeploymentProgress {version:1;reason:string;stages:{id:number;name:string;state:'pending'|'active'|'complete'|'blocked'|'checking';hash:Hex|null;confirmedAt:string|null}[];activeStage:number|null;requestedAt:string;acceptedAt:string;lastProgressAt:string;checkedAt:string;observedBlock:{number:string;hash:Hex;checkedAt:string}|null;verificationAvailable:boolean;operatorAction:boolean;paymentState:string;serviceWindowMinutes:number|null}
 export interface ProgramControl {state:'active'|'paused'|'closed'|'unavailable';programId:string;budgetPoolId:string;programRevision:number;budgetRevision:number;checkedAt:number}

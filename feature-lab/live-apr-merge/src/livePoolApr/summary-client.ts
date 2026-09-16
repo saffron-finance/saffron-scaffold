@@ -160,6 +160,9 @@ export class SummaryClient {
     }
   }
   private publish(patch: Partial<ClientState>) {
+    // Lease checks often return the same immutable summary. Keep their clock
+    // running, but don't notify React when no public state actually changed.
+    if (Object.entries(patch).every(([key, value]) => Object.is(this.value[key as keyof ClientState], value))) return
     this.value = { ...this.value, ...patch }
     for (const listener of this.listeners) listener(this.value)
   }

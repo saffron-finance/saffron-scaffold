@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import styled, { css } from 'styled-components'
@@ -83,12 +83,15 @@ export function NavDropdown({
   const search = useRef<HTMLInputElement>(null)
   const pendingFocus = useRef<'first' | 'last' | 'search' | null>(null)
   const [query, setQuery] = useState('')
-  const [limitPointer, setLimitPointer] = useState<{ x: number; y: number } | null>(null)
+  const limitTooltip = useRef<HTMLSpanElement>(null)
+  // Pointer coordinates are presentation only: moving over a disabled action
+  // must not rebuild all 89 menu rows. React still owns the portal's lifetime.
+  const hideLimit = () => { if (limitTooltip.current) limitTooltip.current.style.visibility = 'hidden' }
   const atCapacity = (tiles?.poolIds.length ?? 0) >= MAX_POOL_TILES
   const isOpen = open?.id === id
   const close = useCallback(() => setOpen(null), [setOpen])
   // Clear stale pointer feedback when filtering, closing or freeing a slot.
-  useEffect(() => setLimitPointer(null), [isOpen, query, atCapacity])
+  useEffect(hideLimit, [isOpen, query, atCapacity])
   // Ignore separators so CASHCAT/USDG and CASHCAT USDG both match. Multiple
   // terms narrow the same row, including a fee tier or a partial address.
   const terms = query.toLowerCase().replace(/[\/|]/g, ' ').trim().split(/\s+/).filter(Boolean)
@@ -262,7 +265,7 @@ export function NavDropdown({
           <MenuResults
             id={`${id}-results`}
             role={searchable ? 'menu' : undefined}
-            onScroll={() => setLimitPointer(null)}
+            onScroll={hideLimit}
             aria-label={searchable ? 'Token pools' : undefined}
             $scrollable={searchable}
           >
@@ -273,16 +276,16 @@ export function NavDropdown({
                 onPointerMove={(event) => {
                   // Handle hover on the row because disabled buttons suppress click/mouse events.
                   const button = (event.target as Element).closest('button')
-                  setLimitPointer(
-                    atCapacity && item.poolId && !tiles?.poolIds.includes(item.poolId) && button
-                      ? {
-                          x: Math.max(120, Math.min(window.innerWidth - 120, event.clientX)),
-                          y: event.clientY - 12,
-                        }
-                      : null
-                  )
+                  const tip = limitTooltip.current
+                  if (!tip) return
+                  const show = atCapacity && item.poolId && !tiles?.poolIds.includes(item.poolId) && button
+                  tip.style.visibility = show ? 'visible' : 'hidden'
+                  if (show) {
+                    tip.style.left = Math.max(120, Math.min(window.innerWidth - 120, event.clientX)) + 'px'
+                    tip.style.top = event.clientY - 12 + 'px'
+                  }
                 }}
-                onPointerLeave={() => setLimitPointer(null)}
+                onPointerLeave={hideLimit}
               >
                 {item.hostLink ? (
                   <ExploreItem as='a' role='menuitem' href={item.path} $active={false} onClick={close}>
@@ -323,9 +326,8 @@ export function NavDropdown({
       {/* Portal avoids clipping by the scrollable results; never intercept the pointer. */}
       {isOpen &&
         atCapacity &&
-        limitPointer &&
         createPortal(
-          <LimitTooltip role='tooltip' style={{ left: limitPointer.x, top: limitPointer.y }}>
+          <LimitTooltip ref={limitTooltip} role='tooltip' style={{ visibility: 'hidden' }}>
             Maximum of 4 pairs reached.
           </LimitTooltip>,
           document.body
@@ -358,10 +360,10 @@ export function PoolPicker({ menuState }: {
   // Embedded hosts can keep using the picker without managing its state.
   const { open, setOpen } = menuState ?? { open: localOpen, setOpen: setLocalOpen }
   useEffect(() => setOpen(null), [location.pathname])
-  const items = catalogItems.map((item) => ({
+  const items = useMemo(() => catalogItems.map((item) => ({
     ...item,
     path: poolPath(item.poolId!, tiles?.basePath),
-  }))
+  })), [tiles?.basePath])
   return (
     <NavDropdown
       id='tokens'

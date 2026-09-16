@@ -4,7 +4,7 @@ import '../incentives/IncentivesPage.css'
 import { initialCatalog } from '../host/catalogSnapshot'
 import { appearanceCss, savedAppearance, savedTypography } from '../dev/appearancePreferences'
 import { tokenArtwork } from '../incentives/tokenArtwork'
-import { isOfferLive, type Offer, type Token } from '../incentives/model'
+import { groupOffers, isOfferLive, type Offer, type Token } from '../incentives/model'
 
 // MAINTENANCE: follow the consistency checklist above HomeCatalog in
 // ../incentives/HomeCatalog.tsx. Changes to these text/attribute mappings must
@@ -56,9 +56,7 @@ async function restoreDisplay():Promise<boolean> {
   const catalog=initialCatalog()
   if(!catalog.hasSnapshot||!document.getElementById('warm-shell'))return false
   const fragment=clone('warm-shell'),page=fragment.querySelector('.saffron-catalog-page')!
-  const groups=new Map<string,Offer[]>()
-  for(const offer of catalog.offers){const list=groups.get(offer.pairId)||[];list.push(offer);groups.set(offer.pairId,list)}
-  for(const offers of groups.values()){
+  for(const offers of groupOffers(catalog.offers)){
     const group=clone('warm-group'),first=offers[0],pair=`${first.token0.symbol} / ${first.token1.symbol}`
     group.querySelector('[data-testid="pool-pair-name"]')!.textContent=pair+' '+((first.feeTier??0)/10_000)+'%'
     const phone=group.querySelector('[data-mobile-pair] h2')!

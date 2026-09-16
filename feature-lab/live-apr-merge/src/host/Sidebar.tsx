@@ -1,5 +1,5 @@
 import './Sidebar.css'
-import { Fragment, useId } from 'react'
+import { Fragment, memo, useId } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
 import { sidebarDestinations, type SidebarIcon } from './sidebarNavigation'
@@ -24,8 +24,10 @@ const icons: Record<SidebarIcon, string> = {
  * changes rail size; its stable DOM node retains keyboard focus across toggles.
  * This shell also generates the warm template: verify its cached/live handoff
  * when changing structure or styles (see HomeCatalog's maintenance checklist).
+ * Memoization skips unrelated header-dialog updates; router context and the
+ * rail's own hover/collapse state still update normally.
  */
-export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed: boolean; onToggle: () => void }) {
+export const Sidebar = memo(function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed: boolean; onToggle: () => void }) {
   const path=useLocation().pathname.replace(/\/+$/,'')||'/'
   const navigationId = useId()
   const { linkProps, tooltip } = useSidebarTooltip(collapsed, path)
@@ -58,5 +60,5 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
     </div>
     {tooltip}
   </aside>
-}
+})
 // First-screen geometry lives in the adjacent cached stylesheet.

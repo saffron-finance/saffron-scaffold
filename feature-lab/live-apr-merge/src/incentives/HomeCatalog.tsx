@@ -1,10 +1,10 @@
 import './IncentivesPage.css'
-import { type MouseEvent, type ReactNode } from 'react'
+import { useMemo, type MouseEvent, type ReactNode } from 'react'
 import { StepTitle, StepSubtitle } from '../host/ui'
 import { ErrorText, FinePrint } from './styles'
 import { PairHeader, PairDescription } from './PairHeader'
 import { TokenIcon } from './TokenIcon'
-import { isOfferLive, type Offer } from './model'
+import { groupOffers, isOfferLive, type Offer } from './model'
 import robinhoodLogo from './assets/robinhood.svg'
 
 type OpenOffer=(offer:Offer,target:HTMLElement)=>void
@@ -28,7 +28,7 @@ export type DisplayCatalog={offers:Offer[];loading:boolean;hasSnapshot:boolean;e
 export function HomeCatalog({catalog,busy=false,onOpen,recovery}: {
   catalog:DisplayCatalog;busy?:boolean;onOpen?:OpenOffer;recovery?:ReactNode;
 }) {
-  const groups=Array.from(new Set(catalog.offers.map(o=>o.pairId))).map(id=>catalog.offers.filter(o=>o.pairId===id))
+  const groups=useMemo(()=>groupOffers(catalog.offers),[catalog.offers])
   return <>
       <div className='saffron-catalog-title-row' data-desktop-home-copy><StepTitle>Liquidity Incentives</StepTitle></div>
       <div className='saffron-catalog-introduction' data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration and target APR. Review your position and premium before paying the campaign’s fixed ETH request fee.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></div>
@@ -58,7 +58,8 @@ export function OfferGroup({offers,firstId,disabled=true,onOpen}: {offers:Offer[
 /** One row, including NEW/unavailable variants; reused to generate templates.
  * Even a live-looking cached row is disabled until authoritative refresh. */
 export function OfferRow({offer,isNew=false,disabled=true,onOpen}: {offer:Offer;isNew?:boolean;disabled?:boolean;onOpen?:OpenOffer}) {
-  return <div className='saffron-catalog-offer-card' data-offer-live={isOfferLive(offer)}><button className='saffron-catalog-program-row' type='button' data-incentive-offer={offer.id} data-new-offer={isNew||undefined} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={disabled||!isOfferLive(offer)} onClick={(event:MouseEvent<HTMLButtonElement>)=>void onOpen?.(offer,event.currentTarget)}>
+  const live=isOfferLive(offer)
+  return <div className='saffron-catalog-offer-card' data-offer-live={live}><button className='saffron-catalog-program-row' type='button' data-incentive-offer={offer.id} data-new-offer={isNew||undefined} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={disabled||!live} onClick={(event:MouseEvent<HTMLButtonElement>)=>void onOpen?.(offer,event.currentTarget)}>
           <span className='saffron-catalog-metric' style={{gridColumn:'yield'}} data-offer-metric='yield'><span className='saffron-catalog-mobile-label'>Yield</span><span className='saffron-catalog-yield-token'><TokenIcon {...offer.token0} size={48}/><img className='saffron-catalog-chain-badge' src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></span></span>
           <span className='saffron-catalog-metric' style={{gridColumn:'apr'}} data-offer-metric='apr'><span className='saffron-catalog-mobile-label'>APR</span><b className='saffron-catalog-offer-apr' data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</b></span>
           {/* Element Timing records real text paint in both startup paths. */}
@@ -67,5 +68,5 @@ export function OfferRow({offer,isNew=false,disabled=true,onOpen}: {offer:Offer;
           {/* Only the first visible offer can carry the catalog's NEW label. */}
           {isNew&&<span className='saffron-catalog-new-tag' data-incentive-new>NEW</span>}
           {!(isNew)&&<span className='saffron-catalog-phone-arrow' aria-hidden='true'>↗</span>}
-        </button>{!isOfferLive(offer)&&<span className='saffron-catalog-coming-soon' data-incentive-coming-soon>Coming soon...</span>}</div>
+        </button>{!live&&<span className='saffron-catalog-coming-soon' data-incentive-coming-soon>Coming soon...</span>}</div>
 }
