@@ -4,6 +4,7 @@ import styled from 'styled-components'
 import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { CampaignDeployerBalance } from './DeployerBalance'
 import { PairEditor } from './PairEditor'
+import { CampaignIdentifier } from './CampaignIdentifier'
 import { requestFeeFromEth } from '../../shared/incentives.mjs'
 import { campaignTerms } from '../../shared/campaign.mjs'
 import { authedJson } from '../host/transport'
@@ -30,7 +31,14 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
     <QuietButton disabled={busy} onClick={()=>void load()}>{catalog?'Reload campaigns':'Load incentive catalog'}</QuietButton>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}{saved&&<FinePrint role='status'>{saved}</FinePrint>}
     {catalog&&account&&<>
-      {catalog.budgets.map(b=><Card key={b.id}><Row><b>{poolHeading(catalog.pairs.find(p=>p.id===catalog.programs.find(p=>p.budgetPoolId===b.id)?.pairId))}</b><QuietButton disabled={busy} onClick={()=>void pause(b)}>{b.paused?'Resume campaign':'Pause campaign'}</QuietButton></Row>
+      {catalog.budgets.map(b=>{
+        // Legacy budgets can back multiple programs; show every linked campaign
+        // rather than treating the budget ID or display order as its identity.
+        const programs=catalog.programs.filter(program=>program.budgetPoolId===b.id)
+        return <Card key={b.id} data-budget-id={b.id}><Row><div><b>{poolHeading(catalog.pairs.find(p=>p.id===programs[0]?.pairId))}</b>
+          {programs.map(program=><CampaignIdentifier key={program.id} id={program.id}/>)}
+          {!programs.length&&<FinePrint>No campaign linked · Budget ID: {b.id}</FinePrint>}
+        </div><QuietButton disabled={busy} onClick={()=>void pause(b)}>{b.paused?'Resume campaign':'Pause campaign'}</QuietButton></Row>
         {b.campaign&&b.accounting?<>
           <FinePrint>{b.campaign.days} days · {Number(b.campaign.aprPercent).toLocaleString('en-US',{maximumFractionDigits:4})}% APR · {usd(Number(b.campaign.capacityCents)/100)} target fixed-side capacity</FinePrint>
           <Stats><div>Budget<Strong>{usd(Number(b.accounting.budgetCents)/100)}</Strong></div><div>Premium funded<Strong>{usd(Number(b.accounting.fundedBudgetCents)/100)}</Strong></div><div>Budget reserved<Strong>{usd(Number(b.accounting.reservedBudgetCents)/100)}</Strong></div><div>Capacity funded<Strong>{usd(Number(b.accounting.fundedCapacityCents)/100)}</Strong></div><div>Target difference<Strong>{usd(Number(b.accounting.availableCapacityCents)/100)}</Strong></div></Stats>
@@ -38,7 +46,7 @@ export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address
         </>:<FinePrint>Token allocation: {formatUnits(BigInt(b.limitRaw),b.decimals)} · reserved {formatUnits(BigInt(b.reservedRaw),b.decimals)} · funded {formatUnits(BigInt(b.allocatedRaw),b.decimals)}.</FinePrint>}
         {b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}
         {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
-      </Card>)}
+      </Card>})}
       {catalog.programs.map(program=><RequestFeeEditor key={program.id+':'+program.revision} account={account} program={program} heading={poolHeading(catalog.pairs.find(p=>p.id===program.pairId))} onSaved={changed}/>)}
       <CampaignEditor account={account} pairs={catalog.pairs} onSaved={changed}/>
       <Row><b>Pairs</b><QuietButton onClick={()=>setShowPair(!showPair)}>{showPair?'Close pair form':'Add pair'}</QuietButton></Row>
@@ -90,6 +98,7 @@ function RequestFeeEditor({account,program,heading,onSaved}:{account:Address;pro
     try{await authedJson(account,'/admin/programs',{...program,requestFeeWei:requestFeeFromEth(value)});await onSaved()}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}}
   return <Editor onSubmit={save} aria-label={'Request fee for '+program.id}><b>{heading} · {program.days} days · Request fee</b>
+    <CampaignIdentifier id={program.id}/>
     <Field>Fixed request fee (ETH)<input required aria-label={'Request fee ETH for '+program.id} inputMode='decimal' value={value} onChange={e=>setValue(e.target.value)}/></Field>
     <FinePrint>Each new request costs this ETH amount plus wallet network gas. Previously issued payment terms and refunds do not change.</FinePrint>
     {error&&<ErrorText role='alert'>{error}</ErrorText>}<Action disabled={busy}>Save request fee</Action>

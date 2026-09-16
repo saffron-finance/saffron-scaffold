@@ -12,6 +12,7 @@ import { StepTitle } from '../host/ui'
 import { authedJson } from '../host/transport'
 import { useDeployments } from '../host/useDeployments'
 import { ProgramAdmin } from './ProgramAdmin'
+import { CampaignIdentifier } from './CampaignIdentifier'
 import { DeploymentPagination } from './DeploymentPagination'
 import { CampaignFundingModal } from './CampaignFundingModal'
 import { CampaignWithdrawalModal } from './CampaignWithdrawalModal'
@@ -48,7 +49,7 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
           <OpsTabs aria-label='Request filters'>{['All requests','Needs attention','Awaiting premium'].map(name=><button key={name} aria-pressed={filter===name} onClick={()=>setFilter(name)}>{name}</button>)}</OpsTabs>
           {data.loading&&<OpsNote>Loading requests…</OpsNote>}
           {!data.loading&&!data.error&&!rows.length&&<OpsNote>{filter==='All requests'?'No deployment requests on this page.':'No requests match this filter on this page.'}</OpsNote>}
-          {rows.map(row=><Disclosure key={row.id}><summary>{row.snapshot.display.pair} · {row.id.slice(0,8)} · <AdminState state={row.state}/></summary><AdminVault account={account} row={row} onFund={()=>setFundingRow(row)} onWithdraw={()=>setWithdrawalRow(row)} onUpdate={()=>{data.refresh();health.refresh()}}/></Disclosure>)}
+          {rows.map(row=><Disclosure key={row.id}><summary>{row.snapshot.display.pair} · {row.id.slice(0,8)} · <AdminState state={row.state}/><CampaignIdentifier id={row.programId}/></summary><AdminVault account={account} row={row} onFund={()=>setFundingRow(row)} onWithdraw={()=>setWithdrawalRow(row)} onUpdate={()=>{data.refresh();health.refresh()}}/></Disclosure>)}
           <DeploymentPagination data={data}/>
         </OpsCard>
       </>}
