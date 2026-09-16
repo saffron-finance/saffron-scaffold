@@ -1,5 +1,5 @@
 import './Sidebar.css'
-import { Fragment, useEffect, useId, useRef } from 'react'
+import { Fragment, useId } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
 import { sidebarDestinations, type SidebarIcon } from './sidebarNavigation'
@@ -19,35 +19,32 @@ const icons: Record<SidebarIcon, string> = {
   community: 'M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M5 21v-3a7 7 0 0 1 14 0v3 M19 5a3 3 0 0 1 0 6 M21 21v-4a5 5 0 0 0-2-4 M5 5a3 3 0 0 0 0 6 M3 21v-4a5 5 0 0 1 2-4',
 }
 
-/** Keep the same logo and icons mounted in either rail size. A single overlay
- * button makes the entire compact rail an accessible reopen target, not links. */
+/** Keep links active and accessible at either width. Only the edge toggle
+ * changes rail size; its stable DOM node retains keyboard focus across toggles.
+ * This shell also generates the warm template: verify its cached/live handoff
+ * when changing structure or styles (see HomeCatalog's maintenance checklist).
+ */
 export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed: boolean; onToggle: () => void }) {
   const path=useLocation().pathname.replace(/\/+$/,'')||'/'
-  const navigationId = useId(), reopen = useRef<HTMLButtonElement>(null), toggle = useRef<HTMLButtonElement>(null)
-  const previous = useRef(collapsed)
-  useEffect(() => {
-    if (previous.current === collapsed) return
-    previous.current = collapsed
-    // Move keyboard focus out of hidden controls. Reopening on a scrolled mobile
-    // page also brings the newly revealed menu into view.
-    if (collapsed) reopen.current?.focus({ preventScroll: true })
-    else toggle.current?.focus()
-  }, [collapsed])
+  const navigationId = useId()
+  const toggleLabel=collapsed?'Expand sidebar':'Collapse sidebar'
   return <aside className='saffron-rail-rail' data-saffron-sidebar data-collapsed={collapsed} aria-label='Saffron sidebar'>
+    <div className='saffron-rail-toggle-anchor'>
+      <button className='saffron-rail-toggle' data-sidebar-toggle type='button' aria-label={toggleLabel} title={toggleLabel}
+        aria-expanded={!collapsed} aria-controls={navigationId} onClick={onToggle}>
+        <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'><path d={collapsed?'M9 7l5 5-5 5':'M14 7l-5 5 5 5'} /></svg>
+      </button>
+    </div>
     <div className='saffron-rail-float' data-sidebar-float>
     <div className='saffron-rail-surface' data-sidebar-surface>
-    <header className='saffron-rail-heading' aria-hidden={collapsed || undefined}>
-      <Link className='saffron-rail-brand' to={home} aria-label='Saffron home' title='Saffron home' tabIndex={collapsed ? -1 : undefined}>
+    <header className='saffron-rail-heading'>
+      <Link className='saffron-rail-brand' to={home} aria-label='Saffron home' title='Saffron home'>
         <div className='saffron-rail-logo'><Emblem3DLogo /></div><span data-sidebar-wordmark>SAFFRON</span>
       </Link>
-      <button className='saffron-rail-collapse' ref={toggle} data-sidebar-collapse type='button' aria-label='Collapse sidebar' title='Collapse sidebar'
-        aria-expanded={!collapsed} aria-controls={navigationId} onClick={onToggle}>
-        <svg viewBox='0 0 24 24' aria-hidden='true'><rect x='4' y='4' width='16' height='16' rx='2' /><path d='M10 4v16' /></svg>
-      </button>
     </header>
-    <nav className='saffron-rail-navigation' id={navigationId} aria-label='Main navigation' aria-hidden={collapsed || undefined}>
+    <nav className='saffron-rail-navigation' id={navigationId} aria-label='Main navigation'>
       {sidebarDestinations(home).map(item => <Fragment key={item.href}>{item.icon==='admin'&&<span className='saffron-rail-group-label'>Operator workspace</span>}<Link className='saffron-rail-nav-item' to={item.href}
-        tabIndex={collapsed ? -1 : undefined}
+        aria-label={item.label} title={collapsed?item.label:undefined}
         aria-current={!item.external&&(path===item.href||(item.href!=='/'&&path.startsWith(`${item.href}/`)))?'page':undefined}
         target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>
         <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'><path d={icons[item.icon]} /></svg>
@@ -57,8 +54,6 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
     <a className='saffron-rail-signature' data-sidebar-signature href='https://saffron.finance/' target='_blank' rel='noopener noreferrer'>saffron.finance</a>
     </div>
     </div>
-    {collapsed && <button className='saffron-rail-reopen' ref={reopen} type='button' aria-label='Open sidebar' title='Open sidebar'
-      aria-expanded={false} aria-controls={navigationId} onClick={onToggle} />}
   </aside>
 }
 // First-screen geometry lives in the adjacent cached stylesheet.
