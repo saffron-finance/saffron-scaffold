@@ -7,6 +7,20 @@ const encoder = new TextEncoder()
 const turn = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('qualified fetch-SSE parser bounds', () => {
+  it('rejects accumulated data even when comments try to reset the frame budget', async () => {
+    let reads = 0, cancelled = false
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (++reads > 100) { controller.close(); return }
+        controller.enqueue(encoder.encode('data: ' + 'x'.repeat(1024) + '\n: keepalive\n'))
+      },
+      cancel() { cancelled = true },
+    })
+    await expect(consumeEventStream(new Response(body, { headers: { 'content-type': 'text/event-stream' } }),
+      () => {}, new AbortController().signal)).rejects.toThrow(/Oversized|Unterminated/)
+    expect(reads).toBeLessThan(20)
+    expect(cancelled).toBe(true)
+  })
   it('parses split UTF-8, CRLF boundaries, multiline data and named heartbeats', async () => {
     const bytes = encoder.encode(
       '\uFEFF: keep alive\r\nevent: snapshot\r\ndata: {"token":"香",\r\ndata: "ok":true}\r\nid: 42\r\n\r\nevent: heartbeat\ndata: {}\n\n'

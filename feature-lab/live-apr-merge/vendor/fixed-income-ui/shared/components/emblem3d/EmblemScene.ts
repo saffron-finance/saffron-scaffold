@@ -64,6 +64,8 @@ export interface EmblemSceneOptions {
   colorBoost?: number
   /** Called if the browser drops the WebGL context. */
   onContextLost?: () => void
+  /** Cancels setup when its React owner closes before the assets arrive. */
+  signal?: AbortSignal
 }
 
 const DEFAULTS = {
@@ -120,6 +122,22 @@ const loadModel = (loader: GLTFLoader, url: string) =>
     )
   })
 
+/** Release GLTF-owned materials/textures, and optionally its mesh geometry.
+ * Three does not dispose resources when a material is replaced or a load fails. */
+function disposeModel(model: Group, includeGeometry = true) {
+  const resources = new Set<{ dispose(): void }>()
+  model.traverse(child => {
+    const mesh = child as Mesh
+    if (!mesh.isMesh) return
+    if (includeGeometry) resources.add(mesh.geometry)
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      resources.add(material)
+      for (const value of Object.values(material)) if (value instanceof Texture) resources.add(value)
+    }
+  })
+  for (const resource of resources) resource.dispose()
+}
+
 export class EmblemScene {
   /**
    * Builds the scene once its assets have loaded. Rejects if WebGL is
@@ -127,16 +145,43 @@ export class EmblemScene {
    */
   static async create(options: EmblemSceneOptions): Promise<EmblemScene> {
     const textureLoader = new TextureLoader()
-    const [model, matcap, noise] = await Promise.all([
-      loadModel(new GLTFLoader(), options.modelUrl),
-      loadTexture(textureLoader, options.matcapUrl),
-      options.noiseUrl ? loadTexture(textureLoader, options.noiseUrl) : Promise.resolve(undefined),
-    ])
-
-    return new EmblemScene(options, model, matcap, noise)
+    const signal = options.signal
+    signal?.throwIfAborted()
+    let failed = false
+    const release = new Set<() => void>()
+    // Loaders can finish after a sibling failed or the modal closed. Dispose
+    // those late resources too; they must never create an orphan GPU context.
+    const own = <T,>(work: Promise<T>, dispose: (value: T) => void) => work.then(value => {
+      if (failed) dispose(value)
+      else release.add(() => dispose(value))
+      return value
+    })
+    let abort = () => {}
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      abort = () => reject(signal?.reason)
+      signal?.addEventListener('abort', abort, { once: true })
+      deadline = setTimeout(() => reject(new EmblemError('model-load', 'Logo loading timed out')), 15_000)
+    })
+    try {
+      const [model, matcap, noise] = await Promise.race([Promise.all([
+        own(loadModel(new GLTFLoader(), options.modelUrl), disposeModel),
+        own(loadTexture(textureLoader, options.matcapUrl), value => value.dispose()),
+        options.noiseUrl ? own(loadTexture(textureLoader, options.noiseUrl), value => value.dispose()) : Promise.resolve(undefined),
+      ]), cancelled])
+      signal?.throwIfAborted()
+      const scene = new EmblemScene(options, model, matcap, noise)
+      release.clear() // Ownership passes to the successfully constructed scene.
+      return scene
+    } catch (error) {
+      failed = true
+      for (const dispose of release) dispose()
+      release.clear()
+      throw error
+    } finally { clearTimeout(deadline); signal?.removeEventListener('abort', abort) }
   }
 
-  private readonly options: Required<Omit<EmblemSceneOptions, 'noiseUrl' | 'onContextLost'>> &
+  private readonly options: Required<Omit<EmblemSceneOptions, 'noiseUrl' | 'onContextLost' | 'signal'>> &
     Pick<EmblemSceneOptions, 'noiseUrl' | 'onContextLost'>
 
   private readonly canvas: HTMLCanvasElement
@@ -209,7 +254,8 @@ export class EmblemScene {
     // so calling it per start() would leak a listener on each stop/start cycle
     // (routine here — the emblem stops when scrolled out of view) and
     // disconnect() would remove only one of them.
-    this.timer.connect(document)
+    // Connect only after successful construction below. A failed WebGL context
+    // otherwise leaves this scene reachable from document forever.
 
     this.canvas = document.createElement('canvas')
     this.canvas.style.display = 'block'
@@ -282,6 +328,7 @@ export class EmblemScene {
       }
     }
 
+    disposeModel(model, false)
     model.traverse((child) => {
       if ((child as Mesh).isMesh) (child as Mesh).material = this.material
     })
@@ -313,6 +360,7 @@ export class EmblemScene {
     this.scene.add(this.tiltGroup)
 
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost)
+    this.timer.connect(document)
   }
 
   private handleContextLost = (event: Event) => {
@@ -360,9 +408,17 @@ export class EmblemScene {
     if (this.disposed || this.frameId) return
     this.timer.reset() // drop the idle time accumulated since the last stop
     const tick = () => {
-      this.frameId = requestAnimationFrame(tick)
-      this.update()
-      this.renderFrame()
+      this.frameId = 0
+      if (this.disposed) return
+      try {
+        this.update()
+        this.renderFrame()
+        this.frameId = requestAnimationFrame(tick)
+      } catch {
+        // A broken renderer must not throw again on every animation frame.
+        this.options.onContextLost?.()
+        this.dispose()
+      }
     }
     this.frameId = requestAnimationFrame(tick)
   }

@@ -29,7 +29,7 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     )
   }
 
-  const { onEvent = noop, onError = noop, onRetry = noop, onComment } = callbacks
+  const { onEvent = noop, onError = noop, onRetry = noop, onComment, maxBufferSize = Infinity } = callbacks
 
   let incompleteLine = ''
 
@@ -48,10 +48,19 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
 
     for (const line of complete) {
       parseLine(line)
+      checkBuffer()
     }
 
     incompleteLine = incomplete
+    checkBuffer(incompleteLine.length)
     isFirstChunk = false
+  }
+
+  /** Bound retained data independently from heartbeats/comments. The caller
+   * feeds small chunks, so even a never-terminated message stays bounded. */
+  function checkBuffer(lineLength = 0) {
+    if (data.length + eventType.length + (id?.length ?? 0) + lineLength > maxBufferSize)
+      throw new Error('Oversized event stream buffer')
   }
 
   function parseLine(line: string) {

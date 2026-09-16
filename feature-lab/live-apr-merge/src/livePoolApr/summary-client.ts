@@ -1,4 +1,5 @@
 import { createParser } from './vendor/eventsource-parser'
+import { boundedControlText } from './bounded-response'
 import { validBaseline, validSnapshot, validWatcher } from './contracts'
 import { initialConnection, loseConnection, receiveConnection } from './connection'
 import {
@@ -52,6 +53,8 @@ export async function consumeEventStream(
   let undispatchedBytes = 0
   let first = true
   const parser = createParser({
+    // Multiline data persists across comments; count retained parser state too.
+    maxBufferSize: 16_384,
     onEvent(event) {
       if (new TextEncoder().encode(event.data).byteLength > 8192)
         throw new Error('Oversized summary')
@@ -254,9 +257,7 @@ export class SummaryClient {
         signal: deadline.signal,
         headers: { 'Content-Type': 'application/json', ...init.headers },
       })
-      const text = await response.text()
-      if (new TextEncoder().encode(text).byteLength > 32_768)
-        throw new Error('Oversized control response')
+      const text = await boundedControlText(response, deadline.signal)
       if (!response.ok) {
         // A proxy may return HTML for auth/routing failures. Preserve its HTTP
         // status instead of retrying a JSON syntax error as a transient outage.

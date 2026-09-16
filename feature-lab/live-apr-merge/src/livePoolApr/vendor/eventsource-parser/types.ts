@@ -64,6 +64,9 @@ export interface EventSourceMessage {
  * @public
  */
 export interface ParserCallbacks {
+  /** Optional retained UTF-16 character ceiling, including an unfinished line.
+   * Comments never reset this accounting; only dispatched data is released. */
+  maxBufferSize?: number
   /**
    * Callback for when a new event/message is parsed from the stream.
    * This is the main callback that clients will use to handle incoming messages.

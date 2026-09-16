@@ -56,6 +56,7 @@ export function Emblem3D({
 
     let scene: EmblemScene | undefined
     let cancelled = false
+    const controller = new AbortController()
 
     // Effects that outlive the async setup, registered once the scene exists.
     const teardown: Array<() => void> = []
@@ -63,6 +64,7 @@ export function Emblem3D({
     const reducedMotion = prefersReducedMotion()
 
     EmblemScene.create({
+      signal: controller.signal,
       container,
       modelUrl,
       matcapUrl,
@@ -148,6 +150,7 @@ export function Emblem3D({
 
     return () => {
       cancelled = true
+      controller.abort()
       teardown.forEach((fn) => fn())
       sceneRef.current = undefined
       scene?.dispose()
