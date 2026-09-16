@@ -97,6 +97,8 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
 }
 
 const Frame = styled.div<{ $sidebarCollapsed: boolean; $mobileHome: boolean }>`
+  /* One height drives the header and the sidebar toggle's border intersection. */
+  --app-header-height:73px;@media(max-width:800px){--app-header-height:65px;}
   min-height:100vh;color:${p => p.theme.colors.text.primary};display:grid;grid-template-columns:252px minmax(0,1fr);align-items:start;overflow:clip;
   &[data-home-page] #main-content button{border-radius:24px;}
   @media(max-width:1100px){grid-template-columns:220px minmax(0,1fr);}
@@ -111,7 +113,7 @@ const Frame = styled.div<{ $sidebarCollapsed: boolean; $mobileHome: boolean }>`
 `
 const DesktopTweaks = styled.div<{ $mobileHome: boolean }>`${p => p.$mobileHome && css`@media(max-width:${mobileHomeMaxWidth}px){display:none;}`}`
 const Content = styled.div`min-width:0;min-height:100vh;display:flex;flex-direction:column;`
-const Nav = styled.header`height:73px;width:100%;padding:0 28px 0 32px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #1a1717;background:#000;flex:none;margin-bottom:24px;@media(max-width:1100px){padding:0 24px;}@media(max-width:800px){height:65px;padding:0 16px;gap:12px;}@media(max-width:540px){padding:0 12px;gap:8px;margin-bottom:0;}@media(max-width:360px){padding:0 10px;gap:6px;}`
+const Nav = styled.header`height:var(--app-header-height,73px);width:100%;padding:0 28px 0 32px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #1a1717;background:#000;flex:none;margin-bottom:24px;@media(max-width:1100px){padding:0 24px;}@media(max-width:800px){padding:0 16px;gap:12px;}@media(max-width:540px){padding:0 12px;gap:8px;margin-bottom:0;}@media(max-width:360px){padding:0 10px;gap:6px;}`
 const MobileBrand = styled(Link)`display:none;width:44px;height:44px;flex:none;border-radius:6px;&:focus-visible{outline:2px solid #d286ff;outline-offset:3px;}@media(max-width:${mobileHomeMaxWidth}px){display:block;}`
 const Breadcrumb = styled.nav`display:flex;align-items:center;gap:12px;min-width:0;font:400 12px 'Host Grotesk',sans-serif;white-space:nowrap;color:#9b9490;a{color:inherit;flex:none;&:hover{color:#fff;}&:focus-visible{outline:2px solid #d286ff;outline-offset:4px;}}>[aria-hidden]{color:#675c57;}[aria-current]{color:#e7e1df;overflow:hidden;text-overflow:ellipsis;}@media(max-width:${mobileHomeMaxWidth}px){display:none;}`
 const Controls = styled.div`display:flex;align-items:center;gap:12px;flex:none;margin-left:auto;@media(max-width:800px){gap:8px;}@media(max-width:540px){gap:6px;}@media(max-width:360px){gap:5px;}`

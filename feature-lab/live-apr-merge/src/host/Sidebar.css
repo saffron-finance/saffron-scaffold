@@ -133,12 +133,14 @@
     border-bottom: 1px solid #1d1d1d;
   }
 }
-/* A zero-height sticky anchor keeps the circle at the visible edge midpoint
- * without shifting content. It cannot intercept clicks outside the button. */
+/* Align the circle with the sidebar/header border intersection. The shell
+ * shares its header height so responsive styling cannot move these apart.
+ * This zero-height anchor never intercepts clicks outside the button. */
 .saffron-rail-toggle-anchor {
-  position: sticky;
-  top: 50vh;
-  top: 50dvh;
+  position: absolute;
+  top: var(--app-header-height, 73px);
+  left: 0;
+  width: 100%;
   height: 0;
   z-index: 6;
   pointer-events: none;
