@@ -1,6 +1,7 @@
 import { type CSSProperties,type ReactNode,useEffect,useId,useLayoutEffect,useRef,useState } from 'react'
 import styled from 'styled-components'
 import { TokenIcon } from './TokenIcon'
+import '../host/TooltipSurface.css'
 
 /** First review bullet with an amount-only trigger and non-interactive LP breakdown. Hover and keyboard
  * focus reveal it; click/tap pins it. Pointer travel into the tooltip is allowed.
@@ -85,15 +86,8 @@ const Trigger=styled.button`
   b{ text-decoration:underline dotted; text-underline-offset:3px; }
   &:focus-visible{outline:2px solid ${({theme})=>theme.colors.semantic.success};outline-offset:3px;border-radius:3px;}
 `
-const Tip=styled.span`
-  position:absolute;z-index:5;box-sizing:border-box;
-  display:flex;flex-direction:column;gap:3px;padding:8px 12px;border:1px solid #363636;
-  border-radius:var(--radius-md);background:#1d1d1d;color:#fff;
-  box-shadow:0 8px 24px #0009;font-size:13px;line-height:1.25;overflow-wrap:anywhere;
-  &[hidden]{display:none;}
-  &::before{content:'';position:absolute;top:100%;left:var(--caret-x);width:var(--anchor-width);height:9px;transform:translateX(-50%);}
-  &::after{content:'';position:absolute;top:calc(100% - 5px);left:var(--caret-x);width:10px;height:10px;transform:translateX(-50%) rotate(45deg);background:#1d1d1d;border-right:1px solid #363636;border-bottom:1px solid #363636;}
-`
+// Share paint with compact navigation without importing modal logic there.
+const Tip=styled.span.attrs({className:'saffron-tooltip-surface'})`position:absolute;z-index:5;`
 // Keep the additional venue note compact so the bubble cannot cover Back.
 const TooltipNote=styled.span`font-size:12px;`
 const Asset=styled.span`display:flex;align-items:center;gap:8px;min-width:0;>span:first-child{display:flex;flex:none;} >span:last-child{min-width:0;}`

@@ -1,0 +1,42 @@
+/* Shared paint for modal2 amount/impermanent-loss help and sidebar labels.
+ * Keep geometry and interaction in each owner: importing this stylesheet must
+ * never pull checkout code into the first-screen sidebar bundle. */
+.saffron-tooltip-surface {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border: 1px solid #363636;
+  border-radius: var(--radius-md);
+  background: #1d1d1d;
+  color: #fff;
+  box-shadow: 0 8px 24px #0009;
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.saffron-tooltip-surface[hidden] { display: none; }
+/* A narrow transparent bridge lets the pointer reach the bubble without
+ * losing hover. The diamond uses the same paint and border as its surface. */
+.saffron-tooltip-surface::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: var(--caret-x);
+  width: var(--anchor-width);
+  height: 9px;
+  transform: translateX(-50%);
+}
+.saffron-tooltip-surface::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 5px);
+  left: var(--caret-x);
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #1d1d1d;
+  border-right: 1px solid #363636;
+  border-bottom: 1px solid #363636;
+}

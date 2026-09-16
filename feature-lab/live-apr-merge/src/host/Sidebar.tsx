@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
 import { sidebarDestinations, type SidebarIcon } from './sidebarNavigation'
 import { AprNavigationLabel } from './aprTextStyle'
+import { useSidebarTooltip } from './useSidebarTooltip'
 
 // Small inline line icons keep this shell independent of an icon dependency.
 const icons: Record<SidebarIcon, string> = {
@@ -27,6 +28,7 @@ const icons: Record<SidebarIcon, string> = {
 export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed: boolean; onToggle: () => void }) {
   const path=useLocation().pathname.replace(/\/+$/,'')||'/'
   const navigationId = useId()
+  const { linkProps, tooltip } = useSidebarTooltip(collapsed, path)
   const toggleLabel=collapsed?'Expand sidebar':'Collapse sidebar'
   return <aside className='saffron-rail-rail' data-saffron-sidebar data-collapsed={collapsed} aria-label='Saffron sidebar'>
     <div className='saffron-rail-toggle-anchor'>
@@ -44,7 +46,7 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
     </header>
     <nav className='saffron-rail-navigation' id={navigationId} aria-label='Main navigation'>
       {sidebarDestinations(home).map(item => <Fragment key={item.href}>{item.icon==='admin'&&<span className='saffron-rail-group-label'>Operator workspace</span>}<Link className='saffron-rail-nav-item' to={item.href}
-        aria-label={item.label} title={collapsed?item.label:undefined}
+        aria-label={item.label} {...linkProps(item.label)}
         aria-current={!item.external&&(path===item.href||(item.href!=='/'&&path.startsWith(`${item.href}/`)))?'page':undefined}
         target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>
         <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'><path d={icons[item.icon]} /></svg>
@@ -54,6 +56,7 @@ export function Sidebar({ home, collapsed, onToggle }: { home: string; collapsed
     <a className='saffron-rail-signature' data-sidebar-signature href='https://saffron.finance/' target='_blank' rel='noopener noreferrer'>saffron.finance</a>
     </div>
     </div>
+    {tooltip}
   </aside>
 }
 // First-screen geometry lives in the adjacent cached stylesheet.

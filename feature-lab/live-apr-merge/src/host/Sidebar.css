@@ -155,7 +155,7 @@
   padding: 6px;
   display: grid;
   place-items: center;
-  border: 1px solid #383838;
+  border: 1px solid #38383800;
   border-radius: 50%;
   background: #141414;
   color: #c9c9c9;
@@ -176,13 +176,22 @@
 .saffron-rail-toggle:hover {
   background: #282828;
   color: #fff;
-  border-color: #666;
 }
 .saffron-rail-toggle:focus-visible {
   outline: 2px solid var(--sidebar-start);
   outline-offset: 3px;
 }
 .saffron-rail-toggle:disabled { cursor: default; }
+/* Portaled above each compact icon, outside the rail's scrolling/clipping.
+ * Surface/caret paint is shared with modal2 in TooltipSurface.css. */
+.saffron-rail-tooltip {
+  position: fixed;
+  z-index: 100;
+  max-width: calc(100vw - 16px);
+  font-weight: 400;
+  /* Title-only help must never block the icon immediately above its anchor. */
+  pointer-events: none;
+}
 /* The existing tablet layout is a horizontal rail. Center its expanded toggle
  * on the bottom edge so neither half of the circle is clipped off-screen. */
 @media(max-width:1000px) {
