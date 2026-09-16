@@ -43,7 +43,7 @@ export function HomeCatalog({catalog,busy=false,onOpen,recovery}: {
       {catalog.loading&&!catalog.hasSnapshot&&<div className='saffron-catalog-catalog-skeleton' role='status' aria-label='Loading incentive programs' aria-busy='true'><span/>{[0,1].map(row=><div key={row}><i/><i/><i/><i/></div>)}</div>}
       {catalog.error&&<ErrorText role='alert'>{catalog.offers.length>0&&'Showing saved offers. '}{catalog.error}</ErrorText>}
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
-      {groups.map(offers=><OfferGroup key={offers[0].pairId} offers={offers} firstId={catalog.offers[0]?.id} disabled={busy||catalog.loading||Boolean(catalog.error)} onOpen={onOpen}/>)}
+      {groups.map(offers=><OfferGroup key={offers[0].pairId} offers={offers} firstId={groups[0]?.[0]?.id} disabled={busy||catalog.loading||Boolean(catalog.error)} onOpen={onOpen}/>)}
   </>
 }
 

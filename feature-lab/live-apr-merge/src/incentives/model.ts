@@ -9,8 +9,10 @@ export interface Offer extends Pair,Program {pairRevision:number;budget:Budget;a
 export function isOfferLive(offer:Offer):boolean {
   return offer.active && offer.availability===null && !offer.budget.paused && !offer.budget.reconciliationRequired
 }
-/** One ordered grouping for both cached templates and live React rows. Keep
- * first-seen pair/offer order without repeatedly scanning the full catalog. */
+/** Group cached and live rows identically, keeping each pair together. Available
+ * offers lead within a pair; wholly upcoming pairs follow available pairs.
+ * Stable sorting preserves configured order within each availability bucket,
+ * and only the new group arrays are sorted, never the source catalog. */
 export function groupOffers(offers:Offer[]):Offer[][] {
   const groups=new Map<string,Offer[]>()
   for(const offer of offers){
@@ -18,7 +20,10 @@ export function groupOffers(offers:Offer[]):Offer[][] {
     if(group)group.push(offer)
     else groups.set(offer.pairId,[offer])
   }
-  return [...groups.values()]
+  const availableFirst = (left:Offer, right:Offer) => Number(isOfferLive(right)) - Number(isOfferLive(left))
+  const ordered = [...groups.values()]
+  for (const group of ordered) group.sort(availableFirst)
+  return ordered.sort((left, right) => availableFirst(left[0], right[0]))
 }
 export interface PriceSnapshot {quotePerToken:number;quoteUsd:number;observedAt:string;block:string}
 export interface DeploymentProgress {version:1;reason:string;stages:{id:number;name:string;state:'pending'|'active'|'complete'|'blocked'|'checking';hash:Hex|null;confirmedAt:string|null}[];activeStage:number|null;requestedAt:string;acceptedAt:string;lastProgressAt:string;checkedAt:string;observedBlock:{number:string;hash:Hex;checkedAt:string}|null;verificationAvailable:boolean;operatorAction:boolean;paymentState:string;serviceWindowMinutes:number|null}

@@ -56,7 +56,8 @@ async function restoreDisplay():Promise<boolean> {
   const catalog=initialCatalog()
   if(!catalog.hasSnapshot||!document.getElementById('warm-shell'))return false
   const fragment=clone('warm-shell'),page=fragment.querySelector('.saffron-catalog-page')!
-  for(const offers of groupOffers(catalog.offers)){
+  const groups=groupOffers(catalog.offers),firstId=groups[0]?.[0]?.id
+  for(const offers of groups){
     const group=clone('warm-group'),first=offers[0],pair=`${first.token0.symbol} / ${first.token1.symbol}`
     group.querySelector('[data-testid="pool-pair-name"]')!.textContent=pair+' '+((first.feeTier??0)/10_000)+'%'
     const phone=group.querySelector('[data-mobile-pair] h2')!
@@ -67,7 +68,7 @@ async function restoreDisplay():Promise<boolean> {
     programs.setAttribute('aria-label',pair+' liquidity incentive offers')
     programs.querySelectorAll('.saffron-catalog-offer-card').forEach(node=>node.remove())
     fillTokens(group,first)
-    for(const offer of offers)programs.append(row(offer,Boolean(offer.isNew&&offer.id===catalog.offers[0]?.id)))
+    for(const offer of offers)programs.append(row(offer,Boolean(offer.isNew&&offer.id===firstId)))
     page.append(group)
   }
   if(import.meta.env.VITE_DEV_TWEAKS==='true'){
