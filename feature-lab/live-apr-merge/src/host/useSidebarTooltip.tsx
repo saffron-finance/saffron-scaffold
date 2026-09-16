@@ -2,13 +2,16 @@ import './TooltipSurface.css'
 import { type CSSProperties, type HTMLAttributes, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+// Page-memory only: navigation/remounts keep it; reloads reset it. Keyboard focus does not consume it.
+let firstHover = true
+
 /** One lightweight, title-only tooltip for the compact rail. Links remain
  * links: hover/focus reveals help, and click/tap always follows the destination.
  * Closed tooltips do no DOM work, so build-generated warm templates stay safe.
  * Share visual rules with modal2 in TooltipSurface.css, not its checkout code.
  */
 export function useSidebarTooltip(enabled: boolean, routeKey: string) {
-  const [active, setActive] = useState<{ anchor: HTMLAnchorElement; label: string } | null>(null)
+  const [active, setActive] = useState<{ anchor: HTMLAnchorElement; label: string; fade: boolean } | null>(null)
   const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' })
   const bubble = useRef<HTMLSpanElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
@@ -22,10 +25,11 @@ export function useSidebarTooltip(enabled: boolean, routeKey: string) {
     if (active?.anchor === document.activeElement && active.anchor.matches(':focus-visible')) return
     timer.current = setTimeout(close, 100)
   }
-  const show = (anchor: HTMLAnchorElement, label: string) => {
+  const show = (anchor: HTMLAnchorElement, label: string, mouse = false) => {
     if (!enabled) return
     cancelClose()
-    setActive({ anchor, label })
+    setActive({ anchor, label, fade: mouse && firstHover })
+    if (mouse) firstHover = false
   }
   useEffect(() => { close() }, [enabled, routeKey, close])
   useEffect(() => cancelClose, [cancelClose])
@@ -39,6 +43,11 @@ export function useSidebarTooltip(enabled: boolean, routeKey: string) {
     const left = Math.max(8, Math.min(center - bounds.width / 2, window.innerWidth - bounds.width - 8))
     setPosition({ left, top: Math.max(8, anchor.top - bounds.height - 8),
       '--caret-x': `${center - left - 1}px`, '--anchor-width': '20px' } as CSSProperties)
+    // Animate after measurement, before paint; no timers, storage or CSS state.
+    if (active.fade && !matchMedia('(prefers-reduced-motion:reduce)').matches) {
+      const fade = bubble.current.animate({ opacity: [0, 1] }, 310)
+      return () => fade.cancel() // A quick move to the next icon must be instant.
+    }
   }, [enabled, active])
   useEffect(() => {
     if (!enabled || !active) return
@@ -62,7 +71,7 @@ export function useSidebarTooltip(enabled: boolean, routeKey: string) {
   /** Bind only discovery/dismissal events; never prevent link activation. */
   const linkProps = (label: string): HTMLAttributes<HTMLAnchorElement> => ({
     'aria-describedby': enabled && active?.label === label ? id : undefined,
-    onPointerEnter: event => { if (event.pointerType === 'mouse') show(event.currentTarget, label) },
+    onPointerEnter: event => { if (event.pointerType === 'mouse') show(event.currentTarget, label, true) },
     onPointerLeave: leave,
     onFocus: event => { if (event.currentTarget.matches(':focus-visible')) show(event.currentTarget, label) },
     onBlur: close,
