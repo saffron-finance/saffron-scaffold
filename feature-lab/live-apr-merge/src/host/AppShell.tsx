@@ -5,6 +5,7 @@ import type { Address } from 'viem'
 import { ensureChain } from '@lab/wallet/wallet'
 import { robinhoodChain } from '@lab/chain/chains'
 import { Sidebar } from './Sidebar'
+import { tabletSidebarQuery } from './layout'
 import { MobileHomeNavigation, mobileHomeMaxWidth } from './MobileHomeNavigation'
 import { sidebarDestinations } from './sidebarNavigation'
 import { AprNavigationLabel } from './aprTextStyle'
@@ -31,8 +32,21 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
   const labHref = import.meta.env.VITE_FEATURE_LAB_HREF
   const [menu, setMenu] = useState(false), [network, setNetwork] = useState(false)
   const [switching, setSwitching] = useState(false), [networkError, setNetworkError] = useState('')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const toggleSidebar = useCallback(() => setSidebarCollapsed(value => !value), [])
+  // Responsive collapse is separate from the user's desktop preference, so a
+  // tablet visit never overwrites their choice when the window grows again.
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
+  const [tabletSidebar, setTabletSidebar] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(tabletSidebarQuery).matches)
+  const sidebarCollapsed = tabletSidebar || desktopSidebarCollapsed
+  const toggleSidebar = useCallback(() => setDesktopSidebarCollapsed(value => !value), [])
+  useEffect(() => {
+    const media = window.matchMedia(tabletSidebarQuery)
+    const update = () => setTabletSidebar(media.matches)
+    update()
+    // One breakpoint listener, released with the shell; no resize polling.
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
   useEffect(() => { setMenu(false); setNetwork(false) }, [path])
   // Do not offer fictional campaign-network support. Selecting the supported
   // chain requests an actual wallet switch, with rejection shown in the sheet.
@@ -105,6 +119,8 @@ const Frame = styled.div<{ $sidebarCollapsed: boolean; $mobileHome: boolean }>`
   @media(max-width:1100px){grid-template-columns:220px minmax(0,1fr);}
   @media(max-width:${sidebarMobileWidth}px){grid-template-columns:minmax(0,1fr);}
   ${p => p.$sidebarCollapsed ? `&&{grid-template-columns:${sidebarCollapsedWidth}px minmax(0,1fr);}` : ''}
+  /* Also constrain the inert, server-rendered warm preview before React loads. */
+  @media ${tabletSidebarQuery}{&&{grid-template-columns:${sidebarCollapsedWidth}px minmax(0,1fr);}}
   ${p => p.$mobileHome && css`@media(max-width:${mobileHomeMaxWidth}px){
     &&{grid-template-columns:minmax(0,1fr);background:#000;}
     > [data-saffron-sidebar]{display:none;}

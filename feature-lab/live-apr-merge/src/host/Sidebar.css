@@ -192,22 +192,6 @@
   /* Title-only help must never block the icon immediately above its anchor. */
   pointer-events: none;
 }
-/* The existing tablet layout is a horizontal rail. Center its expanded toggle
- * on the bottom edge so neither half of the circle is clipped off-screen. */
-@media(max-width:1000px) {
-  .saffron-rail-rail[data-collapsed=false] > .saffron-rail-toggle-anchor {
-    position: absolute;
-    top: auto;
-    bottom: 0;
-    left: 50%;
-    width: 0;
-  }
-  .saffron-rail-rail[data-collapsed=false] .saffron-rail-toggle {
-    right: auto;
-    left: 0;
-    transform: translate(-50%,-50%);
-  }
-}
 /* Heading */
 .saffron-rail-heading {
   display: -webkit-box;
@@ -424,4 +408,52 @@
   -moz-letter-spacing: .08em;
   -ms-letter-spacing: .08em;
   letter-spacing: .08em;
+}
+/* Match tabletSidebarQuery in layout.ts. Mirror compact-rail paint here so
+ * cached HTML is compact even before React sets data-collapsed, and resizing
+ * cannot briefly expose an expanded rail or a focusable expand button. */
+@media(min-width:600px) and (max-width:1000px) {
+  .saffron-rail-rail[data-saffron-sidebar] {
+    align-self: stretch;
+    width: 64px;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .saffron-rail-rail[data-saffron-sidebar] [data-sidebar-surface] {
+    padding: 14px 8px 16px;
+    border-right: 1px solid #1d1d1d;
+    border-bottom: 0;
+  }
+  .saffron-rail-rail[data-saffron-sidebar] [data-sidebar-wordmark],
+  .saffron-rail-rail[data-saffron-sidebar] [data-sidebar-signature],
+  .saffron-rail-rail[data-saffron-sidebar] nav span,
+  .saffron-rail-rail[data-saffron-sidebar] nav a::before,
+  .saffron-rail-toggle-anchor { display: none; }
+  .saffron-rail-rail[data-saffron-sidebar] header {
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+  .saffron-rail-rail[data-saffron-sidebar] nav {
+    flex-direction: column;
+    overflow: visible;
+    padding: 0;
+  }
+  .saffron-rail-rail[data-saffron-sidebar] nav a {
+    justify-content: center;
+    width: 100%;
+    padding: 12px 10px;
+  }
+  .saffron-rail-rail[data-saffron-sidebar] nav svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+  .saffron-rail-rail[data-saffron-sidebar] .saffron-rail-nav-item:hover,
+  .saffron-rail-rail[data-saffron-sidebar] .saffron-rail-nav-item:focus-visible {
+    background: #1d1d1d;
+    border-color: #333;
+    color: #f2f0ea;
+    box-shadow: none;
+    animation: none;
+  }
 }
