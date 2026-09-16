@@ -3,21 +3,16 @@ import styled, { createGlobalStyle } from 'styled-components'
 import SidebarTweaks from './SidebarTweaks'
 import { mobileHomeMaxWidth } from '../host/MobileHomeNavigation'
 import { aprAnimations, aprAnimationCss, newOfferBadgeCss, validAprAnimation, type AprAnimation } from './aprAnimations'
-import funnelLight from './fonts/FunnelDisplay-Light.ttf'
-import funnelSemibold from './fonts/FunnelDisplay-SemiBold.ttf'
-import hostRegular from './fonts/HostGrotesk-Regular.ttf'
-import hostMedium from './fonts/HostGrotesk-Medium.ttf'
-import robotoRegular from './fonts/RobotoMono-Regular.ttf'
-
 // Apply the approved defaults once, then preserve subsequent browser choices.
 const typographyKey = 'saffron.feature-lab.table-typography.v2'
-// Exact five faces from fixed-income's brand.css; assets stay in the dev chunk.
+// Reuse the preloaded variable WOFF2 faces. Keep saved preset IDs compatible;
+// duplicate TTF families caused a second font download/swap after each mount.
 const fonts = [
-  { id: 'funnel-light', label: 'Funnel Display Light', weight: 300, src: funnelLight },
-  { id: 'funnel-semibold', label: 'Funnel Display Semibold', weight: 600, src: funnelSemibold },
-  { id: 'host-regular', label: 'Host Grotesk Regular', weight: 400, src: hostRegular },
-  { id: 'host-medium', label: 'Host Grotesk Medium', weight: 500, src: hostMedium },
-  { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
+  { id: 'funnel-light', label: 'Funnel Display Light', weight: 300, family: 'Funnel Display' },
+  { id: 'funnel-semibold', label: 'Funnel Display Semibold', weight: 600, family: 'Funnel Display' },
+  { id: 'host-regular', label: 'Host Grotesk Regular', weight: 400, family: 'Host Grotesk' },
+  { id: 'host-medium', label: 'Host Grotesk Medium', weight: 500, family: 'Host Grotesk' },
+  { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, family: 'Roboto Mono' },
 ]
 type Typography = { compactHeader: boolean; newOnLeft: boolean; font: string; aprAnimation: AprAnimation; orbitSpeed: number; comingSoonAngle: number }
 const defaultTypography: Typography = { compactHeader: true, newOnLeft: false, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 3.5, comingSoonAngle: -7 }
@@ -79,12 +74,11 @@ export default function RowTweaks() {
   const headingCss = typography.compactHeader ? `
     ${heading} > span { padding-top:8px; padding-bottom:8px; }
   ` : ''
-  // A private family name confines local font loading to this preview. Existing
-  // fonts, semantic colors and font sizes outside the table are left untouched.
+  // Select the shared family/weight without registering a late font face.
+  // Semantic colors and font sizes outside the table are left untouched.
   // APR values retain their approved Funnel Display 500 instead of preview overrides.
   const fontCss = font ? `
-    @font-face { font-family:"Saffron tweak ${font.id}"; src:url("${font.src}") format("truetype"); font-weight:${font.weight}; font-display:swap; }
-    ${table}, ${table} :not([data-incentive-apr]) { font-family:"Saffron tweak ${font.id}" !important; font-weight:${font.weight} !important; }
+    ${table}, ${table} :not([data-incentive-apr]) { font-family:"${font.family}" !important; font-weight:${font.weight} !important; }
   ` : ''
 
   return <>

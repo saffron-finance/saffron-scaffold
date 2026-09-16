@@ -1,4 +1,4 @@
-import { useRef,useState,type MouseEvent } from 'react'
+import { lazy,Suspense,useRef,useState,type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { Address } from 'viem'
 import styled, { css } from 'styled-components'
@@ -15,22 +15,25 @@ import { ErrorText,FinePrint,Muted,Premium,QuietButton,Row } from './styles'
 import { PairHeader,PairDescription } from './PairHeader'
 import { TokenIcon } from './TokenIcon'
 import robinhoodLogo from './assets/robinhood.svg'
-import { IncentiveModal } from './IncentiveModal'
-import { MyVaults } from './MyVaults'
-import { ProgramAdmin } from './ProgramAdmin'
-import { OperatorStatus } from './OperatorStatus'
-import { JourneyGuide } from './JourneyGuide'
-import { IncentivesAdmin } from './IncentivesAdmin'
+// Secondary screens share the shell but download only on first use. Their
+// module cache and hashed browser assets serve subsequent visits immediately.
+const IncentiveModal=lazy(()=>import('./IncentiveModal').then(module=>({default:module.IncentiveModal})))
+const MyVaults=lazy(()=>import('./MyVaults').then(module=>({default:module.MyVaults})))
+const ProgramAdmin=lazy(()=>import('./ProgramAdmin').then(module=>({default:module.ProgramAdmin})))
+const OperatorStatus=lazy(()=>import('./OperatorStatus').then(module=>({default:module.OperatorStatus})))
+const JourneyGuide=lazy(()=>import('./JourneyGuide').then(module=>({default:module.JourneyGuide})))
+const IncentivesAdmin=lazy(()=>import('./IncentivesAdmin').then(module=>({default:module.IncentivesAdmin})))
 
 export default function IncentivesPage(props:{account:Address|null;onConnect:()=>void}){
   const [selected,setSelected]=useState<Offer|null>(null)
   return <WalletPage key={props.account??'guest'} {...props} selected={selected} setSelected={setSelected}/>
 }
 function WalletPage({account,onConnect,selected,setSelected}:{account:Address|null;onConnect:()=>void;selected:Offer|null;setSelected:(offer:Offer|null)=>void}){
-  const flow=useDeploymentFlow(account),positions=useDeployments(account),catalog=useIncentivePrograms()
-  const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false),[openPosition,setOpenPosition]=useState(false)
-  // The shared router owns paths; the feature keeps its existing flow state.
+  // Only Portfolio consumes the user history. Other pages must not poll it in
+  // the background; the flow still restores pending checkout/payment records.
   const route=useLocation().pathname.replace(/\/+$/,'')||'/'
+  const flow=useDeploymentFlow(account),positions=useDeployments(route==='/portfolio/vaults'?account:null),catalog=useIncentivePrograms()
+  const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false),[openPosition,setOpenPosition]=useState(false)
   const navigate=useNavigate()
   // Keep the cached amount preview available during background quote cleanup.
   // Its own shared cache/timer bounds reads; Back never waits for a fresh RPC.
@@ -54,7 +57,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
     }finally{opening.current=false}
   }
   function close(){const target=opener.current;opener.current=null;requestAnimationFrame(()=>{if(target?.isConnected)target.focus()});setSelected(null);setVaultId(null);setResume(false);positions.refresh();catalog.refresh()}
-  return <Page $home={route==='/'}>
+  return <Page $home={route==='/'}><Suspense fallback={<RouteSkeleton role='status' aria-label='Loading page content'><i/><i/><i/></RouteSkeleton>}>
     {route==='/status'?<OperatorStatus account={account} onConnect={onConnect} onNavigate={navigate}/>:route==='/journey'?<JourneyGuide onNavigate={navigate}/>:route==='/campaigns'?<><TitleRow><StepTitle>Campaigns</StepTitle><QuietButton onClick={()=>navigate('/')}>Home</QuietButton></TitleRow><ProgramAdmin autoLoad account={account} onConnect={onConnect}/></>:route==='/admin'?<IncentivesAdmin account={account} onConnect={onConnect} onNavigate={navigate} onBack={()=>navigate('/')} checkoutRecovery={flow.draft&&<Recovery><FinePrint>An unpaid checkout review is saved.</FinePrint><QuietButton disabled={!catalog.offers.some(o=>o.id===flow.draft?.programId)} onClick={()=>{const offer=catalog.offers.find(o=>o.id===flow.draft?.programId);if(offer){flow.restore();setSelected(offer);setVaultId(null);setResume(false);setOpenPosition(false)}}}>Resume checkout</QuietButton><QuietButton disabled={flow.busy} onClick={()=>void flow.reset()}>Discard unpaid checkout</QuietButton></Recovery>}/>:route==='/portfolio/vaults'?<MyVaults account={account} positions={positions} onConnect={onConnect} onBack={()=>navigate('/')} onOpen={(id,position=false)=>{setVaultId(id);setOpenPosition(position)}} payments={flow.records.filter(p=>p.sent&&!p.deploymentId)} onResumePayment={async(id)=>{await flow.resumePayment(id);setSelected(null);setVaultId(null);setResume(true)}} onAdmin={()=>navigate('/admin')}/>:<>
       <TitleRow data-desktop-home-copy><StepTitle>Liquidity Incentives</StepTitle></TitleRow>
       <Introduction data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration and target APR. Review your position and premium before paying the campaign’s fixed ETH request fee.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></Introduction>
@@ -66,7 +69,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
         </details>
       </MobileIntroduction>
       {flow.saved?.sent&&<Recovery><FinePrint>A creation payment request is saved.</FinePrint><QuietButton onClick={()=>setResume(true)}>Resume deployment</QuietButton></Recovery>}
-      {catalog.loading&&!catalog.offers.length&&<CatalogSkeleton role='status' aria-label='Loading incentive programs' aria-busy='true'><span/>{[0,1].map(row=><div key={row}><i/><i/><i/><i/></div>)}</CatalogSkeleton>}
+      {catalog.loading&&!catalog.hasSnapshot&&<CatalogSkeleton role='status' aria-label='Loading incentive programs' aria-busy='true'><span/>{[0,1].map(row=><div key={row}><i/><i/><i/><i/></div>)}</CatalogSkeleton>}
       {catalog.error&&<ErrorText role='alert'>{catalog.offers.length>0&&'Showing saved offers. '}{catalog.error}</ErrorText>}
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
       {groups.map(offers=><ProgramGroup data-pool-group key={offers[0].pairId}><PairHeader pair={offers[0]}/><Programs data-incentive-programs aria-label={offers[0].token0.symbol+' / '+offers[0].token1.symbol+' liquidity incentive offers'}>
@@ -82,9 +85,14 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
         </ProgramRow>{!isOfferLive(offer)&&<ComingSoon data-incentive-coming-soon>Coming soon...</ComingSoon>}</OfferCard>)}
       </Programs><PairDescription/></ProgramGroup>)}
     </>}
-    {(selected||vaultId||resume)&&<IncentiveModal offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} openPosition={openPosition} onClose={close} onConnect={onConnect}/>}
+    </Suspense>
+    {/* A dialog download must not hide the page or its focus-return target. */}
+    <Suspense fallback={<FinePrint role='status'>Opening vault details…</FinePrint>}>{(selected||vaultId||resume)&&<IncentiveModal offer={selected} account={account} flow={flow} price={price} deploymentId={vaultId} openPosition={openPosition} onClose={close} onConnect={onConnect}/>}</Suspense>
   </Page>
 }
+
+/** Reserve content space during a first secondary-route download. */
+const RouteSkeleton=styled.div`display:grid;gap:24px;min-height:320px;i{display:block;height:56px;border-radius:10px;background:#1d1d1d;}i:first-child{width:55%;height:36px;}`
 
 const Page = styled.section<{$home:boolean}>`display:flex;flex-direction:column;gap:28px;width:100%;min-width:0;
   ${p=>p.$home&&css`@media(max-width:${mobileHomeMaxWidth}px){gap:0;font-family:"Funnel Display",sans-serif;line-height:1.45;color:#f2f0ea;[data-desktop-home-copy]{display:none;}}`}`

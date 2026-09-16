@@ -136,13 +136,6 @@ export default createGlobalStyle`
     isolation: isolate;
   }
 
-  @font-face {
-    font-family: "Work Sans";
-    src: url(./shared/assets/fonts/WorkSans-VariableFont_wght.ttf)
-      format("truetype");
-    /* other formats include: 'woff2', 'truetype, 'opentype',
-                                'embedded-opentype', and 'svg' */
-  }
 
   code {
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",

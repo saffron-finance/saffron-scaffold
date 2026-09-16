@@ -3,7 +3,7 @@
 Source: saffron-finance/fixed-income, revision
 `dc104999f531611f2b5b772d3b72cc3ad8c2ed23`, `apps/frontend/src`.
 Only imported UI/theme modules are retained. Exact model, matcap, noise, still
-and marble assets are in `public/`; brand fonts are in `src/dev/fonts`.
+and marble assets are in `public/`; shared variable WOFF2 brand fonts are in `src/host/fonts`.
 
 Mechanical standalone adaptations:
 - Narrow broad component/style imports to avoid importing the whole app.

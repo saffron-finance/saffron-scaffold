@@ -1,4 +1,22 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Saffron · Vaults & Live APR</title></head><body style="margin:0;background:#000"><div id="root">
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Saffron · Vaults & Live APR</title>
+<!-- Discover the shared fonts with the document, before React or lazy routes.
+     Vite fingerprints these same URLs in the stylesheet and preload hints. -->
+<link rel="preload" href="/src/host/fonts/FunnelDisplay.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/src/host/fonts/HostGrotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/src/host/fonts/RobotoMono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/src/host/fonts.css">
+
+</head><body style="margin:0;background:#000">
+<script>
+// Vite inserts compiled CSS at the end of head. This body script therefore
+// runs after that stylesheet is ready, before the deferred application module.
+// Preload fetches bytes; activate/decode the faces before React's first text.
+// Do not await them or gate the app: an unavailable font keeps its fallback.
+if (document.fonts) for (const family of ['Funnel Display', 'Host Grotesk', 'Roboto Mono']) {
+  document.fonts.load('16px "' + family + '"').catch(() => {});
+}
+</script>
+<div id="root">
 <!-- First paint is the page layout, without waiting for JavaScript, fonts or API.
      React replaces this markup immediately on mount; no timer or loading gate. -->
 <style>

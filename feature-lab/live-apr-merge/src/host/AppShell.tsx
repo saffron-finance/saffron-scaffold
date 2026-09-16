@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import styled, { css, ThemeProvider } from 'styled-components'
 import { Link, useLocation } from 'react-router-dom'
 import type { Address } from 'viem'
@@ -12,11 +12,13 @@ import { sidebarCollapsedWidth, sidebarMobileWidth } from './sidebarTheme'
 import { darkTheme, GlobalStyles, Modal, NAV_BUTTON_CHROME, ICON_BUTTON_HOVER } from './ui'
 import { HeaderDialog, HeaderIcon, CloseButton } from './HeaderDialogs'
 import { Emblem3DLogo } from '@fixed/shared/components/emblem3d/Emblem3DLogo'
-import './fonts.css'
+import RowTweaks from '../dev/RowTweaks'
+import robinhoodLogo from '../../public/robinhood.svg'
 import { RenderBoundary } from './RenderBoundary'
 
 const mount = import.meta.env.BASE_URL
-const RowTweaks = import.meta.env.VITE_DEV_TWEAKS === 'true' ? lazy(() => import('../dev/RowTweaks')) : null
+// Preferences style the first React paint; non-lab builds compile this to a stub.
+const showTweaks = import.meta.env.VITE_DEV_TWEAKS === 'true'
 
 /** One live shell across routes. The prototype contributes appearance only:
  * the connected address and network-switch approval come from a real wallet. */
@@ -51,7 +53,7 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
   return <ThemeProvider theme={darkTheme}>
     <GlobalStyles />
     {/* An optional appearance editor must never take down the wallet or page. */}
-    {RowTweaks && <DesktopTweaks $mobileHome={mobileHome}><RenderBoundary fallback={null}><Suspense fallback={null}><RowTweaks /></Suspense></RenderBoundary></DesktopTweaks>}
+    {showTweaks && <DesktopTweaks $mobileHome={mobileHome}><RenderBoundary fallback={null}><RowTweaks /></RenderBoundary></DesktopTweaks>}
     <Frame $sidebarCollapsed={sidebarCollapsed} $mobileHome={mobileHome} data-mobile-home data-home-page={path === '/' || undefined}>
       <Sidebar home='/' collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)} />
       <Content>
@@ -65,7 +67,7 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
               {account ? <><WalletDot />{account.slice(0,6)}…{account.slice(-4)}</> : <><LongLabel>Connect wallet</LongLabel><ShortLabel>Connect</ShortLabel></>}
             </Connect>
             <Chain aria-label='Select network' title='Robinhood Chain' aria-haspopup='dialog' aria-expanded={network} onClick={() => {setMenu(false);setNetworkError('');setNetwork(true)}}>
-              <img src={`${mount}robinhood.svg`} width='21' height='21' alt='' /><ChainName>Robinhood</ChainName><HeaderIcon name='chevron'/>
+              <img src={robinhoodLogo} width='21' height='21' alt='' /><ChainName>Robinhood</ChainName><HeaderIcon name='chevron'/>
             </Chain>
             <MenuButton aria-label='Open menu' aria-haspopup='dialog' aria-expanded={menu} onClick={() => {setNetwork(false);setMenu(true)}}><HeaderIcon name='menu'/></MenuButton>
           </Controls>
@@ -85,7 +87,7 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
       contentStyle={{width:'min(280px, calc(100vw - 24px))',left:'auto',right:12,top:64,transform:'none',padding:9,background:'#0b090c',border:'1px solid #45334d',borderRadius:9,boxShadow:'0 22px 75px #000b'}}>
       <NetworkHeading><h2>Select network</h2><CloseButton aria-label='Close network selector' onClick={() => setNetwork(false)}><HeaderIcon name='close'/></CloseButton></NetworkHeading>
       <NetworkOption disabled={switching} onClick={() => void selectNetwork()} aria-label={account && chainId !== 4663 ? 'Switch wallet to Robinhood' : 'Select Robinhood'}>
-        <img src={`${mount}robinhood.svg`} alt=''/><span>Robinhood<small>Chain 4663 · available</small></span><Check aria-hidden='true'>✓</Check>
+        <img src={robinhoodLogo} alt=''/><span>Robinhood<small>Chain 4663 · available</small></span><Check aria-hidden='true'>✓</Check>
       </NetworkOption>
       <NetworkOption disabled><img src={`${mount}eth.svg`} alt=''/><span>Ethereum<small>Not supported on this app</small></span></NetworkOption>
       <NetworkOption disabled><NetworkMonogram>Arb</NetworkMonogram><span>Arbitrum<small>Not supported on this app</small></span></NetworkOption>

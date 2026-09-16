@@ -16,3 +16,18 @@ test('page restore refreshes retained data and disposal aborts reads',async()=>{
   const count=load.mock.calls.length;window.dispatchEvent(new Event('pageshow'))
   expect(load).toHaveBeenCalledTimes(count)
 })
+
+// Hidden route consumers must do no work, including focus-triggered polls.
+test('disabled resources start only when enabled, then abort on disable',async()=>{
+  let signal:AbortSignal|undefined
+  const load=vi.fn(async(s:AbortSignal)=>{signal=s;return 'ready'})
+  const {result,rerender}=renderHook(({enabled})=>usePollingResource('rows',load,'rows:updated',enabled),{initialProps:{enabled:false}})
+  act(()=>window.dispatchEvent(new Event('focus')))
+  expect(load).not.toHaveBeenCalled();expect(result.current.loading).toBe(false)
+  rerender({enabled:true})
+  await waitFor(()=>expect(result.current.data).toBe('ready'))
+  rerender({enabled:false});expect(signal?.aborted).toBe(true)
+  const count=load.mock.calls.length
+  act(()=>{window.dispatchEvent(new Event('rows:updated'));window.dispatchEvent(new Event('pageshow'))})
+  expect(load).toHaveBeenCalledTimes(count)
+})

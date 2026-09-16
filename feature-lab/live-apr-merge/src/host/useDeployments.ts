@@ -33,9 +33,9 @@ export function useDeployments(account:Address|null,admin=false){
     if(paymentCursor)query.set('cursor',paymentCursor)
     return requestJson('/payments?'+query,undefined,signal)
   },[account,admin,paymentCursor])
-  const session=usePollingResource('session:'+account,loadSession,events)
-  const rows=usePollingResource([account,admin,cursor].join(':'),loadRows,events)
-  const payments=usePollingResource([account,admin,paymentCursor].join(':'),loadPayments,events)
+  const session=usePollingResource('session:'+account,loadSession,events,Boolean(account))
+  const rows=usePollingResource([account,admin,cursor].join(':'),loadRows,events,Boolean(account))
+  const payments=usePollingResource([account,admin,paymentCursor].join(':'),loadPayments,events,Boolean(account)&&!admin)
   const refresh=useCallback(()=>{rows.refresh();payments.refresh();session.refresh()},[rows.refresh,payments.refresh,session.refresh])
   async function signIn(){if(!account)return;setBusy(true);setError(undefined);try{await ensureOperatorSession(account);refresh()}catch(cause){setError((cause as Error).message)}finally{setBusy(false)}}
   return {rows:rows.data?.deployments??[],session:session.data,error:error??rows.error,busy,online:rows.data?.creatorOnline??false,
