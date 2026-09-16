@@ -39,7 +39,9 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   // Preserve the opener across asynchronous checkout selection and disabled paint.
   const opener=useRef<HTMLElement|null>(null),opening=useRef(false)
   async function openOffer(offer:Offer,target:HTMLElement){
-    if(opening.current)return
+    // Native disabled controls handle pointer/keyboard input; this also guards
+    // against a direct handler call while the catalog says the offer is not live.
+    if(opening.current||flow.busy||!isOfferLive(offer))return
     opening.current=true
     try{
     opener.current=target
@@ -69,7 +71,7 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
       {!catalog.loading&&!catalog.error&&!catalog.offers.length&&<FinePrint>No incentive programs are available right now.</FinePrint>}
       {groups.map(offers=><ProgramGroup data-pool-group key={offers[0].pairId}><PairHeader pair={offers[0]}/><Programs data-incentive-programs aria-label={offers[0].token0.symbol+' / '+offers[0].token1.symbol+' liquidity incentive offers'}>
         <ProgramHeading aria-hidden='true'>{['Yield','APR','Duration','TVL'].map(label=><ColumnTitle as='span' $column={label.toLowerCase()} key={label}>{label==='TVL'?'Vault TVL':label}</ColumnTitle>)}</ProgramHeading>
-        {offers.map(offer=><OfferCard key={offer.id} data-offer-live={isOfferLive(offer)}><ProgramRow type='button' data-incentive-offer={offer.id} data-new-offer={offer.isNew&&offer.id===catalog.offers[0]?.id||undefined} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={flow.busy} onClick={(event:MouseEvent<HTMLButtonElement>)=>void openOffer(offer,event.currentTarget)}>
+        {offers.map(offer=><OfferCard key={offer.id} data-offer-live={isOfferLive(offer)}><ProgramRow type='button' data-incentive-offer={offer.id} data-new-offer={offer.isNew&&offer.id===catalog.offers[0]?.id||undefined} aria-label={'Create '+offer.token0.symbol+' / '+offer.token1.symbol+', '+offer.days+' days'} disabled={flow.busy||!isOfferLive(offer)} onClick={(event:MouseEvent<HTMLButtonElement>)=>void openOffer(offer,event.currentTarget)}>
           <Metric $column='yield' data-offer-metric='yield'><MobileLabel>Yield</MobileLabel><YieldToken><TokenIcon {...offer.token0} size={48}/><ChainBadge src={robinhoodLogo} alt='Robinhood Chain' width={20} height={20}/></YieldToken></Metric>
           <Metric $column='apr' data-offer-metric='apr'><MobileLabel>APR</MobileLabel><OfferApr data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</OfferApr></Metric>
           <Metric $column='duration' data-offer-metric='duration'><MobileLabel>Duration</MobileLabel><Value data-incentive-duration>{offer.days} days</Value></Metric>
@@ -127,15 +129,15 @@ const ProgramHeading = styled.div`
 // Match the introductory body text using the shared, theme-aware gray.
 const ColumnTitle = styled(HeaderCell)<{$column:string}>`grid-column:${p=>p.$column};min-width:0;padding-left:0;padding-right:0;color:${({ theme }) => theme.colors.text.tertiary};`
 // Blur only the offer surface, leaving the overlaid notice sharp and opaque.
-// Pointer events pass through the badge so terms remain viewable while paused.
+// Pointer events pass through to the natively disabled button, never an action.
 const OfferCard=styled.div`
   position:relative;min-width:0;
   &[data-offer-live='false']>button{opacity:.45;filter:blur(2px);}
 `
 const ComingSoon=styled.span`
   position:absolute;left:50%;top:50%;z-index:1;pointer-events:none;
-  transform:translate(-50%,-50%) rotate(var(--incentive-coming-soon-angle,-8deg));
-  padding:8px 20px;border-radius:4px;background:#fff;color:#171717;
+  transform:translate(-50%,-50%) rotate(var(--incentive-coming-soon-angle,-7deg));
+  padding:8px 20px;border-radius:4px;background:#12d112;color:#fff;
   font:500 18px/1.2 "Funnel Display",sans-serif;white-space:nowrap;
   @media(max-width:${mobileHomeMaxWidth}px){font-size:15px;padding:6px 14px;}
 `
@@ -144,6 +146,8 @@ const ProgramRow = styled.button`
   width:100%;min-height:124px;padding:28px 32px;text-align:left;font:inherit;color:inherit;
   ${rowSurface}
   cursor:pointer;
+  &:disabled{cursor:not-allowed;}
+  &:disabled:hover{border-color:#1d1d1d;}
   /* Use media rules supported by the pinned styled-components version.
      Named public metrics and the NEW badge retain their mobile positions. */
   @media(max-width:800px){padding:24px 12px;grid-template-columns:${mobileColumns};gap:24px 10px}
@@ -165,7 +169,8 @@ const ProgramRow = styled.button`
     [data-offer-metric='tvl']{grid-column:tvl;grid-row:1;gap:0;}
     [data-incentive-tvl]{white-space:normal;overflow-wrap:anywhere;}
     &:focus-visible{outline-color:#d286ff;outline-offset:3px;}
-    &:disabled{opacity:.45;cursor:default;}
+    &:disabled{opacity:.45;cursor:not-allowed;}
+    &:disabled:hover{border-color:#262329;}
   }
   @media(max-width:345px){padding:12px;}
 `

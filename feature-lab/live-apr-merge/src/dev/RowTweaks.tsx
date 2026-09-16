@@ -20,7 +20,7 @@ const fonts = [
   { id: 'roboto-regular', label: 'Roboto Mono Regular', weight: 400, src: robotoRegular },
 ]
 type Typography = { compactHeader: boolean; newOnLeft: boolean; font: string; aprAnimation: AprAnimation; orbitSpeed: number; comingSoonAngle: number }
-const defaultTypography: Typography = { compactHeader: true, newOnLeft: false, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 3.5, comingSoonAngle: -8 }
+const defaultTypography: Typography = { compactHeader: true, newOnLeft: false, font: 'funnel-light', aprAnimation: 'orbit', orbitSpeed: 3.5, comingSoonAngle: -7 }
 
 /** Restore known font/animation IDs and a boolean; never inject stored CSS. */
 function savedTypography(): Typography {
@@ -36,8 +36,9 @@ function savedTypography(): Typography {
       // Preserve valid saved speeds; missing/invalid settings use the current default.
       orbitSpeed: typeof saved?.orbitSpeed === 'number' && Number.isFinite(saved.orbitSpeed)
         && saved.orbitSpeed >= .25 && saved.orbitSpeed <= 4 ? saved.orbitSpeed : defaultTypography.orbitSpeed,
-      // Only bounded numeric angles can reach the generated CSS variable.
-      comingSoonAngle: typeof saved?.comingSoonAngle === 'number' && Number.isFinite(saved.comingSoonAngle)
+      // Apply the approved -7 degree angle once, then preserve later slider
+      // choices. Only bounded numeric angles can reach the CSS variable.
+      comingSoonAngle: saved?.comingSoonDefaultVersion === 1 && typeof saved?.comingSoonAngle === 'number' && Number.isFinite(saved.comingSoonAngle)
         && saved.comingSoonAngle >= -30 && saved.comingSoonAngle <= 30 ? saved.comingSoonAngle : defaultTypography.comingSoonAngle }
   } catch { return defaultTypography }
 }
@@ -53,7 +54,7 @@ export default function RowTweaks() {
   const [typography, setTypography] = useState<Typography>(savedTypography)
 
   useEffect(() => {
-    try { localStorage.setItem(typographyKey, JSON.stringify({ ...typography, aprDefaultVersion: 1 })) } catch { /* Preview remains usable. */ }
+    try { localStorage.setItem(typographyKey, JSON.stringify({ ...typography, aprDefaultVersion: 1, comingSoonDefaultVersion: 1 })) } catch { /* Preview remains usable. */ }
   }, [typography])
 
   const table = '[data-incentive-programs]'

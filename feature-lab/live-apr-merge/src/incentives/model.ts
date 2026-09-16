@@ -5,7 +5,7 @@ export interface Program {id:string;revision:number;pairId:string;budgetPoolId:s
 export interface Budget {advisoryBudgetCents?:string;campaign?:any;accounting?:any;id:string;revision:number;name:string;chainId:number;rewardAsset:Address;decimals:number;limitRaw:string;reservedRaw:string;allocatedRaw:string;availableRaw:string;paused:boolean;reconciliationRequired:boolean}
 export interface Offer extends Pair,Program {pairRevision:number;budget:Budget;availability:string|null;vaultTvl?:{status:string;usdRaw:string|null;checkedAt:number|null;block:{number:string;hash:string}|null;priceCheckedAt:number|null}}
 /** Use canonical catalog admission, not APR/TVL or browser time, for live paint.
- * An unavailable offer stays inspectable; the existing checkout gates still apply. */
+ * Unavailable offers are disabled; the server's checkout gates remain authoritative. */
 export function isOfferLive(offer:Offer):boolean {
   return offer.active && offer.availability===null && !offer.budget.paused && !offer.budget.reconciliationRequired
 }
