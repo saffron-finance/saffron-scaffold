@@ -49,6 +49,12 @@ export function warmTemplatePlugin(root:string,base:string,tweaks:boolean,settin
     }
     const entry=bundle['index.html']
     if(!entry||entry.type!=='asset')throw Error('Missing application HTML')
+    // Download/compile the main module alongside the small display bootstrap,
+    // without executing it. Cached pixels must not serialize module discovery
+    // or make wallet/navigation initialization wait for another cache lookup.
+    const application=Object.values(bundle).find(item=>item.type==='chunk'&&item.name==='main')
+    if(!application)throw Error('Missing application module')
+    entry.source=String(entry.source).replace('</head>',`<link rel="modulepreload" crossorigin href="${base+application.fileName}"></head>`)
     // Templates are inert until a valid Home snapshot exists. Expired/cleared
     // caches and every other route keep the current cold startup unchanged.
     entry.source=String(entry.source).replace('</body>',html+'</body>')

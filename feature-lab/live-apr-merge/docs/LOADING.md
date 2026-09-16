@@ -50,7 +50,10 @@ processing and layout. The warm path now separates display from initialization:
    warm view. Buttons are disabled and the temporary root is inert. Empty
    snapshots are valid; malformed, expired, oversized, future-dated and cleared
    storage retains the ordinary skeleton and application startup.
-4. The bootstrap yields a rendering opportunity, then imports the main app.
+4. The main module is preloaded for parallel download/compilation, without
+   executing it. The bootstrap yields a rendering opportunity, then imports it.
+   Hidden tabs skip that yield; a bounded timeout also handles paused frame
+   callbacks, so the application can still initialize in the background.
    React replaces the view in one commit; template CSS is removed after live
    styles exist. Wallet/session/payment recovery and authoritative data remain
    in the application, never in the display snapshot. An import failure leaves
@@ -75,7 +78,10 @@ marks. `saffron:warm-display` and `saffron:app-ready` identify the two stages;
 Element Timing on the duration text identifies rendered rows. Report refresh,
 full URL return, new-tab return and true Back restoration separately. Browser
 restoration eligibility is not guaranteed: when unavailable, the warm startup
-path still works. No service worker or cache-clear recovery was introduced.
+path still works. Early display is not full wallet/session or interaction
+readiness; report application-ready and fresh-data timing independently rather
+than presenting a snapshot as a fully initialized application. No service
+worker or cache-clear recovery was introduced.
 
 ## Hosting requirements
 

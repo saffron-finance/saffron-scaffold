@@ -95,7 +95,15 @@ async function restoreDisplay():Promise<boolean> {
 async function start(){
   let restored=false
   try{restored=await restoreDisplay()}catch{/* Optional display optimization only. */}
-  if(restored)await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())))
+  if(restored&&!document.hidden)await new Promise<void>(resolve=>{
+    let first=0,second=0
+    const finish=()=>{window.clearTimeout(timer);cancelAnimationFrame(first);cancelAnimationFrame(second);resolve()}
+    // Background tabs may pause animation frames indefinitely. They should
+    // still initialize recovery and be ready when selected; never gate startup
+    // on a paint callback when hidden or when the compositor stops responding.
+    const timer=window.setTimeout(finish,100)
+    first=requestAnimationFrame(()=>{second=requestAnimationFrame(finish)})
+  })
   try{await import('./main')}
   catch{
     const root=document.getElementById('root')!
