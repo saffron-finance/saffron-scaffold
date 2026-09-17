@@ -49,7 +49,14 @@ export function usePoolObservation(poolId: string, observationKey: string) {
   const snapshot = summary?.latest
   const baseline = summary?.baseline
   const paused = Boolean(summary && summaryPaused(summary))
+  // A collector can still be idle (or carry its previous expired state) in a
+  // fresh admission receipt. Only the current server deadline proves expiry;
+  // the broad accounting pause must not tell a new viewer to reload.
+  const trackingExpired = Boolean(summary?.locallyExpired)
+  const controlUnavailable = Boolean(summary?.controlUnavailable ||
+    summary?.watcher?.state === 'paused_control_unavailable')
   const transportUnavailable = Boolean(view && (summary?.controlUnavailable ||
+    controlUnavailable ||
     view.health.transportFailedAt !== null || view.health.rpcFailedAt !== null ||
     connectionStatus(view.health, now) === 'Disconnected'))
   const valuationUnavailable = Boolean(summary?.valuationReason)
@@ -58,7 +65,8 @@ export function usePoolObservation(poolId: string, observationKey: string) {
   const serverNow = now + (view?.serverOffsetMs ?? 0)
   const coverageAge = metrics ? Math.max(0, serverNow - metrics.observedAtMs) : null
   const stale = !valuationUnavailable && coverageAge !== null && (transportUnavailable || (!paused && coverageAge > 30_000))
-  const rpcStatus = paused ? 'Paused' : view ? connectionStatus(view.health, now) : 'Connecting'
+  const rpcStatus = trackingExpired ? 'Paused' : controlUnavailable ? 'Disconnected'
+    : paused ? 'Connecting' : view ? connectionStatus(view.health, now) : 'Connecting'
   const rpcTone: 'connected' | 'offline' | 'pending' =
     rpcStatus === 'Connected' ? 'connected' : rpcStatus === 'Disconnected' ? 'offline' : 'pending'
   const currentBlock =
@@ -131,6 +139,8 @@ export function usePoolObservation(poolId: string, observationKey: string) {
     snapshot,
     baseline,
     paused,
+    trackingExpired,
+    controlUnavailable,
     valuationUnavailable,
     transportUnavailable,
     // Show terminal connection failures immediately; they are not interest pauses.

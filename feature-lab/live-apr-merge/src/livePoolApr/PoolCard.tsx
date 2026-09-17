@@ -165,6 +165,8 @@ export function PoolCard({
     snapshot,
     baseline,
     paused,
+    trackingExpired,
+    controlUnavailable,
     valuationUnavailable,
     transportUnavailable,
     quoteUsd,
@@ -187,7 +189,7 @@ export function PoolCard({
   } = historyState
   const detailsId = `pool-details-${config.id}`,
     historyId = `swap-history-${config.id}`
-  const samplingPlaceholder = transportUnavailable ? 'Unavailable' : paused ? '—' : <Calculating now={now} />
+  const samplingPlaceholder = transportUnavailable ? 'Unavailable' : trackingExpired ? '—' : <Calculating now={now} />
   const [token0, token1] = config.tokens
   const [display0, display1] = (config.displayOrder ?? [0, 1]).map((index) => config.tokens[index])
   const quoteToken = config.tokens[config.quoteTokenIndex ?? 1]
@@ -358,15 +360,18 @@ export function PoolCard({
         </SessionSummary>
       </div>
       {model.serviceError && (
-        <Notice role='alert' data-testid='service-error'>{model.serviceError}</Notice>
+        <Notice role='alert' data-testid='service-error'>
+          {model.serviceError}{' '}
+          <ReloadButton type='button' onClick={() => window.location.reload()}>Refresh page</ReloadButton>
+        </Notice>
       )}
-      {paused && (
+      {(trackingExpired || controlUnavailable) && (
         <Notice role='status' data-testid='tracking-paused'>
-          {summary?.controlUnavailable
+          {controlUnavailable
             ? 'Tracking temporarily paused—waiting for service recovery.'
             : 'Tracking paused—refresh to resume.'}{' '}
           Last observed values are retained.
-          {!summary?.controlUnavailable && (
+          {!controlUnavailable && (
             <>
               {' '}
               <ReloadButton type='button' onClick={() => window.location.reload()}>

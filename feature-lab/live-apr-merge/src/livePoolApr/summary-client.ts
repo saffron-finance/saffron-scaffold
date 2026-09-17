@@ -314,6 +314,21 @@ export class SummaryClient {
     if (this.ended) this.stop(true)
   }
 
+  /** A lost/rejected receipt is not proof that twenty minutes elapsed. Keep
+   * expiry tied to the known server deadline and freeze failed transport
+   * without fabricating an expired observation or silently admitting again. */
+  private requireReload() {
+    const summary = expireInterest(this.value.summary, Date.now() + this.value.serverOffsetMs)
+    this.publish({
+      needsReload: true,
+      health: loseConnection(this.value.health, Date.now()),
+      summary,
+      message: summary.locallyExpired
+        ? 'Tracking paused—refresh to resume.'
+        : 'Observation session unavailable. Refresh to reconnect.',
+    })
+  }
+
   private async connect() {
     const owner = this.controller
     if (!owner || owner.signal.aborted || this.value.needsReload) return
@@ -404,11 +419,7 @@ export class SummaryClient {
         return
       }
       if (error instanceof ApiError && [409, 410].includes(error.status)) {
-        this.publish({
-          needsReload: true,
-          message: 'Tracking paused—refresh to resume.',
-          summary: { ...this.value.summary, locallyExpired: true },
-        })
+        this.requireReload()
         return
       }
       this.publish({ health: loseConnection(this.value.health, Date.now()) })
@@ -512,11 +523,7 @@ export class SummaryClient {
         })
         .catch((error) => {
           if (error instanceof ApiError && [409, 410].includes(error.status)) {
-            this.publish({
-              needsReload: true,
-              message: 'Tracking paused—refresh to resume.',
-              summary: { ...this.value.summary, locallyExpired: true },
-            })
+            this.requireReload()
             this.streamAbort?.abort()
           }
         })

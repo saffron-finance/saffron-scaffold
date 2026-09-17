@@ -32,6 +32,50 @@ describe('live page aggregate browser contract', () => {
     vi.useRealTimers()
   })
 
+  it.each(['idle_no_viewers', 'paused_interest_expired', 'paused_recent_load_expired'] as const)(
+    'waits for the new deadline instead of showing refresh for initial %s', async (state) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(60_000)
+      // Admission extends interest before stream presence restarts the collector.
+      // Preserve that real wire order and hold it long enough to paint.
+      const deadline = 60_000 + 20 * 60_000
+      const initial = { ...watcher, state, loadDeadlineMs: deadline, pausedAtMs: 1, pauseReason: 'no_viewers' }
+      let channel!: ReadableStreamDefaultController<Uint8Array>
+      const calls: string[] = []
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+        const path = String(input); calls.push(path)
+        if (path.endsWith('/events')) return new Response(new ReadableStream<Uint8Array>({
+          start(c) { channel = c },
+        }), { headers: { 'Content-Type': 'text/event-stream' } })
+        return new Response(JSON.stringify({
+          ...JSON.parse(String(options?.body ?? '{}')), sessionId: 'startup-test',
+          acceptedAtMs: 60_000, joinAtMs: 60_000, baseline: null,
+          loadDeadlineMs: deadline, watcher: initial, serverTimeMs: Date.now(),
+        }))
+      }))
+      const dom = render(<MemoryRouter><ThemeProvider theme={darkTheme}><LivePoolAprPage /></ThemeProvider></MemoryRouter>)
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+      expect(dom.queryByTestId('tracking-paused')).toBeNull()
+      expect(dom.getByTestId('rpc-status')).toHaveTextContent('Connecting')
+      // Normal watcher activation and delayed snapshots do not change the timer.
+      await act(async () => {
+        channel.enqueue(encoder.encode(`event: watcher_status\ndata: ${JSON.stringify({ ...initial, state: 'watching', statusVersion: '2', pausedAtMs: null, pauseReason: null, serverTimeMs: Date.now() })}\n\n`))
+      })
+      expect(dom.queryByTestId('tracking-paused')).toBeNull()
+      expect(dom.getByTestId('rpc-status')).toHaveTextContent('Connected')
+      // Advance the wall clock without simulating twenty minutes of network.
+      // The existing clock tick must detect exact expiry, even without a frame.
+      vi.setSystemTime(deadline - 1001)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(dom.queryByTestId('tracking-paused')).toBeNull()
+      vi.setSystemTime(deadline - 1000)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(dom.getByTestId('tracking-paused')).toHaveTextContent('Tracking paused—refresh to resume.')
+      expect(dom.getByTestId('rpc-status')).toHaveTextContent('Paused')
+      expect(calls.filter(path => path.endsWith('/sessions'))).toHaveLength(1)
+    }
+  )
+
   it('shows APR unavailable during admission failure without inventing zero or another load identity', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(60_000)
@@ -253,6 +297,7 @@ describe('live page aggregate browser contract', () => {
           `event: watcher_status\ndata: ${JSON.stringify({
             ...watcher,
             state: 'paused_interest_expired',
+            loadDeadlineMs: 80000,
             statusVersion: '2',
             pausedAtMs: 80000,
             pauseReason: 'interest_expired',

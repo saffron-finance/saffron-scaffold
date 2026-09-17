@@ -82,14 +82,14 @@ describe('immutable actual-load receipt and summary transport', () => {
     expect(fetcher).toHaveBeenCalledTimes(1)
     client.stop(true)
   })
-  it.each([409, 410])('retains genuine HTTP %s observation expiry', async (status) => {
+  it.each([409, 410])('does not invent timer expiry from HTTP %s without a deadline', async (status) => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 'paused_requires_reload' }), { status })) as typeof fetch
     const client = new SummaryClient('nvda-usdg-005', { api: '/api', fetcher })
     client.start()
     await turn()
     expect(client.state.needsReload).toBe(true)
-    expect(client.state.summary.locallyExpired).toBe(true)
-    expect(client.state.message).toMatch(/Tracking paused/)
+    expect(client.state.summary.locallyExpired).toBe(false)
+    expect(client.state.message).toMatch(/session unavailable/)
     expect(fetcher).toHaveBeenCalledTimes(1)
     client.stop(true)
   })
@@ -191,6 +191,32 @@ describe('immutable actual-load receipt and summary transport', () => {
       await vi.advanceTimersByTimeAsync(3000)
       expect(redraw).toHaveBeenCalledTimes(initial + 1)
     } finally { unsubscribe(); client.stop(true) }
+  })
+  it.each([false, true])('renewal rejection uses the deadline, not HTTP status (expired=%s)', async (expired) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(60_000)
+    const deadline = expired ? 61_000 : 1_260_000
+    let admissions = 0
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path.endsWith('/renew')) return new Response('{"code":"session_requires_resume"}', { status: 409 })
+      if (path.endsWith('/events')) return new Response(new ReadableStream<Uint8Array>({ start(c) {
+        c.enqueue(encoder.encode('event: heartbeat\ndata: {"serverTimeMs":60000}\n\n'))
+      } }), { headers: { 'Content-Type': 'text/event-stream' } })
+      admissions++
+      return new Response(JSON.stringify({ sessionId: 's', loadId: 'l', poolId: 'cashcat-eth-1',
+        acceptedAtMs: 60_000, joinAtMs: 60_000, baseline: null,
+        loadDeadlineMs: deadline, watcher: { ...watcher, loadDeadlineMs: deadline }, serverTimeMs: Date.now() }))
+    }) as typeof fetch
+    const client = new SummaryClient('cashcat-eth-1', { api: '/api', loadId: 'l', fetcher })
+    try {
+      client.start()
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(client.state.needsReload).toBe(true)
+      expect(client.state.summary.locallyExpired).toBe(expired)
+      expect(client.state.message).toMatch(expired ? /Tracking paused/ : /session unavailable/)
+      expect(admissions).toBe(1)
+    } finally { client.stop(true) }
   })
   it('does not promote an unknown recovery receipt into a fresh admission', async () => {
     let resumed = false
