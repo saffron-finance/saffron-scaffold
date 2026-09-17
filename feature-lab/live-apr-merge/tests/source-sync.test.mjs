@@ -17,5 +17,14 @@ it('line endings are portable while changed or missing backend files fail',async
     await assert.rejects(()=>verifySources(root,backend),/missing/)
     await writeFile(join(root,'shared.mjs'),text.replace(' = ','='))
     await assert.rejects(()=>verifySources(root),/Local import drift/)
+    // An intentional adaptation may differ from upstream, but its reviewed
+    // local pin must still detect a subsequent unreviewed edit.
+    await writeFile(join(root,'shared.mjs'),text)
+    await writeFile(join(root,'adapted.mjs'),text.replaceAll('\n','\r\n'))
+    await writeFile(join(root,'docs/upstream-sync.json'),JSON.stringify({exactFiles:{'shared.mjs':sourceHash(text)},adaptedHashes:{'adapted.mjs':sourceHash(text)}}))
+    assert.equal((await verifySources(root)).ok,true)
+    await writeFile(join(root,'adapted.mjs'),text.replace('1','2'))
+    await assert.rejects(()=>verifySources(root),/Adapted import drift/)
+
   }finally{if(!resolve(root).startsWith(resolve(prefix)))throw Error('Unexpected test directory');await rm(root,{recursive:true,force:true})}
 })

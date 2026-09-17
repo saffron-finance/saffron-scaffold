@@ -1,4 +1,4 @@
-import { useEffect,useRef,useState } from 'react'
+import { useCallback,useEffect,useRef,useState } from 'react'
 import { toHex,type Address,type Hex } from 'viem'
 import { walletClient,assertWalletAccount,ensureChain,selectedWalletProviderId } from '@lab/wallet/wallet'
 import { WalletPreflight } from '@lab/wallet/preflight'
@@ -15,7 +15,7 @@ export function useDeploymentFlow(account:Address|null){
   const [draft,setDraft]=useState<CheckoutDraft|null>(null)
   const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[recoveryHash,setRecoveryHash]=useState('')
   // Quote preparation is single-flight background work, not a wallet send.
-  // Its promise outlives a modal; the local draft remains the recovery anchor.
+  // The local draft remains the recovery anchor after visible preparation ends.
   const [preparing,setPreparing]=useState(false)
   const preparation=useRef<Promise<any|null>|null>(null)
   const preparationScope=useRef<WalletPreflight|null>(null)
@@ -24,6 +24,13 @@ export function useDeploymentFlow(account:Address|null){
   // stays intact until background withdrawal succeeds, including lost replies.
   const [reviewHidden,setReviewHidden]=useState(false)
   const reviewRevision=useRef(0),cleanupNeeded=useRef(false)
+  /** Dismissal revokes unsent continuation immediately, without withdrawing
+   * saved terms or touching a real send. The send wrapper relinquishes this
+   * scope at the exact provider call; durable recovery then owns that work. */
+  const cancelPreparation=useCallback(()=>{
+    preparationScope.current?.cancel();paymentScope.current?.cancel()
+    reviewRevision.current++;setPreparing(false)
+  },[])
   const cleanup=useRef<Promise<boolean>|null>(null)
   const alive=useRef(true)
   const owner=useRef(account);owner.current=account
@@ -218,5 +225,5 @@ export function useDeploymentFlow(account:Address|null){
     update(selectPayment(localStorage,account,ledger,id))
     setReviewHidden(false);setDeployment(null);setRecoveryHash('');window.dispatchEvent(new Event('saffron:payment-record'))
   })}
-  return {preparing,quote:reviewHidden?null:saved?.quote??null,deployment,saved,draft,busy,error,records,startNew:()=>select(),resumePayment:(id:string)=>select(id),review,pay,recover,reset,restore,discardRejected:reset,recoveryHash,setRecoveryHash}
+  return {preparing,quote:reviewHidden?null:saved?.quote??null,deployment,saved,draft,busy,error,records,startNew:()=>select(),resumePayment:(id:string)=>select(id),review,pay,recover,reset,restore,cancelPreparation,discardRejected:reset,recoveryHash,setRecoveryHash}
 }

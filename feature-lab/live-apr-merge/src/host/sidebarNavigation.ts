@@ -1,6 +1,7 @@
+import { safeNavigationHref } from './safeNavigation'
 // Navigation belongs to the standalone host, not the incentive/request feature.
 // A consuming app can point this adapter at its own deployment without forks.
-const protocolApp = (import.meta.env.VITE_PROTOCOL_APP_URL || 'https://app.saffron.finance').replace(/\/$/, '')
+const protocolApp = safeNavigationHref(import.meta.env.VITE_PROTOCOL_APP_URL, 'https://app.saffron.finance').replace(/\/$/, '')
 export type SidebarIcon = 'live' | 'vaults' | 'requests' | 'pro' | 'stats' | 'audits' | 'community' | 'admin' | 'status' | 'guide'
 export interface SidebarDestination { label: string; href: string; icon: SidebarIcon; external?: boolean }
 

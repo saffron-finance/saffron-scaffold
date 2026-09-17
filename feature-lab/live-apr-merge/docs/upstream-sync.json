@@ -19,9 +19,7 @@
     "shared/campaign.d.mts": "be4779f2dd162c64480b76890ef43a7365f2811976fee79e70683725d3eceaca",
     "src/adapters/chain/chains.ts": "97c4fc701f493de262203301dbabca9f3cec0c248734d26b1a213840e49b1ae8",
     "src/adapters/hooks/useWallet.ts": "76e24f558b62c24ce9da30ed4a98e92b7a1be6fa5fc65130d5182c4b778dedf1",
-    "src/host/transport.ts": "827b3c8549cc04aa3759005e02506699e74a977caee3f35838f04f341a79e100",
     "src/host/useDeploymentStatus.ts": "e0b27895fbb8a3dc7950835a8b1593158af308a7984bed211beef49ef5114479",
-    "src/host/usePollingResource.ts": "cfbbd75e80f55559cacb995d2f86608913a88fffe180f827e63ae1c97b2bcff2",
     "src/host/payment-records.mjs": "6835a5e66aee51d83b3a9af0ac445aaa1345bb9518efeecc7a34296d9079549c",
     "src/host/payment-records.d.mts": "dbadab8767c4029eed51dc2fedad0d6c175167c468d6ace434c0be0af2caef30",
     "src/adapters/wallet/walletconnect.ts": "cdcaacfb65265c146929db0fe0e1cea07ca51992408de62e47e4bd5c89fda87d",
@@ -50,8 +48,14 @@
     "src/incentives/OperatorStatus.tsx",
     "src/incentives/JourneyGuide.tsx",
     "src/adapters/wallet/wallet.ts",
-    "src/host/useDeployments.ts"
+    "src/host/useDeployments.ts",
+    "src/host/transport.ts",
+    "src/host/usePollingResource.ts"
   ],
   "frontendRelease": "0.8.0",
-  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md. Version 0.8.10 separates portfolio/session/payment reads and coordinates durable wallet recovery across tabs. See docs/wallet-recovery-isolation.md."
+  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md. Version 0.8.10 separates portfolio/session/payment reads and coordinates durable wallet recovery across tabs. See docs/wallet-recovery-isolation.md. Test integration records two previously stale exact-file entries as reviewed local adaptations: selected-session/coalesced read transport and visibility/mutation-aware polling. Their current browser bytes are pinned separately from canonical backend UI.",
+  "adaptedHashes": {
+    "src/host/transport.ts": "67bc1200c793b65ae9b0b502a4b2a3ba48c81a3cc6e719d8cbca55ebb2b93e97",
+    "src/host/usePollingResource.ts": "e0807ceee01d05e04eb1d5c8c805be32c9e4b36e515e35d403910b038ac498ed"
+  }
 }

@@ -1,5 +1,9 @@
 # Saffron liquidity incentives and Live APR
 
+Version 0.8.31 adds bounded browser/resource security regressions and portable test lanes.
+See [testing policy](docs/testing-policy.md) and [proposal registry](docs/test-contract-catalog.json).
+Catalog entries are proposals, not a claim of 748 executable tests.
+
 Version 0.8.10 coordinates wallet recovery across tabs and isolates payment/session
 outages from healthy vault rows. See [recovery isolation](docs/wallet-recovery-isolation.md).
 

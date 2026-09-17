@@ -1,7 +1,7 @@
 import { useEffect,useRef,useState } from 'react'
 import { requestJson } from './transport'
 
-import {initialCatalog,cacheKey,type Catalog} from './catalogSnapshot'
+import {initialCatalog,saveCatalogDisplay,type Catalog} from './catalogSnapshot'
 
 /** Visible catalog refreshes at most twice a minute. Focus/pageshow reuse the
  * recent response; explicit configuration events still refresh immediately. */
@@ -26,7 +26,7 @@ export function useIncentivePrograms(){
         if(alive&&!request.signal.aborted&&started===revision){
           freshRef.current=true
           setState({offers:data.offers,creatorOnline:data.creatorOnline,readiness:data.readiness,loading:false,hasSnapshot:true})
-          try{localStorage.setItem(cacheKey,JSON.stringify({offers:data.offers,at:Date.now()}))}catch{/* A storage failure must not hide a good response. */}
+          try{saveCatalogDisplay(data.offers)}catch{/* A storage failure must not hide a good response. */}
         }
       }catch(error){if(alive&&!request.signal.aborted&&started===revision){freshRef.current=false;setState(previous=>({...previous,creatorOnline:false,loading:false,error:(error as Error).message}))}}
       finally{if(controller===request){controller=null;if(queued&&alive){queued=false;last=0;void load()}}}

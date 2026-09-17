@@ -9,13 +9,13 @@ import {
   Scene,
   SRGBColorSpace,
   Texture,
-  TextureLoader,
   Vector3,
   WebGLRenderer,
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 import { EmblemError } from './emblemStatic'
+import { loadEmblemBytes, loadEmblemTexture } from './emblemTransport'
 
 /**
  * Standalone WebGL scene that renders the spinning 3D Saffron emblem.
@@ -64,6 +64,8 @@ export interface EmblemSceneOptions {
   colorBoost?: number
   /** Called if the browser drops the WebGL context. */
   onContextLost?: () => void
+  /** Cancels setup when its React owner closes before the assets arrive. */
+  signal?: AbortSignal
 }
 
 const DEFAULTS = {
@@ -103,22 +105,29 @@ const noiseScaleFor = (texture: Texture) => {
   return 1 / (image?.width || 256)
 }
 
-const loadTexture = (loader: TextureLoader, url: string) =>
-  new Promise<Texture>((resolve, reject) => {
-    loader.load(url, resolve, undefined, () =>
-      reject(new EmblemError('texture-load', `Failed to load texture ${url}`))
-    )
+const loadModel = async (loader: GLTFLoader, url: string, signal: AbortSignal) => {
+  const bytes = await loadEmblemBytes(url, signal)
+  return new Promise<Group>((resolve, reject) => {
+    // The shipped self-contained GLB needs no additional external resources.
+    loader.parse(bytes, '', gltf => resolve(gltf.scene), () => reject(new EmblemError('model-load', 'Failed to decode logo model')))
   })
+}
 
-const loadModel = (loader: GLTFLoader, url: string) =>
-  new Promise<Group>((resolve, reject) => {
-    loader.load(
-      url,
-      (gltf) => resolve(gltf.scene),
-      undefined,
-      () => reject(new EmblemError('model-load', `Failed to load model ${url}`))
-    )
+/** Release GLTF-owned materials/textures, and optionally its mesh geometry.
+ * Three does not dispose resources when a material is replaced or a load fails. */
+function disposeModel(model: Group, includeGeometry = true) {
+  const resources = new Set<{ dispose(): void }>()
+  model.traverse(child => {
+    const mesh = child as Mesh
+    if (!mesh.isMesh) return
+    if (includeGeometry) resources.add(mesh.geometry)
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      resources.add(material)
+      for (const value of Object.values(material)) if (value instanceof Texture) resources.add(value)
+    }
   })
+  for (const resource of resources) resource.dispose()
+}
 
 export class EmblemScene {
   /**
@@ -126,17 +135,45 @@ export class EmblemScene {
    * unavailable or an asset fails — callers should fall back to a flat logo.
    */
   static async create(options: EmblemSceneOptions): Promise<EmblemScene> {
-    const textureLoader = new TextureLoader()
-    const [model, matcap, noise] = await Promise.all([
-      loadModel(new GLTFLoader(), options.modelUrl),
-      loadTexture(textureLoader, options.matcapUrl),
-      options.noiseUrl ? loadTexture(textureLoader, options.noiseUrl) : Promise.resolve(undefined),
-    ])
-
-    return new EmblemScene(options, model, matcap, noise)
+    const signal = options.signal
+    signal?.throwIfAborted()
+    const transport = new AbortController()
+    let failed = false
+    const release = new Set<() => void>()
+    // Loaders can finish after a sibling failed or the modal closed. Dispose
+    // those late resources too; they must never create an orphan GPU context.
+    const own = <T,>(work: Promise<T>, dispose: (value: T) => void) => work.then(value => {
+      if (failed) dispose(value)
+      else release.add(() => dispose(value))
+      return value
+    })
+    let abort = () => {}
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      abort = () => { transport.abort(); reject(signal?.reason) }
+      signal?.addEventListener('abort', abort, { once: true })
+      deadline = setTimeout(() => { transport.abort(); reject(new EmblemError('model-load', 'Logo loading timed out')) }, 15_000)
+    })
+    try {
+      const [model, matcap, noise] = await Promise.race([Promise.all([
+        own(loadModel(new GLTFLoader(), options.modelUrl, transport.signal), disposeModel),
+        own(loadEmblemTexture(options.matcapUrl, transport.signal), value => value.dispose()),
+        options.noiseUrl ? own(loadEmblemTexture(options.noiseUrl, transport.signal), value => value.dispose()) : Promise.resolve(undefined),
+      ]), cancelled])
+      signal?.throwIfAborted()
+      const scene = new EmblemScene(options, model, matcap, noise)
+      release.clear() // Ownership passes to the successfully constructed scene.
+      return scene
+    } catch (error) {
+      failed = true
+      transport.abort()
+      for (const dispose of release) dispose()
+      release.clear()
+      throw error
+    } finally { clearTimeout(deadline); signal?.removeEventListener('abort', abort) }
   }
 
-  private readonly options: Required<Omit<EmblemSceneOptions, 'noiseUrl' | 'onContextLost'>> &
+  private readonly options: Required<Omit<EmblemSceneOptions, 'noiseUrl' | 'onContextLost' | 'signal'>> &
     Pick<EmblemSceneOptions, 'noiseUrl' | 'onContextLost'>
 
   private readonly canvas: HTMLCanvasElement
@@ -209,7 +246,8 @@ export class EmblemScene {
     // so calling it per start() would leak a listener on each stop/start cycle
     // (routine here — the emblem stops when scrolled out of view) and
     // disconnect() would remove only one of them.
-    this.timer.connect(document)
+    // Connect only after successful construction below. A failed WebGL context
+    // otherwise leaves this scene reachable from document forever.
 
     this.canvas = document.createElement('canvas')
     this.canvas.style.display = 'block'
@@ -233,6 +271,12 @@ export class EmblemScene {
       this.canvas.remove()
       throw new EmblemError('webgl-unavailable', 'Could not create a WebGL context', { cause })
     }
+    // Keep the original asset ownership intact until every setup step succeeds.
+    // On failure create() must still see original materials, not our replacement
+    // (which references separately owned matcap/noise textures).
+    const originalMaterials = new Map<Mesh, Mesh['material']>()
+    let replacement: MeshMatcapMaterial | undefined
+    try {
     this.renderer.setClearAlpha(0)
 
     this.camera = new PerspectiveCamera(CAMERA_FOV, 1, 0.1, 100)
@@ -253,7 +297,7 @@ export class EmblemScene {
       this.uniforms.uNoiseScale.value = noiseScaleFor(noise)
     }
 
-    this.material = new MeshMatcapMaterial({ matcap, transparent: true })
+    this.material = replacement = new MeshMatcapMaterial({ matcap, transparent: true })
     this.material.color.multiplyScalar(this.options.colorBoost)
 
     if (noise) {
@@ -283,7 +327,11 @@ export class EmblemScene {
     }
 
     model.traverse((child) => {
-      if ((child as Mesh).isMesh) (child as Mesh).material = this.material
+      const mesh = child as Mesh
+      if (mesh.isMesh) {
+        originalMaterials.set(mesh, mesh.material)
+        mesh.material = this.material
+      }
     })
 
     // Centre the emblem on its own bounds so it spins about itself rather than
@@ -313,6 +361,24 @@ export class EmblemScene {
     this.scene.add(this.tiltGroup)
 
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost)
+    this.timer.connect(document)
+    // Release superseded GLTF materials only once setup has fully succeeded.
+    for (const [mesh, material] of originalMaterials) mesh.material = material
+    disposeModel(model, false)
+    for (const mesh of originalMaterials.keys()) mesh.material = this.material
+    } catch (cause) {
+      for (const [mesh, material] of originalMaterials) mesh.material = material
+      replacement?.dispose()
+      // A context may be created successfully yet reject setup immediately.
+      // create() still owns model/textures; reclaim this constructor's renderer,
+      // canvas and listener before returning control to its asset cleanup.
+      this.timer.dispose()
+      this.canvas.removeEventListener('webglcontextlost', this.handleContextLost)
+      try { this.renderer.dispose() } finally {
+        this.renderer.forceContextLoss();this.canvas.remove()
+      }
+      throw new EmblemError('webgl-unavailable', 'Could not initialize the logo renderer', { cause })
+    }
   }
 
   private handleContextLost = (event: Event) => {
@@ -360,9 +426,17 @@ export class EmblemScene {
     if (this.disposed || this.frameId) return
     this.timer.reset() // drop the idle time accumulated since the last stop
     const tick = () => {
-      this.frameId = requestAnimationFrame(tick)
-      this.update()
-      this.renderFrame()
+      this.frameId = 0
+      if (this.disposed) return
+      try {
+        this.update()
+        this.renderFrame()
+        this.frameId = requestAnimationFrame(tick)
+      } catch {
+        // A broken renderer must not throw again on every animation frame.
+        this.options.onContextLost?.()
+        this.dispose()
+      }
     }
     this.frameId = requestAnimationFrame(tick)
   }

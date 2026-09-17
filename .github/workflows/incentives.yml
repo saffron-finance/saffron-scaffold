@@ -59,7 +59,7 @@ jobs:
         working-directory: feature-lab/live-apr-merge
       - run: npx playwright install --with-deps chromium
         working-directory: feature-lab/live-apr-merge
-      - run: npm run check:upstream && npm run test:source && npm run test:release && npm test
+      - run: npm run test:fast
         working-directory: feature-lab/live-apr-merge
       - run: npm run build:lab && npm run test:browser
         working-directory: feature-lab/live-apr-merge
@@ -99,6 +99,14 @@ jobs:
         working-directory: feature-lab/live-apr-merge
         env:
           SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
+      - run: npm run test:checkout-dismissal
+        working-directory: feature-lab/live-apr-merge
+        env:
+          SAFFRON_BACKEND_SOURCE: ${{ github.workspace }}/liquidity-incentives
+      - run: npm run test:lane:native
+        working-directory: feature-lab/live-apr-merge
+      - run: npm run test:downloads
+        working-directory: feature-lab/live-apr-merge
       - run: npm run test:apr-http
         working-directory: feature-lab/live-apr-merge
       - run: npm run build:live
@@ -158,7 +166,7 @@ jobs:
         working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
       - run: python scripts/verify_source.py
         working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
-      - run: npm run check:upstream && npm run test:source && npm run test:release && npm test
+      - run: npm run test:fast
         working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge
       - run: npm run build && npm run build:lab && npm run build:live
         working-directory: feature-lab/live-apr-merge/validation/extracted/live-apr-merge

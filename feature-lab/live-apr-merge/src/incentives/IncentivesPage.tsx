@@ -1,6 +1,6 @@
 import { HomeCatalog } from './HomeCatalog'
 import './IncentivesPage.css'
-import { lazy,Suspense,useRef,useState } from 'react'
+import { lazy,Suspense,useEffect,useRef,useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { Address } from 'viem'
 import { StepTitle } from '../host/ui'
@@ -30,6 +30,12 @@ function WalletPage({account,onConnect,selected,setSelected}:{account:Address|nu
   const flow=useDeploymentFlow(account),positions=useDeployments(route==='/portfolio/vaults'?account:null),catalog=useIncentivePrograms()
   const [vaultId,setVaultId]=useState<string|null>(null),[resume,setResume]=useState(false),[openPosition,setOpenPosition]=useState(false)
   const navigate=useNavigate()
+  const previousRoute=useRef(route)
+  useEffect(()=>{
+    if(previousRoute.current===route)return
+    previousRoute.current=route
+    flow.cancelPreparation();setSelected(null);setVaultId(null);setResume(false)
+  },[route,flow.cancelPreparation,setSelected])
   // Keep the cached amount preview available during background quote cleanup.
   // Its own shared cache/timer bounds reads; Back never waits for a fresh RPC.
   const price=useOfferPrice(flow.quote?null:selected)

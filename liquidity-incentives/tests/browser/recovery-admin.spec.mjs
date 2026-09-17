@@ -102,7 +102,7 @@ test('campaign form derives APR, budget or capacity and stores a paused campaign
   try{
     await page.goto(f.origin+'/admin');await connect(page)
     await page.getByRole('button',{name:'Sign in as operator',exact:true}).click()
-    await page.getByText('Programs and campaign budgets',{exact:true}).click()
+    await page.getByRole('button',{name:'Campaigns',exact:true}).click()
     await page.getByRole('button',{name:'Load incentive catalog',exact:true}).click()
     await page.getByLabel('Campaign request fee ETH').fill('0.001')
     await expect(page.getByLabel('Campaign APR percent')).toHaveValue('121.666667')

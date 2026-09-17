@@ -15,12 +15,14 @@ test('operator prepares an exact external refund and observes verified closure w
     const payment=(await f.database.query('SELECT * FROM saffron_incentives.payment_obligations WHERE quote_id=$1',[job.quote_id])).rows[0]
     await page.goto(f.origin+'/admin')
     const login=page.getByRole('button',{name:'Sign in as operator',exact:true})
-    await login.or(page.getByText('External creation-fee refunds',{exact:true})).first().waitFor()
+    const refunds=page.getByRole('button',{name:'Refunds',exact:true})
+    await login.or(refunds).first().waitFor()
     if(await login.isVisible())try{await login.click({timeout:5000})}catch{
       // A restored operator session may replace the transient login control
       // during its click. Accept only the authenticated administration view.
-      await expect(page.getByText('External creation-fee refunds',{exact:true})).toBeVisible()
+      await expect(refunds).toBeVisible()
     }
+    await refunds.click()
     await page.getByText('External creation-fee refunds',{exact:true}).click()
     await page.getByRole('button',{name:'Load refundable requests and batches',exact:true}).click()
     await page.getByRole('checkbox',{name:new RegExp(job.id.slice(0,8))}).check()

@@ -13,5 +13,5 @@ export function tokenArtwork(symbol:string,address?:string,compact=false):string
     '0x5fc5360d0400a0fd4f2af552add042d716f1d168': `${import.meta.env.BASE_URL}usdg.png`,
   }
   const legacy: Record<string, string> = { CASHCAT: 'cashcat.png', ETH: 'eth.svg', USDC: 'usdc.svg', USDG: 'usdg.png' }
-  return  address ? known[address.toLowerCase()] : Object.hasOwn(legacy, symbol) ? `${import.meta.env.BASE_URL}${legacy[symbol]}` : undefined
+  return  address ? Object.hasOwn(known,address.toLowerCase()) ? known[address.toLowerCase()] : undefined : Object.hasOwn(legacy, symbol) ? `${import.meta.env.BASE_URL}${legacy[symbol]}` : undefined
 }

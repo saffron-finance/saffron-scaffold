@@ -1,7 +1,7 @@
 import { uiWalletActions, walletReadActions } from './uiActions'
 import { boundedWalletRead, type WalletPreflight } from './preflight'
 import { WALLETCONNECT_ID, WALLETCONNECT_RDNS, walletConnectConfigured, walletConnectConnector } from './walletconnect'
-import { createClient, custom, type Address, type Chain } from 'viem'
+import { createClient, custom, isAddress, type Address, type Chain } from 'viem'
 
 // This module deliberately implements only the small browser-wallet boundary
 // This application needs. EIP-6963 discovery allows multiple extensions—including the
@@ -48,6 +48,9 @@ type InjectedWindow = Window & {
 const SELECTED_PROVIDER_KEY = 'saffron.incentives.selected-wallet-provider'
 const SELECTED_RDNS_KEY = 'saffron.incentives.selected-wallet-rdns'
 const providers = new Map<string, WalletProvider>()
+// The picker is not an unbounded announcement log. Existing identities can be
+// enriched after the cap, but new claims cannot evict a user's selected wallet.
+const MAX_DISCOVERED_PROVIDERS = 32
 const providerIds = new WeakMap<object, string>()
 const providerListeners = new Set<() => void>()
 let discoveryStarted = false
@@ -80,23 +83,34 @@ function notifyProviderListeners(): void {
  * and icon from the EIP-6963 announcement.
  */
 function registerProvider(provider: Eip1193Provider, info: Partial<Eip6963ProviderInfo>): void {
+  try {
   if (!provider || typeof provider.request !== 'function') return
-  if (info.uuid === 'walletconnect' || info.rdns === WALLETCONNECT_RDNS) return
+  // Snapshot untrusted extension getters once, before retaining any state.
+  const uuid = info.uuid, name = info.name, icon = info.icon, rdns = info.rdns
+  if (uuid !== undefined && (typeof uuid !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/.test(uuid))) return
+  if (name !== undefined && (typeof name !== 'string' || name.length > 128)) return
+  if (rdns !== undefined && (typeof rdns !== 'string' || rdns.length > 255)) return
+  if (icon !== undefined && (typeof icon !== 'string' || icon.length > 16384)) return
+  if (uuid === 'walletconnect' || rdns === WALLETCONNECT_RDNS) return
 
   const providerObject = provider as object
   const existingId = providerIds.get(providerObject)
-  const id = existingId ?? `wallet:${info.uuid ?? providers.size + 1}`
+  const id = existingId ?? `wallet:${uuid ?? providers.size + 1}`
   const previous = existingId ? providers.get(existingId) : undefined
-
-  providerIds.set(providerObject, id)
-  providers.set(id, {
+  // UUID metadata is self-asserted, not authority to replace another object.
+  if (!existingId && (providers.has(id) || providers.size >= MAX_DISCOVERED_PROVIDERS)) return
+  const next = {
     id,
-    name: info.name ?? previous?.name ?? 'Browser wallet',
-    icon: info.icon || previous?.icon,
-    rdns: info.rdns || previous?.rdns,
+    name: name ?? previous?.name ?? 'Browser wallet',
+    icon: icon || previous?.icon,
+    rdns: rdns || previous?.rdns,
     provider,
-  })
+  }
+  if (previous && previous.name === next.name && previous.icon === next.icon && previous.rdns === next.rdns) return
+  providerIds.set(providerObject, id)
+  providers.set(id, next)
   notifyProviderListeners()
+  } catch { /* A hostile extension accessor cannot break honest discovery. */ }
 }
 
 /** Give legacy injected wallets a useful label when EIP-6963 is unavailable. */
@@ -128,30 +142,33 @@ export function discoverWalletProviders(): void {
 
   if (!discoveryStarted) {
     window.addEventListener('eip6963:announceProvider', ((event: CustomEvent<Eip6963ProviderDetail>) => {
+      try {
       const detail = event.detail
       if (!detail?.provider || !detail.info) return
       registerProvider(detail.provider, detail.info)
+      } catch { /* Ignore malformed or throwing extension detail objects. */ }
     }) as EventListener)
     discoveryStarted = true
   }
 
   const injectedWindow = window as InjectedWindow
-  const legacyProviders = injectedWindow.ethereum?.providers?.length
-    ? injectedWindow.ethereum.providers
-    : injectedWindow.ethereum
-      ? [injectedWindow.ethereum]
-      : []
-
-  legacyProviders.forEach((provider, index) => {
-    registerProvider(provider, { name: legacyProviderName(provider, index) })
-  })
-
-  if (injectedWindow.uniswap) {
-    registerProvider(injectedWindow.uniswap, {
-      name: 'Uniswap Extension',
-      rdns: 'org.uniswap',
-    })
-  }
+  // Extension globals and provider arrays are untrusted accessors too. Isolate
+  // legacy probes so one broken extension never blocks EIP-6963 discovery.
+  try {
+    const ethereum = injectedWindow.ethereum
+    const announced = ethereum?.providers
+    const legacyProviders = Array.isArray(announced) ? announced : ethereum ? [ethereum] : []
+    for (let index = 0; index < Math.min(legacyProviders.length, MAX_DISCOVERED_PROVIDERS); index++) {
+      try {
+        const provider = legacyProviders[index]
+        registerProvider(provider, { name: legacyProviderName(provider, index) })
+      } catch { /* One malformed legacy member cannot suppress later members. */ }
+    }
+  } catch { /* A hostile global getter cannot break another discovery owner. */ }
+  try {
+    const uniswap = injectedWindow.uniswap
+    if (uniswap) registerProvider(uniswap, { name: 'Uniswap Extension', rdns: 'org.uniswap' })
+  } catch { /* Continue with standards-based announcements. */ }
 
   // EIP-6963 wallets respond to this event with announceProvider events.
   window.dispatchEvent(new Event('eip6963:requestProvider'))
@@ -159,7 +176,7 @@ export function discoverWalletProviders(): void {
 
 /** Return an immutable snapshot suitable for rendering a wallet picker. */
 export function walletProviders(): WalletProvider[] {
-  return [...providers.values()].sort((a, b) => {
+  return [...providers.values()].map(wallet => ({ ...wallet })).sort((a, b) => {
     // Put Uniswap first because it is a required wallet for this feature lab.
     const aIsUniswap = /uniswap/i.test(`${a.name} ${a.rdns ?? ''}`)
     const bIsUniswap = /uniswap/i.test(`${b.name} ${b.rdns ?? ''}`)
@@ -178,7 +195,8 @@ export function hasWallet(): boolean {
   if (providers.size > 0) return true
   if (typeof window === 'undefined') return false
   const injectedWindow = window as InjectedWindow
-  return Boolean(injectedWindow.ethereum || injectedWindow.uniswap)
+  try { if (injectedWindow.ethereum) return true } catch { /* Isolate extensions. */ }
+  try { return Boolean(injectedWindow.uniswap) } catch { return false }
 }
 
 export function selectedWalletProviderId(): string | null {
@@ -256,7 +274,7 @@ export async function connect(providerId: string): Promise<Address> {
     ? await provider.provider.request({ method: 'eth_requestAccounts' }) as Address[]
     : await client.requestAddresses()
   if (version !== connectionVersion) throw new Error('Wallet connection cancelled.')
-  if (!addresses[0]) throw new Error('No account authorized.')
+  if (!Array.isArray(addresses) || typeof addresses[0] !== 'string' || !isAddress(addresses[0])) throw new Error('No valid account authorized.')
   selectProvider(providerId)
   notifyProviderListeners()
   return addresses[0]
@@ -331,7 +349,7 @@ export async function ensureChain(chain: Chain, scope?: WalletPreflight): Promis
       if (detail.code === 4902) { code = 4902; break }
       nested = detail.cause
     }
-    const notAdded = code === 4902 || /unrecognized chain|not been added|addEthereumChain/i.test(String(error))
+    const notAdded = code === 4902
     if (notAdded && chain.rpcUrls.default.http[0]) {
       await prompt(() => client.addChain({ chain }))
       await prompt(() => client.switchChain({ id: chain.id }))

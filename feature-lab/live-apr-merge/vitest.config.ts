@@ -12,5 +12,7 @@ export default defineConfig({
     '@packages/api-types/live-pool-apr.mjs': here('./vendor/live-apr-shared/live-pool-apr.mjs'),
     'src/shared/styles/themes/darkTheme': here('./vendor/fixed-income-ui/shared/styles/themes/darkTheme.ts'),
   } },
-  test: { environment: 'jsdom', setupFiles: ['./tests/browser-storage.mjs','@testing-library/jest-dom/vitest'], include: ['src/**/*.test.{ts,tsx}'] },
+  // A package-local setup module lets Vite resolve its ESM imports from this
+  // package even when the parent checkout also has a different Vitest install.
+  test: { environment: 'jsdom', setupFiles: [here('./tests/browser-storage.mjs')], include: ['src/**/*.test.{ts,tsx}'] },
 })

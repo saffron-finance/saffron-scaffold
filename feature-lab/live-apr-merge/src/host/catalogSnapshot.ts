@@ -29,3 +29,21 @@ export function initialCatalog():Catalog {
   }catch{/* Storage is optional. */}
   return empty
 }
+
+/** Persist only the display projection, never the whole server object. Unknown
+ * future fields (including credentials/capabilities) cannot silently become
+ * long-lived browser storage. Cached rows are display-only and stay disabled. */
+export function saveCatalogDisplay(offers: Offer[]): void {
+  if (!Array.isArray(offers) || offers.length > 200) return
+  const token = (value: Offer['token0']) => ({ address:value.address, symbol:value.symbol, decimals:value.decimals })
+  const rows = offers.map(value => ({
+    id:value.id, pairId:value.pairId, apr:value.apr, days:value.days,
+    feeTier:value.feeTier, active:value.active, isNew:value.isNew,
+    availability:value.availability, token0:token(value.token0), token1:token(value.token1),
+    budget:{paused:value.budget.paused, reconciliationRequired:value.budget.reconciliationRequired},
+    vaultTvl:value.vaultTvl ? {status:value.vaultTvl.status, usdRaw:value.vaultTvl.usdRaw} : undefined,
+  }))
+  if (!rows.every(displayOffer)) return
+  const encoded=JSON.stringify({offers:rows,at:Date.now()})
+  if(encoded.length<=262_144)localStorage.setItem(cacheKey,encoded)
+}

@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom'
+import '@testing-library/jest-dom/vitest'
 import { beforeEach,afterAll } from 'vitest'
 
 // Browser storage must use the same Storage prototype as the denial/recovery

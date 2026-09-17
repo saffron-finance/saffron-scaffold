@@ -208,8 +208,12 @@ test('profile and administration can page to older vaults and retain that page o
     await page.getByRole('button',{name:'Close incentive vault'}).click()
     await page.goto(f.origin+'/admin')
     await page.getByRole('button',{name:'Sign in as operator',exact:true}).click()
+    await page.getByRole('button',{name:'Requests',exact:true}).click()
     await expect(page.locator('[data-deployment-id]')).toHaveCount(25)
     await page.getByRole('button',{name:'Older vaults',exact:true}).click()
+    // Admin request details are intentionally collapsed; exercise the visible
+    // summary before requiring the older request's detail body to be visible.
+    await page.locator('summary').filter({hasText:oldest.slice(0,8)}).click()
     await expect(page.locator('[data-deployment-id="'+oldest+'"]')).toBeVisible()
     await page.getByRole('button',{name:'Newer vaults',exact:true}).click()
     await expect(page.locator('[data-deployment-id]')).toHaveCount(25)

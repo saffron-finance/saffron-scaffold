@@ -32,7 +32,9 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   const [preview,setPreview]=useState<{amount:string;reward:number}|null>(null)
   const [requesting,setRequesting]=useState(false)
   const mounted=useRef(true),claiming=useRef(false),goingBack=useRef(false)
-  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[])
+  // Every unmount path revokes preparation, even if the persistent page owner
+  // survives the dialog (Close, Escape, overlay, route or parent dismissal).
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;flow.cancelPreparation()}},[flow.cancelPreparation])
   useEffect(()=>setPosition(openPosition),[openPosition,id])
   const second=Boolean(id||reviewed||preview),busy=flow.busy||nativeBusy
   const titleId=useId(),rangeId=useId(),tokensId=useId(),titleRef=useRef<HTMLDivElement|null>(null)
@@ -74,7 +76,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   // The wallet hook enforces the API's exact fee and quote expiry.
   // Back creates a fresh quote without discarding a submitted payment record.
   const raw=reviewed?amountsForLiquidity(reviewed.plan.liquidity,reviewed.plan.sqrtPrice,reviewed.plan.minTick,reviewed.plan.maxTick):null
-  const close=()=>{if(!busy){mounted.current=false;onClose()}}
+  const close=()=>{if(!busy){mounted.current=false;flow.cancelPreparation();onClose()}}
   function beginReview(){
     if(!account){onConnect();return}
     if(!offer||!valid||busy||preview)return

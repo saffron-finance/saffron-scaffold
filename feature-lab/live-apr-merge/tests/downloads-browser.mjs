@@ -47,8 +47,8 @@ const cases = [
   { name: 'logo matcap', files: ['gl/emblem-matcap.jpg'], still: true },
   { name: 'logo noise texture', files: ['gl/blue-noise.png'], still: true },
   { name: 'logo JavaScript and still image', files: [logo, 'gl/emblem-still.png'], textStill: true },
-  { name: 'appearance editor', files: [chunk(/RowTweaks\.tsx$/)] },
-  { name: 'simultaneous optional chunks', files: [logo, chunk(/RowTweaks\.tsx$/)], still: true },
+  { name: 'appearance editor', files: [chunk(/AppearanceControls\.tsx$/)], appearance: true },
+  { name: 'simultaneous optional chunks', files: [logo, chunk(/AppearanceControls\.tsx$/)], appearance: true, still: true },
   { name: 'APR JavaScript', files: [apr.file], section: true, route: 'live-apr' },
   { name: 'APR stylesheet', files: apr.css, section: true, route: 'live-apr' },
   { name: 'PNG capture JavaScript', files: [chunk(/html-to-image/)], png: true, route: 'live-apr' },
@@ -119,6 +119,12 @@ try {
           await page.getByRole('button', { name: /^Copy .+ as PNG$/ }).first().click()
           await expect(page.getByRole('status').filter({ hasText: 'Could not copy PNG' })).toBeVisible()
           await expect(page.getByRole('button', { name: /^Copy .+ as PNG$/ }).first()).toBeEnabled()
+        }
+        if (scenario.appearance) {
+          // The small eager preference owner intentionally does not download
+          // its editor until the user opens it. Exercise that real boundary.
+          await page.getByText('Tweak', { exact: true }).click()
+          await expect(page.getByRole('alert').filter({ hasText: 'Appearance controls could not load' })).toBeVisible()
         }
         await page.getByRole('button', { name: 'Connect wallet', exact: true }).click()
         if (scenario.wallet) {

@@ -22,14 +22,19 @@ declare global {
   }
 }
 
-/** Hosting is replaceable: runtime override wins over build config, and the
- * default API stays beneath the configured app base without a hostname. */
+/** APR admission authority stays on this origin. Hosting may change the mount,
+ * but runtime config cannot silently turn control POSTs into cross-origin work.
+ * Cross-origin installations must expose an explicit same-origin gateway. */
+export function validateAprApiBase(value: string): string {
+  const url = new URL(value, window.location.origin)
+  if (!['http:', 'https:'].includes(url.protocol) || url.origin !== window.location.origin ||
+      url.username || url.password || url.search || url.hash || /[\u0000-\u0020\u007f]/.test(value))
+    throw new Error('Live APR API must use a same-origin HTTP path')
+  return url.pathname.replace(/\/$/, '')
+}
 export function liveAprApiBase(): string {
   const configured = window.__SAFFRON_LIVE_APR__?.apiBase ?? import.meta.env.VITE_LIVE_APR_API_BASE
-  return (configured ?? `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api/live-apr/v2`).replace(
-    /\/$/,
-    ''
-  )
+  return validateAprApiBase(configured ?? `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api/live-apr/v2`)
 }
 
 export interface StreamMessage {
@@ -143,7 +148,7 @@ export class SummaryClient {
   ) {
     this.poolId = poolId
     this.loadId = options.loadId ?? crypto.randomUUID()
-    this.api = options.api ?? liveAprApiBase()
+    this.api = options.api ? validateAprApiBase(options.api) : liveAprApiBase()
     this.fetcher = options.fetcher ?? fetch.bind(window)
     this.baselineStorageKey = `saffron-live-apr-v2:${this.loadId}`
     this.value = {
@@ -235,6 +240,7 @@ export class SummaryClient {
         {
           method: 'DELETE',
           credentials: 'same-origin',
+          redirect: 'error',
           keepalive: true,
         }
       ).catch(() => {})
@@ -258,6 +264,7 @@ export class SummaryClient {
       const response = await this.fetcher(`${this.api}${path}`, {
         ...init,
         credentials: 'same-origin',
+        redirect: 'error', // Never forward admission/recovery authority across a redirect.
         signal: deadline.signal,
         headers: { 'Content-Type': 'application/json', ...init.headers },
       })
@@ -343,12 +350,17 @@ export class SummaryClient {
       owner.signal.addEventListener('abort', cancel, { once: true })
       this.scheduleRenew()
       let response: Response | undefined
+      // Headers alone never prove a live stream. Bound both header acquisition
+      // and initial qualified data, then use the existing silence watchdog.
+      let qualificationTimer = setTimeout(() => stream.abort(), 15_000)
+      let qualifiedAt: number | null = null
       try {
         response = await this.fetcher(
           `${this.api}/pools/${encodeURIComponent(this.poolId)}/events`,
           {
             signal: stream.signal,
             credentials: 'same-origin',
+          redirect: 'error',
             headers: { Accept: 'text/event-stream', 'X-Session-ID': this.value.receipt!.sessionId },
           }
         )
@@ -357,13 +369,19 @@ export class SummaryClient {
             response.status,
             response.status === 409 ? 'paused_requires_reload' : 'stream_unavailable'
           )
-        this.publish({
-          health: receiveConnection(this.value.health, Date.now(), { ready: true, error: null }),
-          message: null,
-        })
-        this.attempts = 0
-        await consumeEventStream(response, (event) => this.message(event), stream.signal)
+        clearTimeout(qualificationTimer)
+        qualificationTimer = setTimeout(() => stream.abort(), 15_000)
+        await consumeEventStream(response, (event) => {
+          if (!this.message(event)) return
+          clearTimeout(qualificationTimer)
+          qualifiedAt ??= Date.now()
+          // A valid event followed by immediate EOF is still a failed attempt.
+          // Reset only after qualified traffic spans five seconds; a broken
+          // gateway cannot pin every reconnect to the first one-second delay.
+          if (Date.now() - qualifiedAt >= 5000) this.attempts = 0
+        }, stream.signal)
       } finally {
+        clearTimeout(qualificationTimer)
         // Tear down this attempt before releasing its owner or scheduling retry.
         // This covers HTTP/MIME rejection before consumeEventStream owns a reader.
         stream.abort()
@@ -406,9 +424,10 @@ export class SummaryClient {
 
   /** Handle only known, validated events. Heartbeats advance transport time,
    * never the accounting/quote clock or the paid-interest deadline. */
-  private message(event: StreamMessage) {
+  private message(event: StreamMessage): boolean {
+    if (!['snapshot', 'baseline', 'watcher_status', 'reset', 'status', 'heartbeat'].includes(event.event)) return false
     const data = JSON.parse(event.data)
-    this.serverClock(data.serverTimeMs)
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Incompatible event contract')
     let summary = this.value.summary
     if (event.event === 'snapshot') {
       if (!validSnapshot(data, this.poolId)) throw new Error('Incompatible snapshot contract')
@@ -435,6 +454,12 @@ export class SummaryClient {
         summary = receiveWatcher(summary, data)
       }
     } else if (event.event === 'reset') {
+      // Reset is an authority transition, not an arbitrary notice. Validate the
+      // complete discriminator before discarding an admitted baseline.
+      if (typeof data.datasetGeneration !== 'string' || !data.datasetGeneration.length || data.datasetGeneration.length > 128 ||
+          typeof data.epoch !== 'string' || !/^(0|[1-9][0-9]{0,127})$/.test(data.epoch) ||
+          typeof data.reasonCode !== 'string' || !data.reasonCode.length || data.reasonCode.length > 256)
+        throw new Error('Incompatible reset contract')
       summary = resetSummary(
         summary,
         data.reasonCode ?? 'verified accounting reset',
@@ -453,11 +478,16 @@ export class SummaryClient {
       // Dependency failure is an explicit temporary pause, not a new load and
       // not a broken transport. Only the server can clear this condition.
       summary = { ...summary, controlUnavailable: data.state === 'control_unavailable' }
+    } else if (event.event !== 'heartbeat' || !validTimestamp(data.serverTimeMs)) {
+      return false
     }
+    this.serverClock(data.serverTimeMs)
     this.publish({
       summary: expireInterest(summary, Date.now() + this.value.serverOffsetMs),
       health: receiveConnection(this.value.health, Date.now(), { ready: true, error: null }),
+      message: null,
     })
+    return true
   }
 
   private scheduleRenew() {

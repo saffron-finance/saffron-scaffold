@@ -56,13 +56,27 @@ export function Emblem3D({
 
     let scene: EmblemScene | undefined
     let cancelled = false
+    const controller = new AbortController()
 
     // Effects that outlive the async setup, registered once the scene exists.
     const teardown: Array<() => void> = []
+    let failed = false
+    // Every render entry point shares one cleanup path, including resize while
+    // reduced motion parks the animation loop. Notify the fallback only once.
+    const fail = (error: unknown) => {
+      if (cancelled || failed) return
+      failed = true
+      controller.abort()
+      teardown.splice(0).forEach((fn) => fn())
+      sceneRef.current = undefined
+      scene?.dispose()
+      onErrorRef.current?.(error)
+    }
 
     const reducedMotion = prefersReducedMotion()
 
     EmblemScene.create({
+      signal: controller.signal,
       container,
       modelUrl,
       matcapUrl,
@@ -70,12 +84,12 @@ export function Emblem3D({
       spinSpeed,
       tiltStrength: tilt && !reducedMotion ? undefined : 0,
       onContextLost: () =>
-        onErrorRef.current?.(new EmblemError('context-lost', 'WebGL context lost')),
+        fail(new EmblemError('context-lost', 'WebGL context lost')),
     })
       .then((created) => {
         // Unmounted (or Strict Mode's double-invoke re-ran the effect) while the
         // assets were in flight — the context would otherwise leak.
-        if (cancelled) {
+        if (cancelled || failed) {
           created.dispose()
           return
         }
@@ -90,11 +104,15 @@ export function Emblem3D({
         // across the new buffer. The first call is also what guarantees the
         // canvas is never blank once the placeholder has faded out.
         const applySize = () => {
-          const { width, height } = container.getBoundingClientRect()
-          created.setSize(width, height)
-          created.renderFrame()
+          if (cancelled || failed) return
+          try {
+            const { width, height } = container.getBoundingClientRect()
+            created.setSize(width, height)
+            created.renderFrame()
+          } catch (error) { fail(error) }
         }
         applySize()
+        if (failed) return
 
         const resizeObserver = new ResizeObserver(applySize)
         resizeObserver.observe(container)
@@ -142,12 +160,11 @@ export function Emblem3D({
         sync()
         onReadyRef.current?.()
       })
-      .catch((error) => {
-        if (!cancelled) onErrorRef.current?.(error)
-      })
+      .catch(fail)
 
     return () => {
       cancelled = true
+      controller.abort()
       teardown.forEach((fn) => fn())
       sceneRef.current = undefined
       scene?.dispose()

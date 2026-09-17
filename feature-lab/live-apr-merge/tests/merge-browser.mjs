@@ -137,10 +137,15 @@ try {
   await checkAprNavigation(page)
   for(const width of [640,800,1440]){await page.setViewportSize({width,height:1100});await checkHeaderControls(page)}
   await page.evaluate(()=>document.fonts.ready)
-  for(const width of [320,390,430,599,600,640,800,1001,1440,1600]){
+  for(const width of [320,390,430,599,600,640,800,1000,1001,1440,1600]){
     await page.setViewportSize({width,height:844})
-    for(const collapsed of width<600?[false]:[false,true]){
-      if(collapsed)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
+    const tablet=width>=600&&width<=1000
+    if(tablet){
+      await expect(page.locator('[data-saffron-sidebar]')).toHaveAttribute('data-collapsed','true')
+      await expect(page.locator('[data-sidebar-toggle]')).toBeHidden()
+    }
+    for(const collapsed of width<600?[false]:tablet?[true]:[false,true]){
+      if(collapsed&&!tablet)await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click()
       assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Home overflow '+width)
       const geometry=await page.locator('[data-incentive-offer]').evaluateAll(rows=>rows.map(row=>({
         duration:getComputedStyle(row.querySelector('[data-incentive-duration]')).font,
@@ -149,7 +154,7 @@ try {
       })))
       assert(geometry.every(row=>row.duration===row.tvl&&row.capacity===0))
       report.layouts.push({width,collapsed,geometry})
-      if(collapsed)await page.getByRole('button',{name:'Open sidebar',exact:true}).click()
+      if(collapsed&&!tablet)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click()
     }
     if([320,390,1440].includes(width))await page.screenshot({path:path.join(output,'home-'+width+'.png'),fullPage:true})
   }
@@ -166,7 +171,7 @@ try {
   assert.equal(fixture.state.sends,0)
   await page.getByRole('button',{name:'← Back',exact:true}).click()
   await page.getByRole('button',{name:'Close incentive vault',exact:true}).click()
-  report.checks.push('Ten responsive widths, shared header/portal paint and exact ETH fee at payment review only')
+  report.checks.push('Eleven responsive widths, including forced 600–1000px tablet collapse, shared header/portal paint and exact ETH fee at payment review only')
   await menuLink('Campaigns')
   await expect(page.getByLabel('Campaign request fee ETH')).toHaveValue('')
   await page.getByLabel('Campaign request fee ETH').fill('0.0000000000000000001')

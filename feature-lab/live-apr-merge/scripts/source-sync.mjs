@@ -11,6 +11,12 @@ export async function verifySources(root,backend){
       catch{failures.push(label+' missing or unreadable: '+file)}
     }
   }
+  // Adaptations are deliberately different from the historical backend UI,
+  // but still have explicit local integrity pins where recorded.
+  for(const [file,expected] of Object.entries(manifest.adaptedHashes??{})){
+    try{if(sourceHash(await readFile(resolve(root,file),'utf8'))!==expected)failures.push('Adapted import drift: '+file)}
+    catch{failures.push('Adapted import missing or unreadable: '+file)}
+  }
   if(failures.length)throw new Error(failures.join('\n'))
   return {ok:true,backendBaseline:manifest.backendCommit,exactFiles:Object.keys(manifest.exactFiles).length,comparedBackend:Boolean(backend),normalization:'CRLF to LF only'}
 }

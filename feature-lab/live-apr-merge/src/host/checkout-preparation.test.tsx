@@ -58,7 +58,7 @@ import {paymentRecordsKey,readPayments,savePayment} from './payment-records.mjs'
 
 afterEach(async()=>{cleanup();await disconnect();vi.useRealTimers()})
 
-it.each(['Back','unmount'])('N027: %s revokes pending network switching and releases quote preparation',async action=>{
+it.each(['Back','unmount','dismiss'])('N027: %s revokes pending network switching and releases quote preparation',async action=>{
   const held=deferred<unknown>()
   mocks.request.mockImplementation(args=>args.method==='eth_chainId'?Promise.resolve('0x1'):args.method==='wallet_switchEthereumChain'?held.promise:standard(args))
   const view=renderHook(()=>useDeploymentFlow(account));await flush()
@@ -66,6 +66,7 @@ it.each(['Back','unmount'])('N027: %s revokes pending network switching and rele
   expect(calls('wallet_switchEthereumChain')).toHaveLength(1);expect(locks.size).toBe(1)
   await act(async()=>{await vi.advanceTimersByTimeAsync(60_000)})
   if(action==='Back')await act(async()=>{expect(await view.result.current.reset(true)).toBe(true)})
+  else if(action==='dismiss')act(()=>view.result.current.cancelPreparation())
   else view.unmount()
   await act(async()=>{await work})
   expect(locks.size).toBe(0);expect(mocks.context).not.toHaveBeenCalled()

@@ -18,7 +18,8 @@ def visit(path):
     if (path.name in config['excludedNames'] or path.suffix in config['excludedSuffixes']
             or (path.name.startswith('.env') and path.name != '.env.example')):
         return
-    assert not path.is_symlink() and path.resolve().is_relative_to(root), 'Source export cannot follow links'
+    if path.is_symlink() or not path.resolve().is_relative_to(root):
+        raise ValueError('Source export cannot follow links')
     if path.is_dir():
         for child in path.iterdir():
             visit(child)
@@ -36,7 +37,8 @@ release = json.loads(subprocess.check_output(['node', '--input-type=module', '-e
     "import {sourceIdentity} from './scripts/release-source.mjs';console.log(JSON.stringify(sourceIdentity(process.cwd())))"], cwd=root, text=True))
 manifest = {'format': 1, 'release': release, 'files': files}
 output = Path(sys.argv[1]).resolve()
-assert output.suffix == '.zip', 'Use a ZIP output file'
+if output.suffix != '.zip':
+    raise ValueError('Use a ZIP output file')
 output.parent.mkdir(parents=True, exist_ok=True)
 with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
     for p in paths:

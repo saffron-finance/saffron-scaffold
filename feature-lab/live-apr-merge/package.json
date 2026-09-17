@@ -1,7 +1,7 @@
 {
   "name": "saffron-live-apr-merge",
   "private": true,
-  "version": "0.8.30",
+  "version": "0.8.31",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -13,7 +13,7 @@
     "build:live": "tsc --noEmit && vite build --mode live",
     "check:upstream": "node scripts/check_upstream.mjs",
     "test:backend-browser": "node tests/backend-browser.mjs",
-    "test:source": "node --test tests/source-sync.test.mjs tests/release-source.test.mjs",
+    "test:source": "node --test tests/source-sync.test.mjs tests/release-source.test.mjs tests/source-archive.test.mjs",
     "test:apr-http": "node tests/apr-http-browser.mjs",
     "test:release": "node --test tests/release-check.test.mjs",
     "test:release-browser": "node tests/release-browser.mjs",
@@ -24,7 +24,15 @@
     "test:wallet-preflight": "node tests/wallet-preflight-browser.mjs",
     "test:intake-policy": "node tests/intake-policy-browser.mjs",
     "test:downloads": "vite build --config tests/downloads.vite.ts && node tests/downloads-browser.mjs",
-    "test:high-recovery": "node tests/high-recovery-browser.mjs"
+    "test:high-recovery": "node tests/high-recovery-browser.mjs",
+    "test:checkout-dismissal": "node tests/checkout-dismissal-browser.mjs",
+    "test:emblem-native": "node --test tests/emblem-native.test.mjs",
+    "test:fast": "node scripts/test-lanes.mjs fast",
+    "test:lane:native": "node scripts/test-lanes.mjs native",
+    "test:lane:public": "node scripts/test-lanes.mjs public",
+    "test:lane:host": "node scripts/test-lanes.mjs host",
+    "test:lane:downloads": "node scripts/test-lanes.mjs downloads",
+    "check:test-catalog": "node scripts/check-test-catalog.mjs"
   },
   "dependencies": {
     "@reown/appkit": "1.8.19",

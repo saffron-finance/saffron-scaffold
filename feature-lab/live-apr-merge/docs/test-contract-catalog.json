@@ -1,0 +1,5352 @@
+{
+  "schemaVersion": 1,
+  "sourceAuditCommit": "497efe078685dfccf7c3224b0276f6e99c352eb2",
+  "sourceCatalogSha256": "f38a24c267c673c2e49eaa18195bc11d1c7f04d3127dd7d1a01f0e2248e97664",
+  "archiveSha256": "b2d24cc7b68973c8388ef55a7c720c2254490567868bc7fed417822a49432828",
+  "countingRule": "Planning entries are not passing tests. Runtime evidence and reviewed identity mapping are required. The 32 separate APR backend proposals are excluded.",
+  "contracts": [
+    {
+      "id": "FE-WAL-001",
+      "behavior": "Duplicate EIP-6963 announcements keep one selectable provider identity.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 23
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-002",
+      "behavior": "Two providers with different identities remain independently selectable.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-003",
+      "behavior": "A selected-provider replacement detaches every listener from the former provider.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-004",
+      "behavior": "Discovery refresh cannot silently switch the selected provider.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-005",
+      "behavior": "Silent account discovery uses eth_accounts and never requests account access.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-006",
+      "behavior": "A silent account read reaching its deadline fails without opening a wallet prompt.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-007",
+      "behavior": "A late silent-read success cannot mutate a timed-out wallet session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-008",
+      "behavior": "A late silent-read rejection is handled without an unhandled rejection.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-009",
+      "behavior": "Resuming a suspended tab applies the elapsed deadline before accepting a wallet result.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-010",
+      "behavior": "Account change invalidates a login started by the previous account.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-011",
+      "behavior": "Chain change invalidates a prepared send before the provider boundary.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-012",
+      "behavior": "Provider replacement invalidates a previous provider's prepared operation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-013",
+      "behavior": "Disconnect clears actionable authenticated state without deleting recovery records.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-014",
+      "behavior": "An empty accounts event disconnects rather than retaining the last account.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-015",
+      "behavior": "Malformed accounts events cannot publish an invalid account as connected.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-016",
+      "behavior": "Malformed chain identifiers cannot authorize a chain-specific action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-017",
+      "behavior": "A successful explicit switch uses the requested chain exactly once.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-018",
+      "behavior": "Unknown-chain recovery adds only the configured chain and then rechecks it.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-019",
+      "behavior": "A rejected chain switch sends neither a payment nor an add-chain request.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-020",
+      "behavior": "Cancellation during add-chain prevents every later payment call.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-021",
+      "behavior": "A stale switch response cannot restore an obsolete provider selection.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-022",
+      "behavior": "A provider that reports the wrong chain after switching remains ineligible to send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-023",
+      "behavior": "A connection prompt occurs only after an explicit user action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-024",
+      "behavior": "Double connection clicks share one outstanding connection request.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-025",
+      "behavior": "A rejected connection prompt leaves a clean retriable session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-026",
+      "behavior": "Operator-login signature payload binds the current configured operator and challenge; public payment recovery requests no message signature.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-027",
+      "behavior": "A replaced login challenge makes the old signature response ineligible.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-028",
+      "behavior": "A lost login response cannot be interpreted as authenticated success.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-029",
+      "behavior": "Logout while login is pending suppresses its late authenticated state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-030",
+      "behavior": "An operator login completion cannot overwrite a newer user-session revision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-031",
+      "behavior": "WalletConnect proposals with disallowed chains are rejected before session approval.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-032",
+      "behavior": "WalletConnect proposals with disallowed methods are rejected before session approval.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-033",
+      "behavior": "WalletConnect proposals missing required accounts cannot enable payment.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-034",
+      "behavior": "An expired WalletConnect proposal cannot be approved by a late callback.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-035",
+      "behavior": "A canceled WalletConnect proposal cannot reopen a dismissed connection modal.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-036",
+      "behavior": "WalletConnect session replacement removes old session event subscriptions.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-037",
+      "behavior": "WalletConnect namespace updates invalidate an incompatible active chain.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-038",
+      "behavior": "WalletConnect session expiry disables sends before requesting a replacement session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-039",
+      "behavior": "A queued operation revalidates account ownership immediately before provider send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-WAL-040",
+      "behavior": "Concurrent preflight consumers coalesce only identity-compatible read requests.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-001",
+      "behavior": "Double Continue clicks allocate one preparation owner and one checkout request.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-002",
+      "behavior": "Continue and Claim racing for one payment slot cannot both send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-003",
+      "behavior": "A draft is durably saved before any payment preparation that can become actionable.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-004",
+      "behavior": "Denied draft persistence prevents a wallet send and reports recoverable storage failure.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-005",
+      "behavior": "Storage quota exhaustion cannot replace an existing unresolved payment with an empty slot.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-006",
+      "behavior": "A lost checkout-creation reply keeps the saved request available for reconciliation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-007",
+      "behavior": "A quote for another chain is rejected before a provider send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-008",
+      "behavior": "A quote for another payer is rejected before a provider send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-009",
+      "behavior": "A quote for another recipient is rejected before a provider send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-010",
+      "behavior": "A quote with a changed amount cannot replace committed payment terms.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-011",
+      "behavior": "An expired quote cannot authorize a new send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-012",
+      "behavior": "A quote for another offer cannot be reused by changing the displayed selection.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-013",
+      "behavior": "A malformed quote response cannot publish a ready-to-pay UI state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-014",
+      "behavior": "The modal Close button cancels owned pre-send preparation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/checkout-dismissal-browser.mjs",
+          "line": 16
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-015",
+      "behavior": "Escape cancels owned pre-send preparation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/checkout-dismissal-browser.mjs",
+          "line": 16
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-016",
+      "behavior": "Overlay dismissal cancels owned pre-send preparation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/checkout-dismissal-browser.mjs",
+          "line": 16
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-017",
+      "behavior": "Route departure cancels owned pre-send preparation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/checkout-dismissal-browser.mjs",
+          "line": 16
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-018",
+      "behavior": "Account change during preparation requires a new explicit checkout attempt.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-019",
+      "behavior": "Chain change during preparation cannot reuse the old ready-to-send state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-020",
+      "behavior": "Dismissal during chain switching suppresses a later successful switch's send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-021",
+      "behavior": "Dismissal during fee estimation suppresses a later estimate's send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-022",
+      "behavior": "Dismissing after provider send preserves submitted-payment recovery evidence.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-023",
+      "behavior": "A provider rejection before submission leaves an explicit retriable unpaid record.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-024",
+      "behavior": "A lost provider response retains the original nonce and immutable quote.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-025",
+      "behavior": "Recovery without a hash checks the original nonce before permitting a retry.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-026",
+      "behavior": "A discovered pending transaction blocks another payment send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-027",
+      "behavior": "An explicitly retried unpaid payment reuses only its original nonce.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-028",
+      "behavior": "A retry cannot change destination calldata value or chain.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-029",
+      "behavior": "A nonce consumed by an unknown transaction blocks automatic replacement.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-030",
+      "behavior": "A replacement matching all immutable payment terms may advance recovery.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-031",
+      "behavior": "A replacement with different payment terms remains unresolved and cannot be accepted.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-032",
+      "behavior": "A canonical revert is retained as terminal evidence rather than rebroadcast.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-033",
+      "behavior": "An orphaned receipt returns to reconciliation instead of claiming payment finality.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-034",
+      "behavior": "One confirmation cannot satisfy a configured larger confirmation threshold.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-035",
+      "behavior": "Chain confirmation alone does not imply server acceptance.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-036",
+      "behavior": "A server rejection after chain confirmation preserves proof and permits safe resubmission of proof only.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-037",
+      "behavior": "A lost acceptance reply retries proof submission without repeating the payment.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-038",
+      "behavior": "Acceptance clears only the active pointer and retains the immutable history record.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-039",
+      "behavior": "A stale tab cannot erase a payment committed by a newer record revision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-040",
+      "behavior": "A stale tab cannot modify the hash of a newer unresolved record.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-041",
+      "behavior": "Failure to acquire the cross-tab checkout lock prevents provider send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-042",
+      "behavior": "Lock release on pre-send failure permits a later deliberate attempt.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-043",
+      "behavior": "A corrupt saved payment record fails closed without fabricating an empty slot.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-PAY-044",
+      "behavior": "A healthy explicit recovery after a canceled preparation creates only one active owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-001",
+      "behavior": "Deposit converts a valid decimal input to the exact token base-unit amount.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-002",
+      "behavior": "Deposit rejects decimal precision beyond the token's supported precision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-003",
+      "behavior": "Deposit rejects zero negative nonfinite and malformed amounts before transaction creation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-004",
+      "behavior": "Deposit cannot exceed the current spendable balance.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-005",
+      "behavior": "Deposit cannot exceed authoritative remaining vault capacity.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-006",
+      "behavior": "A capacity change during confirmation requires fresh actionable terms.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-007",
+      "behavior": "Wrapped-native funding uses the exact required value once.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-008",
+      "behavior": "Canceling wrap confirmation prevents the dependent deposit send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-009",
+      "behavior": "A failed wrap receipt cannot be treated as spendable wrapped balance.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-010",
+      "behavior": "An adequate allowance skips approval without skipping current identity checks.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-011",
+      "behavior": "An inadequate allowance creates one approval for the configured spender.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-012",
+      "behavior": "An allowance for another spender cannot authorize the deposit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-013",
+      "behavior": "A reset-required token performs zero approval before the target approval.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-014",
+      "behavior": "Failure of the zero-approval receipt stops the target approval and deposit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-015",
+      "behavior": "Approval rejection prevents every dependent deposit send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-016",
+      "behavior": "Account change after approval prevents deposit from the old account.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-017",
+      "behavior": "Chain change after approval prevents deposit on the new chain.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-018",
+      "behavior": "Approval receipt mismatch cannot unlock a dependent action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-019",
+      "behavior": "The deposit transaction encodes the current immutable vault and amount.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-020",
+      "behavior": "A deposit receipt from another chain cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-021",
+      "behavior": "A deposit receipt with another sender cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-022",
+      "behavior": "A deposit receipt with another nonce cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-023",
+      "behavior": "A deposit receipt targeting another contract cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-024",
+      "behavior": "A deposit receipt with changed calldata cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-025",
+      "behavior": "A deposit receipt with changed value cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-026",
+      "behavior": "A deposit receipt missing the required event cannot complete the intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-027",
+      "behavior": "A receipt removed by reorg returns the action to recovery.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-028",
+      "behavior": "A valid same-intent replacement transaction preserves the original intent identity.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-029",
+      "behavior": "An unrelated nonce replacement blocks automatic rebroadcast.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-030",
+      "behavior": "Concurrent claim clicks send only once for one owned claim intent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-031",
+      "behavior": "A claim receipt for another position cannot clear the current claim journal.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-032",
+      "behavior": "Withdraw cannot send from a stale maturity or eligibility snapshot.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-033",
+      "behavior": "A withdrawal receipt cannot remove another position's saved state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-034",
+      "behavior": "Recovery resubmits evidence rather than sending another already-mined action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-035",
+      "behavior": "Funding a vault uses the authoritative current token and vault addresses.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-036",
+      "behavior": "A mode change during wallet confirmation cannot commit a disallowed action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-037",
+      "behavior": "Journal write failure before send prevents provider invocation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-038",
+      "behavior": "Journal write failure after send retains an explicit unresolved-action state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-039",
+      "behavior": "Reload resumes from a saved hash without opening a new wallet prompt.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-040",
+      "behavior": "Unmount before send cancels preparation and releases its owned action lock.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-041",
+      "behavior": "Unmount after send preserves journal evidence without late UI publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-042",
+      "behavior": "A newer cross-tab intent defeats stale recovery completion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-043",
+      "behavior": "Manual hash editing cannot overwrite an intent owned by a newer tab.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POS-044",
+      "behavior": "A terminal successful action releases its owner while preserving auditable history.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-001",
+      "behavior": "A hidden nonessential polling consumer stops issuing refreshes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-002",
+      "behavior": "A visibility restoration schedules one immediate refresh rather than a burst.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-003",
+      "behavior": "A frozen-tab deadline is enforced before accepting a late generic API response.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-004",
+      "behavior": "An event storm coalesces into at most one pending follow-up refresh.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-005",
+      "behavior": "Overlapping refresh requests cannot publish older data over a newer version.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-006",
+      "behavior": "A stale error cannot replace a newer successful result.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-007",
+      "behavior": "A disabled consumer creates no polling timer or network read.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-008",
+      "behavior": "Unmount during fetch aborts the owned request and suppresses late publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-009",
+      "behavior": "A fetch deadline propagates an abort to the transport rather than only rejecting a wrapper.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-010",
+      "behavior": "A header-success response with a stalled body still reaches the total deadline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-011",
+      "behavior": "Generic JSON transport rejects a decoded body above its byte budget.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-012",
+      "behavior": "Generic JSON transport rejects an oversized collection before expensive per-row work.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-013",
+      "behavior": "Retry backoff reaches its documented cap without timer accumulation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-014",
+      "behavior": "Retry jitter stays inside deterministic configured bounds.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-015",
+      "behavior": "An explicit manual refresh cannot bypass the shared concurrency budget.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-016",
+      "behavior": "Authoritative mutation invalidation schedules a refresh even inside display-cache freshness.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-017",
+      "behavior": "A failed optional price lookup does not cancel healthy catalog polling.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-018",
+      "behavior": "Price-cache keys partition token identity by chain and address.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-019",
+      "behavior": "A metadata response naming another token address is rejected before caching under the requested token.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-020",
+      "behavior": "A failed price lookup respects its negative-cache cooldown.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-021",
+      "behavior": "Expired price entries are evicted before admitting more retained metadata.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-022",
+      "behavior": "Concurrent consumers of one price key share one underlying read.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-023",
+      "behavior": "A full generic pending queue rejects new work without growing retained owners.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-POLL-024",
+      "behavior": "The first healthy result after outage restores actionable fresh state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-001",
+      "behavior": "A pristine configuration editor adopts a newer server revision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-002",
+      "behavior": "A dirty editor retains unsaved values when background configuration refreshes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-003",
+      "behavior": "A save serializes values from one coherent draft revision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-004",
+      "behavior": "A rejected save keeps the editable draft and does not publish a false saved state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-005",
+      "behavior": "A lost save reply reconciles the server revision before allowing duplicate mutation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-006",
+      "behavior": "A stale save completion cannot overwrite a newer local edit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-007",
+      "behavior": "A server revision conflict prompts an explicit merge or reload without silent overwrite.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-008",
+      "behavior": "A later status version cannot be replaced by an earlier response.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-009",
+      "behavior": "An auxiliary health outage does not disable an otherwise authorized Pause mutation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-010",
+      "behavior": "Account switch clears the prior operator's enabled mutation controls.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-011",
+      "behavior": "Loss of authorization immediately disables controls despite cached successful status.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-012",
+      "behavior": "A failed operator signature does not leave an authenticated editor state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-013",
+      "behavior": "Configuration loading never requests an unsolicited wallet signature.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-014",
+      "behavior": "A changed configuration invalidates only affected lookup and readiness state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-015",
+      "behavior": "Offer pagination completion cannot overwrite another selected page.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-016",
+      "behavior": "A stale token search cannot overwrite a newer query's matches.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-017",
+      "behavior": "A stale pair lookup cannot bind an earlier token pair to the current draft.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-018",
+      "behavior": "An empty token search clears choices without selecting an unrelated cached token.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-019",
+      "behavior": "An unauthorized mutation response preserves the draft while ending mutation authority.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-020",
+      "behavior": "Double refund submission shares one UI mutation owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-021",
+      "behavior": "A lost refund response initiates status reconciliation rather than another payout action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-022",
+      "behavior": "A failed Pause mutation retains its error until a newer explicit result arrives.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-023",
+      "behavior": "Changing selected campaign invalidates pending configuration actions for the prior campaign.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-OPS-024",
+      "behavior": "Unmount removes configuration subscriptions without losing persisted recovery records.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-001",
+      "behavior": "A rejected entry download leaves an actionable pre-framework recovery link.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-002",
+      "behavior": "A rejected dynamic main import leaves an actionable Reload control.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-003",
+      "behavior": "JavaScript-disabled startup presents useful fallback content without impossible active controls.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-004",
+      "behavior": "Healthy application mount removes the startup skeleton exactly once.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-005",
+      "behavior": "A root render failure preserves saved requests for explicit recovery.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-006",
+      "behavior": "An APR section render failure leaves application navigation usable.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-007",
+      "behavior": "Returning to a failed section through navigation resets only its section boundary.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-008",
+      "behavior": "The recovery button causes one explicit reload without writing user payment state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-009",
+      "behavior": "Warm cache at its documented serialized-size boundary is handled without exceeding the read budget.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-010",
+      "behavior": "Warm cache offer-count overflow is rejected before display expansion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-011",
+      "behavior": "Expired or implausibly future cache timestamps prevent warm display authority.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-012",
+      "behavior": "Malformed nested token fields cause safe cache rejection.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-013",
+      "behavior": "Blocked local storage cannot prevent application startup or recovery.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-014",
+      "behavior": "Font failure or indefinite loading cannot exceed the startup font deadline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-015",
+      "behavior": "A visible stalled animation-frame scheduler cannot block main import indefinitely.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-016",
+      "behavior": "A hidden tab starts without waiting for an animation frame that may never occur.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-017",
+      "behavior": "A rejected decorative lazy chunk retains a still logo and usable surrounding controls.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-018",
+      "behavior": "Data-saver mode does not start decorative asset loads.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-019",
+      "behavior": "An offscreen decorative owner does not start unnecessary asset loads.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-020",
+      "behavior": "Unmount cancels its pending decorative idle callback.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-021",
+      "behavior": "A failed texture load cancels sibling asset requests owned by the same scene.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/EmblemTransport.test.ts",
+          "line": 7
+        },
+        {
+          "file": "tests/emblem-native.test.mjs",
+          "line": 38
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-022",
+      "behavior": "A model-body deadline closes the actual model transport before browser shutdown.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/EmblemTransport.test.ts",
+          "line": 17
+        },
+        {
+          "file": "tests/emblem-native.test.mjs",
+          "line": 38
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-023",
+      "behavior": "Owner abort closes the actual decorative transport independently of timeout.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/EmblemTransport.test.ts",
+          "line": 28
+        },
+        {
+          "file": "tests/emblem-native.test.mjs",
+          "line": 38
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-024",
+      "behavior": "Assets arriving after cancellation are disposed exactly once without scene publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-025",
+      "behavior": "A constructor failure before GPU creation releases every previously acquired asset.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-026",
+      "behavior": "A post-renderer setup failure disposes renderer and removes its appended canvas.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-027",
+      "behavior": "An initial paint exception yields one fallback and releases scene resources.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-028",
+      "behavior": "A resize sizing exception disconnects observation and yields one fallback.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-029",
+      "behavior": "A resize render exception disconnects observation and yields one fallback.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-030",
+      "behavior": "An animation render exception stops subsequent frame scheduling.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-031",
+      "behavior": "Context loss triggers fail-once teardown without a continuing frame loop.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-032",
+      "behavior": "Repeated complete decorative lifetimes return all resource counters to baseline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-033",
+      "behavior": "Reduced-motion mode paints without an ongoing animation loop.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-034",
+      "behavior": "A hidden document suspends the decorative animation loop.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-035",
+      "behavior": "An offscreen scene suspends the decorative animation loop.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-036",
+      "behavior": "Visible resumption owns exactly one scheduled frame.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-037",
+      "behavior": "A speed-property update reuses the existing scene without duplicate animation ownership.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-038",
+      "behavior": "Disposal removes every pointer listener installed by the scene.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-039",
+      "behavior": "A failed fallback image leaves a usable text still instead of an empty shell.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BOOT-040",
+      "behavior": "Repeated disposal is safe and does not double-dispose owned resources.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-001",
+      "behavior": "Return Home completes real router navigation while preserving an unresolved payment record.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-002",
+      "behavior": "A direct deep link loads the correct section without a preceding home visit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-003",
+      "behavior": "An unknown application route renders a deliberate not-found state rather than a blank root.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-004",
+      "behavior": "Back and Forward preserve one active section owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-005",
+      "behavior": "A modal traps keyboard focus while open.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-006",
+      "behavior": "Closing a modal restores focus to its initiating control.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-007",
+      "behavior": "Two real tabs cannot both acquire the checkout-send Web Lock.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-008",
+      "behavior": "A closed tab releases its pre-send browser lock for an explicit attempt elsewhere.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-009",
+      "behavior": "A storage event from another tab updates actionable recovery ownership.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-010",
+      "behavior": "A nested-path deployment scopes its browser session cookie to the intended API namespace rather than unrelated preview routes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-011",
+      "behavior": "Restoring the page from bfcache revalidates wallet identity before enabling actions.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-012",
+      "behavior": "Offline-to-online transition resumes a safe read without automatically sending a payment.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-013",
+      "behavior": "Static mock build emits no forbidden live RPC requests during navigation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-014",
+      "behavior": "The deployed nested base path resolves application assets and browser routes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-015",
+      "behavior": "The release source manifest detects a tampered archived product file before executing its contents.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-016",
+      "behavior": "The refund CSV download contains the exact frozen server manifest rather than recomputed remaining amounts.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-017",
+      "behavior": "A completed refund CSV download revokes its owned object URL after the configured delay.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-018",
+      "behavior": "The refund CSV download has the batch-bound filename and documented CSV content type.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-019",
+      "behavior": "A browser reload after provider submission opens the saved recovery state without resend.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-020",
+      "behavior": "All actionable checkout modal controls have accessible names and remain operable through keyboard navigation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-021",
+      "behavior": "Mobile operator controls remain reachable without horizontal document overflow across the supported viewport variants.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-022",
+      "behavior": "The release archive runs its documented tests after extraction into a fresh path.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-023",
+      "behavior": "Independent package installation resolves test setup dependencies from the owning package.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "FE-BROW-024",
+      "behavior": "Root server integration owns a deterministic static fixture rather than a stale developer build.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-001",
+      "behavior": "An incomplete SSE frame at the retained-parser byte boundary is handled without exceeding parser capacity.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-002",
+      "behavior": "A single SSE frame above its size cap is rejected and its body canceled.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-003",
+      "behavior": "Missing Content-Length cannot bypass retained incomplete-frame and per-event SSE byte limits.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-004",
+      "behavior": "A healthy long-lived SSE connection accepts many complete valid frames without a total-lifetime byte cutoff, including multiple frames in one chunk.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-005",
+      "behavior": "UTF-8 code points split across chunks decode without corrupted event content.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-006",
+      "behavior": "A truncated terminal UTF-8 sequence fails without publishing partial accounting state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-007",
+      "behavior": "A stalled stream header reaches its header deadline and aborts the request.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 69
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-008",
+      "behavior": "A header-success stalled initial body reaches its qualification deadline.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 75
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-009",
+      "behavior": "A pre-aborted stream attempt performs no fetch.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-010",
+      "behavior": "Abort during a read cancels the locked reader and prevents later event publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-011",
+      "behavior": "A stream reader error cleans its owner before retry.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 82
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-012",
+      "behavior": "A terminal authorization status stops retries and disables the stream.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-013",
+      "behavior": "A retriable server status follows deterministic exponential backoff.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-014",
+      "behavior": "HTTP 200 with wrong MIME continues the failure backoff instead of resetting it.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 29
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-015",
+      "behavior": "Immediate EOF before a healthy interval continues the failure backoff.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 37
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-016",
+      "behavior": "Malformed event JSON continues the failure backoff.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 41
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-017",
+      "behavior": "A genuinely healthy stream resets the retry budget at the documented qualification point.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 45
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-018",
+      "behavior": "Retry delay reaches its documented maximum without integer or timer overflow.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 53
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-019",
+      "behavior": "Jitter remains within the documented per-attempt range.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 57
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-020",
+      "behavior": "Stop removes every scheduled retry timer.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/summary-client.retry-budget.test.ts",
+          "line": 64
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-021",
+      "behavior": "Four comparison tiles respect the documented shared stream ownership limit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-022",
+      "behavior": "A rejected native-fetch response leaves no open loopback response before page stop.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-023",
+      "behavior": "A successful stream stopped by route departure closes its actual native connection.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HTTP-024",
+      "behavior": "A failed control response closes its body and cannot leak an admission retry owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-001",
+      "behavior": "A non-object top-level snapshot is rejected before field traversal.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 10
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-002",
+      "behavior": "A snapshot missing a required identity field is rejected.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 13
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-003",
+      "behavior": "Accounting fields are validated independently rather than inferred from one another.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 18
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-004",
+      "behavior": "An integer string at the documented digit limit is accepted without truncation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 23
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-005",
+      "behavior": "An integer string above the digit limit is rejected before bigint allocation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 27
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-006",
+      "behavior": "Signed or fractional text cannot enter unsigned cumulative accounting.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 31
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-007",
+      "behavior": "Nonfinite numeric rates cannot publish an APR value.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-008",
+      "behavior": "An unknown schema version fails closed without dropping a valid current snapshot.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/event-authority.test.ts",
+          "line": 23
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-009",
+      "behavior": "A stale version cannot overwrite a newer accepted snapshot.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 42
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-010",
+      "behavior": "Coverage-start time outside the JavaScript Date range is rejected.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 47
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-011",
+      "behavior": "Last-swap time outside the JavaScript Date range is rejected.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 47
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-012",
+      "behavior": "Quote time outside the JavaScript Date range is rejected.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 48
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-013",
+      "behavior": "Watcher deadline outside the JavaScript Date range is rejected.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 48
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-014",
+      "behavior": "Paused-at time outside the JavaScript Date range is rejected.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 49
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-015",
+      "behavior": "The exact supported Date maximum remains a valid boundary value.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 54
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-016",
+      "behavior": "Invalid retained timestamp presentation returns Unavailable instead of throwing.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 58
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-017",
+      "behavior": "Malformed transaction hashes cannot enter history or observation state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-018",
+      "behavior": "A snapshot for another pool cannot update the selected tile.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 61
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-019",
+      "behavior": "A snapshot for another chain cannot update the selected tile.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 64
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-020",
+      "behavior": "A reset event must satisfy its discriminated schema before resetting accounting.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/event-authority.test.ts",
+          "line": 28
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-021",
+      "behavior": "A status event must satisfy its discriminated schema before changing notices.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/event-authority.test.ts",
+          "line": 40
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-022",
+      "behavior": "An oversized snapshot is rejected before publishing any contained rows.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 67
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-023",
+      "behavior": "A malformed heartbeat deadline cannot extend an admitted observation lease.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/event-authority.test.ts",
+          "line": 47
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-WIRE-024",
+      "behavior": "An overlong diagnostic field is bounded before retention or presentation.",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/wire-contracts.test.ts",
+          "line": 70
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-001",
+      "behavior": "StrictMode effect replay shares one logical entry admission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-002",
+      "behavior": "A real section leave releases its admission exactly once.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-003",
+      "behavior": "A query-only route change preserves an otherwise unchanged pool admission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-004",
+      "behavior": "Removing and readding a tile creates a new owner rather than reviving a released owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-005",
+      "behavior": "A bfcache resume revalidates the lease before consuming live updates.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-006",
+      "behavior": "Late admission success after leave is released without opening a stream.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-007",
+      "behavior": "A pending renewal completed after leave cannot restore the old lease.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-008",
+      "behavior": "A failed renewal retains only explicitly permitted last-good display state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-009",
+      "behavior": "Hidden-tab elapsed time expires leases using authoritative time.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-010",
+      "behavior": "Visibility restoration does not allocate a duplicate live admission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-011",
+      "behavior": "The exact lease deadline disables further processing before another renewal response.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-012",
+      "behavior": "Blocked session storage falls back without leaking multiple entry identities.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-013",
+      "behavior": "Corrupt cached admission data cannot be used as an authenticated receipt.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-014",
+      "behavior": "A namespace change invalidates incompatible cached session state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-015",
+      "behavior": "Concurrent release triggers send at most one logical release for one admission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-016",
+      "behavior": "Rejected release requests do not retain local timers indefinitely.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-017",
+      "behavior": "A stopped entry ignores late control-response success.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-LIFE-018",
+      "behavior": "Recovery after an expired owner creates one fresh owned stream and no old listeners.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-001",
+      "behavior": "Large cumulative Q36 values are subtracted before floating-point conversion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-002",
+      "behavior": "A zero-length observation interval cannot produce Infinity or NaN.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-003",
+      "behavior": "A negative corrected delta follows the explicit correction policy without unsigned wrap.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-004",
+      "behavior": "A duplicate sequence cannot double-count fees.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-005",
+      "behavior": "An out-of-order sequence cannot rewind the accepted accounting state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-006",
+      "behavior": "A new epoch discards incompatible cumulative baselines.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-007",
+      "behavior": "A namespace reset invalidates the old sequence even when sequence numbers match.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-008",
+      "behavior": "A baseline arriving after a newer update cannot reverse the interval.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-009",
+      "behavior": "A join receipt establishes coverage only from the admitted observation boundary.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-010",
+      "behavior": "Pre-join historical activity is not presented as newly observed yield.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-011",
+      "behavior": "Paused valuation freezes the documented display state without accruing fabricated returns.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-012",
+      "behavior": "A missing token price produces an unavailable valuation rather than zero-price yield.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-013",
+      "behavior": "A recovered price rebuilds coherent valuation from the current accounting baseline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-014",
+      "behavior": "Interpolation advances only within the documented healthy coverage interval.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-015",
+      "behavior": "An expired watcher deadline stops interpolation even while the tab is hidden.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-016",
+      "behavior": "A replayed snapshot cannot duplicate an already delivered observation notice.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-017",
+      "behavior": "A completed notice leaves its finite ownership set according to retention policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-018",
+      "behavior": "Two compared pools keep independent accounting baselines.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-019",
+      "behavior": "A zero-liquidity denominator yields an explicit unavailable APR.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-ACC-020",
+      "behavior": "A valid first funded interval transitions from cold start to a finite coherent APR.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-001",
+      "behavior": "Pausing history aborts its request and clears busy immediately.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-002",
+      "behavior": "Collapsing history aborts its request and clears busy immediately.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-003",
+      "behavior": "Losing valuation eligibility aborts history and clears busy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-004",
+      "behavior": "Closing the history panel aborts work and clears busy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-005",
+      "behavior": "A late successful canceled page cannot replace current rows.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-006",
+      "behavior": "A late failed canceled page cannot overwrite current error state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-007",
+      "behavior": "A replacement page request owns busy until its own completion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-008",
+      "behavior": "Changing epoch resets the cursor before the next history request.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-009",
+      "behavior": "Rows outside the requested block interval are rejected rather than silently included.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-010",
+      "behavior": "A page at the documented twenty-row limit is accepted intact.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-011",
+      "behavior": "A page above the row limit is rejected before publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-012",
+      "behavior": "An oversized history response aborts before whole-body retention.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-013",
+      "behavior": "A malformed row invalidates the response according to the documented all-or-nothing policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-014",
+      "behavior": "Automatic refresh touches the latest page without restarting every older page.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-015",
+      "behavior": "A failed history request retries only through the documented explicit retry action.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-HIST-016",
+      "behavior": "One tile's pagination cancellation does not cancel another tile's owned page.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-001",
+      "behavior": "Unsupported clipboard capability fails without allocating a capture root.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-002",
+      "behavior": "Denied clipboard permission removes its owned capture root.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-003",
+      "behavior": "Cancellation during dynamic capture import prevents root publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-004",
+      "behavior": "Cancellation while fonts are pending removes the temporary render root.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-005",
+      "behavior": "Cancellation while decode is pending retains the occupied underlying job slot.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-006",
+      "behavior": "A decoder error disposes the render root and permits a later deliberate capture.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-007",
+      "behavior": "The capture owner deadline removes the root without admitting a second still-running decoder.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-008",
+      "behavior": "A null encoder result fails explicitly without leaving a pending UI owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-009",
+      "behavior": "A rejected encoder promise is handled without an unhandled rejection.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-010",
+      "behavior": "Cross-tile capture requests share the documented global single-flight limit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-011",
+      "behavior": "Repeated clipboard denial cannot accumulate roots or decoder jobs.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-CAP-012",
+      "behavior": "After old work actually settles a new explicit capture succeeds and releases all ownership.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-001",
+      "behavior": "Unavailable valuation renders its explicit status rather than a numeric zero APR.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-002",
+      "behavior": "A cold-start pool does not display fabricated prior observation coverage.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-003",
+      "behavior": "An unknown APR pool route is rejected before admission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-004",
+      "behavior": "A canonical pool alias is normalized before selecting its admission key.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-005",
+      "behavior": "Duplicate comparison IDs do not allocate duplicate tiles or admissions.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-006",
+      "behavior": "A fifth comparison selection is refused without creating another stream.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-007",
+      "behavior": "Pool search performs no on-chain RPC.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-008",
+      "behavior": "Closing the pool menu removes its document event listener.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-009",
+      "behavior": "Keyboard selection with zero search results is a safe no-op.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-010",
+      "behavior": "Exporting a displayed pool does not start another observation session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-011",
+      "behavior": "A pool replacement transfers focus without retaining the removed tile's controls.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-012",
+      "behavior": "A pool status notice is exposed through stable accessible text.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-013",
+      "behavior": "Removing the final APR tile stops public client demand without requiring browser shutdown.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "APR-UI-014",
+      "behavior": "A blocked optional history endpoint leaves live APR observation and navigation working.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-001",
+      "behavior": "A request body exactly at its byte cap is accepted when structurally valid.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-002",
+      "behavior": "A request body one byte over its cap is rejected before an upstream call.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-003",
+      "behavior": "Multi-byte UTF-8 chunking cannot bypass request-byte accounting.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-004",
+      "behavior": "A missing request Content-Length cannot bypass the streaming request cap.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-005",
+      "behavior": "A malformed JSON request yields a bounded client error without crashing the listener.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-006",
+      "behavior": "A non-array non-object JSON-RPC root is rejected without upstream work.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-007",
+      "behavior": "An empty RPC batch is rejected rather than sent upstream.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-008",
+      "behavior": "An oversized batch is rejected before method iteration allocates unbounded work.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-009",
+      "behavior": "A batch containing one forbidden signing method sends none of its members upstream.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-010",
+      "behavior": "A nested malformed batch member is rejected before any allowed sibling is sent.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-011",
+      "behavior": "An inherited prototype property cannot resolve as a configured chain slug.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-012",
+      "behavior": "An unknown chain fails closed without leaking provider configuration.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-013",
+      "behavior": "A non-POST RPC request never reaches the upstream provider.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-014",
+      "behavior": "A forbidden send-transaction RPC method cannot pass the read-only relay.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-015",
+      "behavior": "A malformed percent-encoded path returns a client error while the server stays healthy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-016",
+      "behavior": "An upstream stalled before headers is aborted at its deadline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-017",
+      "behavior": "An upstream stalled after headers is aborted at its total body deadline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-018",
+      "behavior": "Client disconnect before upstream headers cancels its owned read.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-019",
+      "behavior": "Client disconnect during upstream body consumption cancels its owned read.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-020",
+      "behavior": "A relay response exceeding its decoded-byte cap is canceled before full parsing.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-021",
+      "behavior": "An absent upstream Content-Length cannot bypass the response cap.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-022",
+      "behavior": "A misleading upstream Content-Length cannot bypass the response cap.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-023",
+      "behavior": "An upstream non-JSON error body is not reflected with provider secrets.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-024",
+      "behavior": "A provider 429 error produces redacted bounded diagnostics.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-025",
+      "behavior": "A provider 5xx error does not expose authenticated upstream URLs.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-026",
+      "behavior": "A full shared relay queue rejects excess work without retaining more pending owners.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-027",
+      "behavior": "The active relay cap holds across root request concurrency rather than only per call.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-028",
+      "behavior": "An eligible request progresses after a stalled predecessor is canceled.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-029",
+      "behavior": "A valid request succeeds after a malformed or timed-out predecessor.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-HTTP-030",
+      "behavior": "Missing static assets return a failure status rather than successful SPA HTML.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-001",
+      "behavior": "A valid signature for the issued challenge creates the expected wallet-bound session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-002",
+      "behavior": "A replaced challenge cannot authenticate with its old signature.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-003",
+      "behavior": "A consumed challenge cannot authenticate a second time.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-004",
+      "behavior": "An expired challenge cannot allocate a new authenticated session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-005",
+      "behavior": "A challenge for wallet A cannot authenticate wallet B.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-006",
+      "behavior": "A challenge from another configured domain cannot authenticate this service.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-007",
+      "behavior": "An exact allowed Origin passes the documented mutation-origin check.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-008",
+      "behavior": "An origin sharing only a hostname suffix is rejected.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-009",
+      "behavior": "A missing required mutation Origin fails according to the documented policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-010",
+      "behavior": "An invalid CSRF token cannot authorize a session-bound mutation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-011",
+      "behavior": "A CSRF token from another session cannot authorize a mutation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-012",
+      "behavior": "Verified browser-session rotation invalidates and removes the replaced entry so repeated recovery cannot fill retained session capacity.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-013",
+      "behavior": "Cookie flags reflect secure same-site HTTP-only session policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-014",
+      "behavior": "A logged-out session cannot reuse an old cookie to regain mutation authority.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-015",
+      "behavior": "Expired sessions are removed from retained session capacity.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-016",
+      "behavior": "Public anonymous requests cannot consume the operator-reserved control budget.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-017",
+      "behavior": "Invalid signatures allocate no authenticated capacity.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-018",
+      "behavior": "Malformed proof bodies allocate no challenge or session owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-019",
+      "behavior": "Concurrent valid login completions obey a single session-capacity decision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-020",
+      "behavior": "Session capacity rejection does not evict an unrelated active operator.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-021",
+      "behavior": "A lost login response can be reconciled without duplicate retained session ownership.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-022",
+      "behavior": "Rate accounting uses a validated client identity policy behind a trusted proxy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-023",
+      "behavior": "Untrusted forwarded headers cannot bypass request admission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-024",
+      "behavior": "A public diagnostics burst cannot block an already authenticated Pause operation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-025",
+      "behavior": "A failed challenge store operation produces no partially authorized session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-026",
+      "behavior": "A failed session publication leaves no reusable half-issued authority.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-027",
+      "behavior": "A paid nonoperator session cannot invoke a configured-operator-only administrative mutation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-AUTH-028",
+      "behavior": "Repeated session lifecycle completion returns owned timers and listeners to baseline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-001",
+      "behavior": "Expired unreferenced anonymous checkout capabilities are eligible for cleanup.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-002",
+      "behavior": "A capability referenced by an unresolved payment is retained after nominal TTL.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-003",
+      "behavior": "Cleanup preserves referential integrity across checkout and quote records.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-004",
+      "behavior": "A fresh anonymous cookie is reused without allocating a new capability on every read.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-005",
+      "behavior": "Quote creation with one idempotency identity returns one durable quote.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-006",
+      "behavior": "Concurrent identical quote requests commit only one authoritative quote.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-007",
+      "behavior": "An idempotency identity cannot be reused with different committed terms.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-008",
+      "behavior": "A quote binds the authoritative current pair configuration.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-009",
+      "behavior": "A pair edit concurrent with quote creation yields one coherent revision.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-010",
+      "behavior": "A program edit concurrent with quote creation cannot mix old and new fields.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-011",
+      "behavior": "An intake-policy change is rechecked at the transaction's authoritative admission point.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-012",
+      "behavior": "Closed intake rejects new work while retaining existing paid recovery.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-013",
+      "behavior": "Paused campaign mode cannot admit an otherwise ready new checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-014",
+      "behavior": "A mode change racing campaign creation yields a permitted committed state or clean rollback.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-015",
+      "behavior": "A campaign deletion cannot orphan an active paid checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-016",
+      "behavior": "Payment acceptance racing cancellation commits only a lawful terminal transition.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-017",
+      "behavior": "Canceling an unpaid quote releases only its own reservable state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-018",
+      "behavior": "A payment-bound quote cannot be edited after submission.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-019",
+      "behavior": "The checkout transaction validates authoritative recipient rather than client-provided display data.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-020",
+      "behavior": "The checkout transaction validates authoritative fee amount rather than client arithmetic.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-021",
+      "behavior": "A mismatched payer cannot attach proof to another checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-022",
+      "behavior": "An unknown checkout identifier cannot allocate a recovery record.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-023",
+      "behavior": "A database exception before commit rolls back all partial quote state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-024",
+      "behavior": "A commit acknowledgement loss is reconciled by idempotent lookup rather than duplicate insertion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-025",
+      "behavior": "A lock wait exceeds its deadline without hanging a request owner indefinitely.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-026",
+      "behavior": "A timed-out transaction client is reset before being reused.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-027",
+      "behavior": "Concurrent cleanup runs do not delete the same protected record inconsistently.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-028",
+      "behavior": "Retention uses bounded chunks rather than loading all expired rows into memory.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-029",
+      "behavior": "Cleanup makes progress when one retained record is ineligible for deletion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-030",
+      "behavior": "Paid records are never removed by anonymous capability retention.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-031",
+      "behavior": "An unavailable database fails checkout admission closed without a usable payment quote.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CHECK-032",
+      "behavior": "The next healthy checkout succeeds after a prior rolled-back transient failure.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-001",
+      "behavior": "A checked-out database client error during lease acquisition is contained.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-002",
+      "behavior": "A checked-out client error during payment lookup is contained.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-003",
+      "behavior": "A checked-out client error during proof persistence rolls back partial state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-004",
+      "behavior": "A checked-out client error during cursor update does not publish a completed scan.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-005",
+      "behavior": "A stale advisory-lock fence cannot commit watcher progress.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-006",
+      "behavior": "Lease loss during RPC verification prevents the old owner from accepting a payment.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-007",
+      "behavior": "A canonical reorg invalidates previously observed nonfinal payment evidence.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-008",
+      "behavior": "A reset to an earlier canonical block replays safely without duplicate acceptance.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-009",
+      "behavior": "The same fee transaction cannot pay two independent checkouts.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-010",
+      "behavior": "A transfer with the wrong amount cannot settle the checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-011",
+      "behavior": "A transfer to the wrong recipient cannot settle the checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-012",
+      "behavior": "A transfer from the wrong payer cannot settle the checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-013",
+      "behavior": "Proof from the wrong chain cannot settle the checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-014",
+      "behavior": "A native creation-fee transaction with input different from paymentData of the immutable quote cannot settle the checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-015",
+      "behavior": "A public payment hash without its matching private recovery capability cannot authenticate a payment session.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-016",
+      "behavior": "A stale noncanonical block hash cannot prove a payment.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-017",
+      "behavior": "A reverted transaction cannot settle the checkout.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-018",
+      "behavior": "A receipt transactionHash different from the requested native payment hash cannot borrow its confirmations.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-019",
+      "behavior": "Native transaction and receipt blockHash or blockNumber disagreement cannot prove canonical inclusion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-020",
+      "behavior": "Absent or unknown native receipt status remains unconfirmed rather than accepted.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-021",
+      "behavior": "A native payment block timestamp beyond safe millisecond conversion is rejected before Date arithmetic.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-022",
+      "behavior": "An oversized block response is rejected before whole-block accumulation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-023",
+      "behavior": "A watcher pass scans no more than its configured maximum block range.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-024",
+      "behavior": "One poisoned payment candidate cannot silently discard other healthy candidates.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-025",
+      "behavior": "The cursor advances only after every required item in a canonical block is processed.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-026",
+      "behavior": "A partial RPC failure leaves the cursor at a safely replayable checkpoint.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-027",
+      "behavior": "A duplicate block delivery cannot duplicate accepted rows or downstream work.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-028",
+      "behavior": "Concurrent watcher owners cannot both finalize one payment.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-029",
+      "behavior": "A lost proof-write acknowledgement reconciles by durable identity before retry.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-030",
+      "behavior": "A newly canonical confirmation reaches the configured finality threshold exactly once.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-031",
+      "behavior": "A missing receipt remains pending rather than being marked refunded or accepted.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-WATCH-032",
+      "behavior": "A healthy watcher pass resumes after a contained database or RPC failure.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-001",
+      "behavior": "Failure before signing leaves no transaction and no consumed send permit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-002",
+      "behavior": "Failure after signing but before journal publication prevents broadcast.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-003",
+      "behavior": "Failure after journal publication but before broadcast resumes the same signed bytes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-004",
+      "behavior": "A crash during broadcast reconciles the saved transaction hash before any resend.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-005",
+      "behavior": "A lost broadcast response never creates a fresh replacement transaction automatically.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-006",
+      "behavior": "A mismatched returned broadcast hash stops further sends and preserves saved bytes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-007",
+      "behavior": "A crash after receipt observation but before final persistence resumes finality checks.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-008",
+      "behavior": "A persisted canonical successful receipt cannot trigger another creation send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-009",
+      "behavior": "A canonical reverted receipt becomes terminal without automatic rebroadcast.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-010",
+      "behavior": "A reorged receipt returns to reconciliation before reporting successful creation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-011",
+      "behavior": "Lease loss before signing prevents signature generation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-012",
+      "behavior": "Lease loss after journal publication prevents the old owner from sending.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-013",
+      "behavior": "Lease loss during receipt wait prevents unauthorized final-state publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-014",
+      "behavior": "A restarted process loads the exact original sender nonce calldata and value.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-015",
+      "behavior": "An existing pending nonce is reconciled instead of skipped to a new nonce.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-016",
+      "behavior": "An unknown consumed nonce stops without making a replacement or nonce gap.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-017",
+      "behavior": "Explicit resume of an unbroadcast signed creation operation reuses only its journaled nonce and transaction bytes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-018",
+      "behavior": "Resume refuses a journal whose immutable quote binding changed.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-019",
+      "behavior": "A refunded intent cannot resume creation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-020",
+      "behavior": "A canceled intent cannot resume creation without the documented explicit transition.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-021",
+      "behavior": "Reviewed mode requires the current explicit review permit before send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-022",
+      "behavior": "Automatic mode still enforces all current eligibility and journal checks.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-023",
+      "behavior": "A consumed one-shot permit cannot be reused after restart.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-024",
+      "behavior": "A permit for another campaign cannot authorize this creation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-025",
+      "behavior": "Same-signer concurrent jobs serialize nonce ownership.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-026",
+      "behavior": "Different signer jobs cannot overwrite each other's journal paths.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-027",
+      "behavior": "Gas estimation at the permitted boundary is handled according to exact integer policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-028",
+      "behavior": "Gas above the permitted boundary prevents signing or sending as appropriate.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-029",
+      "behavior": "An invalid fee-market response cannot become a zero-cost default send.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-030",
+      "behavior": "Protected journal publication failure prevents exposing signed recovery bytes through public output.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-031",
+      "behavior": "A healthy successor owner can reconcile work abandoned by an expired lease.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-CREATE-032",
+      "behavior": "Successful creation records exact factory event vault terms and gas accounting.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-001",
+      "behavior": "Refund execution evidence that becomes stale during preparation is refreshed or safely rejected before manifest publication.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-002",
+      "behavior": "A healthy permitted large batch can publish its external-refund manifest within the documented freshness design.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-003",
+      "behavior": "Refund proof verification respects its aggregate concurrency limit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-004",
+      "behavior": "Refund verification applies a bounded pending queue rather than one task per unbounded row.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-005",
+      "behavior": "A lost external-hash submission response reconciles the same hash binding without creating another allocation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-006",
+      "behavior": "A pending external payout after process restart blocks unsafe remainder export and duplicate credit.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-007",
+      "behavior": "A canonical paid remainder cannot be replayed as unpaid.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-008",
+      "behavior": "A reorged refund receipt returns to reconciliation before completion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-009",
+      "behavior": "Allocations sum exactly to the available refundable amount.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-010",
+      "behavior": "Integer rounding cannot overpay any participant or lose the tracked remainder.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-011",
+      "behavior": "A refund proof from another chain cannot settle the batch.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-012",
+      "behavior": "A refund proof from another wrapper cannot settle the batch.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-013",
+      "behavior": "A refund transaction with the wrong metadata cannot settle allocations.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-014",
+      "behavior": "A reverted payout cannot mark any allocation paid.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-015",
+      "behavior": "An active creator lease blocks refund preparation and closure until creator execution is reconciled.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-016",
+      "behavior": "A superseded refund-verifier lease token cannot overwrite the current submission evidence or allocations.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-017",
+      "behavior": "Concurrent preparations of the same payment bind at most one active immutable external-refund manifest.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-018",
+      "behavior": "Superseding a reconciled manifest preserves original transaction bindings and prior payout evidence.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-019",
+      "behavior": "A later healthy batch proceeds after an earlier safely rejected stale batch.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-REFUND-020",
+      "behavior": "Refund closure proves full canonical repayment and stopped creator execution before releasing budget reservations.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-001",
+      "behavior": "Concurrent readiness callers for the same revision share one underlying sizing job.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-002",
+      "behavior": "Readiness jobs for distinct revisions cannot reuse incompatible in-flight results.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-003",
+      "behavior": "An offer-specific readiness result cannot authorize a different selected offer.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-004",
+      "behavior": "A changed offer invalidates only its relevant readiness cache entry.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-005",
+      "behavior": "Readiness fanout respects one shared active-task budget across callers.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-006",
+      "behavior": "Readiness pending admission is bounded while active tasks are stalled.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-007",
+      "behavior": "A caller timeout releases its subscription without canceling another live subscriber.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-008",
+      "behavior": "The last canceled subscriber aborts expendable shared read work.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-009",
+      "behavior": "A stalled price response has an actual transport deadline.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-010",
+      "behavior": "A successful oversized price body is canceled before whole-body JSON parsing.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-011",
+      "behavior": "A missing price Content-Length cannot bypass the body budget.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-012",
+      "behavior": "A stale price timestamp cannot be presented as fresh readiness evidence.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-013",
+      "behavior": "An implausibly future price timestamp cannot extend readiness authority.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-014",
+      "behavior": "A nonfinite quote price fails closed without becoming zero.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-015",
+      "behavior": "A malformed price identity cannot be cached under the requested token.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-016",
+      "behavior": "A price-cache capacity limit applies to retained entries after concurrent completion.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-017",
+      "behavior": "Negative-price-cache expiry allows a healthy explicit retry.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-018",
+      "behavior": "Observer polling cannot overlap itself during a slow pass.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-019",
+      "behavior": "A permanently failing first observer job does not starve a later healthy job.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-020",
+      "behavior": "A per-pass observer budget preserves a cursor for later fair continuation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-021",
+      "behavior": "A replaced observer configuration cannot publish an old result as current.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-022",
+      "behavior": "A health diagnostic timeout cannot prevent an authorized control-plane mutation.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-023",
+      "behavior": "A healthy request after upstream recovery invalidates stale failure status.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OBS-024",
+      "behavior": "Stopping the service releases all owned observation timers and cancellable reads.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-001",
+      "behavior": "Database startup failure retries only within the configured bounded startup policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-002",
+      "behavior": "A database idle error is handled without terminating the process.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-003",
+      "behavior": "A database client error owned by an HTTP API transaction yields a contained failure and releases that request owner.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-004",
+      "behavior": "A throwing diagnostics callback cannot prevent owned error cleanup.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-005",
+      "behavior": "A diagnostic timeout aborts its actual underlying request.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-006",
+      "behavior": "SIGTERM stops new admission before draining active owned operations.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-007",
+      "behavior": "Drain timeout preserves durable unresolved work for restart.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-008",
+      "behavior": "A child worker exit is observed and does not leave a falsely healthy parent status.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-009",
+      "behavior": "Restart backoff prevents a tight process crash loop.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-010",
+      "behavior": "Missing required build assets produce a clear startup or route failure.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-011",
+      "behavior": "Restore freeze prevents new signing while recovery consistency is checked.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-012",
+      "behavior": "Restored database nonce mismatch blocks creator resume.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-013",
+      "behavior": "Restored journal mismatch blocks creator resume.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-014",
+      "behavior": "A successful restore check proves a healthy post-restore database query.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-015",
+      "behavior": "An HTTP endpoint cannot return signer key material or signed journal bytes.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-016",
+      "behavior": "Provider failures redact authenticated endpoint material from logs.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-017",
+      "behavior": "A broad-access protected state directory is rejected without chmod side effects.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-018",
+      "behavior": "A symlink or junction cannot redirect a protected state write.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-019",
+      "behavior": "An unsafe protected-file owner is rejected before reading sensitive state.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-020",
+      "behavior": "An oversized protected state file is rejected before unbounded parsing.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-021",
+      "behavior": "Atomic protected-file replacement retains the required private access policy.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "BE-OPS-022",
+      "behavior": "A failed atomic state publication leaves the previous valid recovery state intact.",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-001",
+      "behavior": "Warm-cache markup stays text before React",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-002",
+      "behavior": "React token names cannot introduce executable markup",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-003",
+      "behavior": "Provider data-SVG icons cannot execute script or navigate",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-004",
+      "behavior": "Saved appearance cannot inject CSS imports",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 8
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-005",
+      "behavior": "Numerical CSS settings cannot escape into raw declarations",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 15
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-006",
+      "behavior": "Wallet error text cannot become a trusted action link",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-007",
+      "behavior": "APR notices cannot insert HTML into the card",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-008",
+      "behavior": "CSV recipient grammar blocks spreadsheet formula and row injection",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-009",
+      "behavior": "Persisted appearance cannot pollute prototype-based defaults",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 21
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-010",
+      "behavior": "Warm token artwork ignores remotely supplied URL fields",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 25
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-011",
+      "behavior": "Prototype names cannot resolve to inherited artwork values",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 29
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-CONTENT-013",
+      "behavior": "Quoted attributes in build-generated warm markup remain inert",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-001",
+      "behavior": "Configured sidebar link rejects executable URL schemes",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 47
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-002",
+      "behavior": "Operator-console URL cannot embed credentials or an executable scheme",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 52
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-003",
+      "behavior": "APR API override has an explicit origin policy",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/api-origin.test.ts",
+          "line": 4
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-004",
+      "behavior": "Redirected APR control request cannot forward admission authority",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/livePoolApr/api-origin.test.ts",
+          "line": 20
+        },
+        {
+          "file": "tests/emblem-native.test.mjs",
+          "line": 74
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-005",
+      "behavior": "Remote token-logo redirects cannot reach a local sensitive origin",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-006",
+      "behavior": "External-navigation opener isolation",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-007",
+      "behavior": "Untrusted explorer suffix cannot change link origin",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-008",
+      "behavior": "Return-target query cannot redirect a recovery action externally",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-009",
+      "behavior": "Base URL cannot hijack API or wallet request origins",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-010",
+      "behavior": "Cross-origin iframe cannot present a usable payment UI",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-011",
+      "behavior": "A second permissive CSP cannot loosen independently enforced policy",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-012",
+      "behavior": "Cross-origin window messages cannot drive app actions",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-URL-013",
+      "behavior": "Unapproved service-worker registration cannot create persistent control",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-001",
+      "behavior": "Unapproved inline scripts are blocked without breaking owned bootstrap",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-002",
+      "behavior": "Inline event-handler execution is blocked",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-003",
+      "behavior": "Eval-style code compilation is denied",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-004",
+      "behavior": "Unapproved script origins are blocked",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-005",
+      "behavior": "WebSocket exfiltration obeys connect-src",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-006",
+      "behavior": "Fetch and beacon egress share the documented connect policy",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-007",
+      "behavior": "Object and embed execution are disabled",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-008",
+      "behavior": "Form submissions cannot leave the authorized origin",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-009",
+      "behavior": "Font loading cannot become an unapproved remote request",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-010",
+      "behavior": "Mixed-content wallet or API endpoints fail closed",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-011",
+      "behavior": "Response MIME cannot be reinterpreted as executable script",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-012",
+      "behavior": "Reporting-only policy cannot satisfy the security gate",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-DELIVERY-013",
+      "behavior": "Permissions policy disables unneeded hardware APIs",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-001",
+      "behavior": "Unpinned runtime CDN script is rejected by release policy",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-002",
+      "behavior": "Dependency integrity mismatch stops installation",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-003",
+      "behavior": "Unexpected dependency lifecycle scripts require explicit review",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-004",
+      "behavior": "Lockfile version drift cannot hide behind unchanged manifest",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-005",
+      "behavior": "Registry origin change is an explicit release event",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-006",
+      "behavior": "Repository scripts cannot publish unexpected executable files",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-007",
+      "behavior": "Archive path traversal cannot escape extraction root",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/source_archive_contracts.py",
+          "line": 55
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-008",
+      "behavior": "Archive symlink entries cannot redirect later members",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/source_archive_contracts.py",
+          "line": 73
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-009",
+      "behavior": "Duplicate archive members cannot choose verifier versus extractor bytes",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/source_archive_contracts.py",
+          "line": 83
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-010",
+      "behavior": "Self-consistent malicious manifest still needs external release binding",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/source_archive_contracts.py",
+          "line": 89
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-011",
+      "behavior": "Archive decompression has explicit resource ceilings",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "tests/source_archive_contracts.py",
+          "line": 97
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-012",
+      "behavior": "Untrusted pull-request code cannot obtain release write privileges",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-SUPPLY-013",
+      "behavior": "Compiled artifact provenance binds reviewed code and adapter mode",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-001",
+      "behavior": "Duplicate announcement UUID cannot replace another provider object",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 17
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-002",
+      "behavior": "Reserved WalletConnect identity cannot be impersonated by injected discovery",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 31
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-003",
+      "behavior": "Ambiguous restored RDNS requires explicit selection",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 37
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-004",
+      "behavior": "Provider branding cannot grant verified status or auto-selection",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 42
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-005",
+      "behavior": "Unique provider announcement floods stay bounded",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 108
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-006",
+      "behavior": "Malformed announcement accessors cannot break honest discovery",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 46
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-007",
+      "behavior": "WalletConnect account results remain within approved namespace",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-008",
+      "behavior": "Supported wallet journeys never emit unsupported authorization requests",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-009",
+      "behavior": "Connector restoration cannot borrow another deployment mount's topic",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-010",
+      "behavior": "AppKit cannot introduce a second hidden wallet discovery owner",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-011",
+      "behavior": "Auxiliary SDK financial features stay unavailable",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-012",
+      "behavior": "Malformed pairing URI is rejected before QR or deep-link rendering",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-013",
+      "behavior": "Session-topic changes cannot reuse prior acceptance",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PROVIDER-014",
+      "behavior": "Non-custodial app UI never collects wallet seed private key or wallet password",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-001",
+      "behavior": "Public wallet query is never mutation authority",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-002",
+      "behavior": "GET cannot perform an administrative state transition",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-003",
+      "behavior": "Method-override headers cannot bypass route method policy",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-004",
+      "behavior": "Client-supplied actor cannot rewrite refund audit identity",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-005",
+      "behavior": "Public transaction proof cannot be attached to a different wallet",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-006",
+      "behavior": "Existing transaction hash cannot be rebound to another deployment",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-007",
+      "behavior": "Recovery request needs both correct checkout ownership and capability",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-008",
+      "behavior": "Encoded administrative paths cannot cross an authorization branch",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-009",
+      "behavior": "Ambiguous duplicate session cookies fail closed",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-010",
+      "behavior": "Untrusted cookie values cannot fix a future authenticated session",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-011",
+      "behavior": "Session and CSRF issuance use independent production cryptographic draws",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-012",
+      "behavior": "Administrative mass assignment cannot change execution internals",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-AUTHZ-013",
+      "behavior": "SQL-shaped pagination remains data",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-001",
+      "behavior": "Duplicate token branding cannot substitute token identity",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-002",
+      "behavior": "Address-poisoning display collision remains distinguishable",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-003",
+      "behavior": "Creation-fee flow never requests token allowance",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-004",
+      "behavior": "Refund administration never invokes wallet payout signing",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-005",
+      "behavior": "Wallet-reported receipt cannot override independent chain evidence",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-007",
+      "behavior": "Review-to-send adapter replacement requires renewed consent",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-008",
+      "behavior": "Self-consistent quote hash cannot authenticate an unauthorized factory",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-009",
+      "behavior": "Error prose cannot authorize add-network escalation",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/adapters/wallet/discovery-security.test.ts",
+          "line": 69
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-010",
+      "behavior": "Fixed-side API evidence rejects variable-side action",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-011",
+      "behavior": "Claim proof requires conserved burn-and-mint conversion",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-012",
+      "behavior": "Native refund transfer ignores forged receiver log payouts",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-TX-013",
+      "behavior": "Same-block bulk-sender upgrade cannot hide behind restored implementation",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-001",
+      "behavior": "Recovery capability never enters URL or browser history",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-002",
+      "behavior": "Remote token art sends no sensitive Referer",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-003",
+      "behavior": "Credential-bearing recovery redirects fail closed",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-004",
+      "behavior": "Warm catalog persistence excludes authentication and recovery fields",
+      "status": "test-linked",
+      "testReferences": [
+        {
+          "file": "src/host/content-security.test.ts",
+          "line": 34
+        }
+      ],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-005",
+      "behavior": "APR PNG export excludes surrounding private application state",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-007",
+      "behavior": "Wallet SDK analytics remain disabled without blocking necessary pairing",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-008",
+      "behavior": "Pairing URIs and session keys never enter app diagnostics",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-009",
+      "behavior": "Untrusted API error echoes cannot expose a recovery capability",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-010",
+      "behavior": "Public read serializers omit private capability fields",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-011",
+      "behavior": "Authenticated responses cannot be reused by a shared cache",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-012",
+      "behavior": "Build output excludes server-only configuration canaries",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-PRIVACY-013",
+      "behavior": "Account-scoped recovery lookup cannot return another wallet's capability",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-001",
+      "behavior": "Ambiguous HTTP framing cannot create a hidden second request",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-002",
+      "behavior": "One-request-per-connection rule holds for pipelined bytes",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-003",
+      "behavior": "Slow request headers cannot reserve a connection indefinitely",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-004",
+      "behavior": "Slow request bodies obey total ingress deadline",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-005",
+      "behavior": "Unrecognized Host cannot expose a loopback service through rebinding",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-006",
+      "behavior": "Forwarded host and prefix headers cannot poison generated origin",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-007",
+      "behavior": "Encoded static traversal cannot leave the configured document root",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-008",
+      "behavior": "Static symlinks cannot expose files outside document root",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-009",
+      "behavior": "Accidental dotfiles in DIST are not publicly retrievable",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-010",
+      "behavior": "Form-encoded bodies cannot enter JSON-only mutation handlers",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-011",
+      "behavior": "Unsupported compressed request bodies fail explicitly",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-012",
+      "behavior": "Malformed parser errors never echo credential-bearing headers",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-HTTP-013",
+      "behavior": "CORS cannot expose authenticated responses to arbitrary origins",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-001",
+      "behavior": "Token-list callers cannot choose a server fetch URL",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-002",
+      "behavior": "Configured upstream redirects cannot cross egress policy",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-003",
+      "behavior": "Token-list redirect refusal preserves canonical fallback",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-004",
+      "behavior": "Remote token metadata cannot override canonical fallback identity",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-005",
+      "behavior": "Discovery validates factory provenance, not a supplied pool label",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-006",
+      "behavior": "Read-only eth_call cannot request unapproved state overrides",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-007",
+      "behavior": "Log query cost is bounded independently of request size",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-008",
+      "behavior": "RPC batch response must match request identities",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-009",
+      "behavior": "Upstream success cannot smuggle both error and result semantics",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-010",
+      "behavior": "On-chain token decimals cannot be sourced from a remote list alone",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-011",
+      "behavior": "RPC result numeric grammar cannot trigger uncontrolled BigInt exceptions",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-012",
+      "behavior": "Canonical fee confirmation depth cannot be weakened through config input",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    },
+    {
+      "id": "SEC-UPSTREAM-013",
+      "behavior": "Token metadata text budget applies before expensive ABI/display work",
+      "status": "proposed-unmapped",
+      "testReferences": [],
+      "semanticCoverageVerified": false
+    }
+  ],
+  "statusDefinitions": {
+    "test-linked": "Executable regression links present. Run evidence and semantic review are separate; not counted toward the 500 gate.",
+    "proposed-unmapped": "Imported backlog item, not a passing executable test. Existing coverage may exist but has not been credited."
+  },
+  "deliveryScope": "Portable frontend package; backend implementation and evidence remain with their private source owners."
+}

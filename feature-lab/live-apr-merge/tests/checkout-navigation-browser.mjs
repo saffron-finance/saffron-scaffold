@@ -86,13 +86,17 @@ try{
  // Closing cancels this Claim's permission to open a wallet after cleanup.
  await page.getByRole('button',{name:'Close incentive vault',exact:true}).click()
  await expect(page.locator('[data-incentive-modal]')).toHaveCount(0)
- await unblock(quotePattern)
- await expect.poll(async()=>{const s=await saved();return s?.records[s.activeId]?.quote.principalCents}).toBe('50000')
- assert.equal(f.state.sends,0);assert.deepEqual(quotes,['100','300','400','500'])
+ const cancelledQuoteCleanup=page.waitForResponse(response=>response.url().endsWith('/deployment-quotes/withdraw')&&response.ok(),{timeout:20000})
+ await unblock(quotePattern);await cancelledQuoteCleanup
+ await expect.poll(async()=>(await saved())?.activeId??null).toBe(null)
+ // Dismissal now revokes preparation too: the queued $500 quote must not be
+ // created after the owner closes. A fresh explicit Continue may recreate it.
+ assert.equal(f.state.sends,0);assert.deepEqual(quotes,['100','300','400'])
 
  // A lost cancellation response must not delete recovery or kick the user
  // back. The next explicit Continue retries idempotently before a new quote.
  await page.getByRole('button',{name:'Create CASHCAT / ETH, 3 days',exact:true}).click()
+ await expect(amount()).toBeVisible();await amount().fill('500');await next().click()
  await expect(page.getByRole('button',{name:'$500.00',exact:true})).toBeVisible()
  await hold(withdrawPattern,true);await immediateBack('lost withdrawal response')
  await unblock(withdrawPattern);await expect(page.getByRole('alert')).toContainText('Test cleanup response unavailable')
