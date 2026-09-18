@@ -6,125 +6,145 @@ import { CampaignDeployerBalance } from './DeployerBalance'
 import { PairEditor } from './PairEditor'
 import { CampaignIdentifier } from './CampaignIdentifier'
 import { requestFeeFromEth } from '../../shared/incentives.mjs'
-import { campaignTerms } from '../../shared/campaign.mjs'
 import { authedJson } from '../host/transport'
-import { usd,type Pair,type Budget,type Program } from './model'
-import { Action,ErrorText,FinePrint,QuietButton,Row,Stack } from './styles'
+import { usd,type Budget,type Program } from './model'
+import { ErrorText,FinePrint,PrimaryAction,QuietButton,Row,Stack } from './styles'
+import { Field,InlineForm,Panel,SaveButton,SectionIntro,poolHeading,useCampaignCatalog } from './campaign-admin'
 
-type Catalog={pairs:Pair[];budgets:Budget[];programs:Program[]}
-
-/** Campaign configuration owns advisory targets and immutable premium rates.
- * A single API transaction creates the budget and its matching offer together.
- */
-export function ProgramAdmin({account,onConnect,autoLoad=false}:{account:Address|null;onConnect:()=>void;autoLoad?:boolean}){
-  const [catalog,setCatalog]=useState<Catalog|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false)
-  const [showPair,setShowPair]=useState(false),[saved,setSaved]=useState('')
-  async function load(){if(!account){onConnect();return}setBusy(true);setError('');try{setCatalog(await authedJson(account,'/admin/catalog'))}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  // Dedicated campaign pages can load immediately; the operator disclosure keeps its manual default.
-  useEffect(()=>{if(autoLoad&&account)void load()},[autoLoad,account])
-  async function changed(){await load();setSaved('Campaign configuration saved.');window.dispatchEvent(new Event('saffron:catalog-updated'))}
-  async function pause(budget:Budget){if(!account)return;setBusy(true);try{await authedJson(account,'/admin/budgets',{...budget,paused:!budget.paused});await changed()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+/** One configuration row per persisted program. Funding is listed once per
+ * budget below, because historical programs can share the same allocation. */
+export function ProgramAdmin({account,onConnect,onCreate,autoLoad=false}:{account:Address|null;onConnect:()=>void;onCreate:()=>void;autoLoad?:boolean}){
+  const {catalog,busy,error,load}=useCampaignCatalog(account,onConnect,autoLoad)
+  const [showPair,setShowPair]=useState(false),[saved,setSaved]=useState(''),[actionError,setActionError]=useState(''),[pausing,setPausing]=useState(false)
+  async function changed(){
+    const refreshed=await load()
+    setSaved(refreshed?'Campaign configuration saved.':'Configuration saved. Reload the catalog to see the latest settings.')
+    window.dispatchEvent(new Event('saffron:catalog-updated'))
+  }
+  async function pause(budget:Budget){
+    if(!account||pausing)return
+    setPausing(true);setActionError('');setSaved('')
+    try{await authedJson(account,'/admin/budgets',{...budget,paused:!budget.paused});await changed()}
+    catch(e){setActionError((e as Error).message)}finally{setPausing(false)}
+  }
+  const linked=(id:string)=>catalog?.programs.filter(program=>program.budgetPoolId===id)??[]
   return <Stack>
-    {autoLoad&&<CampaignDeployerBalance account={account}/>}
-    {autoLoad&&<ConfigurationWarnings account={account}/>}
-    <FinePrint>Campaign targets are private planning estimates, not request limits. Premium funding is handled externally.</FinePrint>
-    <QuietButton disabled={busy} onClick={()=>void load()}>{catalog?'Reload campaigns':'Load incentive catalog'}</QuietButton>
-    {error&&<ErrorText role='alert'>{error}</ErrorText>}{saved&&<FinePrint role='status'>{saved}</FinePrint>}
+    <Row><SectionIntro><FinePrint>Manage existing programs, review funding, and maintain supported pairs.</FinePrint><FinePrint>Planning targets are estimates, not request limits. Program settings do not override shared request intake.</FinePrint></SectionIntro><NewButton onClick={onCreate}>New campaign</NewButton></Row>
+    <Panel aria-label='Program configuration'>
+      <Row><SectionIntro><h2>Program configuration</h2><FinePrint>{catalog?`${catalog.programs.length} program${catalog.programs.length===1?'':'s'} · ${catalog.pairs.length} pair${catalog.pairs.length===1?'':'s'}`:'Sign in with an operator wallet to view campaign settings.'}</FinePrint></SectionIntro><SaveButton disabled={busy||pausing} onClick={()=>{setSaved('');void load()}}>{busy?'Loading campaigns…':catalog?'Reload campaigns':'Load incentive catalog'}</SaveButton></Row>
+      {error&&<ErrorText role='alert'>{error} Reload before editing settings.</ErrorText>}{actionError&&<ErrorText role='alert'>{actionError}</ErrorText>}{saved&&<FinePrint role='status'>{saved}</FinePrint>}
+      {catalog&&account&&<EditScope disabled={busy||pausing||!!error} aria-label='Campaign settings'>
+        {catalog.programs.length===0?<Empty>No programs yet. Use New campaign to configure one.</Empty>:<Table aria-label='Campaign configuration'>
+          <thead><tr><th scope='col'>Program</th><th scope='col'>Fixed terms</th><th scope='col'>Planning budget</th><th scope='col'>Request fee</th><th scope='col'>Controls</th></tr></thead>
+          <tbody>{catalog.programs.map(program=>{
+            const budget=catalog.budgets.find(b=>b.id===program.budgetPoolId),shared=linked(program.budgetPoolId).length>1
+            const status=!budget?'Budget unavailable':budget.reconciliationRequired?'Reconciliation':budget.paused?'Paused':program.active?'Enabled':'Disabled'
+            return <tr key={program.id} data-program-id={program.id} data-budget-id={program.budgetPoolId}>
+              <td data-label='Program'><Cell><ProgramName>{poolHeading(catalog.pairs.find(p=>p.id===program.pairId))}</ProgramName><CampaignIdentifier id={program.id}/><Status $enabled={status==='Enabled'}>{status}</Status>{shared&&<FinePrint>Shared budget · {linked(program.budgetPoolId).length} programs</FinePrint>}</Cell></td>
+              <td data-label='Fixed terms'><Cell><Metric>{program.days} days</Metric><FinePrint>{Number.isFinite(Number(program.apr))?`${Number(program.apr).toLocaleString('en-US',{maximumFractionDigits:4})}% APR`:'APR unavailable'}</FinePrint><FinePrint>Infinite range</FinePrint>{budget?.campaign?.capacityCents&&<FinePrint>{usd(Number(budget.campaign.capacityCents)/100)} target fixed-side capacity</FinePrint>}</Cell></td>
+              <td data-label='Planning budget'>{budget?.campaign?<AdvisoryTarget account={account} budget={budget} programId={program.id} onSaved={changed}/>:<FinePrint>{budget?'Legacy token allocation — see accounting below.':'Budget unavailable'}</FinePrint>}</td>
+              <td data-label='Request fee'><RequestFeeEditor account={account} program={program} onSaved={changed}/></td>
+              <td data-label='Controls'><Cell>{budget&&<SaveButton onClick={()=>void pause(budget)}>{budget.paused?'Resume campaign':'Pause campaign'}</SaveButton>}{shared&&<FinePrint>Pause / resume affects all programs sharing this budget.</FinePrint>}{budget?.reconciliationRequired&&<ErrorText>Reconcile accounting before accepting requests.</ErrorText>}{!program.active&&<FinePrint>This program is disabled. Resuming its budget does not enable it.</FinePrint>}</Cell></td>
+            </tr>
+          })}</tbody>
+        </Table>}
+        <Footnotes><FinePrint>Planning budget edits do not change quoted APR or capacity.</FinePrint><FinePrint>Request fee is a fixed ETH amount for new quotes, plus wallet network gas. Existing payments and refunds keep their original terms.</FinePrint></Footnotes>
+      </EditScope>}
+    </Panel>
+    {autoLoad&&<DisclosurePanel><summary><h2>Shared service status</h2><FinePrint>Deployer gas and application configuration · independent of program settings</FinePrint></summary><DisclosureBody><CampaignDeployerBalance account={account}/><ConfigurationWarnings compact account={account}/></DisclosureBody></DisclosurePanel>}
     {catalog&&account&&<>
-      {catalog.budgets.map(b=>{
-        // Legacy budgets can back multiple programs; show every linked campaign
-        // rather than treating the budget ID or display order as its identity.
-        const programs=catalog.programs.filter(program=>program.budgetPoolId===b.id)
-        return <Card key={b.id} data-budget-id={b.id}><Row><div><b>{poolHeading(catalog.pairs.find(p=>p.id===programs[0]?.pairId))}</b>
-          {programs.map(program=><CampaignIdentifier key={program.id} id={program.id}/>)}
-          {!programs.length&&<FinePrint>No campaign linked · Budget ID: {b.id}</FinePrint>}
-        </div><QuietButton disabled={busy} onClick={()=>void pause(b)}>{b.paused?'Resume campaign':'Pause campaign'}</QuietButton></Row>
-        {b.campaign&&b.accounting?<>
-          <FinePrint>{b.campaign.days} days · {Number(b.campaign.aprPercent).toLocaleString('en-US',{maximumFractionDigits:4})}% APR · {usd(Number(b.campaign.capacityCents)/100)} target fixed-side capacity</FinePrint>
-          <Stats><div>Budget<Strong>{usd(Number(b.accounting.budgetCents)/100)}</Strong></div><div>Premium funded<Strong>{usd(Number(b.accounting.fundedBudgetCents)/100)}</Strong></div><div>Budget reserved<Strong>{usd(Number(b.accounting.reservedBudgetCents)/100)}</Strong></div><div>Capacity funded<Strong>{usd(Number(b.accounting.fundedCapacityCents)/100)}</Strong></div><div>Target difference<Strong>{usd(Number(b.accounting.availableCapacityCents)/100)}</Strong></div></Stats>
-          <FinePrint>LP deposits observed: {usd(Number(b.accounting.fixedDepositedCents)/100)} at request-time valuations. Premium funding and LP entry are tracked separately.</FinePrint>
-        </>:<FinePrint>Token allocation: {formatUnits(BigInt(b.limitRaw),b.decimals)} · reserved {formatUnits(BigInt(b.reservedRaw),b.decimals)} · funded {formatUnits(BigInt(b.allocatedRaw),b.decimals)}.</FinePrint>}
-        {b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}
-        {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
-      </Card>})}
-      {catalog.programs.map(program=><RequestFeeEditor key={program.id+':'+program.revision} account={account} program={program} heading={poolHeading(catalog.pairs.find(p=>p.id===program.pairId))} onSaved={changed}/>)}
-      <CampaignEditor account={account} pairs={catalog.pairs} onSaved={changed}/>
-      <Row><b>Pairs</b><QuietButton onClick={()=>setShowPair(!showPair)}>{showPair?'Close pair form':'Add pair'}</QuietButton></Row>
-      {catalog.pairs.map(pair=><FinePrint key={pair.id}>{pair.token0.symbol} / {pair.token1.symbol} · {pair.pool}</FinePrint>)}
-      {showPair&&<PairEditor key={account} account={account} pairs={catalog.pairs} onSaved={async()=>{setShowPair(false);await changed()}}/>}
+      <DisclosurePanel><summary><h2>Funding &amp; accounting</h2><FinePrint>{catalog.budgets.length} budgets · external premium funding and observed LP deposits</FinePrint></summary><DisclosureBody>
+        <FinePrint>Each budget appears once, including budgets shared by multiple programs. Planning differences are not spendable balances or request limits.</FinePrint>
+        <EditScope disabled={busy||pausing||!!error} aria-label='Budget accounting'>
+          {!catalog.budgets.length?<Empty>No budget records yet.</Empty>:catalog.budgets.map(b=>{
+            const programs=linked(b.id)
+            return <BudgetCard key={b.id} data-accounting-budget-id={b.id}>
+              <Row><SectionIntro><h3>{b.name||'Campaign budget'}</h3><FinePrint>Budget ID: {b.id} · {programs.length?`${programs.length} linked program${programs.length===1?'':'s'}`:'No campaign linked'}</FinePrint></SectionIntro><Status $enabled={!b.paused&&!b.reconciliationRequired}>{b.reconciliationRequired?'Reconciliation':b.paused?'Paused':'Unpaused'}</Status></Row>
+              {b.campaign&&b.accounting?<Stats>
+                {([['Planning budget',b.accounting.budgetCents],['Premium funded',b.accounting.fundedBudgetCents],['Budget reserved',b.accounting.reservedBudgetCents],['Capacity funded',b.accounting.fundedCapacityCents],['Target difference',b.accounting.availableCapacityCents],['LP deposits observed',b.accounting.fixedDepositedCents]] as const).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value==null?'Unavailable':usd(Number(value)/100)}</dd></div>)}
+              </Stats>:<FinePrint>Token allocation: {formatUnits(BigInt(b.limitRaw),b.decimals)} · reserved {formatUnits(BigInt(b.reservedRaw),b.decimals)} · funded {formatUnits(BigInt(b.allocatedRaw),b.decimals)}.</FinePrint>}
+              <FinePrint>LP deposits use request-time valuations. Premium funding and LP entry are tracked separately.</FinePrint>
+              {/* Orphaned historical budgets stay manageable without inventing a program. */}
+              {!programs.length&&<><SaveButton onClick={()=>void pause(b)}>{b.paused?'Resume budget':'Pause budget'}</SaveButton>{b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}</>}
+              {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
+            </BudgetCard>
+          })}
+        </EditScope>
+      </DisclosureBody></DisclosurePanel>
+      <DisclosurePanel><summary><h2>Pair management</h2><FinePrint>{catalog.pairs.length} configured pairs · pool addresses and availability</FinePrint></summary><DisclosureBody>
+        <Row><FinePrint>Choose from these pairs when creating a campaign.</FinePrint><SaveButton aria-expanded={showPair} onClick={()=>setShowPair(!showPair)}>{showPair?'Close pair form':'Add pair'}</SaveButton></Row>
+        {!catalog.pairs.length?<Empty>No supported pairs yet. Add a pair before creating a campaign.</Empty>:<PairList>{catalog.pairs.map(pair=><li key={pair.id}><div><ProgramName>{poolHeading(pair)}</ProgramName><FinePrint>{pair.active?'Enabled':'Disabled'} · Chain {pair.chainId}</FinePrint></div><code>{pair.pool}</code></li>)}</PairList>}
+        {showPair&&<PairEditor key={account} account={account} pairs={catalog.pairs} onSaved={async()=>{setShowPair(false);await changed()}}/>}
+      </DisclosureBody></DisclosurePanel>
     </>}
   </Stack>
 }
 
-/** The chosen computed field is read-only; rounding displayed APR cannot alter
- * the server's exact budget/capacity ratio. Duration is always an explicit input.
- */
-function CampaignEditor({account,pairs,onSaved}:{account:Address;pairs:Pair[];onSaved:()=>Promise<void>}){
-  const [creationKey,setCreationKey]=useState(()=>crypto.randomUUID()),[pairId,setPairId]=useState(pairs[0]?.id??'')
-  useEffect(()=>{if(!pairId&&pairs.length)setPairId(pairs[0].id)},[pairId,pairs])
-  const [days,setDays]=useState('3'),[budget,setBudget]=useState('10000'),[capacity,setCapacity]=useState('1000000'),[apr,setApr]=useState('121.66666667')
-  const [computed,setComputed]=useState('apr'),[active,setActive]=useState(false),[requestFee,setRequestFee]=useState('')
+/** Keep exact wei in transit and bind a dirty draft to its original revision.
+ * Reloading must not silently overwrite a fee or bless an old edit as current. */
+function RequestFeeEditor({account,program,onSaved}:{account:Address;program:Program;onSaved:()=>Promise<void>}){
+  const amount=program.requestFeeWei==null?'':formatUnits(BigInt(program.requestFeeWei),18)
+  const [draft,setDraft]=useState({value:amount,revision:program.revision,dirty:false})
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
-  const economics={days:Number(days),...(computed!=='budget'?{budgetUsd:budget}:{}),...(computed!=='capacity'?{capacityUsd:capacity}:{}),...(computed!=='apr'?{aprPercent:apr}:{})}
-  let terms:any=null,validation=''
-  try{terms=campaignTerms(economics)}catch(e){validation=(e as Error).message}
-  async function submit(event:FormEvent){event.preventDefault();if(!terms)return;setBusy(true);setError('')
-    try{await authedJson(account,'/admin/campaigns',{creationKey,pairId,active,requestFeeWei:requestFeeFromEth(requestFee),...economics});setCreationKey(crypto.randomUUID());await onSaved()}
-    catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <Editor onSubmit={submit} aria-label='Create campaign'><b>Create campaign</b><Fields>
-    <Field>Pair<select aria-label='Campaign pair' required value={pairId} onChange={e=>setPairId(e.target.value)}><option value='' disabled>Select pair</option>{pairs.map(p=><option key={p.id} value={p.id}>{poolHeading(p)}</option>)}</select></Field>
-    {/* Campaign deployment currently supports only the full-range adapter. */}
-    <Field>Range selection<input aria-label='Range selection' readOnly value='Infinite range'/></Field>
-    <Field>Request fee (ETH)<input aria-label='Campaign request fee ETH' required inputMode='decimal' placeholder='Enter a fixed ETH amount' value={requestFee} onChange={e=>setRequestFee(e.target.value)}/></Field>
-    <Field>Duration (days)<input aria-label='Campaign duration' required type='number' min={1} max={3650} step={1} value={days} onChange={e=>setDays(e.target.value)}/></Field>
-    <Field>Calculate<select aria-label='Calculate campaign field' value={computed} onChange={e=>setComputed(e.target.value)}><option value='apr'>APR from budget + capacity</option><option value='capacity'>Capacity from budget + APR</option><option value='budget'>Budget from capacity + APR</option></select></Field>
-    <Field>Budget (USD)<input aria-label='Campaign budget USD' inputMode='decimal' readOnly={computed==='budget'} value={computed==='budget'?(terms?formatUnits(BigInt(terms.budgetCents),2):''):budget} onChange={e=>setBudget(e.target.value)}/></Field>
-    <Field>Target fixed-side capacity (USD)<input aria-label='Campaign capacity USD' inputMode='decimal' readOnly={computed==='capacity'} value={computed==='capacity'?(terms?formatUnits(BigInt(terms.capacityCents),2):''):capacity} onChange={e=>setCapacity(e.target.value)}/></Field>
-    <Field>Target APR (%)<input aria-label='Campaign APR percent' inputMode='decimal' readOnly={computed==='apr'} value={computed==='apr'?(terms?Number(terms.aprPercent).toFixed(6):''):apr} onChange={e=>setApr(e.target.value)}/></Field>
-  </Fields>
-    <FinePrint>Enter a fixed ETH request fee, duration, and any two economics inputs. The fee is not linked to a dollar price. APR uses a 365-day year, without compounding. Targets do not restrict request count or size. The premium rate stays fixed after quoting; the internal planning budget can change independently.</FinePrint>
-    <label><input type='checkbox' checked={active} onChange={e=>setActive(e.target.checked)}/> Accept paid vault requests when this campaign is created</label>
-    {validation&&<FinePrint>{validation}</FinePrint>}{error&&<ErrorText role='alert'>{error}</ErrorText>}
-    <Action disabled={busy||!terms||!pairId}>{busy?'Saving campaign…':'Create campaign'}</Action>
-  </Editor>
+  useEffect(()=>{setDraft(old=>old.dirty?old:{value:amount,revision:program.revision,dirty:false})},[amount,program.revision])
+  const conflict=draft.dirty&&draft.revision!==program.revision
+  async function save(event:FormEvent){
+    event.preventDefault();if(conflict||busy)return
+    setBusy(true);setError('')
+    try{await authedJson(account,'/admin/programs',{...program,revision:draft.revision,requestFeeWei:requestFeeFromEth(draft.value)});setDraft(old=>({...old,dirty:false}));await onSaved()}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  return <InlineForm onSubmit={save} aria-label={'Request fee for '+program.id}>
+    <Field>Fixed fee · ETH<input required aria-label={'Request fee ETH for '+program.id} inputMode='decimal' placeholder='e.g. 0.001' value={draft.value} onChange={e=>setDraft(old=>({...old,value:e.target.value,dirty:true}))}/></Field>
+    {conflict&&<ErrorText role='alert'>The program changed elsewhere. <QuietButton type='button' onClick={()=>{setDraft({value:amount,revision:program.revision,dirty:false});setError('')}}>Use latest fee</QuietButton></ErrorText>}
+    {error&&<ErrorText role='alert'>{error}</ErrorText>}<SaveButton disabled={busy||conflict||!draft.dirty}>{busy?'Saving fee…':'Save request fee'}</SaveButton>
+  </InlineForm>
 }
 
-/** Fee revisions affect only new quotes. A stored payment/refund keeps its exact
- * original wei amount; operators must not reprice an in-flight request. */
-function RequestFeeEditor({account,program,heading,onSaved}:{account:Address;program:Program;heading:string;onSaved:()=>Promise<void>}){
-  const [value,setValue]=useState(program.requestFeeWei?formatUnits(BigInt(program.requestFeeWei),18):'')
-  const [busy,setBusy]=useState(false),[error,setError]=useState('')
-  async function save(event:FormEvent){event.preventDefault();setBusy(true);setError('')
-    try{await authedJson(account,'/admin/programs',{...program,requestFeeWei:requestFeeFromEth(value)});await onSaved()}
-    catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <Editor onSubmit={save} aria-label={'Request fee for '+program.id}><b>{heading} · {program.days} days · Request fee</b>
-    <CampaignIdentifier id={program.id}/>
-    <Field>Fixed request fee (ETH)<input required aria-label={'Request fee ETH for '+program.id} inputMode='decimal' value={value} onChange={e=>setValue(e.target.value)}/></Field>
-    <FinePrint>Each new request costs this ETH amount plus wallet network gas. Previously issued payment terms and refunds do not change.</FinePrint>
-    {error&&<ErrorText role='alert'>{error}</ErrorText>}<Action disabled={busy}>Save request fee</Action>
-  </Editor>
-}
-
-/** Editing a planning target must not alter the campaign's quoted economics. */
-function AdvisoryTarget({account,budget,onSaved}:{account:Address;budget:Budget;onSaved:()=>Promise<void>}){
-  const amount=String(Number(budget.advisoryBudgetCents??budget.campaign.budgetCents)/100)
-  // A draft and its optimistic revision are one value. Refresh pristine inputs;
-  // never bless an older dirty amount with a newly fetched server revision.
+/** Planning targets are advisory only. Independent optimistic revisions also
+ * protect shared-budget edits and preserve dirty drafts across catalog reloads. */
+function AdvisoryTarget({account,budget,programId,onSaved}:{account:Address;budget:Budget;programId?:string;onSaved:()=>Promise<void>}){
+  const amount=formatUnits(BigInt(budget.advisoryBudgetCents??budget.campaign.budgetCents),2)
   const [draft,setDraft]=useState({value:amount,revision:budget.revision,dirty:false})
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
   useEffect(()=>{setDraft(old=>old.dirty?old:{value:amount,revision:budget.revision,dirty:false})},[amount,budget.revision])
   const conflict=draft.dirty&&draft.revision!==budget.revision
-  async function save(){if(conflict)return;setBusy(true);setError('');try{await authedJson(account,'/admin/budgets/'+budget.id+'/advisory',{revision:draft.revision,budgetUsd:draft.value});setDraft(old=>({...old,dirty:false}));await onSaved()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <><label>Internal planning budget (USD)<input aria-label={'Planning budget for '+budget.name} value={draft.value} onChange={e=>setDraft(old=>({...old,value:e.target.value,dirty:true}))} inputMode='decimal'/></label>
-    {conflict&&<ErrorText role='alert'>The planning target changed elsewhere. <QuietButton onClick={()=>setDraft({value:amount,revision:budget.revision,dirty:false})}>Use latest target</QuietButton></ErrorText>}
-    <QuietButton disabled={busy||conflict} onClick={()=>void save()}>Update planning target</QuietButton>{error&&<ErrorText role='alert'>{error}</ErrorText>}</>
+  async function save(event:FormEvent){
+    event.preventDefault();if(conflict||busy)return
+    setBusy(true);setError('')
+    try{await authedJson(account,'/admin/budgets/'+budget.id+'/advisory',{revision:draft.revision,budgetUsd:draft.value});setDraft(old=>({...old,dirty:false}));await onSaved()}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  return <InlineForm onSubmit={save} aria-label={'Planning target for '+(programId??budget.id)}>
+    <Field>Advisory target · USD<input required aria-label={'Planning budget for '+(programId??budget.name)} value={draft.value} onChange={e=>setDraft(old=>({...old,value:e.target.value,dirty:true}))} inputMode='decimal'/></Field>
+    {conflict&&<ErrorText role='alert'>The planning target changed elsewhere. <QuietButton type='button' onClick={()=>{setDraft({value:amount,revision:budget.revision,dirty:false});setError('')}}>Use latest target</QuietButton></ErrorText>}
+    <SaveButton disabled={busy||conflict}>{busy?'Saving target…':'Update planning target'}</SaveButton>{error&&<ErrorText role='alert'>{error}</ErrorText>}
+  </InlineForm>
 }
 
-/** Pool-derived headings also apply to campaigns created before this UI change. */
-function poolHeading(pair?:Pair){return pair?`${pair.token0.symbol} / ${pair.token1.symbol} · ${pair.feeTier/10000}%`:'Pool unavailable'}
-const Card=styled.div`display:flex;flex-direction:column;gap:20px;padding:28px 32px;background:#0a0a0a;border:1px solid #1d1d1d;border-radius:var(--radius-md);>div:first-child{flex-wrap:wrap}b{font-family:${p=>p.theme.fonts.display};font-size:22px;font-weight:400}@media(max-width:650px){padding:24px 16px}`
-const Editor=styled(Card).attrs({as:'form'})`gap:24px;>label{font-size:13px;color:${p=>p.theme.colors.text.secondary}}`
-const Fields=styled.div`display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;@media(max-width:650px){grid-template-columns:minmax(0,1fr)}`
-const Field=styled.label`display:flex;flex-direction:column;gap:8px;min-width:0;color:${p=>p.theme.colors.text.tertiary};font:400 11px ${p=>p.theme.fonts.mono};input,select{width:100%;min-width:0;background:#0a0a0a;color:${p=>p.theme.colors.text.primary};border:1px solid ${p=>p.theme.colors.border.base};border-radius:var(--radius-md);padding:12px;font:400 14px ${p=>p.theme.fonts.body}}input:focus-visible,select:focus-visible{outline:1px solid ${p=>p.theme.colors.accent.gold}}input:read-only{color:${p=>p.theme.colors.accent.gold}}`
-const Stats=styled.div`display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;font-size:12px;`
-const Strong=styled.b`display:block;margin-top:5px;font-size:18px;`
+const NewButton=styled(PrimaryAction)`width:auto;min-width:150px;`
+const EditScope=styled.fieldset`border:0;padding:0;margin:0;min-width:0;`
+const Table=styled.table`
+  width:100%;border-collapse:collapse;table-layout:fixed;text-align:left;font-size:13px;
+  th{font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:${p=>p.theme.colors.text.tertiary};padding:0 12px 14px}
+  th:first-child{width:26%}th:nth-child(2){width:17%}th:nth-child(3),th:nth-child(4){width:20%}
+  td{padding:22px 12px;vertical-align:top;border-top:1px solid ${p=>p.theme.colors.border.base};overflow-wrap:anywhere}
+  tbody tr:hover{background:rgba(180,145,219,.025)}
+  @media(max-width:1250px){
+    &,tbody,tr,td{display:block;width:auto}thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+    tbody{display:grid;gap:18px}tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid ${p=>p.theme.colors.border.base};border-radius:var(--radius-md);padding:18px;gap:22px}
+    td{border:0;padding:0}td:first-child{grid-column:1/-1}td::before{content:attr(data-label);display:block;margin-bottom:12px;font-size:11px;color:${p=>p.theme.colors.text.tertiary};text-transform:uppercase;letter-spacing:.04em}
+  }
+  @media(max-width:650px){tr{grid-template-columns:minmax(0,1fr);padding:16px}td:first-child{grid-column:auto}}
+`
+const Cell=styled.div`display:flex;flex-direction:column;gap:10px;min-width:0;`
+const ProgramName=styled.strong`font-size:15px;font-weight:500;line-height:1.5;`
+const Metric=styled.strong`font-weight:500;font-variant-numeric:tabular-nums;`
+const Status=styled.span<{$enabled:boolean}>`align-self:flex-start;display:inline-flex;width:fit-content;padding:4px 8px;border:1px solid ${p=>p.$enabled?'#315b48':'#514856'};border-radius:6px;color:${p=>p.$enabled?'#a0dbb8':'#c6bdce'};font-size:11px;`
+const Footnotes=styled.div`display:flex;flex-direction:column;gap:6px;border-top:1px solid ${p=>p.theme.colors.border.base};padding-top:18px;margin-top:4px;`
+const Empty=styled.p`padding:18px 0;font-size:14px;color:${p=>p.theme.colors.text.secondary};`
+const DisclosurePanel=styled(Panel).attrs({as:'details'})`display:block;summary{cursor:pointer;list-style-position:outside;margin-left:16px;padding-left:4px}summary h2{display:inline;font-size:22px}summary p{margin-top:8px}summary:focus-visible{outline:2px solid ${p=>p.theme.colors.accent.gold};outline-offset:6px}`
+const DisclosureBody=styled.div`display:flex;flex-direction:column;gap:20px;margin-top:24px;`
+const BudgetCard=styled.div`padding:20px 0;border-top:1px solid ${p=>p.theme.colors.border.base};display:flex;flex-direction:column;gap:18px;`
+const Stats=styled.dl`display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:0;dt{font-size:12px;color:${p=>p.theme.colors.text.tertiary};margin-bottom:8px}dd{margin:0;font-size:18px;font-variant-numeric:tabular-nums}@media(max-width:650px){grid-template-columns:repeat(2,minmax(0,1fr))}`
+const PairList=styled.ul`list-style:none;padding:0;margin:0;li{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:18px 0;border-top:1px solid ${p=>p.theme.colors.border.base}}code{font-size:12px;overflow-wrap:anywhere;color:${p=>p.theme.colors.text.secondary}}`

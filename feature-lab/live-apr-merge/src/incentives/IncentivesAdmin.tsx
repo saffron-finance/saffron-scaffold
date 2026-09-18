@@ -33,7 +33,7 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
   const rows=data.rows.filter(row=>filter==='All requests'||filter==='Needs attention'&&['needs_attention','failed','waiting'].includes(row.state)||filter==='Awaiting premium'&&row.workerState==='created'&&['partial','awaiting_external'].includes(row.fundingState))
   function editIntake(){setTab('Overview');setTimeout(()=>{const node=document.getElementById('intake-controls') as HTMLDetailsElement|null;if(node){node.open=true;node.scrollIntoView({block:'center',behavior:'smooth'})}},0)}
   return <Stack>
-    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><a href={operatorConsoleHref} target="_blank" rel="noopener" style={{color:"#d286ff",padding:"10px"}}>Server operator ↗</a><QuietButton onClick={()=>onNavigate('/campaigns')}>New campaign</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
+    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><a href={operatorConsoleHref} target="_blank" rel="noopener" style={{color:"#d286ff",padding:"10px"}}>Server operator ↗</a><QuietButton onClick={()=>onNavigate('/campaigns/new')}>New campaign</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
     <OpsNote>Manage real requests, review exceptions, and give each vault a clear next step.</OpsNote>
     <ConfigurationWarnings account={account} compact/>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!operator&&!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
@@ -53,7 +53,7 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
           <DeploymentPagination data={data}/>
         </OpsCard>
       </>}
-      {tab==='Campaigns'&&<ProgramAdmin account={account} onConnect={onConnect}/>}
+      {tab==='Campaigns'&&<ProgramAdmin account={account} onConnect={onConnect} onCreate={()=>onNavigate('/campaigns/new')}/>}
       {tab==='Payments'&&<>{checkoutRecovery}<PaymentAttention account={account}/></>}
       {tab==='Refunds'&&<RefundAdmin account={account}/>}
       {fundingRow&&<CampaignFundingModal key={account+fundingRow.id} account={account} row={fundingRow} onClose={()=>{setFundingRow(null);data.refresh();health.refresh()}}/>}

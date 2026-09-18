@@ -35,7 +35,7 @@ it('accepts an authorized empty list without session discovery, but not an unaut
  expect(screen.getByRole('button',{name:'Sign in as operator'})).toBeVisible()
 })
 
-it('matches full campaign IDs across queue, budget cards and fee editors regardless of catalog ordering',async()=>{
+it('matches full campaign IDs across queue and per-program configuration rows regardless of catalog ordering',async()=>{
  // Two campaigns share a pair. Their identities must not depend on the pair,
  // display order, budget key or request ID; all four can differ independently.
  const ids=['campaign-11111111-1111-4111-8111-111111111111','campaign-22222222-2222-4222-8222-222222222222']
@@ -60,7 +60,7 @@ it('matches full campaign IDs across queue, budget cards and fee editors regardl
  for(const program of programs){
    const card=document.querySelector('[data-budget-id="'+program.budgetPoolId+'"]')!
    expect(within(card as HTMLElement).getByText(program.id)).toBeVisible()
-   expect(within(screen.getByRole('form',{name:'Request fee for '+program.id})).getByText(program.id)).toBeVisible()
+   expect(card).toContainElement(screen.getByRole('form',{name:'Request fee for '+program.id}))
  }
  mocks.authed.mockResolvedValue({...catalog,programs:[...programs].reverse().map(program=>({...program,revision:2})),budgets:[...budgets].reverse()})
  fireEvent.click(screen.getByRole('button',{name:'Reload campaigns'}))
@@ -84,6 +84,7 @@ it('M04: reload refreshes pristine planning values and refuses dirty revision co
   show();await screen.findByText('No deployment requests on this page.')
   fireEvent.click(screen.getByRole('button',{name:'Campaigns',exact:true}));fireEvent.click(screen.getByRole('button',{name:'Load incentive catalog'}))
   const input=await screen.findByLabelText('Planning budget for Plan')
+  fireEvent.click(screen.getByText('Funding & accounting'))
   expect(input).toHaveValue('10000')
   mocks.authed.mockResolvedValue(make(2,'2000000'))
   fireEvent.click(screen.getByRole('button',{name:'Reload campaigns'}))
