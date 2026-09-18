@@ -16,8 +16,14 @@ const address='0x'+'12'.repeat(20),token={address,symbol:'CASHCAT',decimals:18}
 const pairs=[{id:'pair-1',revision:1,chainId:4663,pool:address,feeTier:3000,token0:token,token1:{address:'0x'+'34'.repeat(20),symbol:'WETH',decimals:18},active:true}]
 const programs=[1,2].map(i=>({id:'campaign-11111111-1111-4111-8111-'+String(i).padStart(12,'0'),revision:1,pairId:'pair-1',budgetPoolId:'budget-'+i,apr:121.6666666667,days:i===1?3:7,requestFeeWei:'1000000000000001',minimumCents:1,maximumCents:100000000,sortOrder:i,isNew:false,active:true}))
 const budgets=programs.map((p,i)=>({id:p.budgetPoolId,name:'CASHCAT / WETH · '+p.days+' days',revision:1,chainId:4663,rewardAsset:address,decimals:18,limitRaw:'10000',reservedRaw:'0',allocatedRaw:'0',availableRaw:'10000',paused:i===1,reconciliationRequired:false,advisoryBudgetCents:'1000000',campaign:{days:p.days,aprPercent:'121.6666666667',budgetCents:'1000000',capacityCents:'100000000'},accounting:{budgetCents:'1000000',fundedBudgetCents:'500000',reservedBudgetCents:'250000',fundedCapacityCents:'50000000',availableCapacityCents:'50000000',fixedDepositedCents:'15000000'}}))
+// Frozen USD request snapshots are distinct from live funded/reserved totals.
+const completeStats={scope:'all-accepted-requests',requestCount:'3',totalLpCents:'130001',averageLpCents:'43334',maximumLpCents:'90000',totalPremiumCents:'1310',averagePremiumCents:'437',maximumPremiumCents:'907',unvaluedLpRequests:'0',unvaluedPremiumRequests:'0'}
+budgets[0].advisoryBudgetCents='123456';budgets[0].requestStatistics=completeStats
+Object.assign(budgets[0].accounting,{fundedBudgetCents:'610',reservedBudgetCents:'700',fundedCapacityCents:'80000',reservedCapacityCents:'50001',availableCapacityCents:'99869999',fixedDepositedCents:'30001'})
+Object.assign(budgets[1].accounting,{fundedBudgetCents:'0',reservedBudgetCents:'0',fundedCapacityCents:'0',reservedCapacityCents:'0',availableCapacityCents:'100000000',fixedDepositedCents:'0'})
+budgets[1].requestStatistics={...completeStats,requestCount:'0',totalLpCents:'0',totalPremiumCents:'0',averageLpCents:null,maximumLpCents:null,averagePremiumCents:null,maximumPremiumCents:null}
 const writes=[],unexpected=[],walletMethods=[],errors=[],layouts=[]
-let failCatalog=false,origin
+let failCatalog=false,missingStatistics=false,origin
 const session=()=>({wallet,csrf:'disposable-local-fixture',operator:true,expires:Date.now()+3600000})
 /** Minimal strict wire boundary: unexpected writes fail instead of being
  * silently accepted, and revision checks mirror the existing API contract. */
@@ -45,7 +51,7 @@ const server=createServer(async(req,res)=>{
    }
    if(path==='/session')return send({session:session()})
    if(path==='/programs')return send({offers:[],creatorOnline:false,readiness:{canQuote:false}})
-   if(path==='/admin/catalog')return failCatalog?send({error:'Fixture catalog unavailable'},503):send({pairs,programs,budgets})
+   if(path==='/admin/catalog')return failCatalog?send({error:'Fixture catalog unavailable'},503):send({pairs,programs,budgets:missingStatistics?budgets.map(({requestStatistics,...budget})=>budget):budgets})
    if(path==='/admin/health')return send({checkedAt:new Date().toISOString(),checks:[],canQuote:false,readiness:{},metrics:{}})
    if(path==='/admin/configuration')return send({checkedAt:new Date().toISOString(),settings:[]})
    if(path==='/admin/tokens')return send({tokens:pairs.flatMap(p=>[p.token0,p.token1]),source:'fixture'})
@@ -100,7 +106,19 @@ try{
  await expect(page.getByRole('status').filter({hasText:'Campaign configuration saved.'})).toBeVisible()
  assert.equal(writes[0].body.requestFeeWei,'123456789012345678')
  await first.getByRole('button',{name:'Pause campaign'}).click();await expect(first.getByRole('button',{name:'Resume campaign'})).toBeVisible()
- for(const width of [1440,1024,768,390,320])await layout('manager',width)
+ await page.getByText('Funding & accounting',{exact:true}).click()
+ const accounting=page.locator('[data-accounting-budget-id="budget-1"]')
+ await expect(accounting.getByLabel('Funding highlights')).toContainText('$1,234.56')
+ for(const [name,value]of [['LP requests','3'],['Average LP size','$433.34'],['Maximum LP size','$900.00'],['Total LP requested','$1,300.01'],['Average premium request','$4.37'],['Maximum premium request','$9.07'],['Total premium requested','$13.10']])await expect(accounting.locator('[data-accounting-metric="'+name+'"] td').first()).toHaveText(value)
+ await expect(page.locator('[data-accounting-budget-id="budget-2"] [data-accounting-metric="Average LP size"] td').first()).toHaveText('—')
+ missingStatistics=true;await page.getByRole('button',{name:'Reload campaigns'}).click()
+ await expect(accounting.locator('[data-accounting-metric="LP requests"] td').first()).toHaveText('Unavailable')
+ missingStatistics=false;await page.getByRole('button',{name:'Reload campaigns'}).click()
+ await expect(accounting.locator('[data-accounting-metric="LP requests"] td').first()).toHaveText('3')
+ for(const width of [1440,1024,768,390,320]){
+  await layout('manager',width)
+  await accounting.screenshot({path:resolve(output,'funding-'+width+'.png')})
+ }
  await page.getByRole('button',{name:'Add pair',exact:true}).click();await expect(page.getByRole('form',{name:'Add pair'})).toBeVisible();await layout('pair-expanded',320)
  await page.getByRole('button',{name:'Close pair form'}).click()
  const newButton=page.getByRole('button',{name:'New campaign',exact:true})
@@ -129,7 +147,7 @@ try{
  await page.goto(origin+base+'/admin');await expect(page.getByRole('button',{name:'New campaign',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'New campaign',exact:true}).click();await expect(page).toHaveURL(origin+base+'/campaigns/new')
  assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);assert.equal(writes.length,3)
- const report={ok:true,release:marker.release,layouts,checks:['exact fee edit','pause budget','no inline creation','keyboard navigation','nested deep-link reload','browser history','admin new-campaign link','expanded pair form','failed reload disables stale settings'],fixtureWrites:writes.map(w=>w.path),walletTransactions:0,productionWrites:0,errors}
+ const report={ok:true,release:marker.release,layouts,checks:['exact fee edit','pause budget','no inline creation','keyboard navigation','nested deep-link reload','browser history','admin new-campaign link','expanded pair form','failed reload disables stale settings','historical request statistics','edited planning value','missing statistics stay unknown','empty statistics stay empty'],fixtureWrites:writes.map(w=>w.path),walletTransactions:0,productionWrites:0,errors}
  await writeFile(resolve(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report))
 }catch(e){await writeFile(resolve(output,'failure.json'),JSON.stringify({errors,unexpected,writes,layouts},null,2));await page.screenshot({path:resolve(output,'failure.png'),fullPage:true});throw e}
 finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r))}

@@ -4,6 +4,7 @@ import styled from 'styled-components'
 import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { CampaignDeployerBalance } from './DeployerBalance'
 import { PairEditor } from './PairEditor'
+import { FundingAccounting } from './FundingAccounting'
 import { CampaignIdentifier } from './CampaignIdentifier'
 import { requestFeeFromEth } from '../../shared/incentives.mjs'
 import { authedJson } from '../host/transport'
@@ -60,10 +61,7 @@ export function ProgramAdmin({account,onConnect,onCreate,autoLoad=false}:{accoun
             const programs=linked(b.id)
             return <BudgetCard key={b.id} data-accounting-budget-id={b.id}>
               <Row><SectionIntro><h3>{b.name||'Campaign budget'}</h3><FinePrint>Budget ID: {b.id} · {programs.length?`${programs.length} linked program${programs.length===1?'':'s'}`:'No campaign linked'}</FinePrint></SectionIntro><Status $enabled={!b.paused&&!b.reconciliationRequired}>{b.reconciliationRequired?'Reconciliation':b.paused?'Paused':'Unpaused'}</Status></Row>
-              {b.campaign&&b.accounting?<Stats>
-                {([['Planning budget',b.accounting.budgetCents],['Premium funded',b.accounting.fundedBudgetCents],['Budget reserved',b.accounting.reservedBudgetCents],['Capacity funded',b.accounting.fundedCapacityCents],['Target difference',b.accounting.availableCapacityCents],['LP deposits observed',b.accounting.fixedDepositedCents]] as const).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value==null?'Unavailable':usd(Number(value)/100)}</dd></div>)}
-              </Stats>:<FinePrint>Token allocation: {formatUnits(BigInt(b.limitRaw),b.decimals)} · reserved {formatUnits(BigInt(b.reservedRaw),b.decimals)} · funded {formatUnits(BigInt(b.allocatedRaw),b.decimals)}.</FinePrint>}
-              <FinePrint>LP deposits use request-time valuations. Premium funding and LP entry are tracked separately.</FinePrint>
+              <FundingAccounting budget={b}/>{!b.campaign&&<FinePrint>Legacy token allocation: {formatUnits(BigInt(b.limitRaw),b.decimals)} · reserved {formatUnits(BigInt(b.reservedRaw),b.decimals)} · funded {formatUnits(BigInt(b.allocatedRaw),b.decimals)}.</FinePrint>}
               {/* Orphaned historical budgets stay manageable without inventing a program. */}
               {!programs.length&&<><SaveButton onClick={()=>void pause(b)}>{b.paused?'Resume budget':'Pause budget'}</SaveButton>{b.campaign&&<AdvisoryTarget account={account} budget={b} onSaved={changed}/>}</>}
               {b.reconciliationRequired&&<ErrorText>Accounting reconciliation is required; new requests are paused.</ErrorText>}
@@ -146,5 +144,4 @@ const Empty=styled.p`padding:18px 0;font-size:14px;color:${p=>p.theme.colors.tex
 const DisclosurePanel=styled(Panel).attrs({as:'details'})`display:block;summary{cursor:pointer;list-style-position:outside;margin-left:16px;padding-left:4px}summary h2{display:inline;font-size:22px}summary p{margin-top:8px}summary:focus-visible{outline:2px solid ${p=>p.theme.colors.accent.gold};outline-offset:6px}`
 const DisclosureBody=styled.div`display:flex;flex-direction:column;gap:20px;margin-top:24px;`
 const BudgetCard=styled.div`padding:20px 0;border-top:1px solid ${p=>p.theme.colors.border.base};display:flex;flex-direction:column;gap:18px;`
-const Stats=styled.dl`display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:0;dt{font-size:12px;color:${p=>p.theme.colors.text.tertiary};margin-bottom:8px}dd{margin:0;font-size:18px;font-variant-numeric:tabular-nums}@media(max-width:650px){grid-template-columns:repeat(2,minmax(0,1fr))}`
 const PairList=styled.ul`list-style:none;padding:0;margin:0;li{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:18px 0;border-top:1px solid ${p=>p.theme.colors.border.base}}code{font-size:12px;overflow-wrap:anywhere;color:${p=>p.theme.colors.text.secondary}}`
