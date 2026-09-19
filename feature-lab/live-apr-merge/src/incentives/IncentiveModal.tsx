@@ -4,7 +4,7 @@ import { InteractiveEmblem } from '../host/InteractiveEmblem'
 import { useCallback,useEffect,useId,useRef,useState } from 'react'
 import CurrencyInput from 'react-currency-input-field'
 import { formatUnits,type Address } from 'viem'
-import styled,{css,createGlobalStyle,keyframes} from 'styled-components'
+import styled,{css,createGlobalStyle} from 'styled-components'
 import { Modal,ModalTitle } from '../host/ui'
 import { aprTextPaint } from '../host/aprTextStyle'
 import { sidebarDefaults, sidebarVariables } from '../host/sidebarTheme'
@@ -16,7 +16,7 @@ import { campaignPremiumCents as programPremiumCents } from '../../shared/campai
 import { PrimaryAction as ModalAction,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,Row,Stack,Token } from './styles'
 import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
-import { DeploymentWaiting } from './DeploymentWaiting'
+import { DeploymentWaiting,RequestPending } from './DeploymentWaiting'
 import { DepositTooltip } from './DepositTooltip'
 import { ImpermanentLossTooltip } from './ImpermanentLossTooltip'
 import uniswapLogo from './assets/uniswap.svg'
@@ -115,7 +115,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
     </RequestTitle>{!second&&<InteractiveEmblem/>}</Header>
     <ModalContent $amountPage={!second}>
       {!id&&!requesting&&depositTokens&&<DepositReward aria-label='Deposit and incentive'><PairIcons aria-hidden='true'><TokenIcon {...depositTokens[0]} size={24}/><TokenIcon {...depositTokens[1]} size={24}/></PairIcons><span>Deposit {depositTokens[0].symbol}/{depositTokens[1].symbol}, get {usd(claimUsd)}.</span></DepositReward>}
-      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy} onDeployment={setStatusRow}/>:requesting?<RequestPending role='status' aria-live='polite' data-request-pending><RequestSpinner aria-hidden='true'/><b>{flow.preparing?'Making request...':'Confirming payment...'}</b><FinePrint>{flow.preparing?'Your request is being prepared.':'Confirm the request in your wallet. This step will update when your payment is confirmed.'}</FinePrint></RequestPending>:reviewed?<>
+      {id&&account?<DeploymentWaiting key={account+id} account={account} id={id} position={position} onPosition={()=>setPosition(true)} onBusy={setNativeBusy} onDeployment={setStatusRow}/>:requesting?<RequestPending label={flow.preparing?'Making request...':'Confirming payment...'}><FinePrint>{flow.preparing?'Your request is being prepared.':'Confirm the request in your wallet. This step will update when your payment is confirmed.'}</FinePrint></RequestPending>:reviewed?<>
         <VaultReview label='Deployment summary' bullets={<>
           <li><DepositTooltip value={usd(Number(reviewed.principalCents)/100)} assets={[
             {amount:tokenAmount(formatUnits(raw!.amount0,reviewed.plan.token0.decimals)),symbol:reviewed.plan.token0.symbol,address:reviewed.plan.token0.address},
@@ -257,11 +257,3 @@ const QuoteSummary = styled.dl`margin:0;display:flex;flex-direction:column;gap:1
   dd{margin:0 0 0 auto;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
 `
 const RewardValue = styled.b`color:${({ theme }) => theme.colors.semantic.success};white-space:nowrap;`
-const Terms = styled.dl`margin:16px 0;display:flex;flex-direction:column;gap:10px;div{display:flex;justify-content:space-between;gap:16px}dt{color:${({ theme }) => theme.colors.text.tertiary}}dd{margin:0;text-align:right}`
-const Receipt = styled.div`display:flex;flex-direction:column;gap:10px;overflow-wrap:anywhere;`
-const Success = styled.p`margin:0;line-height:1.6;color:${({ theme }) => theme.colors.semantic.success};font-size:14px;overflow-wrap:anywhere;`
-
-// Loading is confined to the third step; the first two steps keep normal buttons.
-const requestSpin=keyframes`to{transform:rotate(360deg)}`
-const RequestPending=styled.div`display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 0;text-align:center;`
-const RequestSpinner=styled.span`width:28px;height:28px;border:3px solid #493353;border-top-color:#d286ff;border-radius:50%;animation:${requestSpin} .8s linear infinite;@media(prefers-reduced-motion:reduce){animation-duration:2s;}`

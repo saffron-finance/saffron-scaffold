@@ -1,22 +1,15 @@
 import { formatUnits } from 'viem'
-import { useEffect,useState } from 'react'
+import { useEffect,type ReactNode } from 'react'
 import type { Address } from 'viem'
-import styled from 'styled-components'
+import styled,{keyframes} from 'styled-components'
 import { useDeploymentStatus } from '../host/useDeploymentStatus'
 import { VaultLifecyclePanel } from './VaultLifecyclePanel'
 import { statusLabel,type Deployment } from './model'
 import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Stack } from './styles'
 
-export function Elapsed({since}:{since?:string}){
-  const [now,setNow]=useState(Date.now)
-  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer)},[])
-  const elapsed=since?Math.max(0,Math.floor((now-Date.parse(since))/1000)):0
-  return <FinePrint aria-live='off'>Elapsed <time aria-label='Time since request'>{Math.floor(elapsed/3600)>0?Math.floor(elapsed/3600)+'h ':''}{Math.floor(elapsed/60)%60}m {elapsed%60}s</time></FinePrint>
-}
 export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeployment}:{account:Address;id:string;position:boolean;onPosition:()=>void;onBusy:(busy:boolean)=>void;onDeployment?:(row:Deployment)=>void}){
   const status=useDeploymentStatus(account,id),row=status.data,progress=row?.progress
-  const [busy,setBusy]=useState(false),[error,setError]=useState('')
-  useEffect(()=>onBusy(busy),[busy,onBusy])
+  useEffect(()=>{if(!position)onBusy(false)},[position,onBusy])
   useEffect(()=>{if(row)onDeployment?.(row)},[row,onDeployment])
   if(position)return <VaultLifecyclePanel account={account} id={id} onBusy={onBusy} row={row} verificationError={status.error}/>
   const reason=status.error?'verification_unavailable':progress?.reason
@@ -25,25 +18,19 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeplo
     :reason?.startsWith('payment_')?statusLabel(reason.slice(8)):reason==='retired'?'Historical request':reason==='retirement_requested'?'Needs operator attention'
     :progress?.activeStage===1?'Preparing your vault':progress?.activeStage===2?'Creating your vault':progress?.activeStage===3?'Checking your vault':progress?.activeStage===4?'Verifying vault':'Loading your request…'
   return <Stack data-vault-lifecycle={id} data-deployment-waiting>
-    <b role='status' aria-live='polite'>{label}</b>{row?.refund?<FinePrint>{row.refund.state==='refunded'?'Your original creation fee has been repaid on Robinhood and this request is closed.':row.refund.state==='refund_exception'?'The refund needs canonical verification again. Creation remains stopped.':'The operator cannot fulfill this request and has approved repayment of your original creation fee. Creation is stopped.'} {formatUnits(BigInt(row.refund.verifiedWei),18)} / {formatUnits(BigInt(row.refund.amountWei),18)} ETH verified.</FinePrint>:<>
-      {/* This is setup guidance, not a new chain verification or funding gate. */}
-      {reason!=='ready'&&reason!=='retired'&&<FinePrint>You earn upfront yield on Saffron by depositing to a vault. Your vault is being created now.</FinePrint>}
-      <Elapsed since={progress?.requestedAt??row?.createdAt}/>
-    </>}
-    <FinePrint>You can close this window and return through Portfolio. Your request remains saved.</FinePrint>
+    <RequestPending label={label} active={!row?.refund&&!['ready','retired','retirement_requested','verification_unavailable'].includes(reason??'')}>
+      {row?.refund&&<FinePrint>{row.refund.state==='refunded'?'Your original creation fee has been repaid on Robinhood and this request is closed.':row.refund.state==='refund_exception'?'The refund needs canonical verification again. Creation remains stopped.':'The operator cannot fulfill this request and has approved repayment of your original creation fee. Creation is stopped.'} {formatUnits(BigInt(row.refund.verifiedWei),18)} / {formatUnits(BigInt(row.refund.amountWei),18)} ETH verified.</FinePrint>}
+      {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The incentive program operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
+      {progress?.operatorAction&&!row?.refund&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
+      <FinePrint>You can close this window and return through Portfolio. Your request remains saved.</FinePrint>
+    </RequestPending>
     {progress?.paymentState==='sample'&&<FinePrint>Sample request progress · no onchain transactions.</FinePrint>}
-    {progress&&!row?.refund&&<Stages aria-label='Vault creation progress'>{progress.stages.map(stage=><li key={stage.id} aria-current={stage.state==='active'?'step':undefined}>
-      <StageMarker $active={stage.state==='active'&&reason!=='verification_unavailable'} $complete={stage.state==='complete'} aria-hidden='true'>{stage.state==='complete'?'✓':stage.id}</StageMarker>
-      <span>{stage.id===4?'Verify vault':stage.name}<small>{{complete:'Complete',active:'In progress',pending:'Pending',blocked:'On hold',checking:'Checking'}[stage.state]}</small></span>
-    </li>)}</Stages>}
-    {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The incentive program operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
-    {progress?.operatorAction&&!row?.refund&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
     {status.error&&<ErrorText role='alert'>The last known request is shown. Verification is unavailable and new actions are paused.</ErrorText>}
-    {error&&<ErrorText role='alert'>{error}</ErrorText>}
-    {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<Action disabled={Boolean(status.error)||busy} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</Action>}
+    {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<Action disabled={Boolean(status.error)} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</Action>}
     {/* Always available, even before the first transaction, so manual refresh
         and status evidence are not lost when the journal is initially empty. */}
     <Disclosure data-deployment-transactions><summary>Deployment transactions</summary><TransactionDetails>
+      {(progress?.requestedAt??row?.createdAt)&&<FinePrint>Requested: {new Date(progress?.requestedAt??row!.createdAt).toLocaleString()}.</FinePrint>}
       {progress?.lastProgressAt&&<FinePrint>Last verified progress: {new Date(progress.lastProgressAt).toLocaleString()}{progress.observedBlock?' · block '+progress.observedBlock.number:''}.</FinePrint>}
       {progress?.serviceWindowMinutes&&<FinePrint>Operator service window: {progress.serviceWindowMinutes} minutes. This is an operational window; funding and chain confirmations may take longer.</FinePrint>}
       <QuietButton onClick={status.refresh}>Check progress</QuietButton>
@@ -52,7 +39,13 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeplo
   </Stack>
 }
 const TransactionDetails=styled(Stack)`margin-top:16px;gap:14px;p{margin:0;}`
-const Stages=styled.ol`list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:18px;li{display:flex;align-items:center;gap:14px;font-size:14px;}small{display:block;color:#999;margin-top:4px;font-size:12px;}`
-const StageMarker=styled.span<{$active:boolean;$complete:boolean}>`position:relative;display:grid;place-items:center;flex:0 0 32px;height:32px;border:1px solid ${({$complete,$active})=>$complete||$active?'#ffbc09':'#555'};border-radius:50%;color:${({$complete,$active})=>$complete||$active?'#ffbc09':'#999'};
-  &::after{content:'';position:absolute;inset:-4px;border:2px solid transparent;border-top-color:${({$active})=>$active?'#ffbc09':'transparent'};border-radius:50%;animation:${({$active})=>$active?'request-spin 1.5s linear infinite':'none'};}
-  @keyframes request-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){&::after{animation:none;}}`
+
+/** One presentation for payment preparation and saved-request progression.
+ * Labels come from real flow/status state; completed or unavailable requests
+ * stop animating instead of implying that work is still progressing. */
+export function RequestPending({label,active=true,children}:{label:string;active?:boolean;children?:ReactNode}){
+  return <Pending data-request-pending><Spinner data-request-spinner data-spinning={active} $active={active} aria-hidden='true'/><b role='status' aria-live='polite' aria-atomic='true'>{label}</b>{children}</Pending>
+}
+const spin=keyframes`to{transform:rotate(360deg)}`
+const Pending=styled.div`display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 0;text-align:center;`
+const Spinner=styled.span<{$active:boolean}>`width:28px;height:28px;border:3px solid #493353;border-top-color:#d286ff;border-radius:50%;animation:${spin} .8s linear infinite;animation-play-state:${p=>p.$active?'running':'paused'};@media(prefers-reduced-motion:reduce){animation:none;}`

@@ -54,14 +54,16 @@
     "src/incentives/operator-styles.ts",
     "src/incentives/admin-workspace-styles.ts"
   ],
-  "frontendRelease": "0.8.35",
-  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md. Version 0.8.10 separates portfolio/session/payment reads and coordinates durable wallet recovery across tabs. See docs/wallet-recovery-isolation.md. Test integration records two previously stale exact-file entries as reviewed local adaptations: selected-session/coalesced read transport and visibility/mutation-aware polling. Their current browser bytes are pinned separately from canonical backend UI. P3 Program workspace and R1 Guided review intentionally adapt merged-app browser presentation; standalone backend and UI are unchanged. See docs/admin-workspace.md. Pin maintenance also records unchanged, previously published health-copy normalization (95c75a4) and typed wallet-expiry/error-copy handling (cbe3b9d, 95c75a4); no transport or health code changes in this release.",
+  "frontendRelease": "0.8.36",
+  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md. Version 0.8.10 separates portfolio/session/payment reads and coordinates durable wallet recovery across tabs. See docs/wallet-recovery-isolation.md. Test integration records two previously stale exact-file entries as reviewed local adaptations: selected-session/coalesced read transport and visibility/mutation-aware polling. Their current browser bytes are pinned separately from canonical backend UI. P3 Program workspace and R1 Guided review intentionally adapt merged-app browser presentation; standalone backend and UI are unchanged. See docs/admin-workspace.md. Pin maintenance also records unchanged, previously published health-copy normalization (95c75a4) and typed wallet-expiry/error-copy handling (cbe3b9d, 95c75a4); no transport or health code changes in this release. Deposit waiting UI shares one purple spinner across request/payment and saved-creation states; gold stages and elapsed timer removed. Wallet/status contracts unchanged.",
   "adaptedHashes": {
     "src/host/transport.ts": "2c80e4ee9c3977bf43acb70df9fe9c592da6fcef2180b591dc0c2e047096716a",
     "src/host/usePollingResource.ts": "e0807ceee01d05e04eb1d5c8c805be32c9e4b36e515e35d403910b038ac498ed",
     "src/incentives/ProgramAdmin.tsx": "7e6dfe962676228b510de1b23a407951b7f093d3de51f36b0656215b12e42edf",
     "src/incentives/RefundAdmin.tsx": "c8bc3a6326281854f89cbf7132236c2b006cfb2a651a3f8f9d47d255c3a68693",
     "src/incentives/operator-styles.ts": "bd8b88bc85531fe0a38686643684b51e77ad85f4cd9cef78f194f189f7415ae4",
-    "src/incentives/admin-workspace-styles.ts": "af1862f6cb490455b0e5339406d01e41c3cad4876d7239ddde31dfe89bb9129d"
+    "src/incentives/admin-workspace-styles.ts": "af1862f6cb490455b0e5339406d01e41c3cad4876d7239ddde31dfe89bb9129d",
+    "src/incentives/IncentiveModal.tsx": "fd3c3bcf7fd64fd8949ccf1b2f047abe6fdfcf9a517b58fab82d916e9abd2165",
+    "src/incentives/DeploymentWaiting.tsx": "d38ddb66e90287f5aa94ccaaf04a8a6c008dae5c167d5e91ffe59fde4f53f223"
   }
 }
