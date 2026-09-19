@@ -20,7 +20,7 @@ it.each(['Making request...','Confirming payment...'])('shares the existing purp
 it('shows only the current creation phrase under the same spinner, through all four stages',()=>{
  const shown=render(view())
  for(const [index,label]of ['Preparing your vault','Creating your vault','Checking your vault','Verifying vault'].entries()){
-  status.data={...status.data,progress:{...status.data.progress,activeStage:index+1}};shown.rerender(view())
+  status.data={...status.data,progress:{...status.data.progress,reason:index===3?'awaiting_funding':'creating',activeStage:index+1}};shown.rerender(view())
   expect(screen.getByRole('status')).toHaveTextContent(label);expect(document.querySelectorAll('[data-request-spinner]')).toHaveLength(1)
   expect(document.querySelector('[data-request-spinner]')?.nextElementSibling).toBe(screen.getByRole('status'))
   expect(screen.queryByRole('list',{name:'Vault creation progress'})).toBeNull()
@@ -31,6 +31,6 @@ it('does not advance a pending status merely because time passes',()=>{
  vi.useFakeTimers();render(view());vi.advanceTimersByTime(30000)
  expect(screen.getByRole('status')).toHaveTextContent('Preparing your vault');expect(document.querySelector('[data-request-spinner]')).toHaveAttribute('data-spinning','true')
 })
-it.each(['ready','verification_unavailable','retired'])('stops the spinner for %s without hiding its status',reason=>{
+it.each(['ready','verification_unavailable'])('stops the spinner for %s without hiding its status',reason=>{
  status.data.progress.reason=reason;render(view());expect(document.querySelector('[data-request-spinner]')).toHaveAttribute('data-spinning','false');expect(screen.getByRole('status')).not.toBeEmptyDOMElement()
 })

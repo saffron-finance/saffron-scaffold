@@ -16,7 +16,7 @@ describe('admin variable-side funding',()=>{
     const r=row();r.observation.variableBalance='999999999'
     expect(programFundingTerms(r,now)).toMatchObject({remaining:1000000n,token:{decimals:6}})
   })
-  it('requires fresh canonical factory evidence and a created, unretired, unstarted request',()=>{
+  it('requires fresh canonical factory evidence and a created, execution-enabled, unstarted request',()=>{
     for(const mutate of [
       (r:Deployment)=>{r.observation.checkedAt=now-20000},(r:Deployment)=>{r.observation.canonical=false},
       (r:Deployment)=>{r.observation.factory=token},(r:Deployment)=>{r.cancelRequested=true},

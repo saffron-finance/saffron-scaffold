@@ -17,16 +17,14 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeplo
   const reason=status.error?'verification_unavailable':progress?.reason
   const label=row?.refund?statusLabel(row.refund.state):reason==='queued'?'Your request is queued':reason==='awaiting_funding'?'Verifying vault':reason==='operator_review'?'Waiting for operator review'
     :reason==='verification_unavailable'?'Verification temporarily unavailable':reason==='ready'?(row?.state==='occupied'?'Fixed side occupied':'Your vault is ready')
-    :reason?.startsWith('payment_')?statusLabel(reason.slice(8)):reason==='retired'?'Historical request':reason==='retirement_requested'?'Needs operator attention'
-    :progress?.activeStage===1?'Preparing your vault':progress?.activeStage===2?'Creating your vault':progress?.activeStage===3?'Checking your vault':progress?.activeStage===4?'Verifying vault':'Loading your request…'
+    :progress?.activeStage===1?'Preparing your vault':progress?.activeStage===2?'Creating your vault':progress?.activeStage===3?'Checking your vault':'Loading your request…'
   return <Stack data-vault-lifecycle={id} data-deployment-waiting>
-    <RequestPending label={label} active={!row?.refund&&!['ready','retired','retirement_requested','verification_unavailable'].includes(reason??'')}>
+    <RequestPending label={label} active={!row?.refund&&!['ready','verification_unavailable'].includes(reason??'')}>
       {row?.refund&&<FinePrint>{row.refund.state==='refunded'?'Your original creation fee has been repaid on Robinhood and this request is closed.':row.refund.state==='refund_exception'?'The refund needs canonical verification again. Creation remains stopped.':'The operator cannot fulfill this request and has approved repayment of your original creation fee. Creation is stopped.'} {formatUnits(BigInt(row.refund.verifiedWei),18)} / {formatUnits(BigInt(row.refund.amountWei),18)} ETH verified.</FinePrint>}
       {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The incentive program operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
       {progress?.operatorAction&&!row?.refund&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
       <FinePrint>You can close this window and return through Portfolio. Your request remains saved.</FinePrint>
     </RequestPending>
-    {progress?.paymentState==='sample'&&<FinePrint>Sample request progress · no onchain transactions.</FinePrint>}
     {status.error&&<ErrorText role='alert'>The last known request is shown. Verification is unavailable and new actions are paused.</ErrorText>}
     {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<PositionAction disabled={Boolean(status.error)} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</PositionAction>}
     {/* Always available, even before the first transaction, so manual refresh

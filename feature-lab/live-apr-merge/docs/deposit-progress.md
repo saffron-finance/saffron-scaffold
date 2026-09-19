@@ -1,6 +1,6 @@
 # One deposit progress surface
 
-Request preparation and payment confirmation share the same purple-spinner presenter as accepted-request preparation, creation, checking and verification. The status appears immediately beneath the spinner; only the current status is shown. Backend evidence, not elapsed time, advances creation. Ready, unavailable, retired and refund states stop the animation, and reduced-motion disables it.
+Request preparation and payment confirmation share the same purple-spinner presenter as accepted-request preparation, creation, checking and verification. The status appears immediately beneath the spinner; only the current status is shown. Backend evidence, not elapsed time, advances creation. Ready, unavailable and refund states stop the animation, and reduced-motion disables it.
 
 The four gold stage rows, their marker animation, duplicate spinner styling, unused waiting state, three unused modal styles and per-second elapsed timer are removed. Requested/verified timestamps, transaction links, manual refresh and service-window evidence stay under Deployment transactions. Saved requests still reopen through Portfolio. Exact payment, cancellation, refunds, stale-read gating and explicit LP entry are unchanged.
 
