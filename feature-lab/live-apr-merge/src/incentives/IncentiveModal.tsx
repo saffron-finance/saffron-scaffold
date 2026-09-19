@@ -1,3 +1,4 @@
+import {programText} from './program-language'
 import { FormFieldGroup, FormInput, FormLabel } from '@fixed/shared/components/FormStyles'
 import { InteractiveEmblem } from '../host/InteractiveEmblem'
 import { useCallback,useEffect,useId,useRef,useState } from 'react'
@@ -11,7 +12,7 @@ import type { useDeploymentFlow } from '../host/useDeploymentFlow'
 import type { useOfferPrice } from '../host/useOfferPrice'
 import { tokenAmount,usd,type Offer,type Deployment } from './model'
 import { amountsForLiquidity } from '../../shared/liquidity-math.mjs'
-import { campaignPremiumCents } from '../../shared/campaign.mjs'
+import { campaignPremiumCents as programPremiumCents } from '../../shared/campaign.mjs'
 import { PrimaryAction as ModalAction,Disclosure,ErrorText,FinePrint,Label,Muted,Premium,QuietButton,Row,Stack,Token } from './styles'
 import { TokenIcon } from './TokenIcon'
 import { VaultReview } from './VaultReview'
@@ -59,7 +60,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
   // or the ETH request fee as the incentive. The accepted plan owns the reviewed amount.
   const principalCents=Number.isFinite(amount)&&amount>0?Math.round(amount*100):0
   const reward=offer?.budget.campaign&&Number.isSafeInteger(principalCents)
-    ?Number(campaignPremiumCents(offer.budget.campaign,String(principalCents)))/100
+    ?Number(programPremiumCents(offer.budget.campaign,String(principalCents)))/100
     :offer&&Number.isFinite(amount)?Math.floor(Math.max(0,amount)*offer.apr*offer.days/365)/100:0
   // Every quote freezes raw premium and its USD price. Direct APR programs may
   // omit campaign-cent economics, so value their actual quoted token amount.
@@ -123,7 +124,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <li>You get: <b>{tokenAmount(formatUnits(BigInt(reviewed.plan.premium),reviewed.plan.variableDecimals))} {reviewed.plan.variableSymbol}</b>, claimable after the vault starts.</li>
           <li>Lock time: <b>{reviewed.snapshot.durationSeconds/86400} days</b>.</li>
           <li data-warning><ImpermanentLossTooltip/></li>
-        </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The campaign operator funds the premium externally before LP entry becomes available here.</p><p>USD values are estimates and may change with crypto prices. You review the LP token amounts before depositing. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
+        </>} details={<><p>The service pays creation gas. Your fixed ETH request fee pays for these exact terms. The incentive program operator funds the premium externally before LP entry becomes available here.</p><p>USD values are estimates and may change with crypto prices. You review the LP token amounts before depositing. Impermanent loss can affect your LP position.</p><p>Robinhood Chain · full range.</p></>}/>
         {flow.quote?.fee&&<FinePrint>Request fee: {formatUnits(BigInt(flow.quote.fee.amountWei),18)} ETH, plus gas.</FinePrint>}
         {flow.saved?.sent&&<label>Existing payment transaction hash<input aria-label='Payment transaction hash' value={flow.recoveryHash} onChange={e=>flow.setRecoveryHash(e.target.value)} style={{width:'100%'}}/></label>}
         {flow.saved?.sent&&!flow.saved.hash&&flow.saved.nonce!==undefined&&<Disclosure><summary>Recover a missing transaction response</summary><p>Check payment first. If your wallet never returned a hash, retry the exact same fee at nonce {flow.saved.nonce}. Your wallet will ask for confirmation. If the quote expired, resolve or cancel that nonce in your wallet and enter the resulting hash here.</p><QuietButton disabled={busy} onClick={()=>void flow.pay(true)}>Retry same payment</QuietButton></Disclosure>}
@@ -136,7 +137,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
           <li>You get: <b>{usd(preview.reward)}</b> in {offer.token0.symbol}, claimable after the vault starts.</li>
           <li>Lock time: <b>{offer.days} days</b>.</li>
           <li data-warning><ImpermanentLossTooltip/></li>
-        </>} details={<><p>USD values are estimates and may change with crypto prices. The request uses the final token amounts.</p><p>The campaign operator funds the premium before LP entry. Your LP assets stay in your wallet until you approve their deposit.</p></>}/>
+        </>} details={<><p>USD values are estimates and may change with crypto prices. The request uses the final token amounts.</p><p>The incentive program operator funds the premium before LP entry. Your LP assets stay in your wallet until you approve their deposit.</p></>}/>
         <FinePrint>Request fee: {formatUnits(BigInt(offer.requestFeeWei??'0'),18)} ETH, plus gas.</FinePrint>
         <ModalAction aria-disabled={busy} onClick={()=>void claim()}>{claimLabel}</ModalAction>
         {flow.error&&<ClaimError key={flow.error} message={flow.error}/>}
@@ -156,7 +157,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
         {/* The exact fee remains disclosed on the next, payment-review step. */}
         {!offer.requestFeeWei&&<FinePrint>Request fee is not configured.</FinePrint>}
         {price.error&&<Row><ErrorText role='alert'>{price.error}</ErrorText><QuietButton onClick={price.refresh}>Refresh price</QuietButton></Row>}
-        {flow.error&&<ErrorText role='alert'>{flow.error}</ErrorText>}
+        {flow.error&&<ErrorText role='alert'>{programText(flow.error)}</ErrorText>}
         <ModalAction disabled={Boolean(account)&&!valid} aria-disabled={busy} onClick={beginReview}>{!account?'Connect wallet':'Continue'}</ModalAction>
       </>:null}
     </ModalContent>
@@ -167,7 +168,7 @@ export function IncentiveModal({offer,account,flow,price,deploymentId,openPositi
  * failures as cancellations. A new error remounts the disclosure closed. */
 function ClaimError({message}:{message:string}){
   const cancelled=/user (?:rejected|denied)|denied transaction signature|(?:transaction|request|payment) (?:was )?cancelled|user cancelled/i.test(message)
-  return <ClaimErrorDisclosure data-claim-error><summary><span role='status'><span aria-hidden='true'>⚠ </span>{cancelled?'Transaction cancelled. View details.':'Request could not complete. View details.'}</span></summary><ErrorText>{message}</ErrorText></ClaimErrorDisclosure>
+  return <ClaimErrorDisclosure data-claim-error><summary><span role='status'><span aria-hidden='true'>⚠ </span>{cancelled?'Transaction cancelled. View details.':'Request could not complete. View details.'}</span></summary><ErrorText>{programText(message)}</ErrorText></ClaimErrorDisclosure>
 }
 
 /** The shared base Button dims to 60% opacity on hover. Override only this

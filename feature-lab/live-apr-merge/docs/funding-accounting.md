@@ -2,7 +2,7 @@
 
 Each budget has four headline metrics followed by a compact details table.
 
-- **Planning budget:** the current editable advisory USD target; fall back to the original campaign budget only if no edit exists.
+- **Planning budget:** the current editable advisory USD target; fall back to the original incentive program budget only if no edit exists.
 - **Premium funded:** the existing observed premium-funding ledger, not the ETH request-fee total.
 - **Cumulative premium requested:** total premium USD recorded on all accepted deployment requests.
 - **Number of requests / LP requests:** accepted request records, not distinct wallets, transaction retries, unpaid quotes, or confirmed LP deposits.
@@ -19,6 +19,6 @@ Missing projections display Unavailable. Empty history has zero totals and no av
 
 ## Checks
 
-`npx vitest run src/incentives/FundingAccounting.test.tsx src/incentives/CampaignManagement.test.tsx src/incentives/IncentivesAdmin.test.tsx`
+`npx vitest run src/incentives/FundingAccounting.test.tsx src/incentives/ProgramManagement.test.tsx src/incentives/IncentivesAdmin.test.tsx`
 
-After building, `npm run test:campaign-management` exercises the compiled frontend with a disposable in-memory HTTP fixture at the build's declared base path. It checks request statistics, edited planning values, missing versus empty data, all expanded disclosures at 1440/1024/768/390/320px, and existing editing/navigation. It starts no chain or database and writes nothing to production. Backend aggregation is maintained and verified separately by the API operator.
+After building, `npm run test:incentive-programs` exercises the compiled frontend with a disposable in-memory HTTP fixture at the build's declared base path. It checks request statistics, edited planning values, missing versus empty data, all expanded disclosures at 1440/1024/768/390/320px, and existing editing/navigation. It starts no chain or database and writes nothing to production. Backend aggregation is maintained and verified separately by the API operator.

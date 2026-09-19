@@ -1,6 +1,6 @@
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react'
 import {afterEach,beforeEach,expect,it,vi} from 'vitest'
-import {DeployerBalance,CampaignDeployerBalance} from './DeployerBalance'
+import {DeployerBalance,ProgramDeployerBalance} from './DeployerBalance'
 import type {AdminHealth} from '../host/useAdminHealth'
 
 const mocks=vi.hoisted(()=>({health:vi.fn()}))
@@ -37,11 +37,11 @@ it('rejects wrong-chain, missing, future and invalid amounts while retaining the
  }
 })
 
-it('keeps standalone campaign balances behind operator sign-in',()=>{
+it('keeps standalone incentive program balances behind operator sign-in',()=>{
  mocks.health.mockReturnValue({session:null,report:report(),refresh:vi.fn()})
- const view=render(<CampaignDeployerBalance account={wallet as `0x${string}`}/>)
+ const view=render(<ProgramDeployerBalance account={wallet as `0x${string}`}/>)
  expect(screen.queryByLabelText('Deployer wallet balance')).not.toBeInTheDocument()
  mocks.health.mockReturnValue({session:{operator:true},report:report(),refresh:vi.fn()})
- view.rerender(<CampaignDeployerBalance account={wallet as `0x${string}`}/>)
+ view.rerender(<ProgramDeployerBalance account={wallet as `0x${string}`}/>)
  expect(screen.getByLabelText('Deployer wallet balance')).toBeVisible()
 })

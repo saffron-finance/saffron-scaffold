@@ -1,3 +1,4 @@
+import {programText} from './program-language'
 import { IntakePolicy } from './IntakePolicy'
 import {operatorConsoleHref} from '../host/operatorConsole'
 import { ConfigurationWarnings } from './ConfigurationWarnings'
@@ -12,11 +13,11 @@ import { StepTitle } from '../host/ui'
 import { authedJson } from '../host/transport'
 import { useDeployments } from '../host/useDeployments'
 import { ProgramAdmin } from './ProgramAdmin'
-import { CampaignIdentifier } from './CampaignIdentifier'
+import { ProgramIdentifier } from './ProgramIdentifier'
 import { DeploymentPagination } from './DeploymentPagination'
-import { CampaignFundingModal } from './CampaignFundingModal'
-import { CampaignWithdrawalModal } from './CampaignWithdrawalModal'
-import { fundingStorageKey,campaignWithdrawalStorageKey } from '../host/campaignFunding'
+import { ProgramFundingModal } from './ProgramFundingModal'
+import { ProgramWithdrawalModal } from './ProgramWithdrawalModal'
+import { fundingStorageKey,programWithdrawalStorageKey } from '../host/programFunding'
 import styled from 'styled-components'
 import { statusLabel,type Deployment } from './model'
 import { Action,Disclosure,ErrorText,FinePrint,PrimaryAction,QuietButton,Row,Stack } from './styles'
@@ -33,12 +34,12 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
   const rows=data.rows.filter(row=>filter==='All requests'||filter==='Needs attention'&&['needs_attention','failed','waiting'].includes(row.state)||filter==='Awaiting premium'&&row.workerState==='created'&&['partial','awaiting_external'].includes(row.fundingState))
   function editIntake(){setTab('Overview');setTimeout(()=>{const node=document.getElementById('intake-controls') as HTMLDetailsElement|null;if(node){node.open=true;node.scrollIntoView({block:'center',behavior:'smooth'})}},0)}
   return <Stack>
-    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><a href={operatorConsoleHref} target="_blank" rel="noopener" style={{color:"#d286ff",padding:"10px"}}>Server operator ↗</a><QuietButton onClick={()=>onNavigate('/campaigns/new')}>New campaign</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
+    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><a href={operatorConsoleHref} target="_blank" rel="noopener" style={{color:"#d286ff",padding:"10px"}}>Server operator ↗</a><QuietButton onClick={()=>onNavigate('/incentive-programs/new')}>New incentive program</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
     <OpsNote>Manage real requests, review exceptions, and give each vault a clear next step.</OpsNote>
     <ConfigurationWarnings account={account} compact/>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!operator&&!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
       <DeployerBalance report={report} onRefresh={health.refresh}/>
-      <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Campaigns','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
+      <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Incentive programs','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
       {health.unavailable&&<ErrorText role='alert'>Operational status is unavailable. Counts and readiness are not assumed. Open Status for independent checks.</ErrorText>}
       {(tab==='Overview'||tab==='Requests')&&<>
         <IntakeSummary report={report} onStatus={()=>onNavigate('/status')} onEdit={editIntake}/>
@@ -49,15 +50,15 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate,checkoutRec
           <OpsTabs aria-label='Request filters'>{['All requests','Needs attention','Awaiting premium'].map(name=><button key={name} aria-pressed={filter===name} onClick={()=>setFilter(name)}>{name}</button>)}</OpsTabs>
           {data.loading&&<OpsNote>Loading requests…</OpsNote>}
           {!data.loading&&!data.error&&!rows.length&&<OpsNote>{filter==='All requests'?'No deployment requests on this page.':'No requests match this filter on this page.'}</OpsNote>}
-          {rows.map(row=><Disclosure key={row.id}><summary>{row.snapshot.display.pair} · {row.id.slice(0,8)} · <AdminState state={row.state}/><CampaignIdentifier id={row.programId}/></summary><AdminVault account={account} row={row} onFund={()=>setFundingRow(row)} onWithdraw={()=>setWithdrawalRow(row)} onUpdate={()=>{data.refresh();health.refresh()}}/></Disclosure>)}
+          {rows.map(row=><Disclosure key={row.id}><summary>{row.snapshot.display.pair} · {row.id.slice(0,8)} · <AdminState state={row.state}/><ProgramIdentifier id={row.programId}/></summary><AdminVault account={account} row={row} onFund={()=>setFundingRow(row)} onWithdraw={()=>setWithdrawalRow(row)} onUpdate={()=>{data.refresh();health.refresh()}}/></Disclosure>)}
           <DeploymentPagination data={data}/>
         </OpsCard>
       </>}
-      {tab==='Campaigns'&&<ProgramAdmin account={account} onConnect={onConnect} onCreate={()=>onNavigate('/campaigns/new')}/>}
+      {tab==='Incentive programs'&&<ProgramAdmin account={account} onConnect={onConnect} onCreate={()=>onNavigate('/incentive-programs/new')}/>}
       {tab==='Payments'&&<>{checkoutRecovery}<PaymentAttention account={account}/></>}
       {tab==='Refunds'&&<RefundAdmin account={account}/>}
-      {fundingRow&&<CampaignFundingModal key={account+fundingRow.id} account={account} row={fundingRow} onClose={()=>{setFundingRow(null);data.refresh();health.refresh()}}/>}
-      {withdrawalRow&&<CampaignWithdrawalModal key={account+withdrawalRow.id} account={account} row={withdrawalRow} onClose={()=>{setWithdrawalRow(null);data.refresh();health.refresh()}}/>}
+      {fundingRow&&<ProgramFundingModal key={account+fundingRow.id} account={account} row={fundingRow} onClose={()=>{setFundingRow(null);data.refresh();health.refresh()}}/>}
+      {withdrawalRow&&<ProgramWithdrawalModal key={account+withdrawalRow.id} account={account} row={withdrawalRow} onClose={()=>{setWithdrawalRow(null);data.refresh();health.refresh()}}/>}
     </>}
     {health.signError&&<ErrorText role='alert'>{health.signError}</ErrorText>}{data.error&&<ErrorText role='alert'>{data.error}</ErrorText>}
   </Stack>
@@ -73,7 +74,7 @@ function AdminVault({account,row,onUpdate,onFund,onWithdraw}:{account:Address;ro
   const s=row.observation
   // Keep recovery available even if another funder filled the vault meanwhile.
   let pendingFunding=false,pendingWithdrawal=false
-  try{pendingFunding=Boolean(localStorage.getItem(fundingStorageKey(account,row.id)));pendingWithdrawal=Boolean(localStorage.getItem(campaignWithdrawalStorageKey(account,row.id)))}catch{/* Storage errors are surfaced before any wallet send. */}
+  try{pendingFunding=Boolean(localStorage.getItem(fundingStorageKey(account,row.id)));pendingWithdrawal=Boolean(localStorage.getItem(programWithdrawalStorageKey(account,row.id)))}catch{/* Storage errors are surfaced before any wallet send. */}
   const canFund=row.workerState==='created'&&!row.cancelRequested&&!row.refund&&['partial','awaiting_external'].includes(row.fundingState)
   const programStopped=['paused','closed'].includes(row.programControl?.state??'')
   async function run(action:string){setBusy(true);setError(undefined);try{
@@ -81,17 +82,17 @@ function AdminVault({account,row,onUpdate,onFund,onWithdraw}:{account:Address;ro
     onUpdate()
   }catch(cause){setError((cause as Error).message)}finally{setBusy(false)}}
   return <Stack data-deployment-id={row.id} style={{border:'1px solid #1d1d1d',padding:20,borderRadius:'var(--radius-md)',background:'#0a0a0a',overflowWrap:'anywhere'}}>
-    <Row><b>{row.snapshot.display.pair} · {row.id.slice(0,8)}</b>{canFund||pendingFunding?<PrimaryAction disabled={pendingWithdrawal} style={{width:'auto',maxWidth:'100%',whiteSpace:'normal'}} onClick={onFund}>{pendingFunding?'Recover funding transaction':'Awaiting campaign funding'}</PrimaryAction>:<AdminState state={row.state}/>}</Row>
+    <Row><b>{row.snapshot.display.pair} · {row.id.slice(0,8)}</b>{canFund||pendingFunding?<PrimaryAction disabled={pendingWithdrawal} style={{width:'auto',maxWidth:'100%',whiteSpace:'normal'}} onClick={onFund}>{pendingFunding?'Recover funding transaction':'Awaiting incentive program funding'}</PrimaryAction>:<AdminState state={row.state}/>}</Row>
     <FinePrint as='ul' data-vault-details style={{paddingLeft:18,margin:0}}>
       <li>User: {row.wallet} · {row.snapshot.durationSeconds/86400} days · ${(Number(row.snapshot.fixedCapacityAmount)/100).toFixed(2)} LP</li>
       <li>Premium commitment: {formatUnits(BigInt(row.plan.premium),row.plan.variableDecimals)} {row.plan.variableSymbol}. Funding: {row.fundingState}.</li>
       <li>Variable funded: {s?.verified?<>{formatUnits(BigInt(s.variableSupply),s.variableDecimals)} / {formatUnits(BigInt(s.variableCapacity),s.variableDecimals)} {s.variableSymbol}.</>:'Checking current funding…'}</li>
       <li>Vault: {row.plan.vault?<a style={{color:'#d286ff'}} href={'https://robinhoodchain.blockscout.com/address/'+row.plan.vault} target='_blank' rel='noreferrer'>{row.plan.vault}</a>:'Not deployed yet'}</li>
     </FinePrint>
-    {row.error&&<FinePrint>{row.error} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
+    {row.error&&<FinePrint>{programText(row.error)} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
     {row.plan.vault&&<div>
       <QuietButton disabled={!pendingWithdrawal&&(!programStopped||pendingFunding)} onClick={onWithdraw}>{pendingWithdrawal?'Recover withdrawal transaction':'Withdraw from vault'}</QuietButton>
-      {!pendingWithdrawal&&<FinePrint>{!programStopped?(row.programControl?.state==='active'?'Pause or close this program in Campaigns before withdrawing.':'Program status is unavailable. Refresh operations.'):'Program '+row.programControl?.state+'. Withdraw only assets owned by your connected wallet; started vaults must mature first.'}</FinePrint>}
+      {!pendingWithdrawal&&<FinePrint>{!programStopped?(row.programControl?.state==='active'?'Pause or close this program in Incentive programs before withdrawing.':'Program status is unavailable. Refresh operations.'):'Program '+row.programControl?.state+'. Withdraw only assets owned by your connected wallet; started vaults must mature first.'}</FinePrint>}
     </div>}
     {['failed','waiting'].includes(row.workerState)&&<Row><QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton></Row>}
     <Disclosure><summary>Transaction journal and recovery</summary>

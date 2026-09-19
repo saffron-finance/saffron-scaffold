@@ -1,3 +1,4 @@
+import {programText} from './program-language'
 import { useEffect,useRef,useState } from 'react'
 import type { Address } from 'viem'
 import styled from 'styled-components'
@@ -5,12 +6,12 @@ import { authedJson } from '../host/transport'
 import type { Pair,Budget,Program } from './model'
 import { QuietButton } from './styles'
 
-export type CampaignCatalog={pairs:Pair[];budgets:Budget[];programs:Program[]}
+export type ProgramCatalog={pairs:Pair[];budgets:Budget[];programs:Program[]}
 
 /** Shared catalog reads for the manager and the separate creation page. A late
  * response must never repopulate a page after its wallet or route has changed. */
-export function useCampaignCatalog(account:Address|null,onConnect:()=>void,autoLoad:boolean){
-  const [catalog,setCatalog]=useState<CampaignCatalog|null>(null)
+export function useProgramCatalog(account:Address|null,onConnect:()=>void,autoLoad:boolean){
+  const [catalog,setCatalog]=useState<ProgramCatalog|null>(null)
   const [busy,setBusy]=useState(false),[error,setError]=useState('')
   const generation=useRef(0)
   async function load(){
@@ -21,7 +22,7 @@ export function useCampaignCatalog(account:Address|null,onConnect:()=>void,autoL
       const next=await authedJson(account,'/admin/catalog')
       if(request!==generation.current)return false
       setCatalog(next);return true
-    }catch(e){if(request===generation.current)setError((e as Error).message);return false}
+    }catch(e){if(request===generation.current)setError(programText((e as Error).message));return false}
     finally{if(request===generation.current)setBusy(false)}
   }
   useEffect(()=>{

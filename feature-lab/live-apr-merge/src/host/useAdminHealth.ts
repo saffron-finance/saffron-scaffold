@@ -1,3 +1,4 @@
+import {programText} from '../incentives/program-language'
 import { useCallback,useState } from 'react'
 import type { Address } from 'viem'
 import { ensureOperatorSession,readSession,requestJson } from './transport'
@@ -18,7 +19,7 @@ export function useAdminHealth(account:Address|null){
     try{
       const report=await requestJson('/admin/health',undefined,signal)
       if(!Array.isArray(report.checks)||!report.checkedAt)throw new Error('Invalid status report')
-      return {session,report:report as AdminHealth,unavailable:false}
+      return {session,report:{...report,checks:report.checks.map((check:HealthCheck)=>({...check,title:programText(check.title),detail:programText(check.detail),owner:programText(check.owner),action:programText(check.action)}))} as AdminHealth,unavailable:false}
     }catch{return {session,report:null as AdminHealth|null,unavailable:true}}
   },[account])
   const poll=usePollingResource('admin-health:'+account,load,'saffron:session,saffron:catalog-updated,saffron:intake-updated')

@@ -1,7 +1,7 @@
 {
   "name": "saffron-live-apr-merge",
   "private": true,
-  "version": "0.8.33",
+  "version": "0.8.34",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -33,7 +33,7 @@
     "test:lane:host": "node scripts/test-lanes.mjs host",
     "test:lane:downloads": "node scripts/test-lanes.mjs downloads",
     "check:test-catalog": "node scripts/check-test-catalog.mjs",
-    "test:campaign-management": "node tests/campaign-management-browser.mjs"
+    "test:incentive-programs": "node --test tests/program-language.test.mjs && node tests/incentive-programs-browser.mjs"
   },
   "dependencies": {
     "@reown/appkit": "1.8.19",

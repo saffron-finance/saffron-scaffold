@@ -7,7 +7,7 @@ import { abi, WETH, eligibility, sameAddress } from '../../shared/vault-lifecycl
 import { amountsForLiquidity, ceilDiv } from '../../shared/liquidity-math.mjs'
 import { robinhoodClient, requestJson, authedJson, readSession } from './transport'
 import { positionAction } from '../../shared/position-actions.mjs'
-import { campaignFundingTerms,campaignFundingAction,fundingStorageKey,campaignWithdrawalStorageKey,campaignWithdrawalQuote } from './campaignFunding'
+import { programFundingTerms,programFundingAction,fundingStorageKey,programWithdrawalStorageKey,programWithdrawalQuote } from './programFunding'
 
 import { readIntentRecord,writeIntentRecord,intentIdentity,intentChanged,type Intent,type IntentRecord } from './position-intent'
 type Operation = {scope:WalletPreflight;submitted:boolean}
@@ -26,7 +26,7 @@ const rejected = (cause: unknown): boolean => {
 export function useVaultPosition(account: Address, deploymentId: string, mode: string) {
   const adminMode=mode==='fund'||mode==='campaign-withdraw'
   const contextPath='/admin/deployments/'+deploymentId+(mode==='campaign-withdraw'?'/withdrawal-context':'/funding-context')
-  const key = mode==='campaign-withdraw'?campaignWithdrawalStorageKey(account,deploymentId):mode==='fund'?fundingStorageKey(account,deploymentId):positionStorageKey(account, deploymentId)
+  const key = mode==='campaign-withdraw'?programWithdrawalStorageKey(account,deploymentId):mode==='fund'?fundingStorageKey(account,deploymentId):positionStorageKey(account, deploymentId)
   const [context, setContext] = useState<any>(null)
   const [quote, setQuote] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -88,9 +88,9 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       if(!sameAddress(value.funder,account))throw new Error('The signed-in funding wallet changed.')
       setContext(value)
       if(mode==='campaign-withdraw'){
-        const fresh=campaignWithdrawalQuote(value);setQuote(fresh);setError(null);return fresh
+        const fresh=programWithdrawalQuote(value);setQuote(fresh);setError(null);return fresh
       }
-      const terms=campaignFundingTerms(value.deployment)
+      const terms=programFundingTerms(value.deployment)
       const [balance,allowance]=await read(()=>Promise.all([
         robinhoodClient.readContract({address:terms.token.address,abi,functionName:'balanceOf',args:[account]}) as Promise<bigint>,
         robinhoodClient.readContract({address:terms.token.address,abi,functionName:'allowance',args:[account,terms.vault]}) as Promise<bigint>,
@@ -98,7 +98,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
       scope?.assertActive()
       const blocked=balance<terms.remaining?'Insufficient '+terms.token.symbol+' in your connected wallet.':null
       const fresh={phase:null,snapshot:value.snapshot,tokens:[terms.token],rawAmounts:[terms.remaining],maximums:[terms.remaining],
-        action:campaignFundingAction(terms,allowance),blocked}
+        action:programFundingAction(terms,allowance),blocked}
       setQuote(fresh);setError(blocked);return fresh
     }
     const value = await read(()=>requestJson('/deployments/' + deploymentId + '/context?wallet=' + encodeURIComponent(account)))
@@ -278,7 +278,7 @@ export function useVaultPosition(account: Address, deploymentId: string, mode: s
   async function sendAction(run: Operation) {
     const scope=run.scope
     try {
-      if(adminMode&&localStorage.getItem(mode==='fund'?campaignWithdrawalStorageKey(account,deploymentId):fundingStorageKey(account,deploymentId)))throw new Error('Recover the previous campaign wallet action before starting another.')
+      if(adminMode&&localStorage.getItem(mode==='fund'?programWithdrawalStorageKey(account,deploymentId):fundingStorageKey(account,deploymentId)))throw new Error('Recover the previous incentive program wallet action before starting another.')
       const stored=readIntentRecord(key,account,deploymentId)
       if(pending||stored.value){await recoverAction(run);return}
       await scope.read(()=>assertWalletAccount(account));await ensureChain(robinhoodChain,scope)

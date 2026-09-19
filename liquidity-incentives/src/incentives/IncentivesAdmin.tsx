@@ -1,3 +1,4 @@
+import {programText} from './program-language'
 import { ConfigurationWarnings } from './ConfigurationWarnings'
 import { RefundAdmin } from './RefundAdmin'
 import { useState } from 'react'
@@ -22,11 +23,11 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate}:{account:A
   const rows=data.rows.filter(row=>filter==='All requests'||filter==='Needs attention'&&['needs_attention','failed','waiting'].includes(row.state)||filter==='Awaiting premium'&&row.workerState==='created'&&['partial','awaiting_external'].includes(row.fundingState))
   function editIntake(){setTab('Overview');setTimeout(()=>{const node=document.getElementById('intake-controls') as HTMLDetailsElement|null;if(node){node.open=true;node.scrollIntoView({block:'center',behavior:'smooth'})}},0)}
   return <Stack>
-    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><QuietButton onClick={()=>onNavigate('/campaigns')}>New campaign</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
+    <OpsRow><StepTitle>Administration</StepTitle><OpsButtons><QuietButton onClick={()=>onNavigate('/incentive-programs')}>New incentive program</QuietButton><QuietButton onClick={()=>onNavigate('/status')}>Status</QuietButton><QuietButton onClick={onBack}>Home</QuietButton></OpsButtons></OpsRow>
     <OpsNote>Manage real requests, review exceptions, and give each vault a clear next step.</OpsNote>
     <ConfigurationWarnings account={account} compact/>
     {!account?<Action onClick={onConnect}>Connect operator wallet</Action>:!health.session?<Action disabled={health.busy} onClick={()=>void health.signIn()}>Sign in as operator</Action>:!health.session.operator?<ErrorText>This wallet is not an operator.</ErrorText>:<>
-      <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Campaigns','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
+      <OpsTabs aria-label='Administration sections'>{['Overview','Requests','Incentive programs','Payments','Refunds'].map(name=><button key={name} aria-pressed={tab===name} onClick={()=>setTab(name)}>{name}</button>)}</OpsTabs>
       {health.unavailable&&<ErrorText role='alert'>Operational status is unavailable. Counts and readiness are not assumed. Open Status for independent checks.</ErrorText>}
       {(tab==='Overview'||tab==='Requests')&&<>
         <IntakeSummary report={report} onStatus={()=>onNavigate('/status')} onEdit={editIntake}/>
@@ -41,7 +42,7 @@ export function IncentivesAdmin({account,onConnect,onBack,onNavigate}:{account:A
           <DeploymentPagination data={data}/>
         </OpsCard>
       </>}
-      {tab==='Campaigns'&&<ProgramAdmin account={account} onConnect={onConnect}/>}
+      {tab==='Incentive programs'&&<ProgramAdmin account={account} onConnect={onConnect} onCreate={()=>onNavigate('/incentive-programs/new')}/>}
       {tab==='Payments'&&<PaymentAttention account={account}/>}
       {tab==='Refunds'&&<RefundAdmin account={account}/>}
     </>}
@@ -61,7 +62,7 @@ function AdminVault({account,row,onUpdate}:{account:Address;row:Deployment;onUpd
     <FinePrint>User {row.wallet} · {row.snapshot.durationSeconds/86400} days · ${(Number(row.snapshot.fixedCapacityAmount)/100).toFixed(2)} LP</FinePrint>
     <FinePrint>Premium commitment: {formatUnits(BigInt(row.plan.premium),row.plan.variableDecimals)} {row.plan.variableSymbol}. Funding: {row.fundingState}.</FinePrint>
     {s?.verified&&<FinePrint>Variable funded: {formatUnits(BigInt(s.variableSupply),s.variableDecimals)} / {formatUnits(BigInt(s.variableCapacity),s.variableDecimals)} {s.variableSymbol}.</FinePrint>}
-    {row.error&&<FinePrint>{row.error} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
+    {row.error&&<FinePrint>{programText(row.error)} Next attempt: {new Date(row.nextAttemptAt).toLocaleString()}</FinePrint>}
     <Row style={{flexWrap:'wrap'}}>
       {['failed','waiting'].includes(row.workerState)&&<QuietButton disabled={busy} onClick={()=>void run('resume')}>Resume saved operation</QuietButton>}
     </Row>

@@ -45,7 +45,7 @@ test('production runtime: complete paid campaign cycle with watcher recovery, re
     }
     expect((await runOneRequest({database:f.database,rpc:f.chain.rpc,account:f.chain.account,config:f.chain.config,requestId:id,simulation,directory:files.directory,pollMs:5})).state).toBe('created')
     f.chain.beforeBroadcast=undefined
-    await expect(page.getByRole('status',{name:''}).filter({hasText:'Awaiting campaign funding'})).toBeVisible({timeout:20000})
+    await expect(page.getByRole('status',{name:''}).filter({hasText:'Awaiting incentive program funding'})).toBeVisible({timeout:20000})
     const progress=page.getByRole('list',{name:'Vault creation progress'})
     await expect(progress.getByRole('listitem')).toHaveCount(4)
     await expect(progress.getByText('Complete',{exact:true})).toHaveCount(3)
@@ -62,7 +62,7 @@ test('production runtime: complete paid campaign cycle with watcher recovery, re
     await page.screenshot({path:'validation/waiting-mobile.png',fullPage:true,animations:'disabled'})
     await page.unroute('**/api/incentives/deployments/'+id+'?*')
     await page.getByRole('button',{name:'Check progress',exact:true}).click()
-    await expect(page.getByText('Awaiting campaign funding',{exact:true})).toBeVisible()
+    await expect(page.getByText('Awaiting incentive program funding',{exact:true})).toBeVisible()
     await expect(page.getByRole('button',{name:'Deposit',exact:true})).toHaveCount(0)
     const row=await f.database.getIntent(id)
     expect(f.treasuryAddress.toLowerCase()).not.toBe(f.account.address.toLowerCase());expect(f.treasuryAddress.toLowerCase()).not.toBe(f.chain.account.address.toLowerCase())

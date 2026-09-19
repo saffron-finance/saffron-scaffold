@@ -26,9 +26,11 @@ export async function configurationJourney(page,{expect,missingFeeRecipient,base
     expect(await panel.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true)
     if(screenshot)await page.screenshot({path:screenshot,fullPage:true})
     if(campaignPage){
-      await page.goto(f.origin+'/campaigns')
+      await page.goto(f.origin+'/incentive-programs')
+      await page.locator('summary').filter({hasText:'Shared service status'}).click()
       await expect(panel).toContainText('SAFFRON_CREATION_FEE_RECIPIENT')
-      await expect(page.getByRole('form',{name:'Create campaign'})).toBeVisible()
+      await expect(page.getByRole('form',{name:'Create incentive program'})).toHaveCount(0)
+      await expect(page.getByRole('button',{name:'New incentive program',exact:true})).toBeVisible()
     }
     await page.route('**/api/incentives/admin/configuration',route=>route.fulfill({status:503,json:{error:'Configuration unavailable'}}))
     await page.getByRole('button',{name:'Recheck configuration'}).click()

@@ -25,7 +25,7 @@ const page=await context.newPage(),errors=[]
 context.on('page',p=>p.on('pageerror',e=>{if(p.url().startsWith('http://127.0.0.1:'))errors.push(e.message)}))
 page.on('pageerror',e=>errors.push(e.message))
 let f,heartbeat
-const modal=p=>p.getByRole('dialog',{name:'Fund campaign',exact:true})
+const modal=p=>p.getByRole('dialog',{name:'Fund incentive program',exact:true})
 const storage=(p,key)=>p.evaluate(key=>localStorage.getItem(key),key)
 const recovered=p=>modal(p).getByRole('button',{name:'Check funding transaction',exact:true})
 const hashInput=p=>modal(p).getByLabel('Recover funding transaction hash')
@@ -47,7 +47,7 @@ try{
     if(first)await sign.click()
     await p.getByRole('button',{name:'Requests',exact:true}).click()
     await p.locator('summary').filter({hasText:id.slice(0,8)}).click()
-    await p.locator('[data-deployment-id="'+id+'"]').getByRole('button',{name:/^(Awaiting campaign funding|Recover funding transaction)$/}).click()
+    await p.locator('[data-deployment-id="'+id+'"]').getByRole('button',{name:/^(Awaiting incentive program funding|Recover funding transaction)$/}).click()
   }
   await open(page,true)
   // The first tab loses a real approval response; the other tab opens its
@@ -64,10 +64,10 @@ try{
   await stale.route('**/api/incentives/admin/status',route=>route.abort())
   await open(stale);await expect(hashInput(stale)).toBeVisible()
   await hashInput(page).fill(oldHash);await recovered(page).click()
-  await expect(modal(page).getByRole('button',{name:'Fund campaign',exact:true})).toBeEnabled()
+  await expect(modal(page).getByRole('button',{name:'Fund incentive program',exact:true})).toBeEnabled()
   assert.equal(await storage(page,key),null)
   f.state.lostSend=true
-  await modal(page).getByRole('button',{name:'Fund campaign',exact:true}).click()
+  await modal(page).getByRole('button',{name:'Fund incentive program',exact:true}).click()
   await expect(hashInput(page)).toBeVisible()
   const newRaw=await storage(page,key),newRecord=JSON.parse(newRaw),newHash=f.state.lastHash
   assert.equal(newRecord.stage,'fund');assert.notEqual(newRecord.actionId,oldRecord.actionId)
@@ -90,7 +90,7 @@ try{
   await hashInput(stale).fill(newHash);await recovered(stale).click()
   await expect(modal(stale).getByRole('alert')).toContainText('Another Saffron wallet action is in progress')
   assert.equal(JSON.parse(await storage(page,key)).actionId,newRecord.actionId)
-  release();await expect(modal(page).getByRole('status')).toHaveText('Campaign funding confirmed.')
+  release();await expect(modal(page).getByRole('status')).toHaveText('Incentive program funding confirmed.')
   assert.equal(await storage(page,key),null);assert.equal(f.state.sends,2)
   await stale.close();await page.unroute('**/rpc/robinhood')
 

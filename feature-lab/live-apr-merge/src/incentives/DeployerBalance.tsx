@@ -32,7 +32,7 @@ export function DeployerBalance({report,onRefresh}:{report:AdminHealth|null;onRe
 
 /** Standalone campaigns use the existing authenticated health poll. Embedded
  * campaign tabs reuse their parent's card instead of polling twice. */
-export function CampaignDeployerBalance({account}:{account:Address|null}){
+export function ProgramDeployerBalance({account}:{account:Address|null}){
  const health=useAdminHealth(account)
  return health.session?.operator?<DeployerBalance report={health.unavailable?null:health.report} onRefresh={health.refresh}/>:null
 }

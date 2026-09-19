@@ -1,3 +1,4 @@
+import {programText} from './program-language'
 import { useEffect,useState } from 'react'
 import { formatUnits,type Address,type Hex } from 'viem'
 import { useVaultPosition } from '../host/useVaultPosition'
@@ -21,7 +22,7 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
       <li>Lock after start: <b>{row.snapshot.durationSeconds/86400} days</b>.</li>
       <li>Committed premium: <b>{formatUnits(BigInt(row.plan.premium),row.plan.variableDecimals)} {row.plan.variableSymbol}</b>.</li>
     </>} details={<><p>Vault {row.plan.vault??'Creation pending'}</p><p>Deployment {row.id}</p><p>Network: Robinhood Chain. Wallet transactions require network gas. Creation gas is paid by the service.</p></>}/>}
-    {row?.state==='awaiting_funding'&&<FinePrint>Your vault is created. Deposit becomes available after the campaign operator funds the entire premium externally.</FinePrint>}
+    {row?.state==='awaiting_funding'&&<FinePrint>Your vault is created. Deposit becomes available after the incentive program operator funds the entire premium externally.</FinePrint>}
     {row?.canClaim&&<FinePrint>Claiming transfers your premium and converts your claim token into the fixed bearer token used for withdrawal.</FinePrint>}
     {row?.observation?.verified&&row.observation.isStarted&&<FinePrint>Vault started <time aria-label='Vault start time' dateTime={new Date(Number(row.observation.startTime)*1000).toISOString()}>{new Date(Number(row.observation.startTime)*1000).toLocaleString()}</time> · matures <time aria-label='Vault maturity time' dateTime={new Date(Number(row.observation.endTime)*1000).toISOString()}>{new Date(Number(row.observation.endTime)*1000).toLocaleString()}</time>.</FinePrint>}
     {row?.state==='active'&&s&&<FinePrint>Premium claimed. Your LP assets unlock after {new Date(Number(s.endTime)*1000).toLocaleString()}.</FinePrint>}
@@ -32,7 +33,7 @@ export function VaultLifecyclePanel({account,id,onBusy,row,verificationError}:{a
       {[0,1].map(i=><FinePrint key={i}>{flow.amountLabel(i)} {flow.quote.tokens[i].symbol}</FinePrint>)}
       <FinePrint>Slippage: 0.5% · deadline: 5 minutes. The token mix can change with pool price; LP positions are subject to impermanent loss.</FinePrint>
     </>}
-    {(verificationError||error||flow.error)&&<ErrorText role='alert'>{verificationError??error??flow.error}</ErrorText>}
+    {(verificationError||error||flow.error)&&<ErrorText role='alert'>{programText(verificationError??error??flow.error)}</ErrorText>}
     {/Sign in|wallet session/.test(error??flow.error??'')&&<Action disabled={flow.busy||cancelling} onClick={async()=>{setCancelling(true);try{await ensureSession(account);setError(undefined);window.dispatchEvent(new Event('saffron:vault-updated'));await flow.refresh()}catch(cause){setError((cause as Error).message)}finally{setCancelling(false)}}}>Restore payment session</Action>}
     {flow.pending?<Stack>
       <FinePrint>A wallet action needs confirmation. Check it before submitting another.</FinePrint>

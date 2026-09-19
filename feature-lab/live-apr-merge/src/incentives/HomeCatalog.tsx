@@ -31,12 +31,12 @@ export function HomeCatalog({catalog,busy=false,onOpen,recovery}: {
   const groups=useMemo(()=>groupOffers(catalog.offers),[catalog.offers])
   return <>
       <div className='saffron-catalog-title-row' data-desktop-home-copy><StepTitle>Liquidity Incentives</StepTitle></div>
-      <div className='saffron-catalog-introduction' data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each campaign has a fixed duration and target APR. Review your position and premium before paying the campaign’s fixed ETH request fee.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></div>
+      <div className='saffron-catalog-introduction' data-desktop-home-copy aria-label='About liquidity incentives'><StepSubtitle>Choose a liquidity incentive and create a vault sized to your deposit. Each incentive program has a fixed duration and target APR. Review your position and premium before paying the incentive program’s fixed ETH request fee.</StepSubtitle><StepSubtitle>We fund the premium after your vault is created. Once it is ready, deposit your LP assets and claim your incentive. Your position stays locked for the chosen duration; follow its progress and withdraw at maturity from Portfolio.</StepSubtitle></div>
       <header className='saffron-catalog-mobile-introduction'>
         <h1>Liquidity incentives</h1>
         <p>Create a vault. Deposit LP assets when it is ready. Claim your incentive after it starts.</p>
         <details><summary>How it works</summary>
-          <p>Pay the campaign’s fixed ETH request fee. We fund the premium after creation. Your LP is locked for the chosen duration after start.</p>
+          <p>Pay the incentive program’s fixed ETH request fee. We fund the premium after creation. Your LP is locked for the chosen duration after start.</p>
         </details>
       </header>
       {recovery}
@@ -64,7 +64,7 @@ export function OfferRow({offer,isNew=false,disabled=true,onOpen}: {offer:Offer;
           <span className='saffron-catalog-metric' style={{gridColumn:'apr'}} data-offer-metric='apr'><span className='saffron-catalog-mobile-label'>APR</span><b className='saffron-catalog-offer-apr' data-incentive-apr>{offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})}%</b></span>
           {/* Element Timing records real text paint in both startup paths. */}
           <span className='saffron-catalog-metric' style={{gridColumn:'duration'}} data-offer-metric='duration'><span className='saffron-catalog-mobile-label'>Duration</span><span className='saffron-catalog-value' data-incentive-duration {...{elementtiming:'warm-first-row'}}>{offer.days} days</span></span>
-          <span className='saffron-catalog-metric' style={{gridColumn:'tvl'}} data-offer-metric='tvl'><span className='saffron-catalog-mobile-label'>Vault TVL</span><span className='saffron-catalog-value' data-incentive-tvl title={offer.vaultTvl?.status==='available'?'Confirmed LP principal in campaign vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')}>{offer.vaultTvl?.status==='available'&&offer.vaultTvl.usdRaw!==null?'$'+(Number(offer.vaultTvl.usdRaw)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}):'—'}</span></span>
+          <span className='saffron-catalog-metric' style={{gridColumn:'tvl'}} data-offer-metric='tvl'><span className='saffron-catalog-mobile-label'>Vault TVL</span><span className='saffron-catalog-value' data-incentive-tvl title={offer.vaultTvl?.status==='available'?'Confirmed LP principal in incentive program vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')}>{offer.vaultTvl?.status==='available'&&offer.vaultTvl.usdRaw!==null?'$'+(Number(offer.vaultTvl.usdRaw)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}):'—'}</span></span>
           {/* Only the first visible offer can carry the catalog's NEW label. */}
           {isNew&&<span className='saffron-catalog-new-tag' data-incentive-new>NEW</span>}
           {!(isNew)&&<span className='saffron-catalog-phone-arrow' aria-hidden='true'>↗</span>}

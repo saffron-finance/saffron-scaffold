@@ -38,7 +38,7 @@ export async function statusJourney(page,{expect,basePath='',merged=false,eviden
     await expect(page.getByLabel('Deployment queue')).toContainText('No deployment requests')
     await page.getByRole('button',{name:'Edit intake window',exact:true}).click()
     await expect(page.getByLabel('Execution mode')).toBeVisible()
-    for(const name of ['Payments','Refunds','Campaigns','Overview'])await page.getByLabel('Administration sections').getByRole('button',{name,exact:true}).click()
+    for(const name of ['Payments','Refunds','Incentive programs','Overview'])await page.getByLabel('Administration sections').getByRole('button',{name,exact:true}).click()
     if(evidence){await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:evidence+'/admin-desktop.png',fullPage:true})}
     await page.goto(f.origin+'/journey');await expect(page.getByRole('heading',{name:'Journey Guide',exact:true})).toBeVisible()
     await page.getByRole('button',{name:'Status',exact:true}).first().click()

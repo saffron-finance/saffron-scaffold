@@ -12,7 +12,7 @@
    Do not change the existing APR gateway, collector, databases or VNC services.
 4. Publish assets before replacing index.html. Keep old hashed assets for users
    who still have an old tab open. Verify deployed file hashes against the build.
-5. Verify the mounted app, Portfolio, Campaigns and Live APR. Distinguish fixture
+5. Verify the mounted app, Portfolio, Incentive programs and Live APR. Distinguish fixture
    checks from authenticated public interaction. No keys or passwords go in URLs.
 
 ## Public API-connected release

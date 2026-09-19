@@ -25,7 +25,7 @@ cancellable until the actual provider-send boundary, including viem's final
 internal chain read. Durable recovery and zero-retry wallet writes are retained.
 See [wallet preflight](docs/wallet-preflight.md) and `test:wallet-preflight`.
 
-Adds an operator-only deployer ETH balance card to Administration and Campaigns.
+Adds an operator-only deployer ETH balance card to Administration and Incentive programs.
 It uses optional `walletBalance` metadata on the existing `server-gas` health
 check; older backends show Unavailable, never an invented zero. No new RPC
 polling or homepage administration is introduced.
@@ -51,7 +51,7 @@ that the separately maintained production backend was published here.
 
 Version 0.7.0 adds an operational Status page, startup/Journey Guide, and a focused
 Administration console with intake summary, metric cards, request filters, and
-separate campaign/payment/refund sections. Operator navigation orders
+separate incentive program/payment/refund sections. Operator navigation orders
 **Administration → Status → Journey Guide**, on desktop and mobile.
 
 Status uses the wallet-gated canonical `/admin/health` endpoint. It distinguishes
@@ -62,7 +62,7 @@ checks, never an automatic green light. The API cannot start or provision a sign
 Use `npm run test:status` after a root build with the canonical backend's disposable
 database test environment; `MERGE_BASE_PATH` also exercises a nested build.
 
-Visible configuration warnings remain on Admin and Campaigns.
+Visible configuration warnings remain on Admin and Incentive programs.
 Missing/invalid server settings show their names, impact, and corrective action
 after wallet-signed operator login; secret values are never returned. Optional
 WalletConnect and automatic network setup are labeled separately. PostgreSQL
@@ -114,7 +114,7 @@ boundary. Never put RPC or signer credentials in frontend settings.
 - Mobile Home, Portfolio, APR navigation and transaction dialogs share compact
   controls and safe-area spacing. Desktop navigation remains available.
 - **Claim $X** retains its request-time incentive value. Review explicitly shows
-  the separate creation fee: the campaign’s fixed amount in native ETH on Robinhood, paid to
+  the separate creation fee: the incentive program’s fixed amount in native ETH on Robinhood, paid to
   the recipient frozen by the backend quote. User message signatures are not
   required; wallet transactions still require explicit confirmation.
 - Canonically accepted fees enter automatic creation. Four verified stages cover
@@ -122,14 +122,14 @@ boundary. Never put RPC or signer credentials in frontend settings.
   shows elapsed time and real progress without inventing a delivery estimate.
 - Full canonical premium funding enables fixed-side LP entry. Portfolio provides
   deposit, incentive claim, ownership recovery and mature withdrawal.
-- **Vault TVL** values the current deposited principal in each campaign's vaults.
+- **Vault TVL** values the current deposited principal in each incentive program's vaults.
   It excludes premium and requested capacity, and reports unavailable/stale data.
   APR's separate **Pool TVL** retains its pool-wide meaning.
-- Campaigns remain database-managed after launch. Private advisory targets do
+- Incentive programs remain database-managed after launch. Private advisory targets do
   not cap user requests. Premium economics freeze; new premium terms require a new
   program. A fixed ETH request fee (`requestFeeWei`) is required per program, with
   no dollar peg or default. Fee edits apply only to new quotes; original payments
-  and refunds retain their quoted amount. Old campaigns without a fee stay paused.
+  and refunds retain their quoted amount. Old incentive programs without a fee stay paused.
 - Operator refund administration prepares exact full-fee manifests and verifies
   externally paid refunds before permanently closing unfulfillable requests.
   The app does not sign refunds or expose a public variable-side deposit form.
@@ -154,7 +154,7 @@ origins, cancellation, mobile return behavior and the real-device acceptance gat
 
 ## Routes and durable state
 
-Home is `/`; Portfolio is `/portfolio/vaults`; Campaigns and Administration are
+Home is `/`; Portfolio is `/portfolio/vaults`; Incentive programs and Administration are
 `/campaigns` and `/admin`. `/live-apr` opens the default pool, with pool IDs and
 up to three `compare` parameters supported. Stats/Community are scaffold pages.
 The public vault journey never requires navigating to another application.
@@ -165,7 +165,7 @@ observations belong to the API/database. A browser return refreshes ownership
 and chain state without automatically confirming a wallet action.
 
 Old browser simulation storage is ignored and cannot connect a wallet, create
-a campaign or submit a request. APR receipt ownership is separate: route departure
+an incentive program or submit a request. APR receipt ownership is separate: route departure
 releases it, while suspended-document recovery reuses it when recognized.
 
 ## Verification and handoff
@@ -188,7 +188,7 @@ only. A portable frontend archive verifies without a backend checkout.
 For UI browser checks, build at `/`, set `SAFFRON_BACKEND_SOURCE` to the canonical
 package and configure disposable `SAFFRON_TEST_DB_*`, then run `npm run test:browser`.
 The harness uses a real API/database/local EVM and generated wallet. Only read-only
-APR observations use wire fixtures. It checks wallet gating, exact campaign fee
+APR observations use wire fixtures. It checks wallet gating, exact incentive program fee
 editing, responsive layout and actual PNG pixels.
 
 For the real API/database/disposable-chain journey, follow
@@ -223,12 +223,12 @@ See [deployment](docs/DEPLOYMENT.md), [cutover](docs/LIVE-CUTOVER.md), the
 page. The release marker and source manifest identify a candidate; they do not
 activate intake, publish files, qualify a real phone or perform live transfers.
 
-## Campaign and pair setup
+## Incentive program and pair setup
 
-In Admin → Campaigns, choose a pool, enter its fixed ETH request fee, duration
-and economics, then create the campaign. IDs are assigned automatically, and
+In Admin → Incentive programs, choose a pool, enter its fixed ETH request fee, duration
+and economics, then create the incentive program. IDs are assigned automatically, and
 headings show pool tokens and fee tier. A stable creation key prevents duplicates
-when a save response is lost. Existing campaign IDs and quotes do not change.
+when a save response is lost. Existing incentive program IDs and quotes do not change.
 
 Add pair follows the fixed-income Create Vault token-step interaction: two
 searchable modal selectors, a swap button, and existing Uniswap fee tiers. The
@@ -245,8 +245,8 @@ Selected token addresses link to their Blockscout token pages, even without a
 matching pool. The selected pool links to Uniswap Explore on Robinhood. Fee-tier
 controls have persistent gray outlines; USDG uses its bundled, address-bound icon.
 
-Campaign Range selection is displayed as a read-only `Infinite range` field;
-the current full-range adapter and campaign API payload are unchanged.
+Incentive program Range selection is displayed as a read-only `Infinite range` field;
+the current full-range adapter and incentive program API payload are unchanged.
 
 Homepage pair headers, yield icons, and token tooltips also resolve USDG by its
 Robinhood address to the bundled icon, without external API access.

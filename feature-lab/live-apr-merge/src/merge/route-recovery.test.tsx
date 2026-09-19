@@ -5,14 +5,14 @@ vi.mock('../host/transport',()=>({setViewerWallet:()=>{}}))
 vi.mock('../host/AppShell',()=>({AppShell:({children}:{children:ReactNode})=>children}))
 vi.mock('@merge/session',()=>({useMergeSession:()=>({account:null,chainId:null,openModal:()=>{},overlays:null})}))
 vi.mock('../incentives/IncentivesPage',()=>({default:()=>{
-  if(location.pathname==='/campaigns')throw Error('Fixture campaign render failure')
+  if(location.pathname==='/incentive-programs')throw Error('Fixture incentive program render failure')
   return <h1>Recovered home</h1>
 }}))
 
 it('M08 actual route owner resets the section boundary when Return to Home is chosen',async()=>{
   vi.spyOn(console,'error').mockImplementation(()=>{})
   vi.spyOn(window,'scrollTo').mockImplementation(()=>{})
-  history.replaceState(null,'','/campaigns')
+  history.replaceState(null,'','/incentive-programs')
   document.body.innerHTML='<div id="root"></div>'
   await act(async()=>{await import('./main')})
   expect(screen.getByText('This section could not load')).toBeTruthy()

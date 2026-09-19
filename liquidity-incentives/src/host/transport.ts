@@ -1,3 +1,4 @@
+import {programText} from '../incentives/program-language'
 import { createPublicClient,http,type Address } from 'viem'
 import { robinhoodChain } from '@lab/chain/chains'
 import { assertWalletAccount,walletClient } from '@lab/wallet/wallet'
@@ -17,7 +18,7 @@ export async function requestJson(path:string,body?:object,signal?:AbortSignal){
   const response=await fetch(apiUrl(path),{cache:'no-store',credentials:'same-origin',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(30_000)]):AbortSignal.timeout(30_000),
     ...(body?{method:'POST',headers:{'content-type':'application/json','x-saffron-csrf':session?.csrf??''},body:JSON.stringify(body)}:{})})
   const result=await response.json().catch(()=>null)
-  if(!response.ok||!result){if(response.status===401)session=null;throw new Error(result?.error??'The application is unavailable. Your saved deployment can be resumed.')}
+  if(!response.ok||!result){if(response.status===401)session=null;throw new Error(programText(result?.error??'The application is unavailable. Your saved deployment can be resumed.'))}
   return result
 }
 export async function readSession(account:Address|null,signal?:AbortSignal){

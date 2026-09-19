@@ -36,7 +36,7 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeplo
       <StageMarker $active={stage.state==='active'&&reason!=='verification_unavailable'} $complete={stage.state==='complete'} aria-hidden='true'>{stage.state==='complete'?'✓':stage.id}</StageMarker>
       <span>{stage.id===4?'Verify vault':stage.name}<small>{{complete:'Complete',active:'In progress',pending:'Pending',blocked:'On hold',checking:'Checking'}[stage.state]}</small></span>
     </li>)}</Stages>}
-    {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The campaign operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
+    {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The incentive program operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
     {progress?.operatorAction&&!row?.refund&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
     {status.error&&<ErrorText role='alert'>The last known request is shown. Verification is unavailable and new actions are paused.</ErrorText>}
     {error&&<ErrorText role='alert'>{error}</ErrorText>}

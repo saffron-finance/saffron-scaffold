@@ -1,3 +1,4 @@
+import {programText} from '../incentives/program-language'
 import { createClient,http,type Address } from 'viem'
 import { catalogReadActions } from '@lab/wallet/uiActions'
 import { robinhoodChain } from '@lab/chain/chains'
@@ -37,7 +38,7 @@ export async function requestJson(path:string,body?:object,signal?:AbortSignal){
   const result=await response.json().catch(()=>null)
   // Wallet expiry is a typed 403 behind Basic Auth. Ordinary permission/CSRF
   // failures must not clear a valid session, nor may an older request clear a new one.
-  if(!response.ok||!result){if((response.status===401||(response.status===403&&result?.code==='wallet_session_required'))&&requestRevision===authRevision)saveSession(null);throw new Error(result?.error??'The application is unavailable. Your saved deployment can be resumed.')}
+  if(!response.ok||!result){if((response.status===401||(response.status===403&&result?.code==='wallet_session_required'))&&requestRevision===authRevision)saveSession(null);throw new Error(programText(result?.error??'The application is unavailable. Your saved deployment can be resumed.'))}
   return result
 }
 /** Coalesce discovery reads but allow each consumer to leave independently.

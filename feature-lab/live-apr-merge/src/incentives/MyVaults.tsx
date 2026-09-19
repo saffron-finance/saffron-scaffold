@@ -1,3 +1,4 @@
+import {programText} from './program-language'
 import { useCallback } from 'react'
 import styled from 'styled-components'
 import { requestJson } from '../host/transport'
@@ -49,6 +50,6 @@ function PortfolioCapacity(){
   const load=useCallback((signal:AbortSignal)=>requestJson('/admin/portfolio-capacity',undefined,signal),[])
   const {data,error}=usePollingResource('portfolio-capacity',load,'saffron:catalog-updated,saffron:vault-updated')
   return <>{error?<FinePrint>Capacity advisory is unavailable.</FinePrint>:data?.campaigns?.filter((c:any)=>c.nearCapacity).map((c:any)=><FinePrint role='status' data-capacity-advisory key={c.id} style={{padding:16,border:'1px solid #b8860b',borderRadius:8}}>
-    {c.name}: {c.overTarget?'above the planning target':'near capacity'}. This is an advisory only; requests remain open.
+    {programText(c.name)}: {c.overTarget?'above the planning target':'near capacity'}. This is an advisory only; requests remain open.
   </FinePrint>)}</>
 }

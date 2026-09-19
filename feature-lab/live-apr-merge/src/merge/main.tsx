@@ -12,9 +12,9 @@ import { RootBoundary } from '../host/RenderBoundary'
 
 // APR does not load or create observations while the user browses Vaults.
 const AprSection = lazy(() => import('./AprSection'))
-const incentivePaths = new Set(['/', '/campaigns', '/campaigns/new', '/portfolio/vaults', '/admin', '/status', '/journey'])
+const incentivePaths = new Set(['/', '/incentive-programs', '/incentive-programs/new', '/portfolio/vaults', '/admin', '/status', '/journey'])
 const pageLabels: Record<string, string> = {
-  '/': 'Home', '/campaigns': 'Campaigns', '/campaigns/new': 'Create campaign', '/portfolio/vaults': 'Portfolio',
+  '/': 'Home', '/incentive-programs': 'Incentive programs', '/incentive-programs/new': 'Create incentive program', '/portfolio/vaults': 'Portfolio',
   '/admin': 'Administration', '/status': 'Status', '/journey': 'Journey Guide', '/stats': 'Stats', '/community': 'Community',
 }
 const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
@@ -39,7 +39,9 @@ function MergeApp() {
   const pageLabel = isApr ? 'Live APR' : pageLabels[path] ?? 'Page not found'
   const previous = useRef(path)
   const params = new URLSearchParams(location.search)
-  const legacyCampaign = path === '/' && params.get('view') === 'campaigns'
+  // Keep old bookmarks and the original query route, preserving other query/hash data.
+  const legacyProgramRoute=path==='/campaigns'||path==='/campaigns/new'||(path==='/'&&params.get('view')==='campaigns')
+  const legacyProgramTarget=path==='/campaigns/new'?'/incentive-programs/new':'/incentive-programs'
   params.delete('view')
 
   useEffect(() => {
@@ -52,7 +54,7 @@ function MergeApp() {
   }, [path, pageLabel])
 
   return <AppShell account={session.account} chainId={session.chainId} liveApr={isApr} pageLabel={pageLabel} onConnect={session.openModal} overlays={session.overlays}>
-    {legacyCampaign ? <Navigate replace to={{ pathname: '/campaigns', search: params.toString() ? `?${params}` : '', hash: location.hash }} /> :
+    {legacyProgramRoute ? <Navigate replace to={{ pathname: legacyProgramTarget, search: params.toString() ? `?${params}` : '', hash: location.hash }} /> :
       <SectionBoundary key={path}>
         {isApr ? <Suspense fallback={<Loading role='status'>Loading Live APR…</Loading>}><AprSection /></Suspense> :
           isIncentives ? <IncentivesPage account={session.account} onConnect={session.openModal} /> :

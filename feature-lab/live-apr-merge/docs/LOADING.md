@@ -17,7 +17,7 @@ script transfers.
   injection are removed. The unused Work Sans declaration is removed too.
 - Appearance styles are available in the first React render, instead of arriving
   in a separate late chunk. Non-lab builds still compile the editor to a stub.
-- Portfolio, Campaigns, Administration, Status, Journey Guide, and vault dialogs
+- Portfolio, Incentive programs, Administration, Status, Journey Guide, and vault dialogs
   load on demand. Their loading boundaries preserve the application shell and
   keep a pending dialog download from hiding its opener. APR and WalletConnect
   retain their existing demand-loaded boundaries. Used 3D artwork is retained.
@@ -123,7 +123,7 @@ storage mirror, or new polling loop.
 - After seeding storage, hold the next GET through refresh/new-tab return. Rows
   must render before the response, with availability-sensitive actions disabled.
 - Fail/recover that refresh; test malformed/expired/future/empty/blocked storage.
-- Traverse and reload Home, Portfolio, Campaigns, Administration, Status,
+- Traverse and reload Home, Portfolio, Incentive programs, Administration, Status,
   Journey Guide, Stats, Community, and Live APR at desktop and phone widths.
 - Measure real HTTP caching without Playwright routing. Playwright HTTP-auth
   handling also sets Chromium cacheDisabled internally: use an already-authenticated

@@ -11,13 +11,13 @@
 - No browser-only simulation runtime, seeded catalog or fake account remains.
 - Local-chain/VNC fixtures run the same application with generated test wallets.
   Test setup is confined to the test harness, not compiled into the frontend.
-- Each campaign/program has its own required positive `requestFeeWei`. Operators
+- Each incentive program/program has its own required positive `requestFeeWei`. Operators
   enter ETH with up to 18 decimal places. The form never rounds or guesses a fee.
 - New quotes copy the configured wei amount. No ETH/USD fee oracle or dollar peg
   remains. LP principal, premium economics and TVL can still use USD valuations.
 - Fee changes affect new quotes only. Previously issued quotes, payments,
   recovery and full refunds keep their original amount and recipient.
-- Existing campaigns without a fee remain visible but cannot accept new requests
+- Existing incentive programs without a fee remain visible but cannot accept new requests
   until the operator supplies one. Production catalogs are not filled with samples.
 
 ## Deployment
@@ -29,20 +29,20 @@ cannot provide transactions. Configure a public WalletConnect/Reown project ID
 for QR/mobile pairing. Without it the UI explicitly marks WalletConnect
 unavailable and supports actual injected wallets and wallet browsers.
 
-The backend also needs its ETH recipient, real configured campaigns, protected
+The backend also needs its ETH recipient, real configured incentive programs, protected
 RPC/protocol settings and operational intake/watcher/creator settings. These are
 operator deployment configuration, never sample code or guessed live recipients.
 No live funds are spent by the release tests.
 
 ## Validation
 
-Node tests cover exact wei parsing, missing/invalid fees, per-campaign readiness,
+Node tests cover exact wei parsing, missing/invalid fees, per-incentive program readiness,
 fee changes during quote creation, immutable payments after fee changes, and
 actual local-chain payments with changed token prices. Existing database,
 refund, recovery and lifecycle checks remain applicable.
 
 The combined UI tests use the real API, PostgreSQL and local contracts. They
-exercise disconnected wallet gating, ignored old preview storage, campaign fee
+exercise disconnected wallet gating, ignored old preview storage, incentive program fee
 creation/editing, responsive layout and fee disclosure. Mobile/desktop lifecycle
 checks cover two payments, callback loss, watcher recovery, creation, external
 funding, wrapping/approvals, LP entry, claim and withdrawal. The WalletConnect

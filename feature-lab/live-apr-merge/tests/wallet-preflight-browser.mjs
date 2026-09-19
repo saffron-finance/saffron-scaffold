@@ -36,9 +36,9 @@ try{
   await page.getByRole('button',{name:'Requests',exact:true}).click()
   await page.locator('summary').filter({hasText:id.slice(0,8)}).click()
   const card=page.locator('[data-deployment-id="'+id+'"]')
-  const open=()=>card.getByRole('button',{name:'Awaiting campaign funding',exact:true}).click()
-  const modal=page.getByRole('dialog',{name:'Fund campaign',exact:true})
-  const close=()=>modal.getByRole('button',{name:'Close campaign funding',exact:true})
+  const open=()=>card.getByRole('button',{name:'Awaiting incentive program funding',exact:true}).click()
+  const modal=page.getByRole('dialog',{name:'Fund incentive program',exact:true})
+  const close=()=>modal.getByRole('button',{name:'Close incentive program funding',exact:true})
   const approve=()=>modal.getByRole('button',{name:'Approve CASHCAT',exact:true})
   await page.evaluate(()=>{
     const original=window.ethereum.request.bind(window.ethereum)
@@ -68,9 +68,9 @@ try{
   // approve and fund; confirmation and receipt recovery must still work.
   await page.evaluate(()=>{window.stallMethod=null;window.stalledReads.splice(0).forEach(release=>release())})
   await approve().click()
-  const fund=modal.getByRole('button',{name:'Fund campaign',exact:true})
+  const fund=modal.getByRole('button',{name:'Fund incentive program',exact:true})
   await expect(fund).toBeEnabled();assert.equal(f.state.sends,1)
-  await fund.click();await expect(modal.getByRole('status')).toHaveText('Campaign funding confirmed.')
+  await fund.click();await expect(modal.getByRole('status')).toHaveText('Incentive program funding confirmed.')
   assert.equal(f.state.sends,2);await expect.poll(lockCount).toBe(0)
   await modal.getByRole('button',{name:'Done',exact:true}).click()
 

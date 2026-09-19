@@ -26,7 +26,7 @@ an actual wallet to Robinhood Chain. There is no wallet-free runtime.
 Each program stores a positive fixed `requestFeeWei`, entered in ETH by the
 operator. The backend freezes that fee in each quote and verifies payer,
 recipient, exact amount, calldata, chain, receipt and canonical confirmations.
-No ETH/USD fee conversion occurs. Changing a campaign fee affects new quotes
+No ETH/USD fee conversion occurs. Changing an incentive program fee affects new quotes
 only, not existing payments or refunds. One fee cannot fund two requests.
 
 The backend still has a payment-quote deadline. The approved modal has no running

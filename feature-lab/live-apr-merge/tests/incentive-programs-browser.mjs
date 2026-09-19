@@ -9,7 +9,7 @@ import {generatePrivateKey,privateKeyToAccount} from 'viem/accounts'
 /** Compiled-frontend contract fixture. No backend, database, chain process or
  * production service is used. The local HTTP server owns all test mutations;
  * every wallet method other than account/chain reads and sign-in is rejected. */
-const dist=resolve(process.env.MERGE_DIST||'dist'),output=resolve(process.env.MERGE_EVIDENCE||'validation/campaign-management')
+const dist=resolve(process.env.MERGE_DIST||'dist'),output=resolve(process.env.MERGE_EVIDENCE||'validation/incentive-programs')
 const marker=JSON.parse(await readFile(resolve(dist,'deployment-mode.json'),'utf8')),base=marker.basePath.replace(/\/$/,'')
 const signer=privateKeyToAccount(generatePrivateKey()),wallet=signer.address.toLowerCase()
 const address='0x'+'12'.repeat(20),token={address,symbol:'CASHCAT',decimals:18}
@@ -52,10 +52,13 @@ const server=createServer(async(req,res)=>{
    if(path==='/session')return send({session:session()})
    if(path==='/programs')return send({offers:[],creatorOnline:false,readiness:{canQuote:false}})
    if(path==='/admin/catalog')return failCatalog?send({error:'Fixture catalog unavailable'},503):send({pairs,programs,budgets:missingStatistics?budgets.map(({requestStatistics,...budget})=>budget):budgets})
-   if(path==='/admin/health')return send({checkedAt:new Date().toISOString(),checks:[],canQuote:false,readiness:{},metrics:{}})
+   if(path==='/admin/health')return send({checkedAt:new Date().toISOString(),checks:[{id:'campaigns',title:'Campaign funding',detail:'Campaigns need external funding.',owner:'Campaign operator',action:'Review Campaigns.',state:'blocked',scope:'shared'}],canQuote:false,readiness:{},metrics:{}})
    if(path==='/admin/configuration')return send({checkedAt:new Date().toISOString(),settings:[]})
    if(path==='/admin/tokens')return send({tokens:pairs.flatMap(p=>[p.token0,p.token1]),source:'fixture'})
-   if(path==='/admin/deployments')return send({deployments:[],nextCursor:null})
+   if(path==='/admin/deployments'||path==='/deployments')return send({deployments:[],nextCursor:null})
+   if(path==='/positions')return send({positions:[]})
+   if(path==='/admin/portfolio-capacity')return send({campaigns:[]})
+   if(path==='/payments')return send({payments:[]})
    unexpected.push(req.method+' '+path);return send({error:'Unexpected fixture read'},404)
   }
   let filename=resolve(dist,decodeURIComponent(pathname.slice(base.length)).replace(/^\//,''))
@@ -69,7 +72,7 @@ server.listen(0,'127.0.0.1');await once(server,'listening');origin='http://127.0
 await mkdir(output,{recursive:true})
 const browser=await chromium.launch({headless:true}),context=await browser.newContext({viewport:{width:1440,height:1100}}),page=await context.newPage()
 page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(12000)
-await context.exposeFunction('campaignFixtureWallet',async({method,params})=>{
+await context.exposeFunction('programFixtureWallet',async({method,params})=>{
  walletMethods.push(method)
  if(['eth_accounts','eth_requestAccounts'].includes(method))return [wallet]
  if(method==='eth_chainId')return '0x1237'
@@ -77,8 +80,8 @@ await context.exposeFunction('campaignFixtureWallet',async({method,params})=>{
  throw Error('Wallet write forbidden in campaign UI fixture: '+method)
 })
 await context.addInitScript(()=>{
- const provider={request:args=>window.campaignFixtureWallet(args),on(){},removeListener(){}}
- const announce=()=>window.dispatchEvent(new CustomEvent('eip6963:announceProvider',{detail:{info:{uuid:'campaign-fixture',name:'Campaign fixture wallet',rdns:'test.campaign',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>'},provider}}))
+ const provider={request:args=>window.programFixtureWallet(args),on(){},removeListener(){}}
+ const announce=()=>window.dispatchEvent(new CustomEvent('eip6963:announceProvider',{detail:{info:{uuid:'campaign-fixture',name:'Program fixture wallet',rdns:'test.campaign',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>'},provider}}))
  localStorage.setItem('saffron.incentives.selected-wallet-rdns','test.campaign')
  window.addEventListener('eip6963:requestProvider',announce)
 })
@@ -87,67 +90,97 @@ await context.addInitScript(()=>{
 async function layout(label,width){
  await page.setViewportSize({width,height:1100})
  await page.evaluate(()=>{for(const d of document.querySelectorAll('main details'))d.open=true})
- const metrics=await page.evaluate(()=>({viewport:innerWidth,pageWidth:document.documentElement.scrollWidth,table:document.querySelector('table[aria-label="Campaign configuration"]')?getComputedStyle(document.querySelector('table[aria-label="Campaign configuration"] tbody tr')).display:null}))
+ const metrics=await page.evaluate(()=>({viewport:innerWidth,pageWidth:document.documentElement.scrollWidth,table:document.querySelector('table[aria-label="Incentive program configuration"]')?getComputedStyle(document.querySelector('table[aria-label="Incentive program configuration"] tbody tr')).display:null}))
  assert(metrics.pageWidth<=width,JSON.stringify({label,...metrics}))
  for(const input of await page.locator('main input:visible,main select:visible').all()){
   const r=await input.boundingBox();assert(r.x>=0&&r.x+r.width<=width+1,JSON.stringify({label,input:r,width}))
  }
  layouts.push({label,...metrics});await page.screenshot({path:resolve(output,label+'-'+width+'.png'),fullPage:true})
 }
+/** Audit rendered text plus accessible copy on each actual route. Raw legacy
+ * IDs may exist in data attributes/wire fixtures but never in display copy. */
+async function language(){
+ const text=await page.locator('body').innerText()
+ const labels=await page.locator('[aria-label],[title],[placeholder]').evaluateAll(nodes=>nodes.map(n=>['aria-label','title','placeholder'].map(a=>n.getAttribute(a)||'').join(' ')).join(' '))
+ assert(!/campaign/i.test(text+' '+labels),'Old terminology in '+page.url())
+}
+const ref=id=>id.replace(/^campaign-/,'program-')
+const openFirst=async()=>{const button=page.getByRole('button',{name:'Open incentive program '+ref(programs[0].id)});await button.focus();await page.keyboard.press('Enter');await expect(page.getByRole('region',{name:'Incentive program details'})).toBeVisible()}
 try{
- await page.goto(origin+base+'/campaigns')
- await expect(page.getByRole('table',{name:'Campaign configuration'})).toBeVisible()
+ await page.goto(origin+base+'/campaigns?retained=yes')
+ await expect(page).toHaveURL(origin+base+'/incentive-programs?retained=yes')
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toBeVisible()
  assert.equal(writes.length,0)
- await expect(page.getByRole('form',{name:'Create campaign'})).toHaveCount(0)
- const first=page.locator('[data-program-id="'+programs[0].id+'"]')
- await expect(first.getByText(programs[0].id,{exact:true})).toBeVisible()
- await first.getByLabel('Request fee ETH for '+programs[0].id).fill('0.123456789012345678')
+ await expect(page.getByRole('form',{name:'Create incentive program'})).toHaveCount(0)
+ for(const width of [1440,1024,768,390,320])await layout('directory',width)
+ await language()
+ await page.getByRole('searchbox',{name:'Find a program'}).fill('7 days')
+ await expect(page.getByRole('list',{name:'Incentive programs'}).getByRole('listitem')).toHaveCount(1)
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toContainText('Paused')
+ await page.getByRole('searchbox',{name:'Find a program'}).fill(ref(programs[0].id))
+ await expect(page.getByRole('list',{name:'Incentive programs'}).getByRole('listitem')).toHaveCount(1)
+ await page.getByRole('searchbox',{name:'Find a program'}).fill('')
+ await openFirst()
+ await page.reload();await expect(page.getByRole('region',{name:'Incentive program details'})).toBeVisible()
+ const first=page.getByRole('region',{name:'Incentive program details'})
+ await expect(first.getByText(ref(programs[0].id),{exact:true})).toBeVisible()
+ await first.getByLabel('Request fee ETH for '+ref(programs[0].id)).fill('0.123456789012345678')
  await first.getByRole('button',{name:'Save request fee'}).click()
- await expect(page.getByRole('status').filter({hasText:'Campaign configuration saved.'})).toBeVisible()
- assert.equal(writes[0].body.requestFeeWei,'123456789012345678')
- await first.getByRole('button',{name:'Pause campaign'}).click();await expect(first.getByRole('button',{name:'Resume campaign'})).toBeVisible()
- await page.getByText('Funding & accounting',{exact:true}).click()
+ await expect(page.getByRole('status').filter({hasText:'Incentive program configuration saved.'})).toBeVisible()
+ assert.equal(writes[0].body.requestFeeWei,'123456789012345678');assert.equal(writes[0].body.id,programs[0].id)
+ await first.getByRole('button',{name:'Pause incentive program'}).click();await expect(first.getByRole('button',{name:'Resume incentive program'})).toBeVisible()
+ await page.evaluate(()=>{for(const d of document.querySelectorAll('main details'))d.open=true})
  const accounting=page.locator('[data-accounting-budget-id="budget-1"]')
  await expect(accounting.getByLabel('Funding highlights')).toContainText('$1,234.56')
  for(const [name,value]of [['LP requests','3'],['Average LP size','$433.34'],['Maximum LP size','$900.00'],['Total LP requested','$1,300.01'],['Average premium request','$4.37'],['Maximum premium request','$9.07'],['Total premium requested','$13.10']])await expect(accounting.locator('[data-accounting-metric="'+name+'"] td').first()).toHaveText(value)
- await expect(page.locator('[data-accounting-budget-id="budget-2"] [data-accounting-metric="Average LP size"] td').first()).toHaveText('—')
- missingStatistics=true;await page.getByRole('button',{name:'Reload campaigns'}).click()
+ missingStatistics=true;await page.getByRole('button',{name:'Reload incentive programs'}).click()
  await expect(accounting.locator('[data-accounting-metric="LP requests"] td').first()).toHaveText('Unavailable')
- missingStatistics=false;await page.getByRole('button',{name:'Reload campaigns'}).click()
+ missingStatistics=false;await page.getByRole('button',{name:'Reload incentive programs'}).click()
  await expect(accounting.locator('[data-accounting-metric="LP requests"] td').first()).toHaveText('3')
- for(const width of [1440,1024,768,390,320]){
-  await layout('manager',width)
-  await accounting.screenshot({path:resolve(output,'funding-'+width+'.png')})
- }
+ for(const width of [1440,1024,768,390,320])await layout('program-detail',width)
+ await language()
+ await page.getByRole('button',{name:'All incentive programs'}).click()
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toBeVisible()
+ await page.evaluate(()=>{for(const d of document.querySelectorAll('main details'))d.open=true})
+ await expect(page.locator('[data-accounting-budget-id="budget-2"] [data-accounting-metric="Average LP size"] td').first()).toHaveText('—')
  await page.getByRole('button',{name:'Add pair',exact:true}).click();await expect(page.getByRole('form',{name:'Add pair'})).toBeVisible();await layout('pair-expanded',320)
  await page.getByRole('button',{name:'Close pair form'}).click()
- const newButton=page.getByRole('button',{name:'New campaign',exact:true})
- await newButton.focus();await page.keyboard.press('Enter')
- await expect(page).toHaveURL(origin+base+'/campaigns/new')
- await expect(page.getByRole('heading',{name:'Create campaign',exact:true})).toBeVisible()
- await expect(page.getByRole('table',{name:'Campaign configuration'})).toHaveCount(0)
- await expect(page.getByRole('form',{name:'Create campaign'})).toBeVisible()
- await page.reload();await expect(page.getByRole('form',{name:'Create campaign'})).toBeVisible()
- await expect(page).toHaveTitle('Create campaign · Saffron')
+ await page.getByRole('button',{name:'New incentive program',exact:true}).click()
+ await expect(page).toHaveURL(origin+base+'/incentive-programs/new')
+ await expect(page.getByRole('heading',{name:'Create incentive program',exact:true})).toBeVisible()
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toHaveCount(0)
+ await expect(page.getByRole('form',{name:'Create incentive program'})).toBeVisible()
+ await page.reload();await expect(page.getByRole('form',{name:'Create incentive program'})).toBeVisible()
+ await expect(page).toHaveTitle('Create incentive program · Saffron')
  for(const width of [1440,768,390,320])await layout('create',width)
- await page.getByLabel('Campaign request fee ETH').fill('0.000000000000000001')
- await page.getByLabel('Calculate campaign field').selectOption('budget')
- await expect(page.getByLabel('Campaign budget USD')).toHaveAttribute('readonly','')
- await page.getByRole('button',{name:'Create campaign',exact:true}).click()
- await expect(page).toHaveURL(origin+base+'/campaigns')
- await expect(page.getByRole('table',{name:'Campaign configuration'})).toBeVisible()
+ await language()
+ await page.getByLabel('Incentive program request fee ETH').fill('0.000000000000000001')
+ await page.getByLabel('Calculate incentive program field').selectOption('budget')
+ await expect(page.getByLabel('Incentive program budget USD')).toHaveAttribute('readonly','')
+ await page.getByRole('button',{name:'Create incentive program',exact:true}).click()
+ await expect(page).toHaveURL(origin+base+'/incentive-programs')
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toBeVisible()
  const creation=writes.find(w=>w.path==='/admin/campaigns').body
  assert.equal(creation.requestFeeWei,'1');assert.equal(creation.active,false);assert(!('budgetUsd' in creation))
- await page.goBack();await expect(page).toHaveURL(origin+base+'/campaigns/new');await expect(page.getByRole('form',{name:'Create campaign'})).toBeVisible()
- await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page).toHaveURL(origin+base+'/campaigns')
- await expect(page.getByRole('table',{name:'Campaign configuration'})).toBeVisible()
- failCatalog=true;await page.getByRole('button',{name:'Reload campaigns'}).click();await expect(page.getByRole('alert').filter({hasText:'Fixture catalog unavailable'})).toBeVisible()
- await expect(page.getByLabel('Request fee ETH for '+programs[0].id)).toBeDisabled()
- failCatalog=false;await page.getByRole('button',{name:'Reload campaigns'}).click();await expect(page.getByLabel('Request fee ETH for '+programs[0].id)).toBeEnabled()
- await page.goto(origin+base+'/admin');await expect(page.getByRole('button',{name:'New campaign',exact:true})).toBeVisible()
- await page.getByRole('button',{name:'New campaign',exact:true}).click();await expect(page).toHaveURL(origin+base+'/campaigns/new')
+ await page.goBack();await expect(page).toHaveURL(origin+base+'/incentive-programs/new');await expect(page.getByRole('form',{name:'Create incentive program'})).toBeVisible()
+ await page.getByRole('button',{name:'Cancel',exact:true}).click();await expect(page).toHaveURL(origin+base+'/incentive-programs')
+ await openFirst()
+ failCatalog=true;await page.getByRole('button',{name:'Reload incentive programs'}).click();await expect(page.getByRole('alert').filter({hasText:'Fixture catalog unavailable'})).toBeVisible()
+ await expect(page.getByLabel('Request fee ETH for '+ref(programs[0].id))).toBeDisabled()
+ failCatalog=false;await page.getByRole('button',{name:'Reload incentive programs'}).click();await expect(page.getByLabel('Request fee ETH for '+ref(programs[0].id))).toBeEnabled()
+ for(const route of ['/','/admin','/status','/journey','/portfolio/vaults']){
+  await page.goto(origin+base+route);await page.waitForLoadState('networkidle');await language();await layout('route-'+(route.split('/').at(-1)||'home'),390)
+ }
+ await page.goto(origin+base+'/admin');await expect(page.getByRole('button',{name:'Incentive programs',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'Incentive programs',exact:true}).click();await page.getByRole('button',{name:'Load incentive catalog',exact:true}).click()
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toBeVisible();await language();await layout('admin-tab',1440);await layout('admin-tab',320)
+ await page.getByRole('button',{name:'New incentive program',exact:true}).first().click();await expect(page).toHaveURL(origin+base+'/incentive-programs/new')
+ await page.goto(origin+base+'/campaigns/new?keep=yes#review');await expect(page).toHaveURL(origin+base+'/incentive-programs/new?keep=yes#review')
+ await expect(page.getByRole('form',{name:'Create incentive program'})).toBeVisible();await language()
+ await page.goto(origin+base+'/?view=campaigns&keep=yes');await expect(page).toHaveURL(origin+base+'/incentive-programs?keep=yes')
+ await expect(page.getByRole('list',{name:'Incentive programs'})).toBeVisible()
  assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);assert.equal(writes.length,3)
- const report={ok:true,release:marker.release,layouts,checks:['exact fee edit','pause budget','no inline creation','keyboard navigation','nested deep-link reload','browser history','admin new-campaign link','expanded pair form','failed reload disables stale settings','historical request statistics','edited planning value','missing statistics stay unknown','empty statistics stay empty'],fixtureWrites:writes.map(w=>w.path),walletTransactions:0,productionWrites:0,errors}
+ const report={ok:true,release:marker.release,layouts,checks:['card directory and selected program','search and disabled programs','exact fee edit and canonical IDs','pause budget','separate creation and exact payload','keyboard navigation','new and legacy routes with query/hash','program deep-link reload','browser history','admin tab parity','expanded pair form','failed reload disables stale settings','unchanged request statistics','all-route visible and accessible terminology'],fixtureWrites:writes.map(w=>w.path),walletTransactions:0,productionWrites:0,errors}
  await writeFile(resolve(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report))
 }catch(e){await writeFile(resolve(output,'failure.json'),JSON.stringify({errors,unexpected,writes,layouts},null,2));await page.screenshot({path:resolve(output,'failure.png'),fullPage:true});throw e}
 finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r))}

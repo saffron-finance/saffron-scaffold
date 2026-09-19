@@ -19,7 +19,7 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy}:{accou
   useEffect(()=>onBusy(busy),[busy,onBusy])
   if(position)return <VaultLifecyclePanel account={account} id={id} onBusy={onBusy} row={row} verificationError={status.error}/>
   const reason=status.error?'verification_unavailable':progress?.reason
-  const label=row?.refund?statusLabel(row.refund.state):reason==='queued'?'Your request is queued':reason==='awaiting_funding'?'Awaiting campaign funding':reason==='operator_review'?'Waiting for operator review'
+  const label=row?.refund?statusLabel(row.refund.state):reason==='queued'?'Your request is queued':reason==='awaiting_funding'?'Awaiting incentive program funding':reason==='operator_review'?'Waiting for operator review'
     :reason==='verification_unavailable'?'Verification temporarily unavailable':reason==='ready'?(row?.state==='occupied'?'Fixed side occupied':'Your vault is ready')
     :reason?.startsWith('payment_')?statusLabel(reason.slice(8)):reason==='retired'?'Historical request':reason==='retirement_requested'?'Needs operator attention'
     :progress?.activeStage===1?'Preparing your vault':progress?.activeStage===2?'Creating your vault':progress?.activeStage===3?'Checking your vault':'Loading your request…'
@@ -32,7 +32,7 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy}:{accou
     </li>)}</Stages>}
     {progress?.lastProgressAt&&<FinePrint>Last verified progress: {new Date(progress.lastProgressAt).toLocaleString()}{progress.observedBlock?' · block '+progress.observedBlock.number:''}.</FinePrint>}
     {progress?.serviceWindowMinutes&&<FinePrint>Operator service window: {progress.serviceWindowMinutes} minutes. This is an operational window; funding and chain confirmations may take longer.</FinePrint>}
-    {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The campaign operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
+    {reason==='awaiting_funding'&&<FinePrint>Your vault has been created. The incentive program operator must fund the entire premium before you can deposit LP assets.</FinePrint>}
     {progress?.operatorAction&&!row?.refund&&<FinePrint>The operator is reviewing this saved request. Do not submit another creation payment.</FinePrint>}
     {status.error&&<ErrorText role='alert'>The last known request is shown. Verification is unavailable and new actions are paused.</ErrorText>}
     {error&&<ErrorText role='alert'>{error}</ErrorText>}

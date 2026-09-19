@@ -29,7 +29,7 @@
 <div id="clock-note" class="meta" hidden>Time was advanced for this test. Use Start fresh test to try another checkout from the beginning.</div>
 <div class="meta">Source <code id="source-commit">checking</code> · Separate PostgreSQL, creator and treasury · One shared testing session</div>
 <details><summary>Test walkthrough and session state</summary>
-<ol><li>Connect the test wallet; request a $100 vault and pay the campaign’s fixed fee in test ETH.</li><li>Watch adapter → vault → initialization. Creation uses the request-pinned runner.</li><li>Use “Fund halfway”; entry should remain unavailable. Then “Finish funding”.</li><li>Deposit LP assets, wrap/approve as prompted, and claim the premium.</li><li>Use “Advance to maturity”, then withdraw LP assets in the app.</li></ol>
+<ol><li>Connect the test wallet; request a $100 vault and pay the incentive program’s fixed fee in test ETH.</li><li>Watch adapter → vault → initialization. Creation uses the request-pinned runner.</li><li>Use “Fund halfway”; entry should remain unavailable. Then “Finish funding”.</li><li>Deposit LP assets, wrap/approve as prompted, and claim the premium.</li><li>Use “Advance to maturity”, then withdraw LP assets in the app.</li></ol>
 <p>Advancing time affects only this local chain. Use Start fresh test for another checkout cycle. Closing this tab does not stop the session; Reopen test browser restores an accidentally closed app window.</p>
 <pre id="state"></pre></details>
 </header>
@@ -61,7 +61,7 @@ function describe(data){
  const labels={completed:'Completed — LP assets withdrawn. Your test session is preserved.',
   matured:'Ready to withdraw LP assets in the app.',active:'Position active — waiting for maturity.',
   claimable:'Premium is ready to claim in the app.',depositable:'Funding complete — deposit LP assets in the app.',
-  awaiting_funding:'Awaiting campaign funding.',fixed_awaiting_funding:'LP deposit confirmed — awaiting campaign funding.',
+  awaiting_funding:'Awaiting incentive program funding.',fixed_awaiting_funding:'LP deposit confirmed — awaiting incentive program funding.',
   checking:'Checking the latest position state…',queued:'Deployment queued.',deploying:'Creating vault…',
   no_position:'No position currently held by this test wallet.',occupied:'Fixed side occupied.',
   needs_attention:'This request needs operator attention.',retired:'Request retired.',retirement_requested:'Retirement requested.'};

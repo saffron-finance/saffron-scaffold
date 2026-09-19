@@ -95,7 +95,7 @@ export function AppShell({ account, chainId, onConnect, children, overlays, live
     {overlays}
     {menu && <HeaderDialog title='Saffron' menu onClose={() => setMenu(false)}>
       <MenuGroup aria-label='Explore'><GroupLabel>Explore</GroupLabel>{destinations.filter(item => !['Administration','Status','Journey Guide'].includes(item.label)).map(menuLink)}</MenuGroup>
-      <MenuGroup aria-label='Operator workspace'><GroupLabel>Operator workspace</GroupLabel>{menuLink({label:'Campaigns',href:'/campaigns'})}{destinations.filter(item => ['Administration','Status','Journey Guide'].includes(item.label)).map(menuLink)}</MenuGroup>
+      <MenuGroup aria-label='Operator workspace'><GroupLabel>Operator workspace</GroupLabel>{menuLink({label:'Incentive programs',href:'/incentive-programs'})}{destinations.filter(item => ['Administration','Status','Journey Guide'].includes(item.label)).map(menuLink)}</MenuGroup>
       <MenuGroup aria-label='Resources'><GroupLabel>Resources</GroupLabel><ResourceLink href={`${mount}install.html`}>Source & installation<span aria-hidden='true'>↗</span></ResourceLink>{labHref && <ResourceLink href={labHref}>Feature Lab<span aria-hidden='true'>↗</span></ResourceLink>}</MenuGroup>
     </HeaderDialog>}
     {network && <Modal isOpen contentLabel='Select network' overlayStyle={{backgroundColor:'transparent'}} onRequestClose={() => setNetwork(false)} shouldCloseOnOverlayClick={!switching}

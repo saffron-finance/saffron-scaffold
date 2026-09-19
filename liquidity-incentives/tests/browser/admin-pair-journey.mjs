@@ -1,6 +1,9 @@
 /** Shared browser journey for standalone and merged UIs. All API reads and
  * operator signatures hit the disposable server and real local EVM. */
 export async function exercisePairPicker(page,fixture,expect){
+  // Pair maintenance is independent of the selected incentive program.
+  const section=page.locator('details').filter({has:page.getByRole('heading',{name:'Pair management',exact:true})})
+  if(await section.count()&&(await section.getAttribute('open'))===null)await section.locator('summary').click()
   const before=(await fixture.database.catalog(true)).pairs.length
   await page.getByRole('button',{name:'Add pair',exact:true}).click()
   const form=page.getByRole('form',{name:'Add pair',exact:true})

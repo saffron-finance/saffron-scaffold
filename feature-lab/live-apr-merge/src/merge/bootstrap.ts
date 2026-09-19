@@ -43,7 +43,7 @@ function row(offer:Offer,isNew:boolean):DocumentFragment {
   fragment.querySelector('[data-incentive-apr]')!.textContent=offer.apr.toLocaleString('en-US',{maximumFractionDigits:2})+'%'
   fragment.querySelector('[data-incentive-duration]')!.textContent=offer.days+' days'
   const tvl=fragment.querySelector<HTMLElement>('[data-incentive-tvl]')!
-  tvl.title=offer.vaultTvl?.status==='available'?'Confirmed LP principal in campaign vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')
+  tvl.title=offer.vaultTvl?.status==='available'?'Confirmed LP principal in incentive program vaults':'Vault TVL '+(offer.vaultTvl?.status??'unavailable')
   tvl.textContent=offer.vaultTvl?.status==='available'&&offer.vaultTvl.usdRaw!==null?'$'+(Number(offer.vaultTvl.usdRaw)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}):'—'
   fillTokens(fragment,offer)
   return fragment
