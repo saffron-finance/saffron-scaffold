@@ -42,6 +42,25 @@ await context.addInitScript(()=>{
  window.addEventListener('eip6963:requestProvider',()=>window.dispatchEvent(new CustomEvent('eip6963:announceProvider',{detail:{info:{uuid:'deposit-fixture',rdns:'test.deposit',name:'Deposit fixture wallet',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>'},provider}})))
 })
 const modal=page.locator('[data-incentive-modal]'),invalidate=()=>page.evaluate(()=>window.dispatchEvent(new Event('saffron:vault-updated')))
+/** Prove actual browser paint, not just a class name. Disabled controls keep
+ * their native gate and dimmed appearance; keyboard focus stays visible. */
+async function purpleDeposit(button,disabled=false){
+ await expect(button).toHaveAttribute('data-incentive-primary-action','')
+ const paint=await button.evaluate(node=>{const s=getComputedStyle(node);return {background:s.backgroundImage,opacity:s.opacity}})
+ assert.match(paint.background,/radial-gradient/);assert.match(paint.background,/linear-gradient/)
+ assert.match(paint.background,/210, 134, 255/)
+ if(disabled){
+  await expect(button).toBeDisabled()
+  // The shared button animates opacity; assert its settled disabled state.
+  await expect.poll(()=>button.evaluate(node=>getComputedStyle(node).opacity)).toBe('0.5')
+ }
+ else{
+  await expect(button).toBeEnabled();await button.hover()
+  assert.equal(await button.evaluate(node=>getComputedStyle(node).backgroundImage),paint.background)
+  await page.mouse.move(0,0);await page.keyboard.press('Tab');await button.focus()
+  assert.equal(await button.evaluate(node=>getComputedStyle(node).outlineStyle),'solid')
+ }
+}
 try{
  await page.goto('http://127.0.0.1:'+server.address().port+base+'/portfolio/vaults')
  await page.locator('[data-deployment-id="'+row.id+'"]').getByRole('button',{name:'View vault'}).click()
@@ -54,11 +73,20 @@ try{
  }
  await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);await page.locator('[data-deployment-id="'+row.id+'"]').getByRole('button',{name:'View vault'}).click();await expect(modal.getByRole('status')).toHaveText('Verifying vault')
  row={...row,state:'ready',depositable:true,progress:{...row.progress,reason:'ready'}};await invalidate();await expect(modal.getByRole('button',{name:'Deposit LP assets'})).toBeEnabled();await expect(modal.locator('[data-request-spinner]')).toHaveAttribute('data-spinning','false')
+ await purpleDeposit(modal.getByRole('button',{name:'Deposit LP assets'}))
+ await modal.screenshot({path:resolve(output,'deposit-ready-desktop.png')})
+ await page.setViewportSize({width:390,height:1050});await modal.screenshot({path:resolve(output,'deposit-ready-mobile.png')})
  unavailable=true;await invalidate();await expect(modal.getByRole('status')).toHaveText('Verification temporarily unavailable');await expect(modal.getByRole('button',{name:'Deposit LP assets'})).toBeDisabled()
+ await purpleDeposit(modal.getByRole('button',{name:'Deposit LP assets'}),true)
  await modal.locator('[data-deployment-transactions] summary').click()
  for(const width of [1440,390,320]){await page.setViewportSize({width,height:1050});assert(await modal.evaluate(node=>node.scrollWidth<=node.clientWidth))}
+ await page.keyboard.press('Escape');await expect(modal).toHaveCount(0)
+ const portfolio=page.locator('[data-deployment-id="'+row.id+'"]')
+ await purpleDeposit(portfolio.getByRole('button',{name:'Deposit',exact:true}))
+ assert(await portfolio.evaluate(node=>node.scrollWidth<=node.clientWidth))
+ await page.setViewportSize({width:1440,height:1050});await portfolio.screenshot({path:resolve(output,'deposit-portfolio.png')})
  assert.deepEqual(writes,[]);assert.deepEqual(unknown,[]);assert.deepEqual(errors,[])
- const report={ok:true,release:marker.release,compiledApplication:true,phases,portfolioResume:true,staleReadGate:true,widths:[1440,390,320],walletMethods,walletTransactions:0,productionWrites:0,errors}
+ const report={ok:true,release:marker.release,compiledApplication:true,phases,portfolioResume:true,staleReadGate:true,purpleDeposits:true,hoverAndKeyboardFocus:true,disabledOpacity:true,widths:[1440,390,320],walletMethods,walletTransactions:0,productionWrites:0,errors}
  await writeFile(resolve(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report))
 }catch(error){await page.screenshot({path:resolve(output,'failure.png'),fullPage:true});throw error}
 finally{await browser.close();await new Promise(resolve=>server.close(resolve))}

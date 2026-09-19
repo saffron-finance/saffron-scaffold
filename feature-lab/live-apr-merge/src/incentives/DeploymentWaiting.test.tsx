@@ -29,11 +29,13 @@ it('retains confirmed transaction links and service-window evidence',()=>{
 it('does not enable LP entry while fresh verification is unavailable',()=>{
  status.data.depositable=true;status.data.progress.reason='ready';status.error='Status unavailable';show()
  expect(screen.getByRole('status')).toHaveTextContent('Verification temporarily unavailable')
- expect(screen.getByRole('button',{name:'Deposit LP assets'})).toBeDisabled();expect(screen.getByRole('alert')).toHaveTextContent('new actions are paused')
+ const button=screen.getByRole('button',{name:'Deposit LP assets'})
+ expect(button).toHaveAttribute('data-incentive-primary-action');expect(button).toBeDisabled();fireEvent.click(button);expect(onPosition).not.toHaveBeenCalled();expect(screen.getByRole('alert')).toHaveTextContent('new actions are paused')
 })
 it('requires an explicit click before opening ready position actions',()=>{
  status.data.depositable=true;status.data.progress.reason='ready';show()
- expect(status.position).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Deposit LP assets'}));expect(onPosition).toHaveBeenCalledOnce()
+ const button=screen.getByRole('button',{name:'Deposit LP assets'})
+ expect(button).toHaveAttribute('data-incentive-primary-action');expect(status.position).not.toHaveBeenCalled();fireEvent.click(button);expect(onPosition).toHaveBeenCalledOnce()
 })
 it('preserves exact refund evidence without describing a stopped request as being created',()=>{
  status.data.refund={state:'refunded',amountWei:'4000000000000001',verifiedWei:'4000000000000001'};show()

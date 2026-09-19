@@ -5,10 +5,12 @@ import styled,{keyframes} from 'styled-components'
 import { useDeploymentStatus } from '../host/useDeploymentStatus'
 import { VaultLifecyclePanel } from './VaultLifecyclePanel'
 import { statusLabel,type Deployment } from './model'
-import { Action,Disclosure,ErrorText,FinePrint,QuietButton,Stack } from './styles'
+import { Action,PrimaryAction,Disclosure,ErrorText,FinePrint,QuietButton,Stack } from './styles'
 
 export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeployment}:{account:Address;id:string;position:boolean;onPosition:()=>void;onBusy:(busy:boolean)=>void;onDeployment?:(row:Deployment)=>void}){
   const status=useDeploymentStatus(account,id),row=status.data,progress=row?.progress
+  // Match the deposit flow's primary treatment without changing view-only actions.
+  const PositionAction=row?.depositable?PrimaryAction:Action
   useEffect(()=>{if(!position)onBusy(false)},[position,onBusy])
   useEffect(()=>{if(row)onDeployment?.(row)},[row,onDeployment])
   if(position)return <VaultLifecyclePanel account={account} id={id} onBusy={onBusy} row={row} verificationError={status.error}/>
@@ -26,7 +28,7 @@ export function DeploymentWaiting({account,id,position,onPosition,onBusy,onDeplo
     </RequestPending>
     {progress?.paymentState==='sample'&&<FinePrint>Sample request progress · no onchain transactions.</FinePrint>}
     {status.error&&<ErrorText role='alert'>The last known request is shown. Verification is unavailable and new actions are paused.</ErrorText>}
-    {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<Action disabled={Boolean(status.error)} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</Action>}
+    {row&&(row.depositable||row.canClaim||row.canWithdraw||row.canRecover)&&<PositionAction disabled={Boolean(status.error)} onClick={onPosition}>{row.depositable?'Deposit LP assets':'View position'}</PositionAction>}
     {/* Always available, even before the first transaction, so manual refresh
         and status evidence are not lost when the journal is initially empty. */}
     <Disclosure data-deployment-transactions><summary>Deployment transactions</summary><TransactionDetails>
