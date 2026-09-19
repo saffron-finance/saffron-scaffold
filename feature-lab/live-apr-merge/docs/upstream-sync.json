@@ -27,8 +27,7 @@
     "src/incentives/TokenPicker.tsx": "59d1da1db72d4b5844b7a2274f58237be8523ad168349e82dd9a31ba9baa8485",
     "src/incentives/PairEditor.tsx": "ff30a3ea7aa365b2e69dfc3e6b1a38aaac57dd7331cb5cc8a0b926ffcb55b5aa",
     "src/incentives/ConfigurationWarnings.tsx": "8c03982b448817ffac010c52241df05090142621e6d8c72865a451d6df87b889",
-    "src/host/useAdminHealth.ts": "dde7f2303a18c306c2de9cb64aa17b58966ffc375322c5b18123973b1bf9af50",
-    "src/incentives/operator-styles.ts": "1ca215a77d1c2176766d8f1a5b2f6442e018f7794bc7ed00d3bda29d50fb9fbb",
+    "src/host/useAdminHealth.ts": "5ccfa222d373e29555aa8bac41af62f8f441502396b6851d7970f56842e66318",
     "src/incentives/OperatorWalletCheck.tsx": "293a1b9388fa3acdf06cb4aeb069c878aad614267950b48e2e05715c463f7a05"
   },
   "adaptedFiles": [
@@ -50,12 +49,19 @@
     "src/adapters/wallet/wallet.ts",
     "src/host/useDeployments.ts",
     "src/host/transport.ts",
-    "src/host/usePollingResource.ts"
+    "src/host/usePollingResource.ts",
+    "src/incentives/RefundAdmin.tsx",
+    "src/incentives/operator-styles.ts",
+    "src/incentives/admin-workspace-styles.ts"
   ],
-  "frontendRelease": "0.8.0",
-  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md. Version 0.8.10 separates portfolio/session/payment reads and coordinates durable wallet recovery across tabs. See docs/wallet-recovery-isolation.md. Test integration records two previously stale exact-file entries as reviewed local adaptations: selected-session/coalesced read transport and visibility/mutation-aware polling. Their current browser bytes are pinned separately from canonical backend UI.",
+  "frontendRelease": "0.8.35",
+  "adaptationNotes": "Frontend-only evolution: adaptedFiles intentionally differ from the historical backend UI. Remaining exactFiles retain their original shared/wallet pins. Server implementation is not part of this update. Version 0.8.7 adapts the selected-wallet transport with bounded read-only requests and revocable preflight; wallet writes retain zero retries. See docs/wallet-preflight.md. Version 0.8.10 separates portfolio/session/payment reads and coordinates durable wallet recovery across tabs. See docs/wallet-recovery-isolation.md. Test integration records two previously stale exact-file entries as reviewed local adaptations: selected-session/coalesced read transport and visibility/mutation-aware polling. Their current browser bytes are pinned separately from canonical backend UI. P3 Program workspace and R1 Guided review intentionally adapt merged-app browser presentation; standalone backend and UI are unchanged. See docs/admin-workspace.md. Pin maintenance also records unchanged, previously published health-copy normalization (95c75a4) and typed wallet-expiry/error-copy handling (cbe3b9d, 95c75a4); no transport or health code changes in this release.",
   "adaptedHashes": {
-    "src/host/transport.ts": "67bc1200c793b65ae9b0b502a4b2a3ba48c81a3cc6e719d8cbca55ebb2b93e97",
-    "src/host/usePollingResource.ts": "e0807ceee01d05e04eb1d5c8c805be32c9e4b36e515e35d403910b038ac498ed"
+    "src/host/transport.ts": "2c80e4ee9c3977bf43acb70df9fe9c592da6fcef2180b591dc0c2e047096716a",
+    "src/host/usePollingResource.ts": "e0807ceee01d05e04eb1d5c8c805be32c9e4b36e515e35d403910b038ac498ed",
+    "src/incentives/ProgramAdmin.tsx": "7e6dfe962676228b510de1b23a407951b7f093d3de51f36b0656215b12e42edf",
+    "src/incentives/RefundAdmin.tsx": "c8bc3a6326281854f89cbf7132236c2b006cfb2a651a3f8f9d47d255c3a68693",
+    "src/incentives/operator-styles.ts": "bd8b88bc85531fe0a38686643684b51e77ad85f4cd9cef78f194f189f7415ae4",
+    "src/incentives/admin-workspace-styles.ts": "af1862f6cb490455b0e5339406d01e41c3cad4876d7239ddde31dfe89bb9129d"
   }
 }

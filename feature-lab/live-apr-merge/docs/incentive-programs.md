@@ -1,6 +1,6 @@
 # Incentive programs
 
-The application and Server Admin use the same program directory pattern: search, two-column summary cards, and one selected program at a time. Disabled and paused programs remain visible. Cards show pair, duration, APR, exact ETH request fee, status, and program reference. Server Admin owns readiness checklists; the application owns configuration and funding/accounting.
+The application uses the P3 program workspace: a persistent searchable navigator alongside one selected program. Server Admin retains its independent directory and readiness checklists; both surfaces use the same Incentive programs terminology and full program references. Disabled and paused programs remain visible. Cards show pair, duration, APR, exact ETH request fee, status, and program reference. Server Admin owns readiness checklists; the application owns configuration and funding/accounting.
 
 ## Pages and navigation
 
@@ -22,3 +22,5 @@ Server prose is translated at display boundaries only; no recursive response rew
 Tests were written before implementation. The UI suite covers program search/selection, full identities, exact fees, dirty revision conflicts, failed reads, removed programs, and creation retries with the original idempotency key. The compiled browser fixture covers new/old routes, query/hash preservation, all app pages, the embedded admin tab, expanded disclosures, and 320–1440px layouts, with zero production transactions.
 
 Run `npm test`, then build and run `npm run test:incentive-programs` in the merged frontend. Use the separately managed API's own non-chain compatibility checks; this UI refactor does not authorize starting a local test chain.
+
+The selected P3 program workspace and R1 refund workflow are described in [Admin workspace](admin-workspace.md).
